@@ -1,0 +1,630 @@
+const { chromium } = require('playwright');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const DIST = path.join(__dirname, 'dist');
+const MIME = {'.html':'text/html','.js':'application/javascript','.png':'image/png','.webmanifest':'application/manifest+json','.css':'text/css'};
+
+const server = http.createServer((req,res)=>{
+  let p = req.url.split('?')[0];
+  if(p==='/') p='/index.html';
+  const f = path.join(DIST, decodeURIComponent(p));
+  if(!f.startsWith(DIST) || !fs.existsSync(f)){ res.writeHead(404); res.end('nf'); return; }
+  res.writeHead(200, {'Content-Type': MIME[path.extname(f)]||'application/octet-stream'});
+  res.end(fs.readFileSync(f));
+});
+
+const errors = [];
+const fails = [];
+function check(name, cond, extra){
+  if(cond) console.log('  PASS  ' + name);
+  else { console.log('  FAIL  ' + name + (extra? ' :: '+extra : '')); fails.push(name); }
+}
+
+// synthetic 45 days of data
+function seed(){
+  const entries = {};
+  const today = new Date();
+  for(let i=44;i>=0;i--){
+    const d = new Date(today); d.setDate(d.getDate()-i);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const trend = i/44;
+    const alc = (i%5===0)?2:0;
+    entries[key] = {
+      hf: Math.max(0, Math.round(6*trend + (i%3) + (((i+1)%5===0)?3:0))),
+      ns: (i%4===0)?3:1,
+      inBedH: 8, sleepH: 6.1 + (i%3)*0.4,
+      sym: {sleepq:(i%4===0)?3:1, mood: i>30?3:1, anx:2, fog:1, joint:2, dry: i<20?3:1, uri:1, energy:2, head:0, palp:0, itch:1, libido:2},
+      wt: 76 - (44-i)*0.03,
+      waist: 92 - (44-i)*0.02,
+      act: {res: (i%4===0), aero: (i%2===0)?30:0, pf:(i%3===0)},
+      nut: {prot:(i%3!==0), alc: alc, caf:2, cal:(i%2===0)},
+      bleed: i===40 ? 'moderate' : 'none',
+      notes: i===3 ? 'Bad night, woke twice.' : ''
+    };
+  }
+  return {
+    v:1,
+    profile:{name:'Test', birthYear:1974, region:'us', units:'imperial', lastPeriod:'', uterus:'intact',
+             bone:'unknown', proteinGpk:1.2, weightGoal:null, waistGoal:null, theme:'auto', stage:null, onboarded:true},
+    entries, screening:{}, scores:[{date:'2026-07-20',type:'phq9',score:11,band:'moderate'}], trigger:null,
+    meta:{created:'2026-06-01'}
+  };
+}
+
+(async()=>{
+  await new Promise(r=>server.listen(8099, r));
+  const browser = await chromium.launch({executablePath:'/opt/pw-browsers/chromium', args:['--no-sandbox']});
+  const ctx = await browser.newContext({viewport:{width:390,height:844}, deviceScaleFactor:2});
+  const page = await ctx.newPage();
+  page.on('console', m=>{ if(m.type()==='error') errors.push(m.text()); });
+  page.on('pageerror', e=>errors.push('PAGEERROR: '+e.message));
+
+  console.log('\n== 1. First run / onboarding ==');
+  await page.goto('http://localhost:8099/index.html');
+  await page.waitForTimeout(400);
+  check('onboarding shown', await page.locator('text=Meno Compass').first().isVisible());
+  check('tabs hidden on onboarding', !(await page.locator('nav.tabs').isVisible()));
+  await page.fill('#ob-n','Tia');
+  await page.fill('#ob-y','1974');
+  await page.selectOption('#ob-u','imperial');
+  await page.click('[data-act="ob-done"]');
+  await page.waitForTimeout(600);
+  check('staging quiz auto-opens', await page.locator('.sheet').isVisible());
+  check('quiz question 1 present', (await page.locator('.sheet h3').first().innerText()).includes('old'));
+
+  console.log('\n== 2. Staging quiz — surgical combinations ==');
+
+  async function runQuiz(answers){
+    // close anything already open, then reopen the quiz from the You tab
+    while(await page.locator('.sheet').count()){
+      await page.locator('[data-act="close"]').first().click();
+      await page.waitForTimeout(180);
+    }
+    await page.evaluate(()=>{ stageAns={}; stageStep=0; DB.profile.stage=null; save(true); });
+    await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+    await page.click('[data-act="sheet"][data-s="learn:stage"]'); await page.waitForTimeout(300);
+    const restart = page.locator('[data-act="stage-restart"]');
+    if(await restart.count()){ await restart.first().click(); await page.waitForTimeout(250); }
+    for(const a of answers){
+      const row = page.locator('.sheet .row', {hasText:a});
+      if(!(await row.count())) return {error:'no option matching: '+a, seen:await page.locator('.sheet').innerText()};
+      await row.first().click();
+      await page.waitForTimeout(140);
+    }
+    const txt = await page.locator('.sheet').innerText();
+    const label = (await page.locator('.sheet .callout .ctitle').first().innerText().catch(()=>''));
+    return {txt, label};
+  }
+  async function closeQuiz(){
+    const c = page.locator('[data-act="close"]');
+    if(await c.count()) { await c.first().click(); await page.waitForTimeout(200); }
+  }
+
+  // --- A. hysterectomy, both ovaries kept: must NOT be called menopause,
+  //        and must not ask about periods ---
+  let r = await runQuiz(['45–54','Yes — I have had a hysterectomy','No — both ovaries are still there','1–5 years ago','Occasionally']);
+  check('A: hysterectomy+ovaries-kept path completes', !r.error, r.error||'');
+  check('A: explicitly says this is not menopause', /this is not menopause/i.test(r.txt||''));
+  check('A: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
+  check('A: explains ovaries carry on working', /carry on producing hormones/i.test(r.txt||''));
+  check('A: flags the cervix / cervical screening question', /cervical screening/i.test(r.txt||''));
+  check('A: says no progestogen needed', /not need a progestogen/i.test(r.txt||''));
+  check('A: flags unexpected bleeding after hysterectomy', /bleeding after a hysterectomy is unexpected/i.test(r.txt||''));
+  check('A: cites the 3-month staging rule', /3 months after surgery/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- B. hysterectomy AND both ovaries removed: surgical menopause,
+  //        oestrogen-only, still no period questions ---
+  r = await runQuiz(['45–54','Yes — I have had a hysterectomy','Both were removed','1–5 years ago','Often, and they bother me']);
+  check('B: both-removed path completes', !r.error, r.error||'');
+  check('B: identified as surgical menopause', /surgical menopause/i.test(r.txt||''));
+  check('B: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
+  check('B: recommends therapy until ~52', /around 52/.test(r.txt||''));
+  check('B: oestrogen-only, no progestogen', /progestogen is not needed/i.test(r.txt||''));
+  check('B: testosterone-after-oophorectomy note', /testosterone/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- C. ovaries removed but uterus KEPT: surgical menopause that still
+  //        needs endometrial protection ---
+  r = await runQuiz(['45–54','No — my uterus is still there','Both were removed','1–5 years ago','No']);
+  check('C: ovaries-removed-uterus-kept completes', !r.error, r.error||'');
+  check('C: identified as surgical menopause', /surgical menopause/i.test(r.txt||''));
+  check('C: says a progestogen IS needed', /you also need a progestogen/i.test(r.txt||''));
+  check('C: cites the endometrial cancer figure', /48 extra endometrial/i.test(r.txt||''));
+  check('C: skipped the contraception and cycle questions', !/describes your periods/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- D. fresh surgery: 3-month warning ---
+  r = await runQuiz(['45–54','Yes — I have had a hysterectomy','Both were removed','Less than 3 months ago','Often, and they bother me']);
+  check('D: post-op window warning fires', /less than 3 months post-op/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- E. ablation: uterus present, bleeding unreadable ---
+  r = await runQuiz(['45–54','I have had an endometrial ablation','No — both ovaries are still there','1–5 years ago','Occasionally']);
+  check('E: ablation path completes', !r.error, r.error||'');
+  check('E: says ablation does not cause menopause', /does not cause menopause/i.test(r.txt||''));
+  check('E: still needs a progestogen', /still need a progestogen/i.test(r.txt||''));
+  check('E: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- F. unsure what was removed ---
+  r = await runQuiz(['45–54',"I'm not sure what was removed","I'm not sure",'1–5 years ago','Occasionally']);
+  check('F: unsure path completes', !r.error, r.error||'');
+  check('F: routes to getting the surgical record', /surgical record|surgical notes/i.test(r.txt||''));
+  check('F: lays out the three combinations', /Uterus removed, ovaries kept/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- G. contraception masking periods ---
+  r = await runQuiz(['45–54','No — my uterus is still there','No — both ovaries are still there','Yes','Occasionally']);
+  check('G: contraception path completes', !r.error, r.error||'');
+  check('G: identified as masked by contraception', /masked by contraception/i.test(r.txt||''));
+  check('G: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- H. one ovary removed, uterus intact: ordinary staging still applies ---
+  r = await runQuiz(['45–54','No — my uterus is still there','One was removed','1–5 years ago','No','Cycle length varies by a week or more between periods','Occasionally']);
+  check('H: one-ovary path completes', !r.error, r.error||'');
+  check('H: still stages normally', /Early menopausal transition/i.test(r.txt||''));
+  check('H: adds the single-ovary note', /one ovary/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- I. under 40 with a hysterectomy: POI path with the missing-criterion note ---
+  r = await runQuiz(['Under 40','Yes — I have had a hysterectomy','No — both ovaries are still there','1–5 years ago','Often, and they bother me']);
+  check('I: under-40 routes to assessment', /premature menopause/i.test(r.txt||''));
+  check('I: notes the missing bleeding criterion', /extra wrinkle/i.test(r.txt||''));
+  await closeQuiz();
+
+  // --- J. ordinary path, and the back button re-routes on a changed answer ---
+  r = await runQuiz(['45–54','No — my uterus is still there','No — both ovaries are still there','No','I have skipped periods — gaps of 60 days or more','Often, and they bother me']);
+  check('J: ordinary staging completes', /Late menopausal transition/i.test(r.txt||''), r.label||'');
+  check('J: FSH caveat shown', /not routinely use FSH/i.test(r.txt||''));
+  await closeQuiz();
+
+  console.log('\n== 2b. Profile reflects the split fields ==');
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(300);
+  check('profile has a separate uterus field', (await page.locator('#ut').count())===1);
+  check('profile has a separate ovaries field', (await page.locator('#ov').count())===1);
+  await page.selectOption('#ut','intact'); await page.waitForTimeout(200);
+  await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
+  check('last-period field shown when periods are possible', (await page.locator('#lp').count())===1);
+  await page.selectOption('#ut','hyst'); await page.waitForTimeout(350);
+  check('last-period field replaced by surgery date after hysterectomy', (await page.locator('#lp').count())===0 && (await page.locator('#sd').count())===1);
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  check('Today relabels the bleeding row after hysterectomy', /Any vaginal bleeding or spotting/.test(await page.locator('#app').innerText()));
+  check('Today explains why bleeding matters after hysterectomy', /unexpected/i.test(await page.locator('#app').innerText()));
+
+  console.log('\n== 2c. Treatment module personalises endometrial protection ==');
+  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await page.locator('.row', {hasText:'Treatment options'}).click(); await page.waitForTimeout(350);
+  check('no-uterus: progestogen section marked not applicable', /does not apply to you/i.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.selectOption('#ut','ablation'); await page.waitForTimeout(300);
+  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await page.locator('.row', {hasText:'Treatment options'}).click(); await page.waitForTimeout(350);
+  check('ablation: progestogen still required', /still need a progestogen/i.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
+
+  console.log('\n== 2d. Insights respect surgical history ==');
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.selectOption('#ut','hyst'); await page.waitForTimeout(200);
+  await page.selectOption('#ov','both'); await page.waitForTimeout(300);
+  await page.evaluate(()=>{
+    const iso = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const t=new Date();
+    for(let i=0;i<12;i++){ const d=new Date(t); d.setDate(d.getDate()-i);
+      const k=iso(d); DB.entries[k]=DB.entries[k]||{sym:{},act:{},nut:{}}; DB.entries[k].hf=3; }
+    DB.profile.lastPeriod = (()=>{const d=new Date(t); d.setDate(d.getDate()-900); return iso(d);})();
+    save(true); render();
+  });
+  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
+  let ins = await page.locator('#app').innerText();
+  check('surgical menopause: no months-since-period counter', !/months since your last logged period/i.test(ins));
+  check('surgical menopause: explains why that count does not apply', /does not apply/i.test(ins));
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
+  await page.evaluate(()=>{
+    const iso = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const k = iso(new Date());
+    DB.entries[k].bleed='light'; save(true); render();
+  });
+  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
+  ins = await page.locator('#app').innerText();
+  check('post-hysterectomy bleeding gets its own alert', /you have had a hysterectomy/i.test(ins));
+  check('post-hysterectomy alert does not use the 12-month framing', !/Bleeding after 12\+ months/i.test(ins));
+  // restore an ordinary profile for the rest of the suite
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.selectOption('#ut','intact'); await page.waitForTimeout(200);
+  await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
+  await page.evaluate(()=>{ DB.profile.lastPeriod=''; DB.entries={}; save(true); render(); });
+
+  console.log('\n== 3. Today check-in interactions ==');
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  check('today tab active', (await page.locator('nav.tabs button[aria-current="page"] span').innerText())==='Today');
+  await page.click('[data-act="hf"][data-n="1"]');
+  await page.click('[data-act="hf"][data-n="1"]');
+  await page.click('[data-act="hf"][data-n="1"]');
+  await page.waitForTimeout(200);
+  check('hot flash stepper increments', (await page.locator('.stepper .val').innerText())==='3');
+  await page.click('[data-act="hf"][data-n="-1"]');
+  await page.waitForTimeout(150);
+  check('stepper decrements', (await page.locator('.stepper .val').innerText())==='2');
+  await page.locator('[data-act="set"][data-k="ns"][data-v="2"]').click();
+  await page.waitForTimeout(200);
+  check('night sweat scale sets', (await page.locator('[data-act="set"][data-k="ns"][data-v="2"]').getAttribute('aria-pressed'))==='true');
+  await page.fill('#inbed','8');
+  await page.fill('#slept','6');
+  await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(150);
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(250);
+  check('sleep efficiency computed & persisted', (await page.locator('#app').innerText()).includes('75%'));
+  await page.locator('[data-act="set"][data-k="sym.mood"][data-v="3"]').click();
+  await page.locator('[data-act="set"][data-k="sym.anx"][data-v="2"]').click();
+  await page.locator('[data-act="set"][data-k="sym.fog"][data-v="2"]').click();
+  await page.locator('[data-act="set"][data-k="sym.joint"][data-v="1"]').click();
+  await page.waitForTimeout(200);
+  check('burden score withheld on a partial day', !(await page.locator('#app').innerText()).includes("burden score"));
+  for(const k of ['dry','uri','energy','head']){
+    await page.locator(`[data-act="set"][data-k="sym.${k}"][data-v="1"]`).click();
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(200);
+  check('burden score appears once 8 symptoms filled', (await page.locator('#app').innerText()).includes("burden score"));
+  check('burden score published without a severity band', !/mild range|moderate range|severe range/.test(await page.locator('#app').innerText()));
+  await page.fill('#wt','168');
+  await page.fill('#wa','36');
+  await page.waitForTimeout(200);
+  await page.locator('[data-act="toggle"][data-k="act.res"]').click();
+  await page.fill('#aero','35');
+  await page.fill('#alc','1');
+  await page.fill('#notes','test note');
+  await page.waitForTimeout(300);
+  // reload to confirm persistence
+  await page.reload(); await page.waitForTimeout(500);
+  const todayTxt = await page.locator('#app').innerText();
+  check('data persisted across reload (weight)', (await page.inputValue('#wt'))==='168');
+  check('data persisted across reload (notes)', (await page.inputValue('#notes'))==='test note');
+  check('strength chip persisted', (await page.locator('[data-act="toggle"][data-k="act.res"]').getAttribute('aria-pressed'))==='true');
+
+  console.log('\n== 4. Past-day editing ==');
+  const dayBtns = page.locator('.dayscroll button');
+  await dayBtns.nth(10).click(); await page.waitForTimeout(250);
+  check('editing-past-day notice', (await page.locator('#app').innerText()).includes('editing a past day'));
+  await page.click('[data-act="hf"][data-n="1"]'); await page.waitForTimeout(150);
+  await dayBtns.nth(13).click(); await page.waitForTimeout(250);
+  check('back to today', !(await page.locator('#app').innerText()).includes('editing a past day'));
+
+  console.log('\n== 5. Seeded 45 days -> trends & insights ==');
+  await page.addInitScript(d=>{ try{ localStorage.setItem('menocompass.v1', JSON.stringify(d)); }catch(e){} }, seed());
+  await page.goto('http://localhost:8099/index.html'); await page.waitForTimeout(500);
+  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
+  const tr = await page.locator('#app').innerText();
+  check('tiles render', /flashes\/day/i.test(tr));
+  check('charts render', (await page.locator('svg.chart').count())>=4, 'count='+(await page.locator('svg.chart').count()));
+  check('insights render', (await page.locator('.callout').count())>=3);
+  check('strength insight present', /Strength training/.test(tr));
+  check('alcohol pattern insight honest wording', /not proof of cause/.test(tr) || /personal pattern/.test(tr));
+  check('vaginal symptom insight fires', /progressive/.test(tr));
+  for(const n of [7,30,90]){
+    await page.locator(`[data-act="range"][data-v="${n}"]`).click(); await page.waitForTimeout(300);
+    check('range '+n+' renders', (await page.locator('svg.chart').count())>=1);
+  }
+  await page.locator('[data-act="range"][data-v="30"]').click(); await page.waitForTimeout(250);
+  await page.screenshot({path:'shot-trends.png', fullPage:false});
+
+  console.log('\n== 6. Learn library: every module opens ==');
+  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(300);
+  const modules = await page.locator('.rows .row').count();
+  check('all 15 modules listed', modules===15, 'got '+modules);
+  for(let i=0;i<modules;i++){
+    await page.locator('.rows .row').nth(i).click();
+    await page.waitForTimeout(220);
+    const vis = await page.locator('.sheet').isVisible();
+    const len = (await page.locator('.sheet').innerText()).length;
+    check('module '+i+' opens with content', vis && len>120, 'len='+len);
+    // open first two accordions if present
+    const accs = page.locator('.sheet details.acc');
+    const na = await accs.count();
+    for(let j=0;j<Math.min(na,3);j++){ await accs.nth(j).locator('summary').click(); await page.waitForTimeout(60); }
+    await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+  }
+
+  console.log('\n== 7. Symptom library sub-sheets ==');
+  await page.locator('.rows .row', {hasText:'Symptom library'}).click(); await page.waitForTimeout(250);
+  const symCount = await page.locator('.sheet .rows .row').count();
+  check('9 symptom cards', symCount===9, 'got '+symCount);
+  for(let i=0;i<symCount;i++){
+    await page.locator('.sheet .rows .row').nth(i).click(); await page.waitForTimeout(180);
+    check('symptom '+i+' content', (await page.locator('.sheet').innerText()).length>300);
+    await page.click('[data-act="close"]'); await page.waitForTimeout(120);
+  }
+  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
+
+  console.log('\n== 8. Tools ==');
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(300);
+  const toolNames = ['Protein calculator','PHQ-9 mood check','GAD-7 anxiety check','Sleep window calculator','Paced breathing','Progressive muscle relaxation','Two-week trigger test','Waist reference'];
+  for(const t of toolNames){
+    await page.locator('.row', {hasText:t}).first().click(); await page.waitForTimeout(250);
+    check('tool opens: '+t, (await page.locator('.sheet').innerText()).length>150);
+    await page.click('[data-act="close"]'); await page.waitForTimeout(120);
+  }
+
+  console.log('\n== 9. Protein calculator math ==');
+  await page.locator('.row', {hasText:'Protein calculator'}).first().click(); await page.waitForTimeout(250);
+  await page.fill('#ptw','150');
+  await page.waitForTimeout(200);
+  const pOut = await page.locator('#prot-out').innerText();
+  // 150 lb = 68.04 kg * 1.2 = 81.6 -> 82
+  check('protein grams correct for 150lb @1.2', /82/.test(pOut), pOut.replace(/\n/g,' '));
+  await page.selectOption('#ptg','1.6'); await page.waitForTimeout(250);
+  const pOut2 = await page.locator('#prot-out').innerText();
+  check('protein grams correct @1.6', /109/.test(pOut2), pOut2.replace(/\n/g,' '));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 10. PHQ-9 scoring + safety branch ==');
+  await page.locator('.row', {hasText:'PHQ-9'}).first().click(); await page.waitForTimeout(250);
+  for(let i=0;i<9;i++){
+    await page.locator(`[data-act="q-a"][data-i="${i}"][data-v="2"]`).click();
+    await page.waitForTimeout(70);
+  }
+  await page.waitForTimeout(200);
+  const phq = await page.locator('.sheet').innerText();
+  check('PHQ-9 total = 18', /Score: 18 of 27/.test(phq), (phq.match(/Score: \d+ of \d+/)||[''])[0]);
+  check('PHQ-9 band severe range label', /moderately severe/.test(phq));
+  check('item 9 safety callout fires', /988/.test(phq));
+  check('measurement caveat present', /also score points/.test(phq));
+  await page.click('[data-act="q-save"]'); await page.waitForTimeout(300);
+  check('score saved to history', /your history/i.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 11. Sleep window calculator ==');
+  await page.locator('.row', {hasText:'Sleep window'}).first().click(); await page.waitForTimeout(300);
+  const sw = await page.locator('.sheet').innerText();
+  check('uses logged sleep average', /actual sleep/i.test(sw), sw.slice(0,240).replace(/\n/g,' '));
+  check('bedtime computed', /Earliest bedtime/.test(sw));
+  await page.fill('#swk','05:30'); await page.waitForTimeout(250);
+  check('bedtime recomputes on wake change', /Earliest bedtime: 2[0-3]:/.test(await page.locator('#sw-out').innerText()), await page.locator('#sw-out').innerText());
+  check('contraindication warning', /bipolar/i.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 12. Breathing + PMR animations ==');
+  await page.locator('.row', {hasText:'Paced breathing'}).first().click(); await page.waitForTimeout(250);
+  check('breathing warns it is not for hot flashes', /NOT recommended for hot flashes/.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="breath-start"]'); await page.waitForTimeout(700);
+  check('breath cycle starts', /Breathe/.test(await page.locator('#breath-word').innerText()));
+  await page.click('[data-act="breath-stop"]'); await page.waitForTimeout(200);
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+  await page.locator('.row', {hasText:'Progressive muscle'}).first().click(); await page.waitForTimeout(250);
+  await page.click('[data-act="pmr-start"]'); await page.waitForTimeout(400);
+  check('PMR first step shows', (await page.locator('#pmr-title').innerText())==='Settle');
+  await page.click('[data-act="pmr-stop"]'); await page.waitForTimeout(150);
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 13. Trigger test lifecycle ==');
+  await page.locator('.row', {hasText:'Two-week trigger'}).first().click(); await page.waitForTimeout(250);
+  check('trigger tool leads with the honest caveat', /no clinical trials/.test(await page.locator('.sheet').innerText()));
+  await page.selectOption('#trig','Alcohol');
+  await page.click('[data-act="trig-start"]'); await page.waitForTimeout(300);
+  const tg = await page.locator('.sheet').innerText();
+  check('trigger test running', /Test running/.test(tg));
+  check('baseline computed from prior 14 days', /before/i.test(tg));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  check('trigger banner on Today', /Trigger test day/.test(await page.locator('#app').innerText()));
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(200);
+  await page.locator('.row', {hasText:'Two-week trigger'}).first().click(); await page.waitForTimeout(250);
+  await page.click('[data-act="trig-stop"]'); await page.waitForTimeout(250);
+  check('trigger test ends', /no clinical trials/.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 14. Screening tracker ==');
+  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await page.locator('.row', {hasText:'Preventive care'}).click(); await page.waitForTimeout(250);
+  await page.locator('.sheet details.acc summary').first().click(); await page.waitForTimeout(150);
+  await page.fill('#sc-dxa','2025-03-14'); await page.waitForTimeout(250);
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+  await page.locator('.row', {hasText:'Preventive care'}).click(); await page.waitForTimeout(250);
+  check('screening date persisted', /mar/i.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 15. Clinician report ==');
+  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(300);
+  await page.click('[data-act="sheet"][data-s="report"]'); await page.waitForTimeout(400);
+  const rep = await page.locator('.sheet').innerText();
+  check('report has symptom summary', /symptom summary/i.test(rep));
+  check('report shows flashes per day', /hot flashes \/ day/i.test(rep));
+  check('report shows burden', /symptom burden/i.test(rep));
+  check('report lists bleeding events', /bleeding logged/i.test(rep));
+  check('report includes notes digest', /recent notes/i.test(rep));
+  check('report includes questionnaire scores', /questionnaire scores/i.test(rep));
+  await page.screenshot({path:'shot-report.png'});
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 16. Export / import round trip ==');
+  await page.click('[data-act="sheet"][data-s="data"]'); await page.waitForTimeout(300);
+  const csv = await page.evaluate(()=>toCSV());
+  check('CSV has header', csv.split('\n')[0].includes('hot_flashes'));
+  check('CSV has ~45 data rows', csv.split('\n').filter(l=>/^\d{4}-/.test(l)).length>=44, csv.split('\n').filter(l=>/^\d{4}-/.test(l)).length);
+  check('CSV includes questionnaire block', /questionnaire_date/.test(csv));
+  const backup = await page.evaluate(()=>JSON.stringify(DB));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
+  await page.evaluate(()=>{ DB.entries={}; save(true); render(); });
+  await page.waitForTimeout(300);
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="sheet"][data-s="data"]'); await page.waitForTimeout(300);
+  await page.fill('#restore', backup);
+  await page.click('[data-act="import-json"]'); await page.waitForTimeout(500);
+  const restored = await page.evaluate(()=>Object.keys(DB.entries).length);
+  check('import restored entries', restored>=45, 'got '+restored);
+  // bad import
+  await page.click('[data-act="sheet"][data-s="data"]'); await page.waitForTimeout(300);
+  await page.fill('#restore','not json');
+  await page.click('[data-act="import-json"]'); await page.waitForTimeout(350);
+  check('bad import rejected gracefully', /not look like a valid backup/.test(await page.locator('body').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
+
+  console.log('\n== 17. Units switch ==');
+  await page.selectOption('#un','metric'); await page.waitForTimeout(400);
+  check('metric labels appear', /kg/.test(await page.locator('#app').innerText()));
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  const wtMetric = await page.inputValue('#wt');
+  check('weight converted to kg', Math.abs(parseFloat(wtMetric)-76)<2.5, wtMetric);
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(200);
+  await page.selectOption('#un','imperial'); await page.waitForTimeout(400);
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  const wtImp = await page.inputValue('#wt');
+  check('weight round-trips to lb', Math.abs(parseFloat(wtImp) - parseFloat(wtMetric)*2.20462) < 0.6, wtImp+' vs '+wtMetric);
+
+  console.log('\n== 18. Bone-status gating ==');
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.selectOption('#bn','osteoporosis'); await page.waitForTimeout(300);
+  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await page.locator('.row', {hasText:'Movement & strength'}).click(); await page.waitForTimeout(300);
+  check('osteoporosis warning gates impact advice', /Skip the high-impact/.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(200);
+  await page.selectOption('#bn','unknown'); await page.waitForTimeout(300);
+  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(200);
+  await page.locator('.row', {hasText:'Movement & strength'}).click(); await page.waitForTimeout(300);
+  check('unknown bone status warning', /have not recorded your bone status/.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 19. Postmenopausal bleeding red flag ==');
+  await page.evaluate(()=>{
+    const iso = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const t=new Date();
+    DB.profile.lastPeriod = (()=>{const d=new Date(t); d.setDate(d.getDate()-500); return iso(d);})();
+    const k = iso(t);
+    DB.entries[k] = DB.entries[k]||{sym:{},act:{},nut:{}};
+    DB.entries[k].bleed='light';
+    save(true);
+  });
+  await page.evaluate(()=>render());
+  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
+  const rf = await page.locator('#app').innerText();
+  check('bleeding red flag insight fires', /Bleeding after 12\+ months/.test(rf));
+  check('red flag cites the 90% figure', /90%/.test(rf));
+  await page.locator('.callout.alert button').first().click(); await page.waitForTimeout(400);
+  check('red flag sheet opens from insight', /need care promptly|Red flags/i.test(await page.locator('.sheet').innerText()));
+  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
+
+  console.log('\n== 20. Theme, dark mode, a11y basics ==');
+  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.selectOption('#th','dark'); await page.waitForTimeout(400);
+  check('dark theme applied', (await page.getAttribute('html','data-theme'))==='dark');
+  await page.screenshot({path:'shot-dark.png'});
+  await page.selectOption('#th','light'); await page.waitForTimeout(300);
+  check('light theme applied', (await page.getAttribute('html','data-theme'))==='light');
+  const noLabel = await page.evaluate(()=>{
+    const bad=[];
+    document.querySelectorAll('input,select,textarea').forEach(el=>{
+      const id=el.id;
+      if(!id || !document.querySelector('label[for="'+id+'"]')) bad.push(el.outerHTML.slice(0,60));
+    });
+    return bad;
+  });
+  check('all form controls have labels', noLabel.length===0, JSON.stringify(noLabel).slice(0,300));
+  const tapTargets = await page.evaluate(()=>{
+    let small=0;
+    document.querySelectorAll('button').forEach(b=>{ const r=b.getBoundingClientRect(); if(r.width>0 && (r.height<40)) small++; });
+    return small;
+  });
+  check('no undersized tap targets', tapTargets===0, 'small='+tapTargets);
+
+  console.log('\n== 21. PWA plumbing ==');
+  const man = await (await ctx.request.get('http://localhost:8099/manifest.webmanifest')).json();
+  check('manifest name', !!man.name);
+  check('manifest standalone', man.display==='standalone');
+  check('manifest has 3 icons', man.icons.length===3);
+  check('manifest maskable icon', man.icons.some(i=>i.purpose==='maskable'));
+  const swReg = await page.evaluate(async()=>{
+    const r = await navigator.serviceWorker.getRegistration();
+    return !!r;
+  });
+  check('service worker registered', swReg);
+  const offline = await page.evaluate(async()=>{
+    const c = await caches.open('meno-compass-v1');
+    const k = await c.keys();
+    return k.length;
+  });
+  check('assets precached', offline>=2, 'cached='+offline);
+  // offline reload
+  await ctx.setOffline(true);
+  await page.reload({waitUntil:'domcontentloaded'}).catch(()=>{});
+  await page.waitForTimeout(600);
+  check('app loads offline', (await page.locator('nav.tabs').count())>0);
+  await ctx.setOffline(false);
+
+  console.log('\n== 22. Storage-blocked fallback ==');
+  const ctx2 = await browser.newContext({viewport:{width:390,height:844}});
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', e=>errors.push('PAGEERROR(nostorage): '+e.message));
+  await p2.addInitScript(()=>{
+    Object.defineProperty(window,'localStorage',{get(){ throw new Error('blocked'); }});
+  });
+  await p2.goto('http://localhost:8099/index.html');
+  await p2.waitForTimeout(500);
+  check('app still boots with storage blocked', await p2.locator('text=Meno Compass').first().isVisible());
+  await p2.click('[data-act="ob-skip"]'); await p2.waitForTimeout(400);
+  await p2.click('[data-act="hf"][data-n="1"]'); await p2.waitForTimeout(250);
+  check('in-memory logging works', (await p2.locator('.stepper .val').innerText())==='1');
+  await p2.click('[data-act="tab"][data-v="you"]'); await p2.waitForTimeout(300);
+  check('ephemeral warning shown to user', /cannot save to disk/.test(await p2.locator('#app').innerText()));
+  await ctx2.close();
+
+  console.log('\n== 23. Empty-state trends ==');
+  const ctx3 = await browser.newContext({viewport:{width:390,height:844}});
+  const p3 = await ctx3.newPage();
+  p3.on('pageerror', e=>errors.push('PAGEERROR(empty): '+e.message));
+  await p3.goto('http://localhost:8099/index.html'); await p3.waitForTimeout(400);
+  await p3.click('[data-act="ob-skip"]'); await p3.waitForTimeout(400);
+  await p3.click('[data-act="tab"][data-v="trends"]'); await p3.waitForTimeout(300);
+  check('empty trends state', /Nothing to chart yet/.test(await p3.locator('#app').innerText()));
+  await p3.click('[data-act="tab"][data-v="learn"]'); await p3.waitForTimeout(250);
+  check('learn works with no data', (await p3.locator('.rows .row').count())===15);
+  await ctx3.close();
+
+  console.log('\n== 23b. Migration of v1 single-field surgical history ==');
+  const ctx4 = await browser.newContext({viewport:{width:390,height:844}});
+  const p4 = await ctx4.newPage();
+  p4.on('pageerror', e=>errors.push('PAGEERROR(migrate): '+e.message));
+  await p4.addInitScript(()=>{
+    localStorage.setItem('menocompass.v1', JSON.stringify({
+      v:1, profile:{name:'Legacy', birthYear:1970, units:'metric', region:'us', uterus:'oophor', onboarded:true},
+      entries:{}, screening:{}, scores:[]
+    }));
+  });
+  await p4.goto('http://localhost:8099/index.html'); await p4.waitForTimeout(500);
+  const mig = await p4.evaluate(()=>({u:DB.profile.uterus, o:DB.profile.ovaries, surg:surgicalMenopause(), per:periodsPossible()}));
+  check('legacy "oophor" maps to uterus intact + both ovaries removed', mig.u==='intact' && mig.o==='both', JSON.stringify(mig));
+  check('legacy record recognised as surgical menopause', mig.surg===true);
+  check('legacy record knows periods are not possible', mig.per===false);
+  const mig2 = await p4.evaluate(()=>{
+    localStorage.setItem('menocompass.v1', JSON.stringify({v:1, profile:{uterus:'both', onboarded:true}, entries:{}, screening:{}, scores:[]}));
+    load(); return {u:DB.profile.uterus, o:DB.profile.ovaries};
+  });
+  check('legacy "both" maps to hysterectomy + both ovaries removed', mig2.u==='hyst' && mig2.o==='both', JSON.stringify(mig2));
+  await ctx4.close();
+
+  console.log('\n== 24. Screenshots ==');
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(400);
+  await page.screenshot({path:'shot-today.png'});
+  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(300);
+  await page.screenshot({path:'shot-learn.png'});
+  await page.locator('.row',{hasText:'Treatment options'}).click(); await page.waitForTimeout(400);
+  await page.locator('.sheet details.acc').nth(3).locator('summary').click(); await page.waitForTimeout(300);
+  await page.screenshot({path:'shot-treatment.png'});
+
+  await browser.close();
+  server.close();
+
+  console.log('\n===== SUMMARY =====');
+  console.log('failures: ' + fails.length);
+  if(fails.length) fails.forEach(f=>console.log('  - '+f));
+  const realErrors = errors.filter(e=>!/favicon|404|manifest/i.test(e));
+  console.log('console/page errors: ' + realErrors.length);
+  realErrors.slice(0,12).forEach(e=>console.log('  ! '+e));
+  process.exit(fails.length || realErrors.length ? 1 : 0);
+})();
