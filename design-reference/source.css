@@ -1,0 +1,124 @@
+:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}
+
+
+  /* ---- Twilight identity (from src/theme/tokens.ts) ---- */
+  :root{
+    --page:#080D0E; --page-ink:#E9F1EE; --page-ink2:#93A8A8; --frame:#05090A;
+    --swatch-stroke:#26383E;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --page:#E8ECEB; --page-ink:#12201F; --page-ink2:#4E605D; --frame:#C6D0CE; --swatch-stroke:#DBE4E2; }
+  }
+  :root[data-theme="light"]{ --page:#E8ECEB; --page-ink:#12201F; --page-ink2:#4E605D; --frame:#C6D0CE; --swatch-stroke:#DBE4E2; }
+  :root[data-theme="dark"]{ --page:#080D0E; --page-ink:#E9F1EE; --page-ink2:#93A8A8; --frame:#05090A; --swatch-stroke:#26383E; }
+
+  *{box-sizing:border-box; margin:0}
+  body{background:var(--page); color:var(--page-ink);
+    font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif; padding:40px 24px 64px}
+  .ui{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums}
+
+  header{max-width:1360px; margin:0 auto 30px}
+  header .tag{display:inline-block; font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:#E8A552; border:1px solid #E8A552; border-radius:999px; padding:4px 12px; margin-bottom:16px}
+  header h1{font-weight:700; font-size:34px; letter-spacing:-.02em; text-wrap:balance}
+  header p{color:var(--page-ink2); font-size:15px; line-height:1.55; max-width:70ch; margin-top:12px}
+  .swatches{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap}
+  .sw{display:flex; align-items:center; gap:7px; font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--page-ink2)}
+  .sw i{width:16px; height:16px; border-radius:4px; border:1px solid var(--swatch-stroke)}
+
+  .row{display:flex; gap:26px; overflow-x:auto; padding:8px 4px 24px; max-width:1360px; margin:0 auto}
+  .slot{flex:0 0 auto}
+  .slot h2{font-family:ui-monospace,Menlo,monospace; font-size:12px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--page-ink2); margin:0 0 10px 6px}
+
+  /* ---- phone: dark is the hero ---- */
+  .phone{width:384px; height:772px; border-radius:46px; border:7px solid var(--frame);
+    overflow:hidden; display:flex; flex-direction:column; position:relative;
+    --paper:#0E1618; --card:#16232A; --hair:#26383E; --ink:#E9F1EE; --ink2:#93A8A8; --ink3:#5C7176;
+    --ember:#E8A552; --sage:#6FB79A; --claret:#E0755F; --btn:#E9F1EE; --btn-label:#0E1618;
+    background:var(--paper); box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .phone.light{ --paper:#F1F4F3; --card:#FFFFFF; --hair:#DBE4E2; --ink:#12201F; --ink2:#4E605D; --ink3:#8A9E9A;
+    --ember:#B26A12; --sage:#3C7B61; --claret:#BB4E37; --btn:#12201F; --btn-label:#F1F4F3; box-shadow:0 30px 80px rgba(0,0,0,.25)}
+  .screen{flex:1; overflow:hidden; padding:18px 20px 0; display:flex; flex-direction:column; gap:15px; color:var(--ink)}
+  .statusbar{display:flex; justify-content:space-between; font-size:12px; font-weight:600; padding:6px 6px 0}
+  .statusbar .mono{color:var(--ink2)}
+
+  .display{font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:700; font-size:29px; line-height:1.16; letter-spacing:-.02em; color:var(--ink)}
+  .h2{font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:600; font-size:21px; letter-spacing:-.02em; color:var(--ink)}
+  .title{font-size:17px; font-weight:500; color:var(--ink)}
+  .sec{font-size:14px; line-height:1.45; color:var(--ink2)}
+  .label{font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--ink2)}
+  .data{font-family:ui-monospace,Menlo,monospace; font-size:14px; color:var(--ink2); font-variant-numeric:tabular-nums}
+
+  .card{background:var(--card); border-radius:10px; border:1px solid var(--hair)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .stack{display:flex; flex-direction:column; gap:15px}
+
+  .tile{padding:12px; min-height:64px; display:flex; flex-direction:column; gap:9px; cursor:pointer; position:relative}
+  .tile .top{display:flex; align-items:center; gap:8px}
+  .tile svg{width:18px; height:18px; stroke:var(--ink2); fill:none; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto}
+  .tile.logged svg{stroke:var(--sage)}
+  .tile.sel{border-color:var(--ember)}
+  .tile.sel::after{content:""; position:absolute; inset:-1px; border-radius:10px; box-shadow:0 0 0 1px var(--ember), 0 0 16px -4px var(--ember); pointer-events:none}
+  .dots{display:flex; gap:8px}
+  .dot{width:12px; height:12px; border-radius:50%; border:1.5px solid var(--ember); background:transparent}
+  .dot.f1{background:color-mix(in srgb, var(--ember) 30%, transparent); border-color:transparent}
+  .dot.f2{background:color-mix(in srgb, var(--ember) 60%, transparent); border-color:transparent}
+  .dot.f3{background:var(--ember); border-color:transparent}
+  .dot.on{transform:scale(1.28)}
+
+  .medrow{display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid var(--hair)}
+  .medrow:last-child{border-bottom:0}
+  .medrow svg{width:20px; height:20px; stroke:var(--ink2); fill:none; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round}
+  .medrow .grow{flex:1; min-width:0}
+  .due{font-family:ui-monospace,Menlo,monospace; font-size:14px; color:var(--ink2)}
+  .due.ok{color:var(--sage)} .due.late{color:var(--claret)}
+  .wk{display:flex; gap:5px; margin-top:7px}
+  .wk i{width:8px; height:8px; border-radius:50%; background:var(--hair)}
+  .wk i.t{background:var(--sage)} .wk i.s{background:var(--claret)}
+
+  .btn{display:flex; align-items:center; justify-content:center; height:52px; border-radius:10px;
+    background:var(--btn); color:var(--btn-label); font-weight:600; font-size:16px; cursor:pointer}
+  .btn.ghost{background:transparent; border:1px solid var(--hair); color:var(--ink)}
+  .quiet{color:var(--ember); font-weight:600; font-size:14px; text-align:center; cursor:pointer}
+
+  .chips{display:flex; gap:8px}
+  .chip{height:32px; padding:0 14px; display:flex; align-items:center; border-radius:10px;
+    border:1px solid var(--hair); font-size:13px; font-weight:600; color:var(--ink2)}
+  .chip.on{border-color:var(--ember); color:var(--ember)}
+
+  .heat{display:grid; grid-template-columns:repeat(12,1fr); gap:4px}
+  .heat i{aspect-ratio:1; border-radius:2px; background:var(--hair)}
+  .heat i.s1{background:color-mix(in srgb, var(--ember) 30%, var(--card))}
+  .heat i.s2{background:color-mix(in srgb, var(--ember) 60%, var(--card))}
+  .heat i.s3{background:var(--ember)}
+
+  .tabbar{display:flex; border-top:1px solid var(--hair); background:var(--card); padding:10px 8px 22px}
+  .tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:10px; font-weight:600; color:var(--ink3)}
+  .tab svg{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round}
+  .tab.on{color:var(--ink)} .tab.on::after{content:""; width:4px; height:4px; border-radius:50%; background:var(--ember)}
+
+  svg.chart .grid{stroke:var(--hair); stroke-width:1}
+  svg.chart .line{stroke:var(--ink); stroke-width:2; fill:none}
+  svg.chart .axis{font-size:9px; fill:var(--ink3); font-family:ui-monospace,Menlo,monospace}
+  svg.chart .dmark{stroke:var(--ember); stroke-width:1.5}
+  svg.chart .dlabel{font-size:9px; fill:var(--ember); font-family:ui-monospace,Menlo,monospace}
+
+  .pagewrap{background:var(--paper); border:1px solid var(--hair); border-radius:10px; padding:12px}
+  /* the printed report stays a light document — a doctor's page is on white paper */
+  .docpage{background:#FFFDF9; color:#1B2A28; border:1px solid #E3DDD2; padding:15px; font-size:10px; line-height:1.45; border-radius:3px}
+  .docpage h4{font-family:"Bricolage Grotesque",serif; font-size:14px; margin-bottom:2px}
+  .docpage .dsub{color:#6E675C; font-size:9px; margin-bottom:9px}
+  .dtable{width:100%; border-collapse:collapse; margin:6px 0}
+  .dtable td,.dtable th{border-top:1px solid #E3DDD2; padding:4px 2px; text-align:left; font-size:9px}
+  .dtable th{color:#6E675C; font-weight:600; text-transform:uppercase; letter-spacing:.05em; font-size:8px}
+  .spark{stroke:#1B2A28; stroke-width:1.5; fill:none}
+  .marker{stroke:#B26A12; stroke-width:1.5}
+  .dheat{display:grid; grid-template-columns:repeat(30,1fr); gap:1.5px; margin:4px 0 9px}
+  .dheat i{aspect-ratio:1; border-radius:1px; background:#EFEAE1}
+  .dheat i.s1{background:#EAD3AE}.dheat i.s2{background:#D9A85C}.dheat i.s3{background:#C6871E}
+
+  .foot{max-width:1360px; margin:8px auto 0; color:var(--page-ink2); font-size:13px; line-height:1.5}
+  .foot .mono{color:var(--page-ink)}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important}}

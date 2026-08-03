@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <title>Meno Compass — menopause tracker &amp; guide</title>
 <meta name="description" content="A private daily tracker and evidence-based reference for perimenopause and menopause: symptoms, sleep, weight, movement, diet, skin, mood and sexual health. No account, no server.">
-<meta name="theme-color" content="#fbf9fa">
+<meta name="theme-color" content="#F1F4F3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Meno Compass">
@@ -18,6 +18,14 @@
    Meno Compass — styles
    Mobile-first, light/dark, no external deps.
    ============================================================ */
+
+@font-face{
+  font-family:"Bricolage Grotesque";
+  src:url("assets/fonts/bricolage-grotesque-latin.woff2") format("woff2");
+  font-style:normal;
+  font-weight:200 800;
+  font-display:swap;
+}
 
 :root {
   --plum-50:#faf6f8; --plum-100:#f3e9ef; --plum-200:#e6d2de;
@@ -35,7 +43,8 @@
   --border-strong:#d6c8d0;
   --text:#2c2229;
   --text-2:#5d5058;
-  --text-3:#867a81;
+  /* Passes WCAG AA for small text on the light surfaces used below. */
+  --text-3:#70636b;
   --accent:var(--plum-600);
   --accent-soft:var(--plum-100);
   --accent-text:var(--plum-700);
@@ -348,7 +357,7 @@ ul.plain li{margin-bottom:5px;font-size:.88rem}
 .kv:last-child{border-bottom:0}
 .kv b{font-weight:680;text-align:right}
 .srcs{font-size:.74rem;color:var(--text-3);line-height:1.6}
-.srcs a{color:var(--text-2)}
+.srcs a{color:var(--accent-text);text-decoration-thickness:.08em;text-underline-offset:.14em}
 .stamp{font-size:.7rem;color:var(--text-3);margin-top:10px;font-style:italic}
 .progress{height:7px;background:var(--surface-3);border-radius:999px;overflow:hidden;margin:6px 0}
 .progress i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .3s}
@@ -371,14 +380,627 @@ html[data-theme="dark"] .dayscroll button[aria-pressed="true"]{color:#1b1119}
   z-index:60;background:var(--text);color:var(--bg);padding:10px 18px;border-radius:999px;
   font-size:.85rem;font-weight:600;box-shadow:var(--shadow-lg);animation:up .2s ease;max-width:90%;text-align:center;
 }
+
+/* ============================================================
+   Twilight redesign — translated from the selected reference
+   ============================================================ */
+:root{
+  --stage:#E8ECEB;
+  --bg:#F1F4F3;
+  --surface:#FFFFFF;
+  --surface-2:#E8ECEB;
+  --surface-3:#DBE4E2;
+  --border:#DBE4E2;
+  --border-strong:#C6D0CE;
+  --text:#12201F;
+  --text-2:#4E605D;
+  --text-3:#596B68;
+  --accent:#B26A12;
+  --accent-soft:#F2E3CC;
+  --accent-text:#8A500B;
+  --ok:#3C7B61;
+  --ok-soft:#E1EEE8;
+  --warn:#9A5B10;
+  --warn-soft:#F2E3CC;
+  --alert:#BB4E37;
+  --alert-soft:#F5E2DE;
+  --info:#4E605D;
+  --info-soft:#FFFFFF;
+  --button-bg:#12201F;
+  --button-label:#F1F4F3;
+  --shadow:none;
+  --shadow-lg:0 30px 80px rgba(0,0,0,.25);
+  --r:10px;
+  --r-sm:10px;
+  --r-lg:20px;
+  --nav-h:78px;
+  --maxw:430px;
+  --ff:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --stage:#080D0E;
+  --bg:#0E1618;
+  --surface:#16232A;
+  --surface-2:#111C20;
+  --surface-3:#1D2E34;
+  --border:#26383E;
+  --border-strong:#3A5056;
+  --text:#E9F1EE;
+  --text-2:#93A8A8;
+  --text-3:#789093;
+  --accent:#E8A552;
+  --accent-soft:#312719;
+  --accent-text:#F2B76D;
+  --ok:#6FB79A;
+  --ok-soft:#173129;
+  --warn:#E8A552;
+  --warn-soft:#312719;
+  --alert:#E0755F;
+  --alert-soft:#351F1C;
+  --info:#93A8A8;
+  --info-soft:#16232A;
+  --button-bg:#E9F1EE;
+  --button-label:#0E1618;
+  --shadow-lg:0 30px 80px rgba(0,0,0,.5);
+}
+
+html[data-theme="light"]{color-scheme:light}
+
+body{
+  background:var(--stage);
+  color:var(--text);
+  font-family:var(--ff);
+  font-size:14px;
+  line-height:1.45;
+  letter-spacing:0;
+  min-height:100vh;
+}
+html,body{scrollbar-width:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
+
+::selection{background:color-mix(in srgb,var(--accent) 38%,transparent)}
+
+h1,h2,h3,h4{font-family:var(--ff);color:var(--text);letter-spacing:-.02em}
+h1{font-size:29px;font-weight:700;line-height:1.16}
+h2{font-size:21px;font-weight:600;line-height:1.2}
+h3{font-size:17px;font-weight:500;line-height:1.25}
+h4{font-size:15px;font-weight:600;line-height:1.25}
+p{margin:0 0:.8em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:10px}
+
+#app{
+  max-width:var(--maxw);
+  min-height:calc(100vh - 104px);
+  margin:0 auto;
+  padding:0 0 calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
+  background:var(--bg);
+}
+
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:40;
+  max-width:var(--maxw);
+  min-height:104px;
+  margin:0 auto;
+  padding:22px 20px 14px;
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  background:color-mix(in srgb,var(--bg) 94%,transparent);
+  border:0;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+.top-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.topbar h1{
+  margin:0;
+  font-size:29px;
+  font-weight:700;
+  line-height:1.16;
+  letter-spacing:-.02em;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+}
+.topbar .sub{
+  display:block;
+  order:2;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:11px;
+  font-weight:600;
+  line-height:1.2;
+  letter-spacing:.09em;
+  color:var(--text-2);
+}
+.urgent-btn,.close-btn{
+  flex:0 0 auto;
+  min-height:40px;
+  padding:0 11px;
+  border:1px solid var(--border-strong);
+  border-radius:10px;
+  background:transparent;
+  color:var(--text-2);
+  font:600 11px/1 var(--ff);
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.urgent-btn{margin-top:2px;color:var(--alert);border-color:color-mix(in srgb,var(--alert) 55%,var(--border))}
+
+.view{
+  padding:0 20px 32px;
+  background:var(--bg);
+  animation:fade .18s ease;
+}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+nav.tabs{
+  position:fixed;
+  left:50%;
+  right:auto;
+  bottom:0;
+  width:min(100%,var(--maxw));
+  transform:translateX(-50%);
+  z-index:50;
+  padding:0 8px env(safe-area-inset-bottom);
+  background:color-mix(in srgb,var(--surface) 96%,transparent);
+  border-top:1px solid var(--border);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+nav.tabs .inner{max-width:none}
+nav.tabs button{
+  position:relative;
+  height:var(--nav-h);
+  min-height:48px;
+  padding:9px 2px 13px;
+  gap:5px;
+  color:var(--text-2);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:0;
+}
+nav.tabs button svg{
+  width:22px;
+  height:22px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.75;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+nav.tabs button[aria-current="page"]{color:var(--text)}
+nav.tabs button[aria-current="page"]::after{
+  content:"";
+  position:absolute;
+  bottom:7px;
+  width:4px;
+  height:4px;
+  border-radius:50%;
+  background:var(--accent);
+}
+
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:14px;
+  margin:0 0 12px;
+  box-shadow:none;
+}
+.card.tight{padding:12px}
+.card.flat{background:var(--surface-2);box-shadow:none}
+.card-head{gap:8px;margin-bottom:10px}
+.title-with-icon{display:inline-flex;align-items:center;gap:8px}
+.title-with-icon svg{
+  width:18px;
+  height:18px;
+  fill:none;
+  stroke:var(--text-2);
+  stroke-width:1.75;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.section-label{
+  margin:20px 0 9px;
+  color:var(--text-2);
+  font-size:11px;
+  font-weight:600;
+  line-height:1.2;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+.day-label{margin-top:5px}
+.muted{color:var(--text-2)}
+.tiny{font-size:13px;line-height:1.5}
+.xtiny{font-size:11px;line-height:1.45;color:var(--text-2)}
+hr.sep{margin:14px 0;border-color:var(--border)}
+
+.btn{
+  min-height:52px;
+  padding:0 16px;
+  border:1px solid var(--border-strong);
+  border-radius:10px;
+  background:var(--button-bg);
+  color:var(--button-label);
+  font-size:15px;
+  font-weight:600;
+  box-shadow:none;
+}
+.btn.primary{background:var(--button-bg);border-color:var(--button-bg);color:var(--button-label)}
+html[data-theme="dark"] .btn.primary{color:var(--button-label)}
+.btn.ghost{background:transparent;border-color:var(--border-strong);color:var(--text)}
+.btn.sm{min-height:40px;padding:0 13px;font-size:13px}
+.btn.danger{background:transparent;color:var(--alert);border-color:var(--alert)}
+.btn-row{gap:8px}
+
+label.fl{margin:0 0 7px;font-size:13px;font-weight:600;color:var(--text)}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  min-height:46px;
+  padding:11px 12px;
+  border:1px solid var(--border-strong);
+  border-radius:10px;
+  background:var(--surface);
+  color:var(--text);
+  font:14px/1.3 var(--ff);
+  accent-color:var(--accent);
+}
+textarea{min-height:92px;line-height:1.45}
+.field{margin-bottom:14px}
+.grid2{gap:10px}
+
+.stepper{gap:12px}
+.stepper .val{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:30px;
+  font-weight:600;
+  color:var(--text);
+}
+.stepper button{
+  width:46px;
+  height:46px;
+  border:1px solid var(--border-strong);
+  border-radius:10px;
+  background:transparent;
+  color:var(--text);
+}
+.flash-card:has([data-k="hf"][data-v="0"]:focus-visible),
+.flash-card:has(.stepper button:focus-visible){border-color:var(--accent)}
+
+.checkin-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:12px;
+}
+.checkin-grid .card{
+  min-height:154px;
+  margin:0;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+}
+.checkin-grid .card.sel{
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent),0 0 16px -4px var(--accent);
+}
+.checkin-grid .card-head{margin-bottom:8px}
+.checkin-grid h3,.checkin-grid label.fl{font-size:13px;font-weight:600}
+.checkin-grid .title-with-icon{align-items:flex-start}
+.checkin-grid .title-with-icon svg{flex:0 0 auto}
+.flash-card .stepper{gap:5px;margin:auto 0}
+.flash-card .stepper button{width:40px;height:40px}
+.flash-card .stepper .val{font-size:24px}
+.flash-card .btn-row{gap:5px!important;margin-top:8px!important;flex-wrap:nowrap}
+.flash-card .btn.sm{min-width:0;min-height:40px;padding:0 7px;font-size:11px}
+.night-card .scale{margin:auto 0 0}
+.night-card .scale-legend{margin-bottom:1px}
+
+.scale{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:0;
+  width:100%;
+}
+.scale button.scale-choice{
+  flex:1 1 0;
+  min-width:30px;
+  min-height:40px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--text-2);
+}
+.scale button.scale-choice[aria-pressed="true"]{background:transparent;color:var(--accent)}
+.scale-dot{
+  width:12px;
+  height:12px;
+  display:block;
+  border:1.5px solid var(--accent);
+  border-radius:50%;
+  background:transparent;
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.scale-dot.fill-1{background:color-mix(in srgb,var(--accent) 25%,transparent);border-color:transparent}
+.scale-dot.fill-2{background:color-mix(in srgb,var(--accent) 50%,transparent);border-color:transparent}
+.scale-dot.fill-3{background:color-mix(in srgb,var(--accent) 75%,transparent);border-color:transparent}
+.scale-dot.fill-4{background:var(--accent);border-color:transparent}
+.scale-dot.on{
+  transform:scale(1.28);
+  box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--accent);
+}
+.scale-legend{margin-top:1px}
+.scale-legend span{font-size:10px;color:var(--text-2)}
+
+.symptom-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:12px;
+}
+.symptom-tile{
+  position:relative;
+  min-height:92px;
+  margin:0;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+}
+.symptom-tile.sel{
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent),0 0 16px -4px var(--accent);
+}
+.symptom-name{min-height:18px;line-height:1.3}
+.symptom-title{display:flex;align-items:flex-start;gap:8px}
+.symptom-title>span{flex:1;min-width:0}
+.symptom-title svg{
+  width:18px;
+  height:18px;
+  flex:0 0 auto;
+  fill:none;
+  stroke:var(--text-2);
+  stroke-width:1.75;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.symptom-tile.sel .symptom-title svg{stroke:var(--accent)}
+.symptom-tile .scale{margin-top:auto}
+.symptom-tile .scale-legend{display:none}
+.burden-card{margin-top:2px}
+
+.chips{gap:8px}
+.chip{
+  min-height:40px;
+  height:auto;
+  padding:7px 13px;
+  border:1px solid var(--border-strong);
+  border-radius:10px;
+  background:transparent;
+  color:var(--text-2);
+  font-size:13px;
+  font-weight:600;
+}
+.chip[aria-pressed="true"]{
+  background:transparent;
+  border-color:var(--accent);
+  color:var(--accent-text);
+  box-shadow:inset 0 0 0 1px var(--accent);
+}
+
+.badge{
+  padding:3px 8px;
+  border:1px solid var(--border);
+  border-radius:7px;
+  background:transparent;
+  color:var(--text-2);
+  font-size:10px;
+  font-weight:600;
+}
+.badge.accent{border-color:var(--accent);background:transparent;color:var(--accent-text)}
+
+.callout{
+  padding:13px 14px;
+  margin:0 0 12px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface);
+  color:var(--text);
+  font-size:13px;
+  line-height:1.5;
+}
+.callout.info{background:var(--surface);border-color:var(--border)}
+.callout.ok{background:var(--surface);border-color:color-mix(in srgb,var(--ok) 50%,var(--border))}
+.callout.warn{background:var(--surface);border-color:color-mix(in srgb,var(--warn) 52%,var(--border))}
+.callout.alert{background:var(--surface);border-color:color-mix(in srgb,var(--alert) 58%,var(--border))}
+.callout .ctitle{margin-bottom:4px;font-size:13px;font-weight:600;color:var(--text)}
+.callout.info .ctitle{color:var(--accent-text)}
+.callout.ok .ctitle{color:var(--ok)}
+.callout.warn .ctitle{color:var(--warn)}
+.callout.alert .ctitle{color:var(--alert)}
+
+.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{padding:12px;border-radius:10px;box-shadow:none}
+.tile .k{font-size:10px;font-weight:600;letter-spacing:.09em;color:var(--text-2)}
+.tile .v{margin-top:4px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:22px;font-weight:600}
+.tile .d{font-size:11px;color:var(--text-2)}
+
+.rows{border-radius:10px;box-shadow:none;background:var(--surface);margin-bottom:14px}
+.row{gap:12px;padding:13px 14px;color:var(--text)}
+.row .ico{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  background:var(--surface-2);
+  color:var(--accent-text);
+}
+.row .ico svg{
+  width:18px;
+  height:18px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.75;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.row .txt b{font-size:14px;font-weight:600}
+.row .txt span{font-size:12px;color:var(--text-2)}
+.row .chev{color:var(--text-2)}
+
+details.acc{border-radius:10px;background:var(--surface)}
+details.acc>summary{padding:13px 14px;font-size:14px;font-weight:600}
+details.acc>summary::after{color:var(--text-2)}
+details.acc>div{font-size:13px}
+
+.chart .grid{stroke:var(--border)}
+.chart .axis{fill:var(--text-2);font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.chart .ln{stroke:var(--text);stroke-width:2}
+.chart .ln2{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:4 3}
+.chart .ar{fill:var(--accent);opacity:.1}
+.chart .dot,.chart .bar{fill:var(--accent)}
+.chart-legend span{color:var(--text-2)}
+.chart-legend i.b{background:var(--accent)}
+.seg{gap:8px;padding:0;background:transparent;border-radius:0;margin-bottom:14px}
+.seg button{
+  min-height:40px;
+  padding:0 14px;
+  border:1px solid var(--border-strong);
+  border-radius:10px;
+  color:var(--text-2);
+  font-size:13px;
+}
+.seg button[aria-pressed="true"]{background:transparent;border-color:var(--accent);color:var(--accent-text);box-shadow:none}
+.heat i{border-radius:2px}
+
+.dayscroll{gap:6px;padding:2px 0 4px}
+.dayscroll button{
+  width:44px;
+  min-height:48px;
+  padding:6px 0;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface);
+  color:var(--text-2);
+}
+.dayscroll button b{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:14px;font-weight:600}
+.dayscroll button span{font-size:9px;letter-spacing:.08em}
+.dayscroll button[aria-pressed="true"]{background:var(--surface);border-color:var(--accent);color:var(--text);box-shadow:inset 0 0 0 1px var(--accent)}
+html[data-theme="dark"] .dayscroll button[aria-pressed="true"]{color:var(--text)}
+.dayscroll button.has::after{background:var(--ok)}
+.dayscroll button[aria-pressed="true"].has::after{background:var(--ok)}
+
+.sheet-bg{background:rgba(5,9,10,.72)}
+.sheet{
+  width:min(100%,var(--maxw));
+  max-width:var(--maxw);
+  max-height:94vh;
+  padding:0 20px calc(24px + env(safe-area-inset-bottom));
+  border:1px solid var(--border);
+  border-bottom:0;
+  border-radius:20px 20px 0 0;
+  background:var(--bg);
+  scrollbar-width:none;
+}
+.sheet::-webkit-scrollbar{display:none}
+.sheet-bar{padding:15px 0 11px;margin-bottom:14px;background:var(--bg);border-color:var(--border)}
+.sheet-bar h2{font-size:21px;font-weight:600}
+.close-btn{color:var(--text-2)}
+
+.progress{height:6px;background:var(--surface-3)}
+.progress i{background:var(--accent)}
+.pill-note{border-radius:8px;background:var(--surface);color:var(--text-2)}
+.kv{font-size:13px;border-color:var(--border)}
+.srcs{font-size:11px;color:var(--text-2)}
+.stamp{color:var(--text-2)}
+.report-page{
+  margin:0 0 14px;
+  padding:12px;
+  border:1px solid #E3DDD2;
+  border-radius:4px;
+  background:#FFFDF9;
+  color:#1B2A28;
+}
+.report-brand{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 2px 10px;
+  padding-bottom:8px;
+  border-bottom:1px solid #E3DDD2;
+}
+.report-brand b{font-size:15px;letter-spacing:-.02em}
+.report-brand span{font:600 9px/1.2 ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.07em;text-transform:uppercase;color:#6E675C}
+.report-page .card{background:transparent;border-color:#E3DDD2;color:#1B2A28}
+.report-page h3,.report-page h4,.report-page .ctitle{color:#1B2A28}
+.report-page .xtiny,.report-page .muted{color:#6E675C}
+.report-page .kv{border-color:#E3DDD2;color:#1B2A28}
+.report-page hr.sep{border-color:#E3DDD2}
+.onboard-mark{
+  width:56px;
+  height:56px;
+  margin:0 auto 12px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--accent);
+  border-radius:16px;
+  color:var(--accent);
+}
+.onboard-mark svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.empty{color:var(--text-2)}
+.empty svg{stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.fab-note{border-radius:10px;background:var(--button-bg);color:var(--button-label);font-size:13px}
+
+@media (max-width:359px){
+  .symptom-grid,.checkin-grid{grid-template-columns:1fr}
+  .topbar,.view{padding-left:16px;padding-right:16px}
+}
 @media print{
-  nav.tabs,.topbar,.btn,.seg{display:none !important}
-  body{background:#fff;color:#000}
-  .card{break-inside:avoid;box-shadow:none;border:1px solid #ccc}
+  @page{margin:14mm}
+  html,body{background:#fff !important;color:#000 !important}
+  body{
+    font-size:10.5pt;line-height:1.4;overscroll-behavior:auto;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  #app{max-width:none;padding:0}
+  nav.tabs,.topbar,.btn,.seg,.fab-note,.xbtn,.close-btn{display:none !important}
+  .view{padding:0 !important;animation:none !important}
+
+  /* The clinician report lives in a modal. Print that sheet as the page,
+     without the dimmed backdrop or the underlying app view. */
+  body:has(#sheet-host .sheet) #app{display:none !important}
+  .sheet-bg{position:static;display:block;background:none;padding:0;animation:none}
+  .sheet{
+    width:auto;max-width:none;max-height:none;overflow:visible;border-radius:0;
+    box-shadow:none;padding:0;animation:none;background:#fff;color:#000;
+  }
+  .sheet-bar{position:static;background:#fff;border-bottom:2px solid #333;padding:0 0 7px;margin:0 0 12px}
+  .sheet-bar h2{font-size:16pt;color:#000}
+
+  .card{
+    break-inside:auto;page-break-inside:auto;box-shadow:none;
+    background:#fff !important;border:1px solid #aaa;margin-bottom:9px;padding:11px;
+  }
+  .card.tight,.callout,.tile,.kv,table,tr,svg.chart{break-inside:avoid;page-break-inside:avoid}
+  h1,h2,h3,h4,summary{break-after:avoid;page-break-after:avoid;color:#000}
+  p,li{orphans:3;widows:3}
+  .muted,.tiny,.xtiny,.srcs,.stamp,.section-label,.tile .d,.tile .v small{color:#333 !important}
+  .tw{overflow:visible;background:none}
+  table{min-width:0;font-size:9pt}
+  th,td{padding:5px 7px;border-color:#aaa}
+  .chart .axis{fill:#333}
+  .chart .grid{stroke:#bbb}
+  .srcs a[href^="http"]::after{content:" (" attr(href) ")";font-size:.86em;overflow-wrap:anywhere}
 }
 @media (min-width:600px){
-  .view{padding:22px 22px 8px}
-  h1{font-size:1.7rem}
+  .view{padding:0 20px 32px}
+  h1{font-size:29px}
 }
 
 </style>
@@ -433,7 +1055,7 @@ const SYMPTOMS = [
     <div class="callout warn"><span class="ctitle">The honest bad news</span>
     <p>The Menopause Society reviewed the trials and does <b>not</b> recommend, <i>for hot flashes specifically</i>: paced breathing, cooling techniques, avoiding triggers, exercise, yoga, mindfulness, relaxation, dietary change, acupuncture, or any dietary supplement.</p>
     <p>That is a narrow claim about one symptom. Exercise, sleep work and mindfulness have strong evidence for mood, sleep, bone, heart health and muscle — just not for stopping flashes.</p></div>
-    <p class="tiny"><b>Triggers.</b> Alcohol, caffeine and spicy food are commonly blamed. The evidence is cross-sectional at best, and trigger-avoidance has never been tested as a treatment. Treat it as a personal experiment, not a rule — the app has a 2-week trigger test for exactly this.</p>
+    <p class="tiny"><b>Triggers.</b> Alcohol, caffeine and spicy food are commonly blamed. The evidence is cross-sectional at best, and trigger-avoidance has never been tested as a treatment. Treat it as a personal experiment, not a rule — the app has a 28-day removal-and-reintroduction test for exactly this.</p>
     <p class="tiny"><b>Not just discomfort.</b> The American Heart Association notes hot flashes are associated with subclinical atherosclerosis and worse cardiovascular risk factors — a reason to take them seriously rather than endure them.</p>`
   },
   {
@@ -1077,7 +1699,7 @@ The US Preventive Services Task Force recommends <b>against</b> up to 400 IU vit
 <p>There is no safe threshold; risk begins at the first drink. Pooled relative risk: <b>1.05 at half a drink a day, 1.10 at one, 1.18 at two, 1.22 at three.</b> The 2025 National Academies review concluded that up to one drink a day in women is associated with about <b>10% higher</b> breast cancer risk. The Million Women Study found ~12% higher risk per additional daily drink. Alcohol is a Group 1 carcinogen.</p>
 <p>US dietary guidance published in January 2026 moved away from advising people to drink in moderation and toward advising them to <b>drink less</b>.</p></div>
 <p>For context from the hormone-therapy risk table: alcohol at 4–6 units/day adds about <b>8</b> extra breast cancers per 1,000 women aged 50–59 over five years — the same order as combined hormone therapy, which women agonise over far more.</p>
-<p><b>On alcohol, caffeine and spicy food as hot flash triggers:</b> the Menopause Society states there are <i>no clinical trials</i> assessing whether avoiding triggers relieves symptoms. The most-cited caffeine finding is cross-sectional, and its own authors said they couldn't advise patients without further study. Cut alcohol for breast cancer risk, sleep quality and calories — those are solid. Treat trigger-hunting as a personal experiment, and use the 2-week trigger test in Tools to do it properly.</p>
+<p><b>On alcohol, caffeine and spicy food as hot flash triggers:</b> the Menopause Society states there are <i>no clinical trials</i> assessing whether avoiding triggers relieves symptoms. The most-cited caffeine finding is cross-sectional, and its own authors said they couldn't advise patients without further study. Cut alcohol for breast cancer risk, sleep quality and calories — those are solid. Treat trigger-hunting as a personal experiment, and use the 28-day removal-and-reintroduction test in Tools to do it properly.</p>
 </div></details>
 
 <details class="acc"><summary>Energy needs, and why crash dieting backfires</summary><div>
@@ -1538,16 +2160,17 @@ const SCREENING = [
 
 /* ---------------- Red flags ---------------- */
 const REDFLAGS = [
-  {n:'Any vaginal bleeding 12+ months after your last period', why:'About <b>90% of women with endometrial cancer present with postmenopausal bleeding</b>. Incidence is rising 1–2% a year overall, and about 3% a year in Black women versus 0.7% in white women; mortality in Black women is roughly twice as high. This is the single most important item on this list. <br><br>ACOG revised its guidance in April 2026: the old "ultrasound alone if the lining is 4 mm or less" rule has been narrowed, because endometrial thickness is an insensitive predictor for higher-grade cancers — a 4 mm measurement carries about a 10% false-negative probability in Black women, and roughly a quarter of aggressive serous cancers may be missed by ultrasound alone in Black women. Most patients should now have <b>both</b> ultrasound and endometrial tissue sampling. If you are offered ultrasound only, it is reasonable to ask why.'},
-  {n:'Unscheduled bleeding while on hormone therapy', why:'Bleeding is common in the early months of hormone therapy and is often benign — but it is not to be ignored. NICE is reported to have amended its guidance in April 2026 to strengthen safety-netting advice on unscheduled bleeding during systemic hormone therapy. Either way: report it.'},
+  {n:'Any vaginal bleeding 12+ months after your last period', why:'Postmenopausal bleeding needs <b>prompt medical assessment</b>, even if it happens only once or is just spotting. More than 90% of people diagnosed with endometrial cancer have postmenopausal bleeding, although most bleeding has a non-cancer cause. ACOG updated its guidance in April 2026: for most patients, the initial evaluation should include both transvaginal ultrasound and endometrial tissue sampling because ultrasound alone can miss some cancers. <a href="https://www.acog.org/news/news-releases/2026/04/acog-publishes-updated-guidance-evaluation-postmenopausal-bleeding" target="_blank" rel="noopener noreferrer">Read ACOG’s 2026 update</a>.'},
+  {n:'Unscheduled bleeding while on hormone therapy', why:'Bleeding is common in the first few months of systemic hormone therapy and is often benign, but it still needs safety-netting. Tell the clinician who prescribes your therapy. Seek prompt assessment if bleeding is heavy, persists, starts after a period without bleeding, or continues beyond the interval your clinician told you to expect. NICE amended its guidance in April 2026 to address unscheduled bleeding while taking systemic HRT. <a href="https://www.nice.org.uk/guidance/ng23" target="_blank" rel="noopener noreferrer">Check current NICE NG23 guidance</a>.'},
   {n:'A new breast lump, or skin or nipple change', why:'Not attributable to menopause, and not something to hold until your next scheduled mammogram. Screening intervals apply to women without symptoms.'},
-  {n:'Chest pain, or breathlessness on exertion', why:'Cardiovascular risk rises across the transition. Palpitations are reported by at least one in five peri- and postmenopausal women, but "common in menopause" is not "benign in you." Coronary artery disease is also a contraindication to hormone therapy.'},
-  {n:'Swelling or pain in one calf, or sudden breathlessness', why:'Possible blood clot. Oral hormone therapy roughly doubles clot risk (about 7 extra cases per 1,000 over 5 years at ages 50–59); transdermal does not. Previous clot is a contraindication. This is an urgent-care symptom, not a next-appointment symptom.'},
-  {n:'Sudden, severe, or new-pattern headache', why:'A new or changed headache in midlife needs evaluation rather than being assumed hormonal.'},
-  {n:'Thoughts of harming yourself, or low mood that is not lifting', why:'Perimenopause carries about 40% higher odds of depression. Depression meeting diagnostic criteria needs proper mental-health care — NICE distinguishes this clearly from depressive symptoms around menopause, where hormone therapy may be considered. Please reach out to a clinician or a crisis line today rather than waiting.'},
+  {n:'Emergency now — chest pain or pressure; sudden or severe breathlessness; coughing blood; or fainting', why:'These can be signs of a heart attack or a blood clot in the lungs. <b>Call emergency services now</b>: 911 in the US or Canada, 999 in the UK, 112 in the EU and many other countries, or your local emergency number. Do not drive yourself. If you cannot make the call, ask someone nearby to call and stay with you.'},
+  {n:'New swelling, warmth, redness, or pain in one leg', why:'This can be a deep-vein blood clot and needs <b>urgent, same-day medical assessment</b>. If it occurs with chest pain, sudden breathlessness, coughing blood, severe light-headedness or fainting, call emergency services now (911 US/Canada, 999 UK, 112 EU and many countries, or your local emergency number).'},
+  {n:'Emergency now — a sudden “worst-ever” headache, or headache with weakness, facial droop, confusion, trouble speaking, loss of vision or collapse', why:'These can be signs of stroke or bleeding in the brain. <b>Call emergency services now</b> and do not drive yourself. A new or clearly changed headache without those emergency signs still deserves timely medical assessment rather than being assumed to be hormonal.'},
+  {n:'Thoughts of harming yourself or of not wanting to be alive', why:'If you may act on these thoughts, have made a plan, or cannot keep yourself safe, <b>call emergency services now</b> (911 US/Canada, 999 UK, 112 EU and many countries, or your local number) or go to the nearest emergency department/A&amp;E. Do not stay alone: tell someone you trust and ask them to remain with you; move away from anything you might use to hurt yourself if you can do so safely. For urgent crisis support when you are not in immediate danger, call or text <a href="tel:988">988</a> in the US or Canada, call Samaritans on <a href="tel:116123">116 123</a> in the UK or Republic of Ireland, or use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a> to locate a verified service elsewhere. A directory is not a substitute for emergency services when danger is immediate.'},
+  {n:'Low mood, anxiety, hopelessness, or loss of interest that is not lifting', why:'These symptoms deserve proper assessment and treatment; do not assume they are “just menopause.” Contact a clinician or mental-health professional soon. If thoughts of self-harm or suicide appear, use the emergency and crisis guidance above.'},
   {n:'Unexplained weight loss', why:'Not a menopausal symptom. Menopause is associated with weight gain and fat redistribution, not loss.'},
   {n:'Pelvic pain outside the usual pattern', why:'Genitourinary syndrome means dryness, burning, irritation, urinary symptoms and pain with sex. Pain outside that pattern needs evaluation.'},
-  {n:'If you take fezolinetant: jaundice, dark urine, pale stools, itching, right-upper abdominal pain, unusual tiredness or nausea', why:'<b>Boxed warning for rare but serious liver injury. Stop the medication and contact your clinician.</b> Required monitoring is liver blood tests at baseline, monthly for 3 months, then at months 6 and 9.'}
+  {n:'If you take fezolinetant: jaundice, dark urine, pale stools, itching, right-upper abdominal pain, unusual tiredness, reduced appetite, nausea or vomiting', why:'The FDA boxed warning covers rare but serious liver injury. <b>Stop taking fezolinetant immediately and seek medical attention, including liver blood tests.</b> Do not wait for a routine appointment. US prescribing information requires liver tests before treatment, monthly for the first 3 months, and at months 6 and 9. <a href="https://www.fda.gov/drugs/drug-safety-communications/fda-adds-warning-about-rare-occurrence-serious-liver-injury-use-veozah-fezolinetant-hot-flashes-due" target="_blank" rel="noopener noreferrer">Read the FDA safety communication</a>.'}
 ];
 
 /* ---------------- Clinician prep ---------------- */
@@ -1604,26 +2227,34 @@ const CLINICIAN_TOPICS = [
 
 /* ---------------- Sources ---------------- */
 const SOURCES_HTML = `
-<p class="tiny">Content compiled and reviewed <b>July 2026</b>. This field moved substantially in November 2025 (FDA labelling), March 2026 (NICE fezolinetant appraisal) and April 2026 (ACOG bleeding guidance, NICE amendment). Anything you read here should be re-checked if it is more than about six months old.</p>
-<h4>Primary guidance</h4>
+<p class="tiny">Reference links checked <b>3 August 2026</b>. Guidelines, medicine labels and emergency resources can change; use the linked current version and confirm decisions with a qualified clinician or pharmacist.</p>
+<div class="callout warn"><span class="ctitle">Educational tracker — not a medical device</span>
+Meno Compass is intended for education, self-reflection and preparing for a clinical conversation. It has not been independently validated to diagnose or stage menopause, detect disease, predict risk, monitor treatment, or recommend personalised care, and it has not been reviewed, cleared, approved or certified as a medical device by the FDA, MHRA or another regulator. It cannot monitor you or contact emergency services. Do not use it to delay professional or emergency care.</div>
+<p class="xtiny">Source links open third-party websites and require internet access. Meno Compass does not add your journal or profile data to those links.</p>
+<h4>Primary clinical guidance and regulator documents</h4>
 <ul class="plain srcs">
-<li>The Menopause Society — 2023 non-hormone therapy position statement; 2022 hormone therapy position statement; 2021 osteoporosis position statement; 2020 genitourinary syndrome position statement; patient education materials</li>
-<li>NICE NG23, <i>Menopause: identification and management</i> (2024 update; a 2026 amendment is reported but we could not verify it against the primary); NICE Table 1; NICE TA1143 (fezolinetant)</li>
-<li>American Urological Association / SUFU / AUGS — 2025 genitourinary syndrome of menopause guideline</li>
-<li>US Preventive Services Task Force — osteoporosis (2025), breast cancer (2024), falls prevention (2024), cervical cancer (2018), colorectal (2021), diabetes (2021), thyroid, vitamin D and calcium supplementation, hormone therapy for primary prevention (2022)</li>
-<li>British Menopause Society — HRT Guide (Feb 2026), Migraine and HRT (Apr 2026), Fast Facts on breast cancer risk (2025), BMS/WHC consensus, nutrition tool</li>
-<li>MHRA absolute and relative risk tables for HRT</li>
-<li>ACOG — postmenopausal bleeding guidance (April 2026); compounded bioidentical hormone consensus (2023)</li>
-<li>FDA — hormone therapy labelling change (Nov 2025); fezolinetant drug safety communication; energy-based device safety communication</li>
-<li>STRAW+10 staging (ASRM); ESHRE 2024 primary ovarian insufficiency guideline</li>
-<li>Global Consensus Position Statement on testosterone therapy for women (endorsed by the Endocrine Society, IMS and Menopause Society)</li>
-<li>American Heart Association 2020 scientific statement on the menopause transition and cardiovascular risk</li>
-<li>NAMS/NNDC guidelines for the evaluation and treatment of perimenopausal depression</li>
-<li>American Academy of Sleep Medicine — pharmacologic treatment of chronic insomnia</li>
-<li>Physical Activity Guidelines for Americans, 2nd edition; "Too Fit To Fracture" consensus; NIH Office of Dietary Supplements; Bone Health &amp; Osteoporosis Foundation; NCCIH; National Academies (2020) on compounded hormone therapy; Endocrine Society vitamin D guideline (2024)</li>
+<li><a href="https://menopause.org/professional-resources/position-statements" target="_blank" rel="noopener noreferrer">The Menopause Society — Position Statements</a>: <i>2023 Nonhormone Therapy</i>; <i>2022 Hormone Therapy</i>; <i>2021 Management of Osteoporosis in Postmenopausal Women</i>; and <i>2020 Genitourinary Syndrome of Menopause</i>. The 2022 hormone-therapy statement is published in <i>Menopause</i> 2022;29(7):767–794, <a href="https://doi.org/10.1097/GME.0000000000002028" target="_blank" rel="noopener noreferrer">doi:10.1097/GME.0000000000002028</a>.</li>
+<li>National Institute for Health and Care Excellence (NICE), <a href="https://www.nice.org.uk/guidance/ng23" target="_blank" rel="noopener noreferrer"><i>Menopause: identification and management</i>, NG23</a> (updated 2024; amended April 2026), and <a href="https://www.nice.org.uk/guidance/ta1143" target="_blank" rel="noopener noreferrer"><i>Fezolinetant for treating moderate to severe vasomotor symptoms associated with menopause</i>, TA1143</a> (31 March 2026).</li>
+<li>American Urological Association, SUFU and AUGS, <a href="https://www.auanet.org/guidelines-and-quality/guidelines/genitourinary-syndrome-of-menopause" target="_blank" rel="noopener noreferrer"><i>Genitourinary Syndrome of Menopause Guideline</i></a> (2025).</li>
+<li>US Preventive Services Task Force: <a href="https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/osteoporosis-screening" target="_blank" rel="noopener noreferrer">osteoporosis screening</a> (2025), <a href="https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening" target="_blank" rel="noopener noreferrer">breast-cancer screening</a> (2024), <a href="https://www.uspreventiveservicestaskforce.org/uspstf/document/ClinicalSummaryFinal/colorectal-cancer-screening" target="_blank" rel="noopener noreferrer">colorectal-cancer screening</a> (2021), and <a href="https://www.uspreventiveservicestaskforce.org/uspstf/document/RecommendationStatementFinal/menopausal-hormone-therapy-preventive-medication" target="_blank" rel="noopener noreferrer">menopausal hormone therapy for primary prevention</a> (2022). The primary-prevention recommendation does not address treatment of menopausal symptoms.</li>
+<li>British Menopause Society, <a href="https://thebms.org.uk/publications/tools-for-clinicians/" target="_blank" rel="noopener noreferrer">Tools for Clinicians</a>, including the HRT Guide and migraine guidance; Medicines and Healthcare products Regulatory Agency, <a href="https://www.gov.uk/drug-safety-update/hormone-replacement-therapy-hrt-further-information-on-the-known-increased-risk-of-breast-cancer-with-hrt-and-its-persistence-after-stopping" target="_blank" rel="noopener noreferrer">HRT breast-cancer risk update and absolute-risk tables</a> (2019).</li>
+<li>American College of Obstetricians and Gynecologists (ACOG), <a href="https://www.acog.org/news/news-releases/2026/04/acog-publishes-updated-guidance-evaluation-postmenopausal-bleeding" target="_blank" rel="noopener noreferrer"><i>Updated Guidance on Evaluation of Postmenopausal Bleeding</i></a> (16 April 2026), and <a href="https://www.acog.org/clinical/clinical-guidance/clinical-consensus/articles/2023/11/compounded-bioidentical-menopausal-hormone-therapy" target="_blank" rel="noopener noreferrer"><i>Compounded Bioidentical Menopausal Hormone Therapy</i>, Clinical Consensus No. 6</a> (2023; reaffirmed 2026).</li>
+<li>US Food and Drug Administration: <a href="https://www.fda.gov/drugs/drug-alerts-and-statements/fda-requests-labeling-changes-related-safety-information-clarify-benefitrisk-considerations" target="_blank" rel="noopener noreferrer">requested menopausal hormone-therapy label changes</a> (10 November 2025), <a href="https://www.fda.gov/news-events/press-announcements/fda-approves-labeling-changes-menopausal-hormone-therapy-products" target="_blank" rel="noopener noreferrer">approved label changes for six products</a> (12 February 2026), and <a href="https://www.fda.gov/drugs/drug-safety-communications/fda-adds-warning-about-rare-occurrence-serious-liver-injury-use-veozah-fezolinetant-hot-flashes-due" target="_blank" rel="noopener noreferrer">fezolinetant liver-injury safety communication</a> (updated 16 December 2024). Product-specific prescribing information remains controlling.</li>
+<li>Harlow SD et al., <a href="https://www.asrm.org/practice-guidance/practice-committee-documents/executive-summary-of-the-stages-of-reproductive-aging-workshopd10-addressing-the-unfinished-agenda-of-staging-reproductive-aging-2012/" target="_blank" rel="noopener noreferrer"><i>Executive summary of the Stages of Reproductive Aging Workshop +10</i></a>. <i>Fertil Steril.</i> 2012;97(4):843–851; European Society of Human Reproduction and Embryology, <a href="https://www.eshre.eu/Guidelines-and-Legal/Guidelines/Premature-ovarian-insufficiency" target="_blank" rel="noopener noreferrer"><i>International Guideline on Premature Ovarian Insufficiency</i></a> (2024).</li>
+<li>Davis SR et al., <a href="https://academic.oup.com/jcem/article/104/10/4660/5556103" target="_blank" rel="noopener noreferrer"><i>Global Consensus Position Statement on the Use of Testosterone Therapy for Women</i></a>. <i>J Clin Endocrinol Metab.</i> 2019;104(10):4660–4666. doi:10.1210/jc.2019-01603.</li>
+<li>El Khoudary SR et al., <a href="https://professional.heart.org/en/science-news/menopause-transition-and-cardiovascular-disease-risk-implications-for-timing-of-early-prevention" target="_blank" rel="noopener noreferrer"><i>Menopause Transition and Cardiovascular Disease Risk: Implications for Timing of Early Prevention</i></a>. American Heart Association Scientific Statement. <i>Circulation.</i> 2020;142:e506–e532. doi:10.1161/CIR.0000000000000912.</li>
+<li>Maki PM et al., <a href="https://pubmed.ncbi.nlm.nih.gov/30179986/" target="_blank" rel="noopener noreferrer"><i>Guidelines for the evaluation and treatment of perimenopausal depression</i></a>. <i>Menopause.</i> 2018;25(10):1069–1085. doi:10.1097/GME.0000000000001174.</li>
+<li>Sateia MJ et al., <a href="https://aasm.org/wp-content/uploads/2017/07/PharmacologicTreatmentofInsomnia.pdf" target="_blank" rel="noopener noreferrer"><i>Clinical Practice Guideline for the Pharmacologic Treatment of Chronic Insomnia in Adults</i></a>. <i>J Clin Sleep Med.</i> 2017;13(2):307–349. doi:10.5664/jcsm.6470.</li>
+<li>US National Institutes of Health Office of Dietary Supplements: evidence summaries for <a href="https://ods.od.nih.gov/factsheets/calcium-HealthProfessional/" target="_blank" rel="noopener noreferrer">calcium</a> and <a href="https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/" target="_blank" rel="noopener noreferrer">vitamin D</a>. These are reference-intake and evidence summaries, not personalised supplement prescriptions.</li>
 </ul>
-<h4>Key cohorts and trials cited</h4>
-<p class="tiny srcs">SWAN (symptom duration, body composition, cognition, depression) · Women's Health Initiative · Cochrane reviews on pelvic floor training and black cohosh · SKYLIGHT 2 (fezolinetant) · OASIS 1/2/3 (elinzanetant) · LIFTMOR (bone loading) · Drake 2019 (CBT-I in postmenopausal women) · WAVS (plant-based diet) · SAFA (spironolactone) · Nurses' Health Study (sleep apnea after surgical menopause) · IAS/ICCR consensus on waist circumference.</p>
+<h4>Selected cohorts and trials used in the modules</h4>
+<ul class="plain srcs">
+<li><a href="https://www.swanstudy.org/" target="_blank" rel="noopener noreferrer">Study of Women’s Health Across the Nation (SWAN)</a> and <a href="https://www.whi.org/" target="_blank" rel="noopener noreferrer">Women’s Health Initiative (WHI)</a> cohort and trial programmes.</li>
+<li>Johnson KA et al., <a href="https://academic.oup.com/jcem/article/108/8/1981/7025342" target="_blank" rel="noopener noreferrer"><i>Efficacy and Safety of Fezolinetant in Moderate to Severe Vasomotor Symptoms Associated With Menopause</i></a> (SKYLIGHT 2). <i>J Clin Endocrinol Metab.</i> 2023;108(8):1981–1997. doi:10.1210/clinem/dgad058.</li>
+<li>Pinkerton JV et al., <a href="https://jamanetwork.com/journals/jama/fullarticle/2822766" target="_blank" rel="noopener noreferrer"><i>Elinzanetant for the Treatment of Vasomotor Symptoms Associated With Menopause</i></a> (OASIS 1 and 2). <i>JAMA.</i> 2024;332(16):1343–1354. doi:10.1001/jama.2024.14618.</li>
+<li>Watson SL et al., <a href="https://doi.org/10.1002/jbmr.3284" target="_blank" rel="noopener noreferrer"><i>High-Intensity Resistance and Impact Training Improves Bone Mineral Density and Physical Function</i></a> (LIFTMOR). <i>J Bone Miner Res.</i> 2018;33(2):211–220. doi:10.1002/jbmr.3284.</li>
+<li>Santer M et al., <a href="https://www.bmj.com/content/381/bmj-2022-074349" target="_blank" rel="noopener noreferrer"><i>Effectiveness of spironolactone for women with acne vulgaris</i></a> (SAFA). <i>BMJ.</i> 2023;381:e074349. doi:10.1136/bmj-2022-074349.</li>
+</ul>
 <h4>What we deliberately left out</h4>
 <div class="callout warn">
 <p>Being explicit about this matters more than looking comprehensive:</p>
@@ -1659,6 +2290,7 @@ const Store = (() => {
   const ok = probe();
   if(!ok) usingMemory = true;
   return {
+    get key(){ return KEY; },
     get ephemeral(){ return usingMemory; },
     read(){
       if(usingMemory) return mem;
@@ -1675,7 +2307,7 @@ const Store = (() => {
 })();
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 1;
+const SCHEMA_V = 2;
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -1693,29 +2325,154 @@ let DB = null;
 
 function load(){
   const raw = Store.read();
-  DB = raw && typeof raw==='object' ? migrate(raw) : blankDB();
+  try{ DB = raw && typeof raw==='object' ? migrate(raw) : blankDB(); }
+  catch(e){ DB = blankDB(); }
   DB.meta = DB.meta || {}; DB.meta.lastOpen = todayISO();
 }
 function migrate(d){
-  const base = blankDB();
-  const out = Object.assign(base, d);
-  out.profile = Object.assign(base.profile, d.profile||{});
-  /* v1 stored uterus and ovaries as one field, which wrongly implied you
-     could not have a hysterectomy and keep your ovaries. Split them. */
-  const legacy = {
-    intact: {uterus:'intact',  ovaries:'kept'},
-    hyst:   {uterus:'hyst',    ovaries:'unknown'},
-    oophor: {uterus:'intact',  ovaries:'both'},
-    both:   {uterus:'hyst',    ovaries:'both'}
-  }[out.profile.uterus];
-  if(legacy && (!d.profile || d.profile.ovaries==null)){
-    out.profile.uterus = legacy.uterus;
-    out.profile.ovaries = legacy.ovaries;
+  if(!plainRecord(d)) throw new Error('Invalid backup root');
+  if(!Number.isInteger(d.v) || d.v<1 || d.v>SCHEMA_V) throw new Error('Unsupported schema version');
+  const out=blankDB(), rawProfile=plainRecord(d.profile)?d.profile:{};
+  const p=out.profile;
+
+  p.name=safeText(rawProfile.name,80);
+  p.birthYear=safeInteger(rawProfile.birthYear,1920,new Date().getFullYear()-18);
+  p.region=safeEnum(rawProfile.region,['us','uk','other'],'us');
+  p.units=safeEnum(rawProfile.units,['imperial','metric'],'imperial');
+  p.lastPeriod=safePastDate(rawProfile.lastPeriod);
+  p.surgeryDate=safePastDate(rawProfile.surgeryDate);
+  const birthDate=p.birthYear?p.birthYear+'-01-01':'';
+  if(birthDate && p.lastPeriod && p.lastPeriod<birthDate) p.lastPeriod='';
+  if(birthDate && p.surgeryDate && p.surgeryDate<birthDate) p.surgeryDate='';
+  p.uterus=safeEnum(rawProfile.uterus,['unknown','intact','hyst','ablation'],'unknown');
+  p.ovaries=safeEnum(rawProfile.ovaries,['unknown','kept','one','both'],'unknown');
+  /* Earlier records stored uterus and ovaries in one field. Split only when
+     no explicit ovary value exists, then continue through the strict schema. */
+  const legacy={
+    intact:{uterus:'intact',ovaries:'kept'}, hyst:{uterus:'hyst',ovaries:'unknown'},
+    oophor:{uterus:'intact',ovaries:'both'}, both:{uterus:'hyst',ovaries:'both'}
+  }[rawProfile.uterus];
+  if(legacy && rawProfile.ovaries==null){ p.uterus=legacy.uterus; p.ovaries=legacy.ovaries; }
+  p.bone=safeEnum(rawProfile.bone,['unknown','normal','osteopenia','osteoporosis','fracture'],'unknown');
+  p.proteinGpk=safeEnum(+rawProfile.proteinGpk,[1,1.2,1.4,1.6],1.2);
+  p.weightGoal=safeNumber(rawProfile.weightGoal,20,500);
+  p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
+  p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
+  p.onboarded=rawProfile.onboarded===true;
+  const stageAnswers=safeStageAnswers(rawProfile.stageAnswers);
+  if(stageAnswers && typeof completeStageAnswers==='function' && completeStageAnswers(stageAnswers)
+      && typeof stageResult==='function'){
+    p.stageAnswers=stageAnswers;
+    p.stage=safeText(stageResult(stageAnswers).label,160)||null;
   }
-  out.entries = d.entries||{}; out.screening = d.screening||{};
-  out.scores = Array.isArray(d.scores)?d.scores:[];
-  out.v = SCHEMA_V;
+
+  if(plainRecord(d.entries)){
+    Object.keys(d.entries).filter(date=>pastOrTodayISO(date)&&(!birthDate||date>=birthDate)).sort().slice(-10000).forEach(date=>{
+      const clean=safeEntry(d.entries[date]);
+      if(clean) out.entries[date]=clean;
+    });
+  }
+  if(plainRecord(d.screening)){
+    const ids=typeof SCREENING!=='undefined' ? SCREENING.map(item=>item.id) : Object.keys(SCREENING_RULES);
+    ids.forEach(id=>{
+      const rec=d.screening[id]; if(!plainRecord(rec)) return;
+      const last=safePastDate(rec.last), requested=+rec.intervalYears;
+      const rule=SCREENING_RULES[id], cleaned={};
+      if(last && (!birthDate||last>=birthDate)) cleaned.last=last;
+      if(rule) cleaned.intervalYears=rule.years.includes(requested)?requested:rule.defaultYears;
+      if(Object.keys(cleaned).length) out.screening[id]=cleaned;
+    });
+  }
+  if(Array.isArray(d.scores)){
+    out.scores=d.scores.map(safeScore).filter(score=>score&&(!birthDate||score.date>=birthDate))
+      .sort((a,b)=>a.date.localeCompare(b.date)).slice(-500);
+  }
+  out.trigger=safeTrigger(d.trigger);
+  if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
+  const meta=plainRecord(d.meta)?d.meta:{};
+  out.meta.created=safePastDate(meta.created)||todayISO();
+  out.meta.lastOpen=todayISO();
   return out;
+}
+
+function plainRecord(v){ return !!v && typeof v==='object' && !Array.isArray(v); }
+function safeText(v,max){ return typeof v==='string' ? v.slice(0,max) : ''; }
+function safeEnum(v,values,fallback){ return values.includes(v)?v:fallback; }
+function safeNumber(v,min,max){
+  if(v===null || v==='' || typeof v==='boolean') return null;
+  const n=Number(v); return Number.isFinite(n)&&n>=min&&n<=max?n:null;
+}
+function safeInteger(v,min,max){
+  const n=safeNumber(v,min,max); return n!=null&&Number.isInteger(n)?n:null;
+}
+function safePastDate(v){ return typeof v==='string'&&pastOrTodayISO(v)?v:''; }
+function safeStageAnswers(raw){
+  if(!plainRecord(raw) || typeof STAGE_Q==='undefined') return null;
+  const out={};
+  STAGE_Q.forEach(q=>{
+    const value=raw[q.id];
+    if(q.a.some(a=>a.v===value)) out[q.id]=value;
+  });
+  return Object.keys(out).length?out:null;
+}
+function safeEntry(raw){
+  if(!plainRecord(raw)) return null;
+  const out={sym:{},act:{},nut:{}};
+  const integer=(k,min,max)=>{ const n=safeInteger(raw[k],min,max); if(n!=null) out[k]=n; };
+  const number=(k,min,max)=>{ const n=safeNumber(raw[k],min,max); if(n!=null) out[k]=n; };
+  integer('hf',0,500); integer('ns',0,4); number('inBedH',0,16); number('sleepH',0,16);
+  if(out.sleepH!=null&&out.inBedH!=null&&out.sleepH>out.inBedH) delete out.sleepH;
+  if(plainRecord(raw.sym)){
+    ['sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'].forEach(k=>{
+      const n=safeInteger(raw.sym[k],0,4); if(n!=null) out.sym[k]=n;
+    });
+  }
+  number('wt',20,500); number('waist',30,300);
+  const bleed=safeEnum(raw.bleed,['none','spotting','light','moderate','heavy'],null);
+  if(bleed) out.bleed=bleed;
+  if(plainRecord(raw.act)){
+    ['res','bal','pf'].forEach(k=>{ if(typeof raw.act[k]==='boolean') out.act[k]=raw.act[k]; });
+    const aero=safeInteger(raw.act.aero,0,1440); if(aero!=null) out.act.aero=aero;
+  }
+  if(plainRecord(raw.nut)){
+    if(raw.nut.prot===true||raw.nut.prot===1) out.nut.prot=true;
+    if(raw.nut.prot===false||raw.nut.prot===0) out.nut.prot=false;
+    ['cal','fib'].forEach(k=>{ if(typeof raw.nut[k]==='boolean') out.nut[k]=raw.nut[k]; });
+    ['alc','caf'].forEach(k=>{ const n=safeInteger(raw.nut[k],0,50); if(n!=null) out.nut[k]=n; });
+  }
+  const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
+  return out;
+}
+function safeScore(raw){
+  if(!plainRecord(raw)) return null;
+  const type=safeEnum(raw.type,['phq9','gad7'],null), date=safePastDate(raw.date);
+  const max=type==='phq9'?27:type==='gad7'?21:null;
+  const score=max==null?null:safeInteger(raw.score,0,max);
+  if(!type || !date || score==null) return null;
+  const band=type==='phq9'
+    ? (score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe')
+    : (score<5?'minimal':score<10?'mild':score<15?'moderate':'severe');
+  return {date,type,score,band};
+}
+function safeTrigger(raw){
+  if(!plainRecord(raw)) return null;
+  const start=safePastDate(raw.start); if(!start) return null;
+  const item=safeEnum(raw.item,['Alcohol','Caffeine','Spicy food','Sugar','Late meals','Hot drinks','Something else'],null);
+  if(!item) return null;
+  const status=safeEnum(raw.status,['running','stopped','completed'],raw.active===true?'running':'stopped');
+  const ended=safePastDate(raw.ended);
+  const validEnded=ended&&ended>=start?ended:'';
+  const finalStatus=validEnded ? (status==='completed'?'completed':'stopped') : status;
+  const out={active:finalStatus==='running'&&raw.active===true&&!validEnded,status:finalStatus,item,start};
+  if(validEnded) out.ended=validEnded;
+  return out;
+}
+function validateBackup(raw){
+  if(!plainRecord(raw) || !Number.isInteger(raw.v) || raw.v<1 || raw.v>SCHEMA_V
+      || !plainRecord(raw.profile) || !plainRecord(raw.entries)){
+    throw new Error('Invalid backup');
+  }
+  return migrate(raw);
 }
 let saveTimer=null, dirty=false;
 function save(now){
@@ -1739,6 +2496,12 @@ function iso(d){
 function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
 function addDays(s,n){ const d=parseISO(s); d.setDate(d.getDate()+n); return iso(d); }
 function daysBetween(a,b){ return Math.round((parseISO(b)-parseISO(a))/86400000); }
+function validISODate(s){
+  if(typeof s!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d=parseISO(s);
+  return !isNaN(d.getTime()) && iso(d)===s;
+}
+function pastOrTodayISO(s){ return validISODate(s) && s<=todayISO(); }
 function fmtDay(s){
   const d=parseISO(s), t=todayISO();
   if(s===t) return 'Today';
@@ -1770,6 +2533,41 @@ function periodsPossible(){
 }
 function surgicalMenopause(){ return DB.profile.ovaries==='both'; }
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* Screening records can carry the interval that matches the test a person
+   actually used. That matters most for cervical and colorectal screening,
+   where a date alone cannot tell us whether the next check is due in one,
+   three, five or ten years. Defaults use the shortest standard interval so a
+   recorded date never suppresses reminders indefinitely. */
+const SCREENING_RULES = {
+  mammo:    {label:'mammogram', minAge:40, maxAge:74, years:[2], defaultYears:2},
+  cervical: {label:'cervical screening', minAge:30, maxAge:65, years:[3,5], defaultYears:3},
+  colon:    {label:'colorectal screening', minAge:45, maxAge:75, years:[1,3,5,10], defaultYears:1},
+  dxa:      {label:'bone density scan', minAge:65, maxAge:null, years:[5], defaultYears:5}
+};
+function screeningStatus(id, age){
+  const rule=SCREENING_RULES[id];
+  if(!rule || age==null || age<rule.minAge || (rule.maxAge!=null && age>rule.maxAge)){
+    return {eligible:false, due:false};
+  }
+  const rec=DB.screening[id]||{};
+  const validLast=pastOrTodayISO(rec.last);
+  const requested=+rec.intervalYears;
+  const intervalYears=rule.years.includes(requested) ? requested : rule.defaultYears;
+  if(!validLast){
+    return {eligible:true, due:true, never:true, invalid:!!rec.last, intervalYears, rule};
+  }
+  const elapsed=daysBetween(rec.last,todayISO());
+  return {
+    eligible:true,
+    due:elapsed>=Math.round(intervalYears*365.25),
+    never:false,
+    last:rec.last,
+    elapsed,
+    intervalYears,
+    rule
+  };
+}
 
 /* ---------- entries ---------- */
 const SYMS = [
@@ -1931,7 +2729,10 @@ function insights(){
         cta:{l:'Red flags', go:'redflags'}});
       flagged = null;
     }
-    if(flagged && daysBetween(flagged.d, todayISO()) <= 400){
+    /* There is no "resolved" state in the app. Keep this visible until the
+       underlying bleeding entry is removed so an unevaluated event cannot
+       disappear merely because time passed. */
+    if(flagged){
       const since = daysBetween(flagged.d, todayISO());
       out.push({t:'alert', h:'Bleeding after 12+ months without a period',
         b:'You logged bleeding on '+fmtDay(flagged.d)+' — about '+Math.floor(flagged.gap/30)+' months after the previous one. Any bleeding 12 months or more after your last period needs prompt evaluation: around <b>90% of women with endometrial cancer present with postmenopausal bleeding</b>.'
@@ -1944,8 +2745,12 @@ function insights(){
   /* Counting months of amenorrhoea only means something if a period was
      possible in the first place. */
   if(surgicalMenopause()){
+    const surgeryDate=pastOrTodayISO(DB.profile.surgeryDate) ? DB.profile.surgeryDate : null;
+    const surgeryWhen=surgeryDate
+      ? ' on '+fmtDay(surgeryDate)+' ('+Math.max(0,Math.floor(daysBetween(surgeryDate,todayISO())/30))+' months ago)'
+      : '';
     out.push({t:'info', h:'You are postmenopausal — the count of months since a period does not apply',
-      b:'Both ovaries removed means menopause happened at the operation, so this app will not try to date it from bleeding. What is worth attention instead: hormone therapy at least until around age 52 unless there is a reason not to, bone protection, and cardiovascular risk factors. Vaginal and urinary symptoms are the ones that get worse rather than better if left alone.',
+      b:'Both ovaries removed means menopause happened at the operation'+surgeryWhen+', so this app will not try to date it from bleeding. What is worth attention instead: hormone therapy at least until around age 52 unless there is a reason not to, bone protection, and cardiovascular risk factors. Vaginal and urinary symptoms are the ones that get worse rather than better if left alone.',
       cta:{l:'Your stage', go:'learn:stage'}});
   } else if(!periodsPossible()){
     out.push({t:'info', h:'Your bleeding pattern cannot stage you — that is expected',
@@ -2115,9 +2920,12 @@ function insights(){
       cta:{l:'How to do it', go:'learn:exercise'}});
   }
   /* --- OSA screen prompt --- */
-  const badSleep = rangeDates(21).map(d=>DB.entries[d]).filter(e=>e&&e.sym&&e.sym.sleepq>=3);
-  const lowNS = rangeDates(21).map(d=>DB.entries[d]).filter(e=>e&&e.ns!=null&&e.ns<=1);
-  if(badSleep.length>=8 && lowNS.length>=badSleep.length*0.6){
+  const sleepObs = rangeDates(21).map(d=>DB.entries[d]).filter(e=>
+    e && e.sym && e.sym.sleepq!=null && e.ns!=null
+  );
+  const badSleep = sleepObs.filter(e=>e.sym.sleepq>=3);
+  const badSleepLowNS = badSleep.filter(e=>e.ns<=1);
+  if(badSleep.length>=8 && badSleepLowNS.length>=Math.ceil(badSleep.length*0.6)){
     out.push({t:'warn', h:'Bad sleep, but not much night sweating',
       b:'You are logging poor sleep frequently without heavy night sweats. That pattern points away from vasomotor fragmentation and toward insomnia — or sleep apnea, which affects <b>20% of midlife women</b> versus 4% of younger women and is badly underdiagnosed, because women present with insomnia and fatigue rather than loud snoring. CBT-I is first line for insomnia; if it does not work, that is itself a reason to be tested.',
       cta:{l:'Sleep module', go:'learn:sleep'}});
@@ -2135,14 +2943,17 @@ function insights(){
   /* --- screening due --- */
   const age = DB.profile.birthYear ? (new Date().getFullYear() - DB.profile.birthYear) : null;
   if(age){
-    const due=[];
-    const has = id => DB.screening[id] && DB.screening[id].last;
-    if(age>=40 && !has('mammo')) due.push('mammogram');
-    if(age>=45 && !has('colon')) due.push('colorectal screening');
-    if(age>=65 && !has('dxa')) due.push('bone density scan');
-    if(due.length) out.push({t:'info', h:'Worth checking: '+due.join(', '),
-      b:'You have not recorded these. At '+age+', US guidance covers '+due.join(' and ')+'. Record the dates in the preventive care checklist so you can see what is coming up.',
-      cta:{l:'Preventive care', go:'screening'}});
+    const due=Object.keys(SCREENING_RULES).map(id=>screeningStatus(id,age)).filter(s=>s.due);
+    if(due.length){
+      const labels=due.map(s=>s.rule.label);
+      const overdue=due.filter(s=>!s.never);
+      out.push({t:'info', h:'Worth checking: '+labels.join(', '),
+        b:(overdue.length
+            ? 'Your recorded date has reached the reminder interval for '+overdue.map(s=>s.rule.label).join(' and ')+'. '
+            : 'You have not recorded these yet. ')
+          +'At '+age+', US guidance covers '+labels.join(' and ')+'. Record the date and the interval that matches the test you had in the preventive care checklist.',
+        cta:{l:'Preventive care', go:'screening'}});
+    }
   }
   /* --- consistency --- */
   if(nLogged>0 && nLogged<5){
@@ -2163,26 +2974,64 @@ function insights(){
    ============================================================ */
 
 const IC = {
-  today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><circle cx="12" cy="15" r="2.2" fill="currentColor" stroke="none"/></svg>',
-  trends:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 20V4M3 20h18"/><path d="M6.5 15.5l3.5-4.5 3.5 2.5L20 6.5"/></svg>',
-  learn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5.5A2 2 0 0 1 6 3.5h5v17H6a2 2 0 0 0-2 2z"/><path d="M20 5.5a2 2 0 0 0-2-2h-5v17h5a2 2 0 0 1 2 2z"/></svg>',
-  you:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c0-3.9 3.4-6.5 7.5-6.5s7.5 2.6 7.5 6.5"/></svg>',
+  /* Exact icon assets from the selected Twilight reference. */
+  today:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
+  trends:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
+  learn:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
+  you:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
   chev:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'
+};
+
+const TWILIGHT_IC = {
+  flame:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2c2 3 5 5 5 9a5 5 0 0 1-10 0c0-4 3-6 5-9z"></path></svg>',
+  moon:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15 12A7 7 0 1 1 8 3a6 6 0 0 0 7 9z"></path></svg>',
+  cloud:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 13a4 4 0 1 1 1-7.9A5 5 0 0 1 15.9 7 3.5 3.5 0 0 1 15 13z"></path></svg>',
+  bolt:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 2 4 11h5l-1 7 8-10h-5z"></path></svg>',
+  heart:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 17s-6-3.8-6-8a3.5 3.5 0 0 1 6-2.4A3.5 3.5 0 0 1 16 9c0 4.2-6 8-6 8z"></path></svg>',
+  horizon:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 12c2-6 10-6 12 0M4 12h12"></path></svg>',
+  cycle:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3"></rect><path d="M13 17v-4h4"></path></svg>',
+  pill:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>',
+  lab:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4M10 2v6l4 8a2 2 0 0 1-2 3H8a2 2 0 0 1-2-3l4-8"></path></svg>',
+  calendar:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
+  trend:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
+  document:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
+  sun:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>'
+};
+const SYM_IC = {
+  mood:TWILIGHT_IC.heart,
+  anx:TWILIGHT_IC.cloud,
+  fog:TWILIGHT_IC.cloud,
+  joint:TWILIGHT_IC.bolt,
+  dry:TWILIGHT_IC.horizon,
+  uri:TWILIGHT_IC.cycle,
+  energy:TWILIGHT_IC.bolt,
+  head:TWILIGHT_IC.cloud,
+  palp:TWILIGHT_IC.heart,
+  itch:TWILIGHT_IC.sun,
+  libido:TWILIGHT_IC.heart
+};
+const SYM_DISPLAY = {
+  mood:'Low mood', anx:'Anxiety', fog:'Brain fog', joint:'Joint pain',
+  dry:'Dryness', uri:'Bladder', energy:'Fatigue', head:'Headache',
+  palp:'Palpitations', itch:'Skin', libido:'Low libido'
 };
 
 let curDate = todayISO();
 let curTab = 'today';
 let sheetStack = [];
+let lastSheetTrigger = null;
+const APP_VERSION = '1.0.0';
 
 /* ---------- tiny helpers ---------- */
 const $ = s => document.querySelector(s);
 function h(tag, attrs, inner){
-  const a = Object.entries(attrs||{}).map(([k,v])=>v==null?'':' '+k+'="'+String(v).replace(/"/g,'&quot;')+'"').join('');
+  const a = Object.entries(attrs||{}).map(([k,v])=>v==null?'':' '+k+'="'+esc(v)+'"').join('');
   return '<'+tag+a+'>'+(inner==null?'':inner)+'</'+tag+'>';
 }
 function toast(msg){
   const old=$('.fab-note'); if(old) old.remove();
-  const el=document.createElement('div'); el.className='fab-note'; el.textContent=msg;
+  const el=document.createElement('div'); el.className='fab-note'; el.setAttribute('role','status');
+  el.setAttribute('aria-live','polite'); el.textContent=msg;
   document.body.appendChild(el); setTimeout(()=>el.remove(), 2600);
 }
 function setPath(obj, path, val){
@@ -2197,16 +3046,29 @@ function getPath(obj, path){
 }
 
 /* ---------- scale / chip builders ---------- */
-function scaleRow(path, labels, cur, min){
+function scaleRow(path, labels, cur, min, groupLabel){
   min = min==null?0:min;
+  groupLabel=groupLabel||'Severity';
   let b='';
   for(let i=min;i<labels.length+min;i++){
-    b += h('button',{'data-act':'set','data-k':path,'data-v':i,'aria-pressed':cur===i?'true':'false','aria-label':labels[i-min]}, i);
+    const level=i-min;
+    b += h('button',{class:'scale-choice','data-act':'set','data-k':path,'data-v':i,
+      'aria-pressed':cur===i?'true':'false','aria-label':groupLabel+': '+labels[level]},
+      '<span class="scale-dot fill-'+level+(cur===i?' on':'')+'" aria-hidden="true"></span>');
   }
-  return '<div class="scale">'+b+'</div><div class="scale-legend"><span>'+esc(labels[0])+'</span><span>'+esc(labels[labels.length-1])+'</span></div>';
+  return '<div class="scale" role="group" aria-label="'+esc(groupLabel)+'">'+b+'</div><div class="scale-legend" aria-hidden="true"><span>'+esc(labels[0])+'</span><span>'+esc(labels[labels.length-1])+'</span></div>';
 }
 function chip(path, label, on){
   return h('button',{class:'chip','data-act':'toggle','data-k':path,'aria-pressed':on?'true':'false'}, esc(label));
+}
+function proteinChoices(current, target){
+  const met=current===true || current===1;
+  const missed=current===false || current===0;
+  return h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':1,'aria-pressed':met?'true':'false'},
+      esc('Met protein target'+(target?' ('+target.grams+'g)':'')))
+    + h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':0,'aria-pressed':missed?'true':'false'},
+      'Missed target')
+    + ((met||missed) ? h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':''},'Clear') : '');
 }
 
 /* ============================================================
@@ -2227,12 +3089,14 @@ function viewToday(){
   const b = burden(e);
 
   return `
-  <div class="view">
+  <div class="view today-view">
     <div class="dayscroll" role="group" aria-label="Choose a day">${days}</div>
-    <p class="tiny muted" style="margin:6px 0 14px">${esc(fmtLong(curDate))}${curDate===t?'':' · editing a past day'}</p>
+    <p class="tiny muted" style="margin:6px 0 14px">${curDate===t?'Tap only what changed.':esc(fmtLong(curDate))+' · editing a past day'}</p>
 
-    <div class="card">
-      <div class="card-head"><h3>Hot flashes today</h3>${e.hf!=null?'<span class="badge accent">logged</span>':''}</div>
+    <div class="section-label day-label">Daily check-in</div>
+    <div class="checkin-grid">
+    <div class="card flash-card${e.hf>0?' sel':e.hf===0?' logged':''}">
+      <div class="card-head"><h3><span class="title-with-icon">${TWILIGHT_IC.flame}<span>Hot flashes</span></span></h3></div>
       <div class="stepper">
         <button data-act="hf" data-n="-1" aria-label="One fewer">–</button>
         <span class="val">${e.hf==null?'–':e.hf}</span>
@@ -2242,13 +3106,26 @@ function viewToday(){
         <button class="btn ghost sm" data-act="set" data-k="hf" data-v="0">None today</button>
         <button class="btn ghost sm" data-act="set" data-k="hf" data-v="">Clear</button>
       </div>
-      <hr class="sep">
-      <label class="fl">Night sweats last night</label>
-      ${scaleRow('ns', SCALE4, e.ns)}
+    </div>
+    <div class="card night-card${e.ns>0?' sel':e.ns===0?' logged':''}">
+      <label class="fl"><span class="title-with-icon">${TWILIGHT_IC.moon}<span>Night sweats</span></span></label>
+      ${scaleRow('ns', SCALE4, e.ns, 0, 'Night sweats last night')}
+    </div>
     </div>
 
+    <div class="section-label">Symptoms · 0 none → 4 very severe</div>
+    <div class="symptom-grid">
+      ${SYMS.filter(s=>s.k!=='sleepq').map(s=>`
+        <div class="card symptom-tile${sym[s.k]>0?' sel':sym[s.k]===0?' logged':''}">
+          <label class="fl symptom-name"><span class="symptom-title">${SYM_IC[s.k]||TWILIGHT_IC.cycle}<span>${esc(SYM_DISPLAY[s.k]||s.n)}</span></span></label>
+          ${scaleRow('sym.'+s.k, SCALE4, sym[s.k], 0, s.n)}
+        </div>`).join('')}
+    </div>
+    ${b!=null?`<div class="callout info burden-card"><span class="ctitle">Today's burden score: ${b} of 44</span>
+      Built on the same 0–4 per-symptom structure as the Menopause Rating Scale — a way to watch direction over weeks and to show a clinician. Single days bounce around, and we deliberately don't label it mild or severe: there is no validated cut-off for this set of symptoms.</div>`:''}
+
     <div class="section-label">How you slept</div>
-    <div class="card">
+    <div class="card sleep-card">
       <div class="grid2">
         <div class="field"><label class="fl" for="inbed">Hours in bed</label>
           <input id="inbed" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-k="inBedH" value="${e.inBedH??''}"></div>
@@ -2256,28 +3133,17 @@ function viewToday(){
           <input id="slept" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-k="sleepH" value="${e.sleepH??''}"></div>
       </div>
       <label class="fl">Sleep quality (0 = fine, 4 = terrible)</label>
-      ${scaleRow('sym.sleepq', ['Fine','Slightly off','Poor','Bad','Awful'], sym.sleepq)}
-      ${e.inBedH&&e.sleepH?`<p class="tiny muted" style="margin-top:10px">Sleep efficiency <b>${Math.round(e.sleepH/e.inBedH*100)}%</b>. CBT-I extends your sleep window once this passes about 85–90%.</p>`:''}
-    </div>
-
-    <div class="section-label">Symptoms · 0 none → 4 very severe</div>
-    <div class="card">
-      ${SYMS.filter(s=>s.k!=='sleepq').map(s=>`
-        <div style="margin-bottom:14px">
-          <label class="fl">${esc(s.n)}</label>
-          ${scaleRow('sym.'+s.k, SCALE4, sym[s.k])}
-        </div>`).join('')}
-      ${b!=null?`<div class="callout info" style="margin-bottom:0"><span class="ctitle">Today's burden score: ${b} of 44</span>
-        Built on the same 0–4 per-symptom structure as the Menopause Rating Scale — a way to watch direction over weeks and to show a clinician. Single days bounce around, and we deliberately don't label it mild or severe: there is no validated cut-off for this set of symptoms.</div>`:''}
+      ${scaleRow('sym.sleepq', ['Fine','Slightly off','Poor','Bad','Awful'], sym.sleepq, 0, 'Sleep quality')}
+      ${e.inBedH!=null&&e.inBedH>0&&e.sleepH!=null?`<p class="tiny muted" style="margin-top:10px">Sleep efficiency <b>${Math.round(e.sleepH/e.inBedH*100)}%</b>. CBT-I extends your sleep window once this passes about 85–90%.</p>`:''}
     </div>
 
     <div class="section-label">Body</div>
     <div class="card">
       <div class="grid2">
         <div class="field"><label class="fl" for="wt">Weight (${U.wLabel()})</label>
-          <input id="wt" type="number" step="0.1" inputmode="decimal" data-act="num" data-k="wt" data-conv="w" value="${e.wt!=null?r1(U.wOut(e.wt)):''}"></div>
+          <input id="wt" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="num" data-k="wt" data-conv="w" value="${e.wt!=null?r1(U.wOut(e.wt)):''}"></div>
         <div class="field"><label class="fl" for="wa">Waist (${U.lLabel()})</label>
-          <input id="wa" type="number" step="0.1" inputmode="decimal" data-act="num" data-k="waist" data-conv="l" value="${e.waist!=null?r1(U.lOut(e.waist)):''}"></div>
+          <input id="wa" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="num" data-k="waist" data-conv="l" value="${e.waist!=null?r1(U.lOut(e.waist)):''}"></div>
       </div>
       <p class="xtiny">Waist: same landmark every time, bare skin, end of a normal exhale. Self-measurement usually reads 1–3 cm low — fine, because you are tracking change.</p>
       <hr class="sep">
@@ -2298,27 +3164,27 @@ function viewToday(){
         ${chip('act.pf','Pelvic floor', act.pf)}
       </div>
       <div class="field" style="margin-bottom:0"><label class="fl" for="aero">Aerobic minutes</label>
-        <input id="aero" type="number" step="5" min="0" inputmode="numeric" data-act="num" data-k="act.aero" value="${act.aero??''}"></div>
+        <input id="aero" type="number" step="5" min="0" max="1440" inputmode="numeric" data-act="num" data-k="act.aero" value="${act.aero??''}"></div>
     </div>
 
     <div class="section-label">Food & drink</div>
     <div class="card">
       <div class="chips" style="margin-bottom:14px">
-        ${chip('nut.prot','Hit protein target'+(pt?' ('+pt.grams+'g)':''), nut.prot)}
+        ${proteinChoices(nut.prot, pt)}
         ${chip('nut.cal','2+ calcium servings', nut.cal)}
         ${chip('nut.fib','Good fibre day', nut.fib)}
       </div>
       <div class="grid2">
         <div class="field"><label class="fl" for="alc">Alcohol (drinks)</label>
-          <input id="alc" type="number" step="1" min="0" inputmode="numeric" data-act="num" data-k="nut.alc" value="${nut.alc??''}"></div>
+          <input id="alc" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-k="nut.alc" value="${nut.alc??''}"></div>
         <div class="field"><label class="fl" for="caf">Caffeine (cups)</label>
-          <input id="caf" type="number" step="1" min="0" inputmode="numeric" data-act="num" data-k="nut.caf" value="${nut.caf??''}"></div>
+          <input id="caf" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-k="nut.caf" value="${nut.caf??''}"></div>
       </div>
     </div>
 
     <div class="card">
       <label class="fl" for="notes">Notes</label>
-      <textarea id="notes" data-act="num" data-k="notes" placeholder="Anything worth remembering — what helped, what set it off, questions for your next appointment.">${esc(e.notes||'')}</textarea>
+      <textarea id="notes" maxlength="4000" data-act="num" data-k="notes" placeholder="Anything worth remembering — what helped, what set it off, questions for your next appointment.">${esc(e.notes||'')}</textarea>
     </div>
 
     ${DB.trigger&&DB.trigger.active?triggerBanner():''}
@@ -2340,7 +3206,7 @@ function viewTrends(){
   const dates = entryDates();
   if(!dates.length){
     return `<div class="view"><div class="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 20V4M3 20h18"/><path d="M6.5 15.5l3.5-4.5 3.5 2.5L20 6.5"/></svg>
+      ${IC.trends}
       <h3>Nothing to chart yet</h3>
       <p class="tiny">Fill in a check-in on the Today tab. Most patterns need about two weeks before they mean anything.</p>
       <button class="btn primary" data-act="tab" data-v="today">Start today's check-in</button>
@@ -2416,21 +3282,21 @@ function viewTrends(){
    LEARN
    ============================================================ */
 const LEARN_MODULES = [
-  {id:'stage',      i:'◔', n:'Where am I?',              s:'Staging, and how menopause is actually diagnosed'},
-  {id:'symptoms',   i:'≡', n:'Symptom library',           s:'What is happening, how long it lasts, what helps'},
-  {id:'treatment',  i:'℞', n:'Treatment options',         s:'Hormone therapy, non-hormonal options, absolute risks'},
-  {id:'supplements',i:'◈', n:'Supplements & remedies',    s:'What the trials actually show — mostly not much'},
-  {id:'diet',       i:'◍', n:'Eating for this stage',     s:'Protein, calcium, patterns, alcohol, energy myths'},
-  {id:'exercise',   i:'△', n:'Movement & strength',       s:'Resistance, bone loading, balance, pelvic floor'},
-  {id:'weight',     i:'◎', n:'Weight & body composition', s:'What really changes, and what works'},
-  {id:'skin',       i:'✧', n:'Skin, hair & nails',        s:'Four things with evidence; the rest is optional'},
-  {id:'sleep',      i:'☾', n:'Sleep',                     s:'Triage, then real CBT-I — not a hygiene checklist'},
-  {id:'mind',       i:'◇', n:'Mood, anxiety & mind',      s:'The risk window, brain fog, techniques that work'},
-  {id:'sex',        i:'♡', n:'Intimacy & sexual health',  s:'Options table, lubricant criteria, pain pathway'},
-  {id:'screening',  i:'✓', n:'Preventive care checklist', s:'Scans and screens for this decade — track them'},
-  {id:'clinician',  i:'✎', n:'Prepare for an appointment', s:'Build a question list from your own data'},
-  {id:'redflags',   i:'!', n:'Red flags',                  s:'Ten things that need care promptly'},
-  {id:'sources',    i:'§', n:'Sources & what we left out', s:'Where all of this comes from'}
+  {id:'stage',      i:TWILIGHT_IC.cycle, n:'Where am I?',              s:'Staging, and how menopause is actually diagnosed'},
+  {id:'symptoms',   i:TWILIGHT_IC.cloud, n:'Symptom library',           s:'What is happening, how long it lasts, what helps'},
+  {id:'treatment',  i:TWILIGHT_IC.pill, n:'Treatment options',         s:'Hormone therapy, non-hormonal options, absolute risks'},
+  {id:'supplements',i:TWILIGHT_IC.lab, n:'Supplements & remedies',    s:'What the trials actually show — mostly not much'},
+  {id:'diet',       i:TWILIGHT_IC.horizon, n:'Eating for this stage',     s:'Protein, calcium, patterns, alcohol, energy myths'},
+  {id:'exercise',   i:TWILIGHT_IC.bolt, n:'Movement & strength',       s:'Resistance, bone loading, balance, pelvic floor'},
+  {id:'weight',     i:TWILIGHT_IC.horizon, n:'Weight & body composition', s:'What really changes, and what works'},
+  {id:'skin',       i:TWILIGHT_IC.sun, n:'Skin, hair & nails',        s:'Four things with evidence; the rest is optional'},
+  {id:'sleep',      i:TWILIGHT_IC.moon, n:'Sleep',                     s:'Triage, then real CBT-I — not a hygiene checklist'},
+  {id:'mind',       i:TWILIGHT_IC.heart, n:'Mood, anxiety & mind',      s:'The risk window, brain fog, techniques that work'},
+  {id:'sex',        i:TWILIGHT_IC.heart, n:'Intimacy & sexual health',  s:'Options table, lubricant criteria, pain pathway'},
+  {id:'screening',  i:TWILIGHT_IC.calendar, n:'Preventive care checklist', s:'Scans and screens for this decade — track them'},
+  {id:'clinician',  i:TWILIGHT_IC.document, n:'Prepare for an appointment', s:'Build a question list from your own data'},
+  {id:'redflags',   i:TWILIGHT_IC.flame, n:'Red flags',                  s:'Ten things that need care promptly'},
+  {id:'sources',    i:TWILIGHT_IC.document, n:'Sources & what we left out', s:'Where all of this comes from'}
 ];
 function viewLearn(){
   return `<div class="view">
@@ -2458,9 +3324,9 @@ function viewYou(){
         ${age?'<span class="badge">'+age+'</span>':''}</div>
       <div class="grid2">
         <div class="field"><label class="fl" for="pn">Name</label>
-          <input id="pn" type="text" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
+          <input id="pn" type="text" maxlength="80" autocomplete="given-name" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
         <div class="field"><label class="fl" for="by">Birth year</label>
-          <input id="by" type="number" min="1920" max="2015" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
+          <input id="by" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
       </div>
       <div class="field"><label class="fl" for="ut">Uterus (womb)</label>
         <select id="ut" data-act="prof" data-k="uterus">
@@ -2475,10 +3341,10 @@ function viewYou(){
         <p class="xtiny">Asked separately on purpose: a hysterectomy often leaves both ovaries in place, and ovaries are sometimes removed with the uterus left. The two have completely different consequences.</p></div>
       ${periodsPossible()
         ? `<div class="field"><label class="fl" for="lp">Date of your last period</label>
-           <input id="lp" type="date" data-act="prof" data-k="lastPeriod" value="${p.lastPeriod||''}">
+           <input id="lp" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="lastPeriod" value="${p.lastPeriod||''}">
            <p class="xtiny">Used to count months without a period and to flag bleeding that needs checking.</p></div>`
         : `<div class="field"><label class="fl" for="sd">Date of your surgery, if you know it</label>
-           <input id="sd" type="date" data-act="prof" data-k="surgeryDate" value="${p.surgeryDate||''}">
+           <input id="sd" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="surgeryDate" value="${p.surgeryDate||''}">
            <p class="xtiny">${p.ovaries==='both'
               ? 'Both ovaries removed means menopause dates from this operation, so this app uses the surgery date rather than a last period.'
               : 'With no readable bleeding pattern, a last-period date would not mean anything — so this app asks for the surgery date instead. Staging should not be attempted until at least 3 months after surgery.'}</p></div>`}
@@ -2507,22 +3373,22 @@ function viewYou(){
              :'<p class="xtiny">Log a weight on the Today tab to see your grams.</p>'}</div>
       <div class="grid2" style="margin-bottom:0">
         <div class="field" style="margin-bottom:0"><label class="fl" for="wg">Weight goal (${U.wLabel()})</label>
-          <input id="wg" type="number" step="0.1" inputmode="decimal" data-act="prof" data-k="weightGoal" data-conv="w" value="${p.weightGoal!=null?r1(U.wOut(p.weightGoal)):''}"></div>
+          <input id="wg" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="prof" data-k="weightGoal" data-conv="w" value="${p.weightGoal!=null?r1(U.wOut(p.weightGoal)):''}"></div>
         <div class="field" style="margin-bottom:0"><label class="fl" for="wag">Waist goal (${U.lLabel()})</label>
-          <input id="wag" type="number" step="0.1" inputmode="decimal" data-act="prof" data-k="waistGoal" data-conv="l" value="${p.waistGoal!=null?r1(U.lOut(p.waistGoal)):''}"></div>
+          <input id="wag" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="prof" data-k="waistGoal" data-conv="l" value="${p.waistGoal!=null?r1(U.lOut(p.waistGoal)):''}"></div>
       </div>
     </div>
 
     <div class="section-label">Tools</div>
     <div class="rows">
-      ${[['protein','◍','Protein calculator','Grams a day and per meal, from your weight'],
-         ['phq9','◇','PHQ-9 mood check','Nine questions, tracked over time'],
-         ['gad7','◇','GAD-7 anxiety check','Seven questions, tracked over time'],
-         ['sleepwin','☾','Sleep window calculator','Sets your CBT-I schedule from your own logs'],
-         ['breath','~','Paced breathing','Six breaths a minute, for stress and anxiety'],
-         ['pmr','▤','Progressive muscle relaxation','A guided ten-minute sequence'],
-         ['trigger','⚗','Two-week trigger test','Test a suspected trigger properly'],
-         ['waist','◎','Waist reference','Thresholds and how to measure consistently']
+      ${[['protein',TWILIGHT_IC.horizon,'Protein calculator','Grams a day and per meal, from your weight'],
+         ['phq9',TWILIGHT_IC.heart,'PHQ-9 mood check','Nine questions, tracked over time'],
+         ['gad7',TWILIGHT_IC.heart,'GAD-7 anxiety check','Seven questions, tracked over time'],
+         ['sleepwin',TWILIGHT_IC.moon,'Sleep window calculator','Sets your CBT-I schedule from your own logs'],
+         ['breath',TWILIGHT_IC.cloud,'Paced breathing','Six breaths a minute, for stress and anxiety'],
+         ['pmr',TWILIGHT_IC.document,'Progressive muscle relaxation','A guided ten-minute sequence'],
+         ['trigger',TWILIGHT_IC.lab,'28-day trigger test','Removal, then reintroduction'],
+         ['waist',TWILIGHT_IC.horizon,'Waist reference','Thresholds and how to measure consistently']
         ].map(([id,i,n,s])=>h('button',{class:'row','data-act':'sheet','data-s':'tool:'+id},
           '<span class="ico">'+i+'</span><span class="txt"><b>'+n+'</b><span>'+s+'</span></span><span class="chev">'+IC.chev+'</span>')).join('')}
     </div>
@@ -2560,32 +3426,94 @@ function viewYou(){
 
     <div class="card flat">
       <h4>Privacy, plainly</h4>
-      <p class="tiny">Your entries live in this browser's storage on this device. There is no account, no server, no analytics, and no network request of any kind. Nobody — including whoever made this — can see what you write. The flip side: <b>clearing your browser data deletes it</b>, and it does not sync between devices. Export a backup now and then.</p>
+      <p class="tiny">Your health entries stay in this browser's storage on this device. The app has no account, analytics, health-data API, or sync service and does not transmit what you log. It fetches only its own static app files; external source links contact those sites only when you open them. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices. Export a backup now and then.</p>
       <h4 style="margin-top:14px">Medical disclaimer</h4>
-      <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, and it is not a substitute for professional medical advice. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
+      <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
     </div>
-    <p class="xtiny center" style="margin-bottom:20px">Meno Compass · content reviewed July 2026</p>
+    <p class="xtiny center" style="margin-bottom:20px">Meno Compass ${APP_VERSION} · content reviewed July 2026</p>
   </div>`;
 }
 
 /* ============================================================
    SHEETS
    ============================================================ */
-function openSheet(id){ sheetStack.push(id); renderSheet(); }
-function closeSheet(){ sheetStack.pop(); renderSheet(); }
-function renderSheet(){
+function setBackgroundInert(on){
+  ['#app','#topbar','#tabs'].forEach(selector=>{
+    const el=$(selector); if(!el) return;
+    if(on){ el.setAttribute('inert',''); el.setAttribute('aria-hidden','true'); }
+    else { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }
+  });
+}
+function focusDescriptor(el){
+  return el ? {node:el,tag:el.tagName.toLowerCase(),data:Object.assign({},el.dataset)} : null;
+}
+function findFocusTarget(desc,root){
+  if(!desc) return null;
+  if(desc.node&&desc.node.isConnected) return desc.node;
+  return [...(root||document).querySelectorAll(desc.tag)].find(el=>
+    Object.entries(desc.data).every(([key,value])=>el.dataset[key]===value)
+  )||null;
+}
+function openSheet(id){
+  if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
+  sheetStack.push(id); renderSheet(true);
+}
+function closeSheet(){
+  const closing=sheetStack.pop();
+  if(closing==='learn:stage'){
+    stageAns={}; stageStep=0; stageEditing=false;
+    render(true);
+  }
+  renderSheet(true);
+}
+function renderSheet(moveFocus){
   const host = $('#sheet-host');
-  if(!sheetStack.length){ host.innerHTML=''; document.body.style.overflow=''; return; }
+  if(!sheetStack.length){
+    host.innerHTML=''; document.body.style.overflow=''; setBackgroundInert(false);
+    const target=lastSheetTrigger; lastSheetTrigger=null;
+    setTimeout(()=>{
+      const restored=findFocusTarget(target,document)
+        ||document.querySelector('#app button,#app input,#app select,#tabs button');
+      if(restored) restored.focus();
+    },0);
+    return;
+  }
+  const previous=host.contains(document.activeElement) ? focusDescriptor(document.activeElement) : null;
   const id = sheetStack[sheetStack.length-1];
   const {title, body} = sheetContent(id);
+  setBackgroundInert(true);
   host.innerHTML = `<div class="sheet-bg" data-act="bg">
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-      <div class="sheet-bar"><h2>${esc(title)}</h2><button class="xbtn" data-act="close" aria-label="Close">✕</button></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
+      <div class="sheet-bar"><h2 id="sheet-title">${esc(title)}</h2><button class="close-btn" data-act="close" aria-label="Close ${esc(title)}">Close</button></div>
       ${body}
     </div></div>`;
   document.body.style.overflow='hidden';
   const s = host.querySelector('.sheet'); if(s) s.scrollTop=0;
   runSheetHooks(id);
+  if(s) setTimeout(()=>{
+    let target=null;
+    if(!moveFocus && previous){
+      target=findFocusTarget(previous,s);
+      if(!target) target=s.querySelector('[data-act]:not(.xbtn)');
+    }
+    if(moveFocus) target=s.querySelector('.xbtn,button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled])');
+    (target||s).focus();
+  },0);
+}
+
+function keepFocusInSheet(ev){
+  if(!sheetStack.length) return;
+  if(ev.key==='Escape'){ ev.preventDefault(); closeSheet(); return; }
+  if(ev.key!=='Tab') return;
+  const sheet=$('.sheet'); if(!sheet) return;
+  const focusable=[...sheet.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    .filter(el=>el.getClientRects().length && getComputedStyle(el).visibility!=='hidden');
+  if(!focusable.length){ ev.preventDefault(); sheet.focus(); return; }
+  const first=focusable[0], last=focusable[focusable.length-1];
+  if(document.activeElement===sheet){ ev.preventDefault(); (ev.shiftKey?last:first).focus(); }
+  else if(ev.shiftKey && document.activeElement===first){ ev.preventDefault(); last.focus(); }
+  else if(!ev.shiftKey && document.activeElement===last){ ev.preventDefault(); first.focus(); }
+  else if(!sheet.contains(document.activeElement)){ ev.preventDefault(); first.focus(); }
 }
 
 function sheetContent(id){
@@ -2594,7 +3522,7 @@ function sheetContent(id){
   if(id==='redflags') return learnSheet('redflags');
   if(id==='screening') return learnSheet('screening');
   if(id==='tools') return {title:'Tools', body:`<div class="rows">
-    ${[['protein','Protein calculator'],['phq9','PHQ-9 mood check'],['gad7','GAD-7 anxiety check'],['sleepwin','Sleep window calculator'],['breath','Paced breathing'],['pmr','Progressive muscle relaxation'],['trigger','Two-week trigger test'],['waist','Waist reference']]
+    ${[['protein','Protein calculator'],['phq9','PHQ-9 mood check'],['gad7','GAD-7 anxiety check'],['sleepwin','Sleep window calculator'],['breath','Paced breathing'],['pmr','Progressive muscle relaxation'],['trigger','28-day trigger test'],['waist','Waist reference']]
       .map(([t,n])=>h('button',{class:'row','data-act':'sheet','data-s':'tool:'+t},'<span class="txt"><b>'+n+'</b></span><span class="chev">'+IC.chev+'</span>')).join('')}
   </div>`};
   if(id==='data') return dataSheet();
@@ -2677,20 +3605,90 @@ function boneGate(){
 /* ---------- staging ---------- */
 let stageAns = {};
 let stageStep = 0;
+let stageEditing = false;
+
+function stageAnswerAllowed(q, value){
+  return q && q.a.some(a=>a.v===value);
+}
+function completeStageAnswers(ans){
+  if(!ans || typeof ans!=='object') return false;
+  const qs=stageQueue(ans);
+  return qs.length>0 && qs.every(q=>stageAnswerAllowed(q,ans[q.id]));
+}
+function ageStageAnswer(birthYear){
+  if(birthYear==null || birthYear==='' || !Number.isInteger(+birthYear)) return null;
+  const age=new Date().getFullYear()-(+birthYear);
+  return age<40?'u40':age<45?'40s_e':age<55?'45p':'55p';
+}
+function surgeryStageAnswer(date){
+  if(!pastOrTodayISO(date)) return 'unsure';
+  const days=daysBetween(date,todayISO());
+  return days<92?'lt3m':days<365?'lt1y':days<=Math.round(5*365.25)?'1to5':'gt5';
+}
+function storeStageAssessment(ans){
+  const p=DB.profile;
+  const clean={};
+  STAGE_Q.forEach(q=>{ if(stageAnswerAllowed(q,ans[q.id])) clean[q.id]=ans[q.id]; });
+  p.uterus=clean.uterus==='unsure'?'unknown':clean.uterus;
+  p.ovaries=clean.ovaries==='unsure'?'unknown':clean.ovaries;
+  const res=stageResult(clean);
+  p.stage=res.label;
+  p.stageAnswers=clean;
+  /* Older versions persisted rendered HTML here. Results are now derived
+     from the structured answers so updated guidance renders immediately. */
+  delete p.stageResult;
+  return res;
+}
+function invalidateStage(){
+  DB.profile.stage=null;
+  DB.profile.stageAnswers=null;
+  delete DB.profile.stageResult;
+}
+function refreshStageForProfile(key){
+  const p=DB.profile;
+  delete p.stageResult;
+  if(!p.stage || !p.stageAnswers) return;
+  const ans=Object.assign({},p.stageAnswers);
+  if(key==='uterus') ans.uterus=p.uterus==='unknown'?'unsure':p.uterus;
+  else if(key==='ovaries') ans.ovaries=p.ovaries==='unknown'?'unsure':p.ovaries;
+  else if(key==='birthYear'){
+    const age=ageStageAnswer(p.birthYear);
+    if(!age){ invalidateStage(); return; }
+    ans.age=age;
+  } else if(key==='surgeryDate'){
+    ans.surgWhen=surgeryStageAnswer(p.surgeryDate);
+  } else if(key==='lastPeriod'){
+    /* A date alone cannot tell regularity, variability, or skipped-cycle
+       history. Re-asking is safer than retaining a contradictory label. */
+    invalidateStage(); return;
+  } else return;
+
+  if(!completeStageAnswers(ans)){ invalidateStage(); return; }
+  const res=stageResult(ans);
+  p.stage=res.label;
+  p.stageAnswers=ans;
+}
 function stageSheetBody(){
   const p = DB.profile;
-  if(p.stage && stageStep===0 && !Object.keys(stageAns).length){
-    const res = p.stageResult||{};
-    return `<div class="callout ok"><span class="ctitle">${esc(p.stage)}</span>${res.body||''}</div>
-    ${(res.flags||[]).map(f=>'<div class="callout warn">'+f+'</div>').join('')}
+  if(Object.prototype.hasOwnProperty.call(p,'stageResult')){
+    delete p.stageResult;
+    save();
+  }
+  if(p.stage && !completeStageAnswers(p.stageAnswers)){
+    invalidateStage();
+    save();
+  }
+  if(p.stage && !stageEditing){
+    const res = stageResult(p.stageAnswers);
+    return `<div class="callout ok"><span class="ctitle">${esc(res.label)}</span>${res.body}</div>
+    ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
     ${STAGE_CAVEAT}
     <button class="btn block ghost" data-act="stage-restart">Answer the questions again</button>`;
   }
+  if(!stageEditing) stageEditing=true;
   const qs = stageQueue(stageAns);
   if(stageStep>=qs.length){
-    const res = stageResult(stageAns);
-    DB.profile.stage = res.label; DB.profile.stageAnswers = Object.assign({},stageAns);
-    DB.profile.stageResult = {body:res.body, flags:res.flags};
+    const res = storeStageAssessment(stageAns);
     save();
     return `<div class="callout ok"><span class="ctitle">${esc(res.label)}</span>${res.body}</div>
     ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
@@ -2712,6 +3710,14 @@ function stageSheetBody(){
 }
 
 /* ---------- screening ---------- */
+function screeningIntervalLabel(id, years){
+  if(id==='cervical') return years===3?'3 years — cytology':'5 years — HPV testing / co-test';
+  if(id==='colon') return years===1?'1 year — FIT / annual review'
+    : years===3?'3 years — stool DNA-FIT'
+    : years===5?'5 years — CT colonography / sigmoidoscopy'
+    : '10 years — colonoscopy';
+  return years+' years';
+}
 function screeningBody(){
   const age = DB.profile.birthYear ? new Date().getFullYear()-DB.profile.birthYear : null;
   const nonUS = DB.profile.region && DB.profile.region!=='us';
@@ -2721,24 +3727,35 @@ function screeningBody(){
   Screening ages, intervals and invitation systems differ substantially outside the US, and many countries run national invitation programmes instead. Use this page as a prompt to ask what <i>your</i> programme covers, and record the dates you were actually seen.</div>`:''}
   ${SCREENING.map(s=>{
     const rec = DB.screening[s.id]||{};
-    return `<details class="acc"><summary><span style="flex:1">${esc(s.n)}</span>${rec.last?'<span class="badge strong">'+fmtDay(rec.last)+'</span>':''}</summary>
+    const rule=SCREENING_RULES[s.id];
+    const status=rule?screeningStatus(s.id,age):{due:false};
+    const validLast=pastOrTodayISO(rec.last);
+    const selected=rule && rule.years.includes(+rec.intervalYears) ? +rec.intervalYears : (rule?rule.defaultYears:null);
+    const badge=status.due
+      ? '<span class="badge warn">due to check</span>'
+      : validLast?'<span class="badge strong">'+fmtDay(rec.last)+'</span>':'';
+    return `<details class="acc"><summary><span style="flex:1">${esc(s.n)}</span>${badge}</summary>
     <div>
       <p class="tiny"><b>${esc(s.w)}</b></p>
       <p class="tiny">${s.d}</p>
       <label class="fl" for="sc-${s.id}">Date you last had this</label>
-      <input id="sc-${s.id}" type="date" data-act="screen" data-k="${s.id}" value="${rec.last||''}">
+      <input id="sc-${s.id}" type="date" min="${DB.profile.birthYear?DB.profile.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="screen" data-k="${s.id}" value="${validLast?rec.last:''}">
+      ${rule&&rule.years.length>1?`<label class="fl" for="sci-${s.id}" style="margin-top:10px">Reminder interval for the test you had</label>
+        <select id="sci-${s.id}" data-act="screen-int" data-k="${s.id}">
+          ${rule.years.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}
+        </select>`:''}
     </div></details>`;
   }).join('')}
-  <p class="xtiny">Recording dates here is just for your own reference — it does not book anything, and nothing is sent anywhere.</p>`;
+  <p class="xtiny">Recording dates here is just for your own reference — it does not book anything, and nothing is sent anywhere. Reminder intervals are prompts, not a substitute for the schedule your clinician gives you.</p>`;
 }
 
 /* ---------- red flags ---------- */
 function redflagBody(){
-  return `<div class="callout alert"><span class="ctitle">If something on this list applies, contact a clinician</span>
-  This page is deliberately short and unhedged. Every item has a documented reason, given underneath.</div>
+  return `<div class="callout alert"><span class="ctitle">Some symptoms need emergency help now</span>
+  Call your local emergency number now for chest pressure or pain, sudden severe trouble breathing, signs of a stroke, fainting with severe symptoms, or immediate danger. Use <b>911</b> in the US or Canada, <b>999</b> in the UK, or <b>112</b> in the EU. Do not drive yourself. The other items below need prompt clinical advice even when they are not emergencies.</div>
   ${REDFLAGS.map(r=>`<details class="acc"><summary><span style="flex:1">${esc(r.n)}</span></summary><div><p style="margin-bottom:0">${r.why}</p></div></details>`).join('')}
   <div class="callout warn"><span class="ctitle">If you are thinking about harming yourself</span>
-  Please reach out today — to a clinician, a crisis line in your country, or someone you trust. In the US you can call or text 988. In the UK, call 111 or the Samaritans on 116 123. You do not have to be in crisis to use them.</div>`;
+  If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer">988</a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer">Samaritans on 116 123</a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>. You do not have to explain yourself perfectly.</div>`;
 }
 
 /* ---------- clinician prep ---------- */
@@ -2776,14 +3793,15 @@ function dataSheet(){
     <button class="btn primary" data-act="export-json">Download JSON</button>
     <button class="btn ghost" data-act="export-csv">Download CSV</button>
   </div>
-  <p class="xtiny">JSON restores everything including settings. CSV is one row per day for a spreadsheet or to share with a clinician.</p>
+  <p class="xtiny"><b>These downloads are plain, unencrypted files containing sensitive health information.</b> Save them only somewhere private. JSON restores everything including settings. CSV is one row per day for a spreadsheet or to share with a clinician.</p>
   <div class="section-label">Copy instead</div>
   <p class="tiny">If downloads are blocked, copy this and paste it into a file:</p>
   <textarea id="dump" readonly style="min-height:130px;font-family:ui-monospace,monospace;font-size:.72rem">${esc(JSON.stringify(DB))}</textarea>
   <div class="btn-row"><button class="btn ghost sm" data-act="copy-dump">Copy to clipboard</button></div>
   <div class="section-label">Restore</div>
   <p class="tiny">Paste a previously exported JSON backup. <b>This replaces everything currently stored.</b></p>
-  <textarea id="restore" placeholder='{"v":1,"profile":...}'></textarea>
+  <textarea id="restore" maxlength="5000000" aria-describedby="restore-help" placeholder='{"v":2,"profile":...}'></textarea>
+  <p class="xtiny" id="restore-help">Restore accepts a Meno Compass JSON file up to 5 MB. Unknown fields and invalid values are discarded.</p>
   <button class="btn block" data-act="import-json" style="margin-top:8px">Restore from this backup</button>
   <div class="section-label">Delete</div>
   <button class="btn block danger" data-act="wipe">Erase everything on this device</button>
@@ -2803,24 +3821,38 @@ function reportSheet(){
   })).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,6);
   const meds = DB.scores.slice(-6).reverse();
   const bleeds = entryDates().filter(x=>DB.entries[x].bleed && DB.entries[x].bleed!=='none');
+  const hfValues=hf.map(x=>x.v).filter(v=>v!=null);
+  const nsValues=rangeDates(30).map(x=>DB.entries[x]&&DB.entries[x].ns).filter(v=>v!=null);
+  const strengthValues=rangeDates(28).map(x=>DB.entries[x]&&DB.entries[x].act?DB.entries[x].act.res:null).filter(v=>typeof v==='boolean');
+  const strengthCount=strengthValues.filter(Boolean).length;
+  const alcoholValues=rangeDates(28).map(x=>{const e=DB.entries[x];return e&&e.nut?e.nut.alc:null;}).filter(v=>v!=null);
+  const strengthSummary=!strengthValues.length?'not tracked'
+    : strengthValues.length===28?r1(strengthCount/4)+' / week'
+    : strengthCount+' session'+(strengthCount===1?'':'s')+' across '+strengthValues.length+' logged activity day'+(strengthValues.length===1?'':'s');
+  const alcoholSummary=!alcoholValues.length?'not tracked'
+    : alcoholValues.length===28?r1(sum(alcoholValues)/4)+' drinks / week'
+    : sum(alcoholValues)+' drinks across '+alcoholValues.length+' logged day'+(alcoholValues.length===1?'':'s');
   return {title:'Report for your clinician', body:`
   <p class="tiny muted">A one-page summary of what you have tracked. Print it, or read from it.</p>
+  <div class="report-page">
+  <div class="report-brand"><b>MenoCompass</b><span>Clinician summary · 90 days</span></div>
   <div class="card">
     <h3 style="margin-bottom:2px">Symptom summary</h3>
     <p class="xtiny">${p.name?esc(p.name)+' · ':''}${age?age+' years · ':''}Prepared ${fmtLong(todayISO())}</p>
     <hr class="sep">
     <div class="kv"><span>Days tracked (last 90)</span><b>${d.length}</b></div>
     ${p.stage?`<div class="kv"><span>Self-assessed stage</span><b>${esc(p.stage)}</b></div>`:''}
-    ${p.lastPeriod?`<div class="kv"><span>Last period</span><b>${fmtDay(p.lastPeriod)} (${Math.floor(daysBetween(p.lastPeriod,todayISO())/30)} months)</b></div>`:''}
-    <div class="kv"><span>Hot flashes / day (30 d)</span><b>${avg(hf.map(x=>x.v))!=null?r1(avg(hf.map(x=>x.v))):'not tracked'}</b></div>
-    <div class="kv"><span>Worst single day</span><b>${hf.filter(x=>x.v!=null).length?Math.max(...hf.filter(x=>x.v!=null).map(x=>x.v)):'–'}</b></div>
-    <div class="kv"><span>Night sweats, moderate+ (30 d)</span><b>${rangeDates(30).filter(x=>DB.entries[x]&&DB.entries[x].ns>=2).length} nights</b></div>
+    ${periodsPossible()&&pastOrTodayISO(p.lastPeriod)?`<div class="kv"><span>Last period</span><b>${fmtDay(p.lastPeriod)} (${Math.floor(daysBetween(p.lastPeriod,todayISO())/30)} months)</b></div>`:''}
+    ${!periodsPossible()&&pastOrTodayISO(p.surgeryDate)?`<div class="kv"><span>${surgicalMenopause()?'Surgical menopause date':'Surgery date'}</span><b>${fmtDay(p.surgeryDate)} (${Math.floor(daysBetween(p.surgeryDate,todayISO())/30)} months)</b></div>`:''}
+    <div class="kv"><span>Hot flashes / day (30 d)</span><b>${hfValues.length?r1(avg(hfValues)):'not tracked'}</b></div>
+    <div class="kv"><span>Worst single day</span><b>${hfValues.length?Math.max(...hfValues):'not tracked'}</b></div>
+    <div class="kv"><span>Night sweats, moderate+ (30 d)</span><b>${nsValues.length?nsValues.filter(v=>v>=2).length+' nights':'not tracked'}</b></div>
     <div class="kv"><span>Sleep (30 d average)</span><b>${avg(series(rangeDates(30),e=>e.sleepH).map(x=>x.v))!=null?r1(avg(series(rangeDates(30),e=>e.sleepH).map(x=>x.v)))+' h':'not tracked'}</b></div>
     <div class="kv"><span>Symptom burden (30 d avg)</span><b>${avg(bd.map(x=>x.v))!=null?r1(avg(bd.map(x=>x.v)))+' / 44':'not tracked'}</b></div>
     ${wt.length?`<div class="kv"><span>Weight</span><b>${r1(U.wOut(wt[wt.length-1].v))} ${U.wLabel()} (${wt.length>1?(wt[wt.length-1].v>wt[0].v?'+':'')+r1(U.wOut(wt[wt.length-1].v-wt[0].v))+' over '+daysBetween(wt[0].d,wt[wt.length-1].d)+' d':'single reading'})</b></div>`:''}
     ${wa.length?`<div class="kv"><span>Waist</span><b>${r1(U.lOut(wa[wa.length-1].v))} ${U.lLabel()}${wa.length>1?' ('+(wa[wa.length-1].v>wa[0].v?'+':'')+r1(U.lOut(wa[wa.length-1].v-wa[0].v))+')':''}</b></div>`:''}
-    <div class="kv"><span>Strength sessions / week (28 d)</span><b>${r1(rangeDates(28).filter(x=>DB.entries[x]&&DB.entries[x].act&&DB.entries[x].act.res).length/4)}</b></div>
-    <div class="kv"><span>Alcohol / week (28 d)</span><b>${r1(sum(rangeDates(28).map(x=>{const e=DB.entries[x];return e&&e.nut?e.nut.alc:null;}))/4)} drinks</b></div>
+    <div class="kv"><span>Strength sessions (28 d)</span><b>${strengthSummary}</b></div>
+    <div class="kv"><span>Alcohol (28 d)</span><b>${alcoholSummary}</b></div>
   </div>
   ${topSym.length?`<div class="card"><h4>Most prominent symptoms (30-day average, 0–4)</h4>
     ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
@@ -2830,6 +3862,7 @@ function reportSheet(){
   ${bleeds.length?`<div class="card"><h4>Bleeding logged</h4>
     ${bleeds.slice(-8).reverse().map(x=>`<div class="kv"><span>${fmtDay(x)}</span><b>${esc(DB.entries[x].bleed)}</b></div>`).join('')}</div>`:''}
   ${notesDigest()}
+  </div>
   <div class="btn-row split">
     <button class="btn primary" data-act="print">Print / save as PDF</button>
     <button class="btn ghost" data-act="sheet" data-s="learn:clinician">Question list</button>
@@ -2860,7 +3893,7 @@ function latestWeight(){
 const PHQ9 = ['Little interest or pleasure in doing things','Feeling down, depressed, or hopeless','Trouble falling or staying asleep, or sleeping too much','Feeling tired or having little energy','Poor appetite or overeating','Feeling bad about yourself, or that you are a failure, or have let yourself or your family down','Trouble concentrating on things, such as reading the newspaper or watching television','Moving or speaking so slowly that other people could have noticed, or the opposite — being fidgety or restless','Thoughts that you would be better off dead, or of hurting yourself in some way'];
 const GAD7 = ['Feeling nervous, anxious or on edge','Not being able to stop or control worrying','Worrying too much about different things','Trouble relaxing','Being so restless that it is hard to sit still','Becoming easily annoyed or irritable','Feeling afraid as if something awful might happen'];
 const FREQ = ['Not at all','Several days','More than half the days','Nearly every day'];
-let qAns = {};
+const qDrafts = {phq9:{}, gad7:{}};
 
 function toolSheet(t){
   switch(t){
@@ -2870,7 +3903,7 @@ function toolSheet(t){
     case 'sleepwin':return {title:'Sleep window calculator', body:sleepWinTool()};
     case 'breath':  return {title:'Paced breathing', body:breathTool()};
     case 'pmr':     return {title:'Progressive muscle relaxation', body:pmrTool()};
-    case 'trigger': return {title:'Two-week trigger test', body:triggerTool()};
+    case 'trigger': return {title:'28-day trigger test', body:triggerTool()};
     case 'waist':   return {title:'Waist reference', body:waistTool()};
   }
   return {title:'', body:''};
@@ -2881,7 +3914,7 @@ function proteinTool(){
   const gpk = +DB.profile.proteinGpk||1.2;
   return `<p class="tiny">The RDA of 0.8 g/kg is a floor for avoiding deficiency, not a target for keeping muscle. Guidelines for healthy older adults use 1.0–1.2 g/kg; the training and body-composition literature uses 1.2–1.6; during intentional weight loss, 1.2–1.5.</p>
   <div class="field"><label class="fl" for="ptw">Your weight (${U.wLabel()})</label>
-    <input id="ptw" type="number" step="0.1" inputmode="decimal" value="${pt?r1(U.wOut(pt.kg)):''}" data-act="prot-calc"></div>
+    <input id="ptw" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" value="${pt?r1(U.wOut(pt.kg)):''}" data-act="prot-calc"></div>
   <div class="field"><label class="fl" for="ptg">Target</label>
     <select id="ptg" data-act="prot-calc">
       ${[1.0,1.2,1.4,1.6].map(v=>`<option value="${v}"${gpk===v?' selected':''}>${v.toFixed(1)} g/kg</option>`).join('')}
@@ -2903,7 +3936,7 @@ function proteinTool(){
   <p class="xtiny">Breakfast is nearly always the meal that falls short. For BMI 30+, guidelines generally apply g/kg to an adjusted rather than actual body weight — we are not publishing a formula for that because we could not verify a menopause-specific one. Ask a dietitian. Anyone with kidney disease should get a target from their clinician, not an app.</p>`;
 }
 function proteinOut(kg, gpk){
-  if(kg==null) return '<p class="tiny muted">Enter a weight to see your numbers.</p>';
+  if(kg==null || !Number.isFinite(kg) || kg<=0 || !Number.isFinite(gpk)) return '<p class="tiny muted">Enter a valid weight to see your numbers.</p>';
   const g = Math.round(kg*gpk);
   return `<div class="tiles" style="margin-bottom:12px">
     <div class="tile"><div class="k">Per day</div><div class="v">${g}<small> g</small></div></div>
@@ -2914,8 +3947,9 @@ function proteinOut(kg, gpk){
 
 function questionTool(kind){
   const items = kind==='phq9'?PHQ9:GAD7;
-  const done = Object.keys(qAns).length===items.length;
-  const score = done? Object.values(qAns).reduce((a,b)=>a+b,0) : null;
+  const answers=qDrafts[kind];
+  const done = items.every((_,i)=>answers[i]!=null);
+  const score = done? items.reduce((total,_,i)=>total+answers[i],0) : null;
   let band='', note='';
   if(done){
     if(kind==='phq9'){
@@ -2924,23 +3958,23 @@ function questionTool(kind){
       band = score<5?'minimal':score<10?'mild':score<15?'moderate':'severe';
     }
   }
-  const risk = kind==='phq9' && qAns[8]>0;
+  const risk = kind==='phq9' && answers[8]>0;
   const past = DB.scores.filter(s=>s.type===kind).slice(-6);
   return `<p class="tiny">Over the <b>last two weeks</b>, how often have you been bothered by the following?</p>
   <div class="callout warn"><span class="ctitle">Read the score carefully</span>
   Several menopause symptoms — broken sleep, fatigue, poor concentration, low libido — <b>also score points on this questionnaire</b>. The perimenopausal depression guideline says so explicitly. A raised total is a reason to talk to someone, not a diagnosis.</div>
-  ${items.map((q,i)=>`<div style="margin-bottom:15px"><label class="fl">${i+1}. ${esc(q)}</label>
-    <div class="scale">${FREQ.map((f,v)=>h('button',{'data-act':'q-a','data-i':i,'data-v':v,'aria-pressed':qAns[i]===v?'true':'false','aria-label':f}, v)).join('')}</div>
-    <div class="scale-legend"><span>Not at all</span><span>Nearly every day</span></div></div>`).join('')}
+  ${items.map((q,i)=>`<div style="margin-bottom:15px"><p class="fl" id="q-${kind}-${i}">${i+1}. ${esc(q)}</p>
+    <div class="scale" role="group" aria-labelledby="q-${kind}-${i}">${FREQ.map((f,v)=>h('button',{'data-act':'q-a','data-k':kind,'data-i':i,'data-v':v,'aria-pressed':answers[i]===v?'true':'false','aria-label':(i+1)+'. '+q+': '+f}, v)).join('')}</div>
+    <div class="scale-legend" aria-hidden="true"><span>Not at all</span><span>Nearly every day</span></div></div>`).join('')}
   ${done?`<div class="callout ${score>=15?'alert':score>=10?'warn':'ok'}"><span class="ctitle">Score: ${score} of ${items.length*3} — ${band}</span>
     ${kind==='phq9'
       ? 'For context: elevated depressive symptoms are found in 45–68% of perimenopausal women versus 28–31% before. Women are 2–4× more likely to have a major depressive episode during the transition and early postmenopause. Prior depression is the strongest predictor.'
       : 'GAD-7 is the standard anxiety measure. The bands shown are its usual published ones, but we could not find validation specific to menopausal women — so read your trend over time rather than the label.'}
     ${score>=10?'<p style="margin:8px 0 0"><b>A score in this range warrants a conversation with a clinician.</b> Take these numbers with you.</p>':''}</div>`:''}
   ${risk?`<div class="callout alert"><span class="ctitle">Please reach out today</span>
-    You answered yes to thoughts of being better off dead or of hurting yourself. Please contact a clinician or a crisis line now — in the US call or text <b>988</b>; in the UK call <b>111</b> or the Samaritans on <b>116 123</b>. You do not have to be in crisis to use them, and you do not have to explain yourself well.</div>`:''}
+    You answered yes to thoughts of being better off dead or of hurting yourself. If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer"><b>988</b></a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer"><b>116 123</b></a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>. You do not have to explain yourself perfectly.</div>`:''}
   <div class="btn-row split">
-    <button class="btn ghost" data-act="q-reset">Clear</button>
+    <button class="btn ghost" data-act="q-reset" data-k="${kind}">Clear</button>
     <button class="btn primary" data-act="q-save" data-k="${kind}" ${done?'':'disabled style="opacity:.5"'}>Save ${done?'score of '+score:'score'}</button>
   </div>
   ${past.length?`<div class="section-label">Your history</div>
@@ -2951,17 +3985,22 @@ function sleepWinTool(){
   const ds = rangeDates(14);
   const sleeps = ds.map(d=>{const e=DB.entries[d];return e&&e.sleepH!=null?e.sleepH:null;}).filter(v=>v!=null);
   const beds = ds.map(d=>{const e=DB.entries[d];return e&&e.inBedH!=null?e.inBedH:null;}).filter(v=>v!=null);
+  const paired=ds.map(d=>DB.entries[d]).filter(e=>
+    e && e.sleepH!=null && e.inBedH!=null && e.inBedH>0 && e.sleepH<=e.inBedH
+  );
   const aSleep = avg(sleeps), aBed = avg(beds);
-  const eff = (aSleep&&aBed)? aSleep/aBed*100 : null;
-  const win = aSleep? Math.max(5, Math.round(aSleep*4)/4) : null;
+  const eff = paired.length ? avg(paired.map(e=>e.sleepH/e.inBedH*100)) : null;
+  const win = aSleep!=null&&aSleep>0 ? Math.max(5, Math.round(aSleep*4)/4) : null;
   return `<div class="callout info"><span class="ctitle">Why this is the effective part</span>
   In 150 postmenopausal women with chronic insomnia: sleep hygiene education alone produced <b>4%</b> remission. CBT-I produced <b>54%</b> at the end of treatment and <b>68% at six months</b>, with 40–43 more minutes of sleep a night. Sleep restriction is the engine.</div>
-  ${sleeps.length<5
-    ? '<div class="callout warn"><span class="ctitle">Log a few more nights first</span>You have '+sleeps.length+' night'+(sleeps.length===1?'':'s')+' of sleep data in the last two weeks. This needs about a week of honest logging — hours in bed and hours actually asleep — before it gives you a sensible window.</div>'
+  ${sleeps.length<5||win==null
+    ? (sleeps.length>=5&&aSleep===0
+        ? '<div class="callout alert"><span class="ctitle">Zero sleep is not a basis for sleep restriction</span>You recorded no sleep across these nights. Do not shorten your time in bed from this calculator; contact a clinician promptly for help and check that the entries are accurate.</div>'
+        : '<div class="callout warn"><span class="ctitle">Log a few more nights first</span>You have '+sleeps.length+' night'+(sleeps.length===1?'':'s')+' of sleep data in the last two weeks. This needs about a week of honest logging — hours in bed and hours actually asleep — before it gives you a sensible window.</div>')
     : `<div class="tiles" style="margin-bottom:14px">
         <div class="tile"><div class="k">Actual sleep</div><div class="v">${r1(aSleep)}<small> h</small></div><div class="d">14-day average</div></div>
-        ${aBed?`<div class="tile"><div class="k">Time in bed</div><div class="v">${r1(aBed)}<small> h</small></div></div>
-        <div class="tile"><div class="k">Efficiency</div><div class="v">${Math.round(eff)}<small>%</small></div><div class="d">${eff>=85?'extend the window':'hold the window'}</div></div>`:''}
+        ${aBed!=null?`<div class="tile"><div class="k">Time in bed</div><div class="v">${r1(aBed)}<small> h</small></div></div>`:''}
+        ${eff!=null?`<div class="tile"><div class="k">Efficiency</div><div class="v">${Math.round(eff)}<small>%</small></div><div class="d">${eff>=85?'extend the window':'hold the window'}</div></div>`:''}
       </div>
       <div class="card">
         <h4>Your starting window: ${r1(win)} hours</h4>
@@ -2984,7 +4023,7 @@ function sleepWinTool(){
   <p class="xtiny">This calculator implements the sleep-restriction component of CBT-I. It is not therapy, and clinician- or programme-delivered CBT-I is better. Telephone-delivered CBT-I worked well in peri- and postmenopausal women, so ask about remote options.</p>`;
 }
 function swOut(wake, win){
-  if(!win) return '';
+  if(win==null || win<=0) return '';
   const [hh,mm] = wake.split(':').map(Number);
   let t = hh*60+mm - Math.round(win*60);
   while(t<0) t+=1440;
@@ -3035,31 +4074,52 @@ function pmrTool(){
   <p class="xtiny">If you have an injury or pain anywhere, skip that group or tense only very gently. Effects improve when combined with music, mindfulness or slow breathing.</p>`;
 }
 
+function refreshTriggerStatus(){
+  const t=DB.trigger;
+  if(!t || !t.active) return;
+  if(!pastOrTodayISO(t.start)){
+    t.active=false; t.status='stopped'; t.ended=todayISO();
+    save();
+    return;
+  }
+  if(daysBetween(t.start,todayISO())>=28){
+    t.active=false; t.status='completed'; t.ended=addDays(t.start,27);
+    save();
+  }
+}
 function triggerTool(){
+  refreshTriggerStatus();
   const t = DB.trigger;
   if(t && t.active){
-    const day = daysBetween(t.start, todayISO())+1;
+    const day = Math.max(1,daysBetween(t.start, todayISO())+1);
     const phase = day<=14 ? 'removal' : 'reintroduction';
     const dayIn = day<=14 ? day : day-14;
-    const A = triggerStats(t, 'remove'), B = triggerStats(t, 'base');
+    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
     return `<div class="callout ok"><span class="ctitle">Test running: ${esc(t.item)}</span>
     Day ${day} — <b>${phase} phase</b>, day ${dayIn} of 14. Keep logging as normal; the comparison happens automatically.</div>
     <div class="progress"><i style="width:${Math.min(100, Math.round(day/28*100))}%"></i></div>
-    <div class="tiles" style="margin:14px 0">
-      <div class="tile"><div class="k">Before</div><div class="v">${B!=null?r1(B):'–'}</div><div class="d">flashes/day</div></div>
-      <div class="tile"><div class="k">During removal</div><div class="v">${A!=null?r1(A):'–'}</div><div class="d">flashes/day</div></div>
-    </div>
-    ${A!=null&&B!=null&&day>=14?`<div class="callout info"><span class="ctitle">${Math.abs(A-B)<0.8?'No clear difference so far':(A<B?'Symptoms lower without it':'Symptoms higher without it — probably noise')}</span>
-      ${Math.abs(A-B)<0.8?'That is a useful result. It means you can stop policing this one and put the effort somewhere with better evidence.':'Now reintroduce it for two weeks and see whether the pattern reverses. If it does not, the first result was probably coincidence.'}</div>`:''}
+    ${triggerPhaseTiles(before,remove,reintro)}
+    ${day>=15?triggerComparison(remove,reintro,false):`<div class="callout info"><span class="ctitle">Reintroduction starts on day 15</span>
+      A change during removal is only a clue. Bringing ${esc(t.item)} back for the second two weeks tests whether the pattern reverses.</div>`}
     <button class="btn block ghost" data-act="trig-stop">End this test</button>
     <p class="xtiny">Honest caveat: this is a single-person, unblinded experiment with no control for everything else changing in your life. It is the fairest version available to you, which is not the same as proof.</p>`;
+  }
+  if(t){
+    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
+    const complete=t.status==='completed';
+    return `<div class="callout ${complete?'ok':'warn'}"><span class="ctitle">${complete?'Test complete':'Test ended early'}: ${esc(t.item)}</span>
+      ${complete?'You completed both 14-day phases.':'The available numbers are shown, but an incomplete phase is much harder to interpret.'}</div>
+      ${triggerPhaseTiles(before,remove,reintro)}
+      ${triggerComparison(remove,reintro,complete)}
+      <button class="btn block primary" data-act="trig-reset">Start another test</button>
+      <p class="xtiny">These are personal observations, not proof of cause. Illness, weather, stress, treatment changes and ordinary symptom variation can all move the numbers.</p>`;
   }
   return `<div class="callout warn"><span class="ctitle">Start here: trigger-avoidance is not a proven treatment</span>
   The Menopause Society states plainly that <b>there are no clinical trials assessing whether avoiding triggers relieves vasomotor symptoms</b>, and rates it not recommended. The most-quoted caffeine study was cross-sectional, and its own authors said they could not advise patients without further research.</div>
   <p class="tiny">So why offer this? Because individual responses vary, and a structured two-week removal followed by reintroduction is far more informative than the usual approach of vaguely avoiding six things at once and never knowing which mattered.</p>
   <div class="field"><label class="fl" for="trig">What do you want to test?</label>
     <select id="trig">${['Alcohol','Caffeine','Spicy food','Sugar','Late meals','Hot drinks','Something else'].map(v=>`<option>${v}</option>`).join('')}</select></div>
-  <button class="btn block primary" data-act="trig-start">Start a 14-day removal</button>
+  <button class="btn block primary" data-act="trig-start">Start the 28-day test</button>
   <h4 style="margin-top:18px">How it works</h4>
   <ul class="tick">
     <li><b>Days 1–14:</b> remove it completely. Change nothing else. Keep logging.</li>
@@ -3070,16 +4130,44 @@ function triggerTool(){
   <p class="xtiny">One separate note: if alcohol is the thing you are testing, cutting it back is worth doing regardless of what this shows. The evidence for that sits with breast cancer risk and sleep quality, not hot flashes.</p>`;
 }
 function triggerStats(t, which){
-  if(which==='base'){
-    const ds=[]; for(let i=1;i<=14;i++) ds.push(addDays(t.start,-i));
-    return avg(ds.map(d=>{const e=DB.entries[d];return e?e.hf:null;}));
+  const offsets=which==='base' ? [-14,-1] : which==='remove' ? [0,13] : [14,27];
+  const ds=[];
+  for(let i=offsets[0];i<=offsets[1];i++){
+    const d=addDays(t.start,i);
+    if(d<=todayISO()) ds.push(d);
   }
-  const ds=[]; for(let i=0;i<14;i++){ const d=addDays(t.start,i); if(d<=todayISO()) ds.push(d); }
-  return avg(ds.map(d=>{const e=DB.entries[d];return e?e.hf:null;}));
+  const hf=ds.map(d=>DB.entries[d]&&DB.entries[d].hf).filter(v=>v!=null);
+  const sleep=ds.map(d=>DB.entries[d]&&DB.entries[d].sleepH).filter(v=>v!=null);
+  return {hf:avg(hf), sleep:avg(sleep), hfN:hf.length, sleepN:sleep.length};
+}
+function triggerPhaseTiles(before,remove,reintro){
+  const tile=(label,s)=>`<div class="tile"><div class="k">${label}</div>
+    <div class="v">${s.hf!=null?r1(s.hf):'–'}<small> flashes</small></div>
+    <div class="d">${s.sleep!=null?r1(s.sleep)+' h sleep':'sleep not logged'} · ${s.hfN} day${s.hfN===1?'':'s'}</div></div>`;
+  return `<div class="tiles" style="margin:14px 0">${tile('Before',before)}${tile('Removal',remove)}${tile('Reintroduction',reintro)}</div>`;
+}
+function triggerComparison(remove,reintro,complete){
+  if(remove.hf==null || reintro.hf==null){
+    return `<div class="callout warn"><span class="ctitle">Not enough paired phase data yet</span>
+      Log hot-flash counts during both removal and reintroduction. Sleep averages appear when hours asleep are logged.</div>`;
+  }
+  const delta=reintro.hf-remove.hf;
+  const small=Math.abs(delta)<0.8;
+  const title=small?'No clear hot-flash difference'
+    : delta>0?'Hot flashes were lower during removal':'Hot flashes were higher during removal';
+  const sleepNote=remove.sleep!=null&&reintro.sleep!=null
+    ? ' Average sleep was '+r1(remove.sleep)+' hours during removal and '+r1(reintro.sleep)+' after reintroduction.'
+    : '';
+  return `<div class="callout info"><span class="ctitle">${complete?'Final result':'Result so far'}: ${title}</span>
+    Removal averaged ${r1(remove.hf)} flashes/day; reintroduction averaged ${r1(reintro.hf)}.${sleepNote}
+    ${small?'A difference under about one flash a day is best treated as ordinary noise.':'A reversal after reintroduction is more suggestive than removal alone, but this still cannot establish cause.'}</div>`;
 }
 function triggerBanner(){
-  const t=DB.trigger, day=daysBetween(t.start,todayISO())+1;
-  if(day>28){ return ''; }
+  refreshTriggerStatus();
+  const t=DB.trigger;
+  if(!t || !t.active){ return ''; }
+  const day=daysBetween(t.start,todayISO())+1;
+  if(day<1 || day>28){ return ''; }
   return `<div class="callout info"><span class="ctitle">Trigger test day ${day}: ${esc(t.item)}</span>
   ${day<=14?'Removal phase — keep it out and keep logging.':'Reintroduction phase — back to your usual amount.'}
   <div style="margin-top:8px"><button class="btn sm ghost" data-act="sheet" data-s="tool:trigger">View results</button></div></div>`;
@@ -3154,7 +4242,7 @@ function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
 function viewOnboard(){
   return `<div class="view">
     <div style="text-align:center;padding:18px 0 6px">
-      <div style="font-size:2.6rem;line-height:1">◔</div>
+      <div class="onboard-mark">${TWILIGHT_IC.cycle}</div>
       <h1 style="margin-top:8px">Meno Compass</h1>
       <p class="muted tiny">A private tracker and a straight-talking reference for perimenopause and beyond.</p>
     </div>
@@ -3163,24 +4251,26 @@ function viewOnboard(){
       <ul class="tick">
         <li><b>A tracker first.</b> Twenty seconds a day builds the patterns and the report your clinician actually needs.</li>
         <li><b>A reference that tells you when the evidence is thin.</b> Every claim is tagged, and where major guidelines disagree, it says so.</li>
-        <li><b>Completely private.</b> No account, no server, no analytics. Your entries stay in this browser on this device.</li>
+        <li><b>Private by design.</b> No account, sync service, or analytics. Your health entries stay in this browser on this device and are not sent to the app maker.</li>
       </ul>
       <div class="callout warn" style="margin-bottom:0"><span class="ctitle">What it is not</span>
-      It does not diagnose, treat or prescribe, and it is not a substitute for a clinician who knows your history. Content reviewed July 2026 — this field moves fast.</div>
+      It does not diagnose, treat or prescribe, is not a substitute for a clinician who knows your history, and is not a medical device or regulator-reviewed clinical tool. Content reviewed July 2026 — this field moves fast.</div>
     </div>
     <div class="card">
       <h3>A few basics</h3>
       <div class="grid2">
         <div class="field"><label class="fl" for="ob-n">First name (optional)</label>
-          <input id="ob-n" type="text" placeholder="Optional"></div>
-        <div class="field"><label class="fl" for="ob-y">Birth year</label>
-          <input id="ob-y" type="number" min="1920" max="2015" inputmode="numeric" placeholder="e.g. 1975"></div>
+          <input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional"></div>
+        <div class="field"><label class="fl" for="ob-y">Birth year (optional)</label>
+          <input id="ob-y" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" placeholder="e.g. 1975"></div>
       </div>
       <div class="field"><label class="fl" for="ob-u">Units</label>
         <select id="ob-u"><option value="imperial">Pounds and inches</option><option value="metric">Kilograms and centimetres</option></select></div>
       <div class="field"><label class="fl" for="ob-r">Where you are</label>
         <select id="ob-r"><option value="us">United States</option><option value="uk">United Kingdom</option><option value="other">Elsewhere</option></select>
         <p class="xtiny">Guidance differs between the US and UK on several points, and the app will tell you where.</p></div>
+      <div class="callout info"><span class="ctitle">This device is your only copy</span>
+      Clearing this site's browser data deletes your entries, there is no automatic sync, and anyone who can use this browser profile may be able to open them. Export an unencrypted backup occasionally and store it somewhere private.</div>
       <button class="btn block primary" data-act="ob-done">Get started</button>
       <button class="btn block ghost" data-act="ob-skip" style="margin-top:8px">Skip for now</button>
     </div>
@@ -3195,10 +4285,28 @@ function applyTheme(){
   const dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', dark?'dark':'light');
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content', dark?'#141016':'#fbf9fa');
+  if(meta) meta.setAttribute('content', dark?'#0E1618':'#F1F4F3');
 }
 const TAB_TITLES = {today:['Today','Daily check-in'], trends:['Trends','Patterns & insights'], learn:['Learn','Evidence-based guidance'], you:['You','Profile, tools & data']};
-function render(){
+function topbarContent(){
+  const name=safeText(DB.profile.name,80).trim();
+  const hour=new Date().getHours();
+  const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+  if(curTab==='today'){
+    const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+    return '<div class="top-copy"><h1>'+esc(selected)+'</h1>'
+      +'<span class="sub">'+esc((greeting+(name?', '+name:'')).toUpperCase())+'</span></div>';
+  }
+  const copy={
+    trends:['Patterns are taking shape','WHAT YOUR LOGS SHOW'],
+    learn:['Know what helps','EVIDENCE WITHOUT THE HYPE'],
+    you:['Your compass','PROFILE, TOOLS & DATA']
+  }[curTab];
+  return '<div class="top-copy"><h1>'+esc(copy[0])+'</h1><span class="sub">'+esc(copy[1])+'</span></div>';
+}
+function render(preserveScroll){
+  const scrollY=preserveScroll ? window.scrollY : 0;
+  refreshTriggerStatus();
   applyTheme();
   if(!DB.profile.onboarded){
     $('#app').innerHTML = viewOnboard();
@@ -3208,9 +4316,8 @@ function render(){
   }
   $('#tabs').style.display='';
   $('#topbar').style.display='';
-  const [t,s] = TAB_TITLES[curTab];
-  $('#topbar').innerHTML = '<h1>'+esc(t)+'<span class="sub">'+esc(s)+'</span></h1>'
-    + (curTab==='today'? '<button class="xbtn" data-act="sheet" data-s="redflags" aria-label="Red flags" title="Red flags">!</button>':'');
+  $('#topbar').innerHTML = topbarContent()
+    + (curTab==='today'? '<button class="urgent-btn" data-act="sheet" data-s="redflags" aria-label="Open urgent symptom guidance">Urgent</button>':'');
   const map = {today:viewToday, trends:viewTrends, learn:viewLearn, you:viewYou};
   $('#app').innerHTML = map[curTab]();
   const strip = document.querySelector('.dayscroll');
@@ -3221,7 +4328,7 @@ function render(){
   document.querySelectorAll('nav.tabs button').forEach(b=>{
     b.setAttribute('aria-current', b.dataset.v===curTab?'page':'false');
   });
-  window.scrollTo(0,0);
+  window.scrollTo(0,preserveScroll?scrollY:0);
 }
 
 function handleAction(el, ev){
@@ -3234,19 +4341,19 @@ function handleAction(el, ev){
     case 'hf': {
       const cur = e().hf==null?0:e().hf;
       const nv = Math.max(0, cur + (+el.dataset.n));
-      e().hf = nv; save(); render(); return;
+      e().hf = nv; save(); render(true); return;
     }
     case 'set': {
       const v = el.dataset.v;
       setPath(e(), el.dataset.k, v===''?null:(isNaN(v)?v:+v));
-      save(); render(); return;
+      save(); render(true); return;
     }
     case 'toggle': {
       const cur = getPath(e(), el.dataset.k);
       setPath(e(), el.dataset.k, cur?null:true);
-      save(); render(); return;
+      save(); render(true); return;
     }
-    case 'theme': DB.profile.theme = el.value; save(true); render(); return;
+    case 'theme': DB.profile.theme = el.value; save(true); render(true); return;
     case 'sheet': openSheet(el.dataset.s); return;
     case 'close': closeSheet(); return;
     case 'bg': if(ev.target===el) closeSheet(); return;
@@ -3256,24 +4363,30 @@ function handleAction(el, ev){
       else openSheet(g);
       return;
     }
-    case 'stage-a': stageAns[el.dataset.k]=el.dataset.v; stageStep++; renderSheet(); return;
+    case 'stage-a': stageEditing=true; stageAns[el.dataset.k]=el.dataset.v; stageStep++; renderSheet(); return;
     case 'stage-back': {
       stageStep = Math.max(0, stageStep-1);
       const q = stageQueue(stageAns)[stageStep];
       if(q) delete stageAns[q.id];
       renderSheet(); return;
     }
-    case 'stage-restart': stageAns={}; stageStep=0; DB.profile.stage=null; save(); renderSheet(); return;
-    case 'q-a': qAns[+el.dataset.i]=+el.dataset.v; renderSheet(); return;
-    case 'q-reset': qAns={}; renderSheet(); return;
+    case 'stage-restart': stageAns={}; stageStep=0; stageEditing=true; renderSheet(); return;
+    case 'q-a': {
+      const kind=el.dataset.k;
+      if(qDrafts[kind]) qDrafts[kind][+el.dataset.i]=+el.dataset.v;
+      renderSheet(); return;
+    }
+    case 'q-reset': if(qDrafts[el.dataset.k]) qDrafts[el.dataset.k]={}; renderSheet(); return;
     case 'q-save': {
       const kind = el.dataset.k;
       const items = kind==='phq9'?PHQ9:GAD7;
-      const score = Object.values(qAns).reduce((x,y)=>x+y,0);
+      const answers=qDrafts[kind];
+      if(!answers || !items.every((_,i)=>answers[i]!=null)){ toast('Answer every question first'); return; }
+      const score = items.reduce((total,_,i)=>total+answers[i],0);
       const band = kind==='phq9' ? (score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe')
                                  : (score<5?'minimal':score<10?'mild':score<15?'moderate':'severe');
       DB.scores.push({date:todayISO(), type:kind, score, band});
-      save(true); qAns={}; toast('Score saved'); renderSheet(); return;
+      save(true); qDrafts[kind]={}; toast('Score saved'); renderSheet(); return;
     }
     case 'breath-start': breathStart(); return;
     case 'breath-stop': breathStop(); return;
@@ -3281,10 +4394,13 @@ function handleAction(el, ev){
     case 'pmr-stop': pmrStop(); return;
     case 'trig-start': {
       const sel=document.getElementById('trig');
-      DB.trigger = {active:true, item: sel?sel.value:'Alcohol', start: todayISO()};
+      DB.trigger = {active:true, status:'running', item: sel?sel.value:'Alcohol', start: todayISO()};
       save(true); toast('Trigger test started'); renderSheet(); return;
     }
-    case 'trig-stop': DB.trigger=null; save(true); renderSheet(); return;
+    case 'trig-stop':
+      if(DB.trigger){ DB.trigger.active=false; DB.trigger.status='stopped'; DB.trigger.ended=todayISO(); }
+      save(true); renderSheet(); return;
+    case 'trig-reset': DB.trigger=null; save(true); renderSheet(); return;
     case 'export-json': download('meno-compass-backup-'+todayISO()+'.json', JSON.stringify(DB,null,2), 'application/json'); return;
     case 'export-csv': download('meno-compass-'+todayISO()+'.csv', toCSV(), 'text/csv'); return;
     case 'copy-dump': {
@@ -3295,10 +4411,10 @@ function handleAction(el, ev){
     case 'import-json': {
       const ta=document.getElementById('restore');
       if(!ta||!ta.value.trim()){ toast('Paste a backup first'); return; }
+      if(ta.value.length>5000000){ toast('That backup is larger than the 5 MB limit'); return; }
       try{
         const obj=JSON.parse(ta.value);
-        if(!obj || typeof obj!=='object' || !obj.entries) throw new Error('bad');
-        DB = migrate(obj); save(true); sheetStack=[]; renderSheet(); render(); toast('Backup restored');
+        DB = validateBackup(obj); save(true); sheetStack=[]; renderSheet(); render(); toast('Backup restored and checked');
       }catch(x){ toast('That does not look like a valid backup'); }
       return;
     }
@@ -3312,8 +4428,13 @@ function handleAction(el, ev){
     case 'ob-done': {
       const n=document.getElementById('ob-n'), y=document.getElementById('ob-y'),
             u=document.getElementById('ob-u'), r=document.getElementById('ob-r');
-      DB.profile.name = n.value.trim();
-      if(y.value) DB.profile.birthYear = +y.value;
+      const year=readNumberInput(y);
+      if(!year.ok || (year.value!=null&&!Number.isInteger(year.value))){
+        if(year.ok) setFieldError(y,'Enter a whole birth year.');
+        y.reportValidity(); return;
+      }
+      DB.profile.name = safeText(n.value.trim(),80);
+      DB.profile.birthYear = year.value;
       DB.profile.units = u.value; DB.profile.region = r.value;
       DB.profile.onboarded = true; save(true); render();
       setTimeout(()=>openSheet('learn:stage'), 350);
@@ -3323,47 +4444,120 @@ function handleAction(el, ev){
   }
 }
 
+function setFieldError(el, message){
+  el.setCustomValidity(message||'');
+  if(message){ el.setAttribute('aria-invalid','true'); el.title=message; }
+  else { el.removeAttribute('aria-invalid'); el.removeAttribute('title'); }
+  return !message;
+}
+function readNumberInput(el){
+  setFieldError(el,'');
+  if(el.validity && el.validity.badInput){
+    setFieldError(el,'Enter a number.'); return {ok:false,value:null};
+  }
+  if(el.value==='') return {ok:true,value:null};
+  const value=Number(el.value);
+  if(!Number.isFinite(value)){
+    setFieldError(el,'Enter a finite number.'); return {ok:false,value:null};
+  }
+  const min=el.min!==''?Number(el.min):null, max=el.max!==''?Number(el.max):null;
+  if((min!=null&&value<min)||(max!=null&&value>max)){
+    const range=min!=null&&max!=null?' from '+min+' to '+max:min!=null?' of at least '+min:' no more than '+max;
+    setFieldError(el,'Enter a value'+range+'.'); return {ok:false,value:null};
+  }
+  return {ok:true,value};
+}
+function readDateInput(el){
+  setFieldError(el,'');
+  if(el.value==='') return {ok:true,value:null};
+  if(!pastOrTodayISO(el.value)){
+    setFieldError(el,'Choose a valid date that is not in the future.');
+    return {ok:false,value:null};
+  }
+  if(el.min && el.value<el.min){
+    setFieldError(el,'Choose a date on or after '+el.min+'.');
+    return {ok:false,value:null};
+  }
+  return {ok:true,value:el.value};
+}
+
 function handleInput(el){
   const a = el.dataset.act;
   if(a==='num'){
     const k = el.dataset.k, conv = el.dataset.conv;
-    let v = el.type==='number' ? (el.value===''?null:+el.value) : (el.value.trim()||null);
+    const parsed=el.type==='number'?readNumberInput(el):{ok:true,value:el.value.trim()||null};
+    if(!parsed.ok) return;
+    let v=parsed.value;
+    const day=entry(curDate);
+    if(v!=null && k==='sleepH' && day.inBedH!=null && v>day.inBedH){
+      setFieldError(el,'Hours asleep cannot be greater than hours in bed.'); return;
+    }
+    if(v!=null && k==='inBedH' && day.sleepH!=null && day.sleepH>v){
+      setFieldError(el,'Hours in bed cannot be less than hours asleep.'); return;
+    }
     if(v!=null && conv==='w') v = U.wIn(v);
     if(v!=null && conv==='l') v = U.lIn(v);
-    setPath(entry(curDate), k, v);
+    setPath(day, k, v);
     save(); return;
   }
   if(a==='prof'){
     const k=el.dataset.k, conv=el.dataset.conv;
-    let v = el.type==='number' ? (el.value===''?null:+el.value) : el.value;
+    let parsed;
+    if(el.type==='number') parsed=readNumberInput(el);
+    else if(el.type==='date') parsed=readDateInput(el);
+    else parsed={ok:true,value:k==='name'?safeText(el.value,80):el.value};
+    if(!parsed.ok) return;
+    let v=parsed.value;
+    if(k==='birthYear'&&v!=null&&!Number.isInteger(v)){
+      setFieldError(el,'Enter a whole birth year.'); return;
+    }
     if(el.tagName==='SELECT' && !isNaN(v) && k==='proteinGpk') v=+v;
     if(v!=null && v!=='' && conv==='w') v=U.wIn(v);
     if(v!=null && v!=='' && conv==='l') v=U.lIn(v);
     DB.profile[k] = (v===''?null:v);
+    refreshStageForProfile(k);
     save();
-    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries') render();
+    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries') render(true);
     return;
   }
   if(a==='screen'){
-    DB.screening[el.dataset.k] = {last: el.value||null};
+    const parsed=readDateInput(el);
+    if(!parsed.ok) return;
+    const rec=DB.screening[el.dataset.k]||{};
+    rec.last=parsed.value;
+    DB.screening[el.dataset.k]=rec;
     save(); return;
+  }
+  if(a==='screen-int'){
+    const id=el.dataset.k, rule=SCREENING_RULES[id], years=+el.value;
+    if(!rule || !rule.years.includes(years)) return;
+    const rec=DB.screening[id]||{};
+    rec.intervalYears=years; DB.screening[id]=rec; save(); return;
   }
   if(a==='prot-calc'){
     const w=document.getElementById('ptw'), g=document.getElementById('ptg');
-    const kg = w.value? U.wIn(+w.value) : null;
+    const parsed=readNumberInput(w);
+    const kg = parsed.ok&&parsed.value!=null ? U.wIn(parsed.value) : null;
     document.getElementById('prot-out').innerHTML = proteinOut(kg, +g.value);
     return;
   }
   if(a==='sw-calc'){
     const ds=rangeDates(14);
     const sleeps=ds.map(d=>{const x=DB.entries[d];return x&&x.sleepH!=null?x.sleepH:null;}).filter(v=>v!=null);
-    const aSleep=avg(sleeps); const win = aSleep?Math.max(5,Math.round(aSleep*4)/4):null;
+    const aSleep=avg(sleeps); const win = aSleep!=null&&aSleep>0?Math.max(5,Math.round(aSleep*4)/4):null;
     document.getElementById('sw-out').innerHTML = swOut(el.value, win);
     return;
   }
 }
 
 /* ---------- export ---------- */
+function csvText(value){
+  let text=String(value==null?'':value);
+  /* Spreadsheet apps may execute cells beginning with formula characters,
+     even when the CSV field is quoted. Prefix user-authored text defensively. */
+  if(/^[=+\-@\t\r]/.test(text)) text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+}
 function toCSV(){
   const cols = ['date','hot_flashes','night_sweats_0_4','hours_in_bed','hours_asleep','sleep_efficiency_pct',
     ...SYMS.map(s=>s.k), 'burden_score_0_44_unvalidated','weight_kg','waist_cm','bleeding','strength_session','balance','pelvic_floor',
@@ -3371,13 +4565,13 @@ function toCSV(){
   const rows = [cols.join(',')];
   entryDates().forEach(d=>{
     const e=DB.entries[d], s=e.sym||{}, ac=e.act||{}, nu=e.nut||{};
-    const eff = (e.sleepH&&e.inBedH)?Math.round(e.sleepH/e.inBedH*100):'';
+    const eff = (e.sleepH!=null&&e.inBedH!=null&&e.inBedH>0)?Math.round(e.sleepH/e.inBedH*100):'';
     const r = [d, e.hf??'', e.ns??'', e.inBedH??'', e.sleepH??'', eff,
       ...SYMS.map(x=>s[x.k]??''), burden(e)??'',
       e.wt!=null?r1(e.wt):'', e.waist!=null?r1(e.waist):'', e.bleed||'',
       ac.res?1:'', ac.bal?1:'', ac.pf?1:'', ac.aero??'',
-      nu.prot?1:'', nu.cal?1:'', nu.fib?1:'', nu.alc??'', nu.caf??'',
-      '"'+String(e.notes||'').replace(/"/g,'""')+'"'];
+      nu.prot==null?'':(nu.prot?1:0), nu.cal?1:'', nu.fib?1:'', nu.alc??'', nu.caf??'',
+      csvText(e.notes||'')];
     rows.push(r.join(','));
   });
   if(DB.scores.length){
@@ -3403,7 +4597,7 @@ function boot(){
   load();
   document.body.insertAdjacentHTML('afterbegin',
     '<header class="topbar" id="topbar"></header><main id="app"></main>'
-    + '<nav class="tabs" id="tabs"><div class="inner">'
+    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="inner">'
     + Object.entries(TAB_TITLES).map(([k,v])=>h('button',{'data-act':'tab','data-v':k},IC[k]+'<span>'+v[0]+'</span>')).join('')
     + '</div></nav><div id="sheet-host"></div>');
   document.addEventListener('click', ev=>{
@@ -3430,10 +4624,18 @@ function boot(){
     if(el && el.type==='date') handleInput(el);
     if(el && el.type==='time') handleInput(el);
   });
-  document.addEventListener('keydown', ev=>{ if(ev.key==='Escape' && sheetStack.length) closeSheet(); });
+  document.addEventListener('keydown', keepFocusInSheet);
   if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
   window.addEventListener('beforeunload', flush);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flush(); });
+  window.addEventListener('storage', ev=>{
+    if(ev.key!==Store.key || dirty) return;
+    try{
+      DB=ev.newValue ? migrate(JSON.parse(ev.newValue)) : blankDB();
+      render(true); if(sheetStack.length) renderSheet();
+      toast(ev.newValue?'Updated from another tab':'Data was cleared in another tab');
+    }catch(e){ /* Ignore malformed writes from another script on the origin. */ }
+  });
   const hash = (location.hash||'').replace('#','');
   if(TAB_TITLES[hash]) curTab = hash;
   render();

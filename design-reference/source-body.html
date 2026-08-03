@@ -1,0 +1,379 @@
+
+<title>MenoCompass — Twilight Redesign</title>
+<style>
+  /* ---- Twilight identity (from src/theme/tokens.ts) ---- */
+  :root{
+    --page:#080D0E; --page-ink:#E9F1EE; --page-ink2:#93A8A8; --frame:#05090A;
+    --swatch-stroke:#26383E;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --page:#E8ECEB; --page-ink:#12201F; --page-ink2:#4E605D; --frame:#C6D0CE; --swatch-stroke:#DBE4E2; }
+  }
+  :root[data-theme="light"]{ --page:#E8ECEB; --page-ink:#12201F; --page-ink2:#4E605D; --frame:#C6D0CE; --swatch-stroke:#DBE4E2; }
+  :root[data-theme="dark"]{ --page:#080D0E; --page-ink:#E9F1EE; --page-ink2:#93A8A8; --frame:#05090A; --swatch-stroke:#26383E; }
+
+  *{box-sizing:border-box; margin:0}
+  body{background:var(--page); color:var(--page-ink);
+    font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif; padding:40px 24px 64px}
+  .ui{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums}
+
+  header{max-width:1360px; margin:0 auto 30px}
+  header .tag{display:inline-block; font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:#E8A552; border:1px solid #E8A552; border-radius:999px; padding:4px 12px; margin-bottom:16px}
+  header h1{font-weight:700; font-size:34px; letter-spacing:-.02em; text-wrap:balance}
+  header p{color:var(--page-ink2); font-size:15px; line-height:1.55; max-width:70ch; margin-top:12px}
+  .swatches{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap}
+  .sw{display:flex; align-items:center; gap:7px; font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--page-ink2)}
+  .sw i{width:16px; height:16px; border-radius:4px; border:1px solid var(--swatch-stroke)}
+
+  .row{display:flex; gap:26px; overflow-x:auto; padding:8px 4px 24px; max-width:1360px; margin:0 auto}
+  .slot{flex:0 0 auto}
+  .slot h2{font-family:ui-monospace,Menlo,monospace; font-size:12px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--page-ink2); margin:0 0 10px 6px}
+
+  /* ---- phone: dark is the hero ---- */
+  .phone{width:384px; height:772px; border-radius:46px; border:7px solid var(--frame);
+    overflow:hidden; display:flex; flex-direction:column; position:relative;
+    --paper:#0E1618; --card:#16232A; --hair:#26383E; --ink:#E9F1EE; --ink2:#93A8A8; --ink3:#5C7176;
+    --ember:#E8A552; --sage:#6FB79A; --claret:#E0755F; --btn:#E9F1EE; --btn-label:#0E1618;
+    background:var(--paper); box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .phone.light{ --paper:#F1F4F3; --card:#FFFFFF; --hair:#DBE4E2; --ink:#12201F; --ink2:#4E605D; --ink3:#8A9E9A;
+    --ember:#B26A12; --sage:#3C7B61; --claret:#BB4E37; --btn:#12201F; --btn-label:#F1F4F3; box-shadow:0 30px 80px rgba(0,0,0,.25)}
+  .screen{flex:1; overflow:hidden; padding:18px 20px 0; display:flex; flex-direction:column; gap:15px; color:var(--ink)}
+  .statusbar{display:flex; justify-content:space-between; font-size:12px; font-weight:600; padding:6px 6px 0}
+  .statusbar .mono{color:var(--ink2)}
+
+  .display{font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:700; font-size:29px; line-height:1.16; letter-spacing:-.02em; color:var(--ink)}
+  .h2{font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:600; font-size:21px; letter-spacing:-.02em; color:var(--ink)}
+  .title{font-size:17px; font-weight:500; color:var(--ink)}
+  .sec{font-size:14px; line-height:1.45; color:var(--ink2)}
+  .label{font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--ink2)}
+  .data{font-family:ui-monospace,Menlo,monospace; font-size:14px; color:var(--ink2); font-variant-numeric:tabular-nums}
+
+  .card{background:var(--card); border-radius:10px; border:1px solid var(--hair)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .stack{display:flex; flex-direction:column; gap:15px}
+
+  .tile{padding:12px; min-height:64px; display:flex; flex-direction:column; gap:9px; cursor:pointer; position:relative}
+  .tile .top{display:flex; align-items:center; gap:8px}
+  .tile svg{width:18px; height:18px; stroke:var(--ink2); fill:none; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto}
+  .tile.logged svg{stroke:var(--sage)}
+  .tile.sel{border-color:var(--ember)}
+  .tile.sel::after{content:""; position:absolute; inset:-1px; border-radius:10px; box-shadow:0 0 0 1px var(--ember), 0 0 16px -4px var(--ember); pointer-events:none}
+  .dots{display:flex; gap:8px}
+  .dot{width:12px; height:12px; border-radius:50%; border:1.5px solid var(--ember); background:transparent}
+  .dot.f1{background:color-mix(in srgb, var(--ember) 30%, transparent); border-color:transparent}
+  .dot.f2{background:color-mix(in srgb, var(--ember) 60%, transparent); border-color:transparent}
+  .dot.f3{background:var(--ember); border-color:transparent}
+  .dot.on{transform:scale(1.28)}
+
+  .medrow{display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid var(--hair)}
+  .medrow:last-child{border-bottom:0}
+  .medrow svg{width:20px; height:20px; stroke:var(--ink2); fill:none; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round}
+  .medrow .grow{flex:1; min-width:0}
+  .due{font-family:ui-monospace,Menlo,monospace; font-size:14px; color:var(--ink2)}
+  .due.ok{color:var(--sage)} .due.late{color:var(--claret)}
+  .wk{display:flex; gap:5px; margin-top:7px}
+  .wk i{width:8px; height:8px; border-radius:50%; background:var(--hair)}
+  .wk i.t{background:var(--sage)} .wk i.s{background:var(--claret)}
+
+  .btn{display:flex; align-items:center; justify-content:center; height:52px; border-radius:10px;
+    background:var(--btn); color:var(--btn-label); font-weight:600; font-size:16px; cursor:pointer}
+  .btn.ghost{background:transparent; border:1px solid var(--hair); color:var(--ink)}
+  .quiet{color:var(--ember); font-weight:600; font-size:14px; text-align:center; cursor:pointer}
+
+  .chips{display:flex; gap:8px}
+  .chip{height:32px; padding:0 14px; display:flex; align-items:center; border-radius:10px;
+    border:1px solid var(--hair); font-size:13px; font-weight:600; color:var(--ink2)}
+  .chip.on{border-color:var(--ember); color:var(--ember)}
+
+  .heat{display:grid; grid-template-columns:repeat(12,1fr); gap:4px}
+  .heat i{aspect-ratio:1; border-radius:2px; background:var(--hair)}
+  .heat i.s1{background:color-mix(in srgb, var(--ember) 30%, var(--card))}
+  .heat i.s2{background:color-mix(in srgb, var(--ember) 60%, var(--card))}
+  .heat i.s3{background:var(--ember)}
+
+  .tabbar{display:flex; border-top:1px solid var(--hair); background:var(--card); padding:10px 8px 22px}
+  .tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:10px; font-weight:600; color:var(--ink3)}
+  .tab svg{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round}
+  .tab.on{color:var(--ink)} .tab.on::after{content:""; width:4px; height:4px; border-radius:50%; background:var(--ember)}
+
+  svg.chart .grid{stroke:var(--hair); stroke-width:1}
+  svg.chart .line{stroke:var(--ink); stroke-width:2; fill:none}
+  svg.chart .axis{font-size:9px; fill:var(--ink3); font-family:ui-monospace,Menlo,monospace}
+  svg.chart .dmark{stroke:var(--ember); stroke-width:1.5}
+  svg.chart .dlabel{font-size:9px; fill:var(--ember); font-family:ui-monospace,Menlo,monospace}
+
+  .pagewrap{background:var(--paper); border:1px solid var(--hair); border-radius:10px; padding:12px}
+  /* the printed report stays a light document — a doctor's page is on white paper */
+  .docpage{background:#FFFDF9; color:#1B2A28; border:1px solid #E3DDD2; padding:15px; font-size:10px; line-height:1.45; border-radius:3px}
+  .docpage h4{font-family:"Bricolage Grotesque",serif; font-size:14px; margin-bottom:2px}
+  .docpage .dsub{color:#6E675C; font-size:9px; margin-bottom:9px}
+  .dtable{width:100%; border-collapse:collapse; margin:6px 0}
+  .dtable td,.dtable th{border-top:1px solid #E3DDD2; padding:4px 2px; text-align:left; font-size:9px}
+  .dtable th{color:#6E675C; font-weight:600; text-transform:uppercase; letter-spacing:.05em; font-size:8px}
+  .spark{stroke:#1B2A28; stroke-width:1.5; fill:none}
+  .marker{stroke:#B26A12; stroke-width:1.5}
+  .dheat{display:grid; grid-template-columns:repeat(30,1fr); gap:1.5px; margin:4px 0 9px}
+  .dheat i{aspect-ratio:1; border-radius:1px; background:#EFEAE1}
+  .dheat i.s1{background:#EAD3AE}.dheat i.s2{background:#D9A85C}.dheat i.s3{background:#C6871E}
+
+  .foot{max-width:1360px; margin:8px auto 0; color:var(--page-ink2); font-size:13px; line-height:1.5}
+  .foot .mono{color:var(--page-ink)}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important}}
+</style>
+
+<header>
+  <span class="tag">apps/51-menocompass · redesign</span>
+  <h1>Twilight — a lit instrument, not a wellness app.</h1>
+  <p>The redesign drops the warm-cream / serif / terracotta look for a dark-first clinical identity: deep teal-ink grounds, one warm amber-gold signal rationed to states and dose-change markers, severity encoded as four weights of that single hue, Bricolage&nbsp;Grotesque carrying the display voice. It leans into the 3&nbsp;a.m. night-sweat log the product is built around. Both modes are first-class — the last screen shows daytime light. Tap the severity dots to feel the check-in.</p>
+  <div class="swatches">
+    <span class="sw"><i style="background:#0E1618"></i>#0E1618 ground</span>
+    <span class="sw"><i style="background:#16232A"></i>#16232A card</span>
+    <span class="sw"><i style="background:#E8A552"></i>#E8A552 signal</span>
+    <span class="sw"><i style="background:#6FB79A"></i>#6FB79A taken</span>
+    <span class="sw"><i style="background:#E0755F"></i>#E0755F missed</span>
+    <span class="sw"><i style="background:#E9F1EE"></i>#E9F1EE ink</span>
+  </div>
+</header>
+
+<div class="row">
+
+  <!-- TODAY (dark hero) -->
+  <div class="slot"><h2>Today — daily check-in</h2>
+  <div class="phone"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="mono">MENOCOMPASS</span></div>
+    <div>
+      <div class="display">Tuesday, March&nbsp;4</div>
+      <div class="sec" style="margin-top:4px">Prefilled from yesterday — tap anything that changed.</div>
+    </div>
+    <div class="grid2" id="tiles">
+      <div class="card tile sel" data-sev="2"><div class="top"><svg viewBox="0 0 20 20"><path d="M10 2c2 3 5 5 5 9a5 5 0 0 1-10 0c0-4 3-6 5-9z"></path></svg><span class="title">Hot flashes</span></div><div class="dots"><i class="dot"></i><i class="dot f1"></i><i class="dot f2 on"></i><i class="dot f3"></i></div></div>
+      <div class="card tile sel logged" data-sev="3"><div class="top"><svg viewBox="0 0 20 20"><path d="M15 12A7 7 0 1 1 8 3a6 6 0 0 0 7 9z"></path></svg><span class="title">Night sweats</span></div><div class="dots"><i class="dot"></i><i class="dot f1"></i><i class="dot f2"></i><i class="dot f3 on"></i></div></div>
+      <div class="card tile" data-sev="0"><div class="top"><svg viewBox="0 0 20 20"><path d="M5 13a4 4 0 1 1 1-7.9A5 5 0 0 1 15.9 7 3.5 3.5 0 0 1 15 13z"></path></svg><span class="title">Brain fog</span></div><div class="dots"><i class="dot on"></i><i class="dot f1"></i><i class="dot f2"></i><i class="dot f3"></i></div></div>
+      <div class="card tile sel" data-sev="1"><div class="top"><svg viewBox="0 0 20 20"><path d="M11 2 4 11h5l-1 7 8-10h-5z"></path></svg><span class="title">Fatigue</span></div><div class="dots"><i class="dot"></i><i class="dot f1 on"></i><i class="dot f2"></i><i class="dot f3"></i></div></div>
+      <div class="card tile" data-sev="0"><div class="top"><svg viewBox="0 0 20 20"><path d="M10 17s-6-3.8-6-8a3.5 3.5 0 0 1 6-2.4A3.5 3.5 0 0 1 16 9c0 4.2-6 8-6 8z"></path></svg><span class="title">Joint pain</span></div><div class="dots"><i class="dot on"></i><i class="dot f1"></i><i class="dot f2"></i><i class="dot f3"></i></div></div>
+      <div class="card tile" data-sev="0"><div class="top"><svg viewBox="0 0 20 20"><path d="M4 12c2-6 10-6 12 0M4 12h12"></path></svg><span class="title">Anxiety</span></div><div class="dots"><i class="dot on"></i><i class="dot f1"></i><i class="dot f2"></i><i class="dot f3"></i></div></div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:8px">Today's meds</div>
+      <div class="card" style="padding:2px 12px">
+        <div class="medrow"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="3"></rect><path d="M13 17v-4h4"></path></svg>
+          <div class="grow"><div class="title">Estradot 50µg</div><div class="sec">patch · Mon &amp; Thu</div></div>
+          <span class="due ok">✓ 08:02</span></div>
+        <div class="medrow"><svg viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>
+          <div class="grow"><div class="title">Utrogestan 100mg</div><div class="sec">tablet · nightly</div></div>
+          <span class="due">22:00</span></div>
+      </div>
+    </div>
+    <div class="quiet">Add a note about today</div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>Today</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>Trends</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>Meds</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>Report</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>Settings</div>
+  </div></div></div>
+
+  <!-- TRENDS -->
+  <div class="slot"><h2>Trends — dose-change markers</h2>
+  <div class="phone"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="mono">MENOCOMPASS</span></div>
+    <div class="h2">Trends</div>
+    <div class="chips"><span class="chip">7d</span><span class="chip">30d</span><span class="chip on">90d</span></div>
+    <div>
+      <div class="label" style="margin-bottom:8px">Last 90 days · all symptoms</div>
+      <div class="heat" id="heat"><i class="s3"></i><i></i><i class="s3"></i><i class="s1"></i><i class="s2"></i><i class="s2"></i><i></i><i class="s3"></i><i></i><i class="s2"></i><i class="s3"></i><i class="s3"></i><i></i><i class="s3"></i><i class="s3"></i><i class="s2"></i><i></i><i class="s2"></i><i></i><i class="s2"></i><i></i><i class="s1"></i><i></i><i class="s1"></i><i></i><i></i><i class="s1"></i><i></i><i></i><i class="s1"></i><i></i><i></i><i class="s2"></i><i class="s2"></i><i class="s3"></i><i class="s1"></i><i></i><i></i><i class="s1"></i><i class="s2"></i><i></i><i class="s3"></i><i></i><i></i><i class="s1"></i><i></i><i class="s1"></i><i></i><i class="s2"></i><i class="s3"></i><i class="s1"></i><i class="s3"></i><i class="s2"></i><i></i><i></i><i class="s3"></i><i></i><i></i><i></i><i></i><i class="s2"></i><i class="s3"></i><i></i><i class="s3"></i><i class="s3"></i><i class="s3"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="card" style="padding:14px">
+      <div style="display:flex; justify-content:space-between; align-items:baseline">
+        <span class="title">Night sweats</span><span class="data">avg 1.4</span>
+      </div>
+      <svg class="chart" viewBox="0 0 320 110" style="width:100%; margin-top:8px" aria-label="Night sweats improving after the Feb 12 dose change">
+        <line class="grid" x1="0" y1="30" x2="320" y2="30"></line><line class="grid" x1="0" y1="60" x2="320" y2="60"></line><line class="grid" x1="0" y1="90" x2="320" y2="90"></line>
+        <polyline class="line" points="0,38 30,30 60,42 90,28 120,36 150,32 180,52 210,64 240,60 270,74 300,70 320,78"></polyline>
+        <line class="dmark" x1="165" y1="8" x2="165" y2="95"></line>
+        <rect class="dmark" x="161" y="4" width="8" height="8" transform="rotate(45 165 8)" fill="#E8A552"></rect>
+        <text class="dlabel" x="172" y="14">Feb 12 · 50µg</text>
+        <text class="axis" x="0" y="107">DEC</text><text class="axis" x="150" y="107">FEB</text><text class="axis" x="296" y="107">MAR</text>
+      </svg>
+    </div>
+    <div class="card" style="padding:14px">
+      <div class="label">Cycle</div>
+      <div style="display:flex; align-items:baseline; gap:10px; margin-top:8px">
+        <span class="mono" style="font-size:36px; color:var(--ink)">47</span>
+        <span class="sec">days since last period start</span>
+      </div>
+      <div style="display:flex; gap:6px; align-items:flex-end; height:44px; margin-top:12px">
+        <div style="width:22px;height:18px;background:color-mix(in srgb, var(--ember) 30%, var(--card));border-radius:2px"></div>
+        <div style="width:22px;height:22px;background:color-mix(in srgb, var(--ember) 30%, var(--card));border-radius:2px"></div>
+        <div style="width:22px;height:16px;background:color-mix(in srgb, var(--ember) 30%, var(--card));border-radius:2px"></div>
+        <div style="width:22px;height:30px;background:color-mix(in srgb, var(--ember) 60%, var(--card));border-radius:2px"></div>
+        <div style="width:22px;height:24px;background:color-mix(in srgb, var(--ember) 60%, var(--card));border-radius:2px"></div>
+        <div style="width:22px;height:44px;background:var(--ember);border-radius:2px"></div>
+      </div>
+      <div class="label" style="margin-top:10px; color:var(--ink3)">Irregular is normal here</div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>Today</div>
+    <div class="tab on"><svg viewBox="0 0 20 20"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>Trends</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>Meds</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>Report</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>Settings</div>
+  </div></div></div>
+
+  <!-- MEDS -->
+  <div class="slot"><h2>Meds — the HRT engine</h2>
+  <div class="phone"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="mono">MENOCOMPASS</span></div>
+    <div class="h2">Medications</div>
+    <div class="card" style="padding:14px">
+      <div class="medrow" style="border:0; padding:0">
+        <svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="3"></rect><path d="M13 17v-4h4"></path></svg>
+        <div class="grow"><div class="title">Estradot 50µg</div><div class="sec">patch · Mon &amp; Thu · 08:00</div></div>
+        <span class="due ok">✓ Thu</span>
+      </div>
+      <div class="wk"><i class="t"></i><i class="t"></i><i class="t"></i><i class="s"></i><i class="t"></i><i class="t"></i><i></i></div>
+      <div style="border-top:1px solid var(--hair); margin:12px -14px 0; padding:10px 14px 0; display:flex; justify-content:space-between">
+        <span class="sec">Changed from 37.5µg on Feb 12</span>
+        <span class="quiet">Change dose</span>
+      </div>
+    </div>
+    <div class="card" style="padding:14px">
+      <div class="medrow" style="border:0; padding:0">
+        <svg viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>
+        <div class="grow"><div class="title">Utrogestan 100mg</div><div class="sec">tablet · nightly · 22:00</div></div>
+        <span class="due">22:00</span>
+      </div>
+      <div class="wk"><i class="t"></i><i class="t"></i><i class="t"></i><i class="t"></i><i class="t"></i><i class="t"></i><i></i></div>
+    </div>
+    <div class="btn ghost">Add a medication</div>
+    <div>
+      <div class="label" style="margin-bottom:8px">Labs</div>
+      <div class="card" style="padding:2px 12px">
+        <div class="medrow"><svg viewBox="0 0 20 20"><path d="M8 2h4M10 2v6l4 8a2 2 0 0 1-2 3H8a2 2 0 0 1-2-3l4-8"></path></svg>
+          <div class="grow"><div class="title">Estradiol</div><div class="sec">Feb 28</div></div>
+          <span class="due">312 pmol/L</span></div>
+        <div class="medrow"><svg viewBox="0 0 20 20"><path d="M8 2h4M10 2v6l4 8a2 2 0 0 1-2 3H8a2 2 0 0 1-2-3l4-8"></path></svg>
+          <div class="grow"><div class="title">FSH</div><div class="sec">Feb 28</div></div>
+          <span class="due">42 IU/L</span></div>
+      </div>
+      <div class="quiet" style="margin-top:10px">Add result</div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>Today</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>Trends</div>
+    <div class="tab on"><svg viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>Meds</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>Report</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>Settings</div>
+  </div></div></div>
+
+  <!-- REPORT -->
+  <div class="slot"><h2>Report — the hero feature</h2>
+  <div class="phone"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="mono">MENOCOMPASS</span></div>
+    <div class="h2">Doctor report</div>
+    <div class="chips"><span class="chip">30d</span><span class="chip on">90d</span><span class="chip">180d</span></div>
+    <div class="pagewrap">
+      <div class="docpage">
+        <h4>Symptom &amp; treatment summary</h4>
+        <div class="dsub">Dec 5 – Mar 4 · 84 of 90 days logged · prepared with MenoCompass</div>
+        <div class="dheat" id="docheat"><i class="s3"></i><i></i><i class="s3"></i><i class="s1"></i><i class="s2"></i><i class="s2"></i><i></i><i class="s3"></i><i></i><i class="s2"></i><i class="s3"></i><i class="s3"></i><i></i><i class="s3"></i><i class="s3"></i><i class="s2"></i><i></i><i class="s2"></i><i></i><i class="s2"></i><i></i><i class="s1"></i><i></i><i class="s1"></i><i></i><i></i><i class="s1"></i><i></i><i></i><i class="s1"></i><i></i><i></i><i class="s2"></i><i class="s2"></i><i class="s3"></i><i class="s1"></i><i></i><i></i><i class="s1"></i><i class="s3"></i><i class="s2"></i><i class="s3"></i><i class="s1"></i><i></i><i class="s2"></i><i></i><i class="s2"></i><i class="s1"></i><i class="s3"></i><i class="s3"></i><i class="s1"></i><i class="s3"></i><i class="s2"></i><i></i><i></i><i class="s3"></i><i></i><i></i><i></i><i></i><i class="s2"></i><i class="s3"></i><i></i><i class="s3"></i><i class="s3"></i><i class="s3"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="s2"></i><i></i><i class="s2"></i><i class="s3"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="s3"></i></div>
+        <table class="dtable">
+          <tbody><tr><th>Symptom</th><th>Days</th><th>Avg</th><th>Trend</th></tr>
+          <tr><td>Night sweats</td><td>61</td><td>1.4</td><td><svg width="60" height="12"><polyline class="spark" points="0,3 12,2 24,5 30,4 36,7 48,9 60,10"></polyline><line class="marker" x1="33" y1="0" x2="33" y2="12"></line></svg></td></tr>
+          <tr><td>Hot flashes</td><td>55</td><td>1.6</td><td><svg width="60" height="12"><polyline class="spark" points="0,4 12,3 24,6 30,5 36,6 48,8 60,8"></polyline><line class="marker" x1="33" y1="0" x2="33" y2="12"></line></svg></td></tr>
+          <tr><td>Trouble sleeping</td><td>49</td><td>1.9</td><td><svg width="60" height="12"><polyline class="spark" points="0,6 12,5 24,7 30,6 36,5 48,6 60,4"></polyline><line class="marker" x1="33" y1="0" x2="33" y2="12"></line></svg></td></tr>
+          <tr><td>Brain fog</td><td>38</td><td>1.2</td><td><svg width="60" height="12"><polyline class="spark" points="0,5 12,6 24,4 30,5 36,4 48,3 60,3"></polyline><line class="marker" x1="33" y1="0" x2="33" y2="12"></line></svg></td></tr>
+        </tbody></table>
+        <strong style="font-size:9px">Current regimen</strong>
+        <div style="color:#6E675C">Estradot 50µg patch, twice weekly (changed from 37.5µg on <span style="color:#B26A12">Feb 12</span>) · Utrogestan 100mg nightly · adherence 93%</div>
+      </div>
+    </div>
+    <div class="card" style="padding:12px 14px">
+      <div class="label" style="color:var(--ember)">Observed</div>
+      <div style="margin-top:4px; color:var(--ink); font-size:16px; line-height:1.5">Night sweats averaged <span class="mono" style="color:var(--ember)">40% lower</span> in the 6 weeks after your Feb 12 Estradot change.</div>
+      <div class="sec" style="margin-top:6px">Correlation, not causation — bring it to your clinician.</div>
+    </div>
+    <div class="btn">Generate report</div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>Today</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>Trends</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>Meds</div>
+    <div class="tab on"><svg viewBox="0 0 20 20"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>Report</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>Settings</div>
+  </div></div></div>
+
+  <!-- LIGHT MODE -->
+  <div class="slot"><h2>Daytime — light mode</h2>
+  <div class="phone light"><div class="screen">
+    <div class="statusbar"><span>2:03</span><span class="mono">MENOCOMPASS</span></div>
+    <div>
+      <div class="display">Friday, March&nbsp;7</div>
+      <div class="sec" style="margin-top:4px">Same instrument, read in daylight.</div>
+    </div>
+    <div class="grid2">
+      <div class="card tile sel" data-sev="1"><div class="top"><svg viewBox="0 0 20 20"><path d="M10 2c2 3 5 5 5 9a5 5 0 0 1-10 0c0-4 3-6 5-9z"></path></svg><span class="title">Hot flashes</span></div><div class="dots"><i class="dot"></i><i class="dot f1 on"></i><i class="dot f2"></i><i class="dot f3"></i></div></div>
+      <div class="card tile" data-sev="0"><div class="top"><svg viewBox="0 0 20 20"><path d="M11 2 4 11h5l-1 7 8-10h-5z"></path></svg><span class="title">Fatigue</span></div><div class="dots"><i class="dot on"></i><i class="dot f1"></i><i class="dot f2"></i><i class="dot f3"></i></div></div>
+    </div>
+    <div class="card" style="padding:14px">
+      <div style="display:flex; justify-content:space-between; align-items:baseline">
+        <span class="title">Brain fog</span><span class="data">avg 0.9</span>
+      </div>
+      <svg class="chart" viewBox="0 0 300 90" style="width:100%; margin-top:8px">
+        <line class="grid" x1="0" y1="28" x2="300" y2="28"></line><line class="grid" x1="0" y1="56" x2="300" y2="56"></line>
+        <polyline class="line" points="0,60 40,52 80,58 120,44 160,50 200,40 240,46 300,36"></polyline>
+        <line class="dmark" x1="150" y1="6" x2="150" y2="78"></line>
+        <rect class="dmark" x="146" y="2" width="8" height="8" transform="rotate(45 150 6)" fill="#B26A12"></rect>
+      </svg>
+    </div>
+    <div class="card" style="padding:12px 14px">
+      <div class="label" style="color:var(--ember)">Observed</div>
+      <div style="margin-top:4px; color:var(--ink); font-size:16px; line-height:1.5">Brain fog averaged <span class="mono" style="color:var(--ember)">31% lower</span> since your Feb 12 change.</div>
+    </div>
+    <div class="btn">Generate report</div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>Today</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>Trends</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>Meds</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>Report</div>
+    <div class="tab"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>Settings</div>
+  </div></div></div>
+
+</div>
+
+<p class="foot">Every value above comes straight from the shipped tokens: palette + severity ramp in
+<span class="mono">src/theme/tokens.ts</span>, the amber dose-change markers and cycle-gap math in
+<span class="mono">src/lib/repositories.ts</span>, and the "Observed" copy from <span class="mono">src/lib/insights.ts</span>.
+Typecheck, lint, and a production <span class="mono">expo export</span> all pass on the redesign.</p>
+
+<script>
+  document.querySelectorAll('.tile').forEach(function(tile){
+    tile.addEventListener('click', function(){
+      var sev = (parseInt(tile.dataset.sev || '0', 10) + 1) % 4;
+      tile.dataset.sev = String(sev);
+      tile.classList.toggle('sel', sev > 0);
+      tile.querySelectorAll('.dot').forEach(function(d, i){ d.classList.toggle('on', i === sev); });
+    });
+  });
+  function seedHeat(el, cols, rows){
+    if(!el) return;
+    var total = cols * rows, changeAt = Math.floor(total * 0.55);
+    for(var i = 0; i < total; i++){
+      var base = i < changeAt ? 0.62 : 0.34;
+      var r = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
+      var s = r < base * 0.4 ? 3 : r < base * 0.75 ? 2 : r < base ? 1 : 0;
+      var cell = document.createElement('i');
+      if(s) cell.className = 's' + s;
+      el.appendChild(cell);
+    }
+  }
+  seedHeat(document.getElementById('heat'), 12, 6);
+  seedHeat(document.getElementById('docheat'), 30, 3);
+</script>

@@ -1,0 +1,18 @@
+{
+  "name": "meno-compass",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private, offline-capable menopause tracker and reference PWA",
+  "scripts": {
+    "build": "python build.py",
+    "test": "npm run build && node test.js",
+    "test:e2e": "node test.js",
+    "test:install": "playwright install chromium"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "playwright": "1.62.0"
+  }
+}

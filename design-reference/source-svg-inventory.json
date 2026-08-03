@@ -1,0 +1,272 @@
+[
+  {
+    "i": 0,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M10 2c2 3 5 5 5 9a5 5 0 0 1-10 0c0-4 3-6 5-9z\"></path></svg>"
+  },
+  {
+    "i": 1,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M15 12A7 7 0 1 1 8 3a6 6 0 0 0 7 9z\"></path></svg>"
+  },
+  {
+    "i": 2,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M5 13a4 4 0 1 1 1-7.9A5 5 0 0 1 15.9 7 3.5 3.5 0 0 1 15 13z\"></path></svg>"
+  },
+  {
+    "i": 3,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M11 2 4 11h5l-1 7 8-10h-5z\"></path></svg>"
+  },
+  {
+    "i": 4,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M10 17s-6-3.8-6-8a3.5 3.5 0 0 1 6-2.4A3.5 3.5 0 0 1 16 9c0 4.2-6 8-6 8z\"></path></svg>"
+  },
+  {
+    "i": 5,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M4 12c2-6 10-6 12 0M4 12h12\"></path></svg>"
+  },
+  {
+    "i": 6,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"3\" y=\"3\" width=\"14\" height=\"14\" rx=\"3\"></rect><path d=\"M13 17v-4h4\"></path></svg>"
+  },
+  {
+    "i": 7,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"4\" y=\"2.5\" width=\"12\" height=\"15\" rx=\"6\"></rect><path d=\"M4 10h12\"></path></svg>"
+  },
+  {
+    "i": 8,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"3\" y=\"4\" width=\"14\" height=\"13\" rx=\"2\"></rect><path d=\"M3 8h14M7 2v4M13 2v4\"></path></svg>"
+  },
+  {
+    "i": 9,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M3 16l4-6 3 3 4-7 3 4\"></path></svg>"
+  },
+  {
+    "i": 10,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"4\" y=\"2.5\" width=\"12\" height=\"15\" rx=\"6\"></rect><path d=\"M4 10h12\"></path></svg>"
+  },
+  {
+    "i": 11,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M6 2h6l3 3v13H6z M12 2v4h4\"></path></svg>"
+  },
+  {
+    "i": 12,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><circle cx=\"10\" cy=\"10\" r=\"3\"></circle><path d=\"M10 2v3M10 15v3M2 10h3M15 10h3\"></path></svg>"
+  },
+  {
+    "i": 13,
+    "cls": "chart",
+    "viewBox": "0 0 320 110",
+    "html": "<svg class=\"chart\" viewBox=\"0 0 320 110\" style=\"width:100%; margin-top:8px\" aria-label=\"Night sweats improving after the Feb 12 dose change\">\n        <line class=\"grid\" x1=\"0\" y1=\"30\" x2=\"320\" y2=\"30\"></line><line class=\"grid\" x1=\"0\" y1=\"60\" x2=\"320\" y2=\"60\"></line><line class=\"grid\" x1=\"0\" y1=\"90\" x2=\"320\" y2=\"90\"></line>\n        <polyline class=\"line\" points=\"0,38 30,30 60,42 90,28 120,36 150,32 180,52 210,64 240,60 270,74 300,70 320,78\"></polyline>\n        <line class=\"dmark\" x1=\"165\" y1=\"8\" x2=\"165\" y2=\"95\"></line>\n        <rect class=\"dmark\" x=\"161\" y=\"4\" width=\"8\" height=\"8\" transform=\"rotate(45 165 8)\" fill=\"#E8A552\"></rect>\n        <text class=\"dlabel\" x=\"172\" y=\"14\">Feb 12 · 50µg</text>\n        <text class=\"axis\" x=\"0\" y=\"107\">DEC</text><text class=\"axis\" x=\"150\" y=\"107\">FEB</text><text class=\"axis\" x=\"296\" y=\"107\">MAR</text>\n      </svg>"
+  },
+  {
+    "i": 14,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"3\" y=\"4\" width=\"14\" height=\"13\" rx=\"2\"></rect><path d=\"M3 8h14M7 2v4M13 2v4\"></path></svg>"
+  },
+  {
+    "i": 15,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M3 16l4-6 3 3 4-7 3 4\"></path></svg>"
+  },
+  {
+    "i": 16,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"4\" y=\"2.5\" width=\"12\" height=\"15\" rx=\"6\"></rect><path d=\"M4 10h12\"></path></svg>"
+  },
+  {
+    "i": 17,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M6 2h6l3 3v13H6z M12 2v4h4\"></path></svg>"
+  },
+  {
+    "i": 18,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><circle cx=\"10\" cy=\"10\" r=\"3\"></circle><path d=\"M10 2v3M10 15v3M2 10h3M15 10h3\"></path></svg>"
+  },
+  {
+    "i": 19,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"3\" y=\"3\" width=\"14\" height=\"14\" rx=\"3\"></rect><path d=\"M13 17v-4h4\"></path></svg>"
+  },
+  {
+    "i": 20,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"4\" y=\"2.5\" width=\"12\" height=\"15\" rx=\"6\"></rect><path d=\"M4 10h12\"></path></svg>"
+  },
+  {
+    "i": 21,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M8 2h4M10 2v6l4 8a2 2 0 0 1-2 3H8a2 2 0 0 1-2-3l4-8\"></path></svg>"
+  },
+  {
+    "i": 22,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M8 2h4M10 2v6l4 8a2 2 0 0 1-2 3H8a2 2 0 0 1-2-3l4-8\"></path></svg>"
+  },
+  {
+    "i": 23,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"3\" y=\"4\" width=\"14\" height=\"13\" rx=\"2\"></rect><path d=\"M3 8h14M7 2v4M13 2v4\"></path></svg>"
+  },
+  {
+    "i": 24,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M3 16l4-6 3 3 4-7 3 4\"></path></svg>"
+  },
+  {
+    "i": 25,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"4\" y=\"2.5\" width=\"12\" height=\"15\" rx=\"6\"></rect><path d=\"M4 10h12\"></path></svg>"
+  },
+  {
+    "i": 26,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M6 2h6l3 3v13H6z M12 2v4h4\"></path></svg>"
+  },
+  {
+    "i": 27,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><circle cx=\"10\" cy=\"10\" r=\"3\"></circle><path d=\"M10 2v3M10 15v3M2 10h3M15 10h3\"></path></svg>"
+  },
+  {
+    "i": 28,
+    "cls": null,
+    "viewBox": null,
+    "html": "<svg width=\"60\" height=\"12\"><polyline class=\"spark\" points=\"0,3 12,2 24,5 30,4 36,7 48,9 60,10\"></polyline><line class=\"marker\" x1=\"33\" y1=\"0\" x2=\"33\" y2=\"12\"></line></svg>"
+  },
+  {
+    "i": 29,
+    "cls": null,
+    "viewBox": null,
+    "html": "<svg width=\"60\" height=\"12\"><polyline class=\"spark\" points=\"0,4 12,3 24,6 30,5 36,6 48,8 60,8\"></polyline><line class=\"marker\" x1=\"33\" y1=\"0\" x2=\"33\" y2=\"12\"></line></svg>"
+  },
+  {
+    "i": 30,
+    "cls": null,
+    "viewBox": null,
+    "html": "<svg width=\"60\" height=\"12\"><polyline class=\"spark\" points=\"0,6 12,5 24,7 30,6 36,5 48,6 60,4\"></polyline><line class=\"marker\" x1=\"33\" y1=\"0\" x2=\"33\" y2=\"12\"></line></svg>"
+  },
+  {
+    "i": 31,
+    "cls": null,
+    "viewBox": null,
+    "html": "<svg width=\"60\" height=\"12\"><polyline class=\"spark\" points=\"0,5 12,6 24,4 30,5 36,4 48,3 60,3\"></polyline><line class=\"marker\" x1=\"33\" y1=\"0\" x2=\"33\" y2=\"12\"></line></svg>"
+  },
+  {
+    "i": 32,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"3\" y=\"4\" width=\"14\" height=\"13\" rx=\"2\"></rect><path d=\"M3 8h14M7 2v4M13 2v4\"></path></svg>"
+  },
+  {
+    "i": 33,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M3 16l4-6 3 3 4-7 3 4\"></path></svg>"
+  },
+  {
+    "i": 34,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"4\" y=\"2.5\" width=\"12\" height=\"15\" rx=\"6\"></rect><path d=\"M4 10h12\"></path></svg>"
+  },
+  {
+    "i": 35,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M6 2h6l3 3v13H6z M12 2v4h4\"></path></svg>"
+  },
+  {
+    "i": 36,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><circle cx=\"10\" cy=\"10\" r=\"3\"></circle><path d=\"M10 2v3M10 15v3M2 10h3M15 10h3\"></path></svg>"
+  },
+  {
+    "i": 37,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M10 2c2 3 5 5 5 9a5 5 0 0 1-10 0c0-4 3-6 5-9z\"></path></svg>"
+  },
+  {
+    "i": 38,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M11 2 4 11h5l-1 7 8-10h-5z\"></path></svg>"
+  },
+  {
+    "i": 39,
+    "cls": "chart",
+    "viewBox": "0 0 300 90",
+    "html": "<svg class=\"chart\" viewBox=\"0 0 300 90\" style=\"width:100%; margin-top:8px\">\n        <line class=\"grid\" x1=\"0\" y1=\"28\" x2=\"300\" y2=\"28\"></line><line class=\"grid\" x1=\"0\" y1=\"56\" x2=\"300\" y2=\"56\"></line>\n        <polyline class=\"line\" points=\"0,60 40,52 80,58 120,44 160,50 200,40 240,46 300,36\"></polyline>\n        <line class=\"dmark\" x1=\"150\" y1=\"6\" x2=\"150\" y2=\"78\"></line>\n        <rect class=\"dmark\" x=\"146\" y=\"2\" width=\"8\" height=\"8\" transform=\"rotate(45 150 6)\" fill=\"#B26A12\"></rect>\n      </svg>"
+  },
+  {
+    "i": 40,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"3\" y=\"4\" width=\"14\" height=\"13\" rx=\"2\"></rect><path d=\"M3 8h14M7 2v4M13 2v4\"></path></svg>"
+  },
+  {
+    "i": 41,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M3 16l4-6 3 3 4-7 3 4\"></path></svg>"
+  },
+  {
+    "i": 42,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><rect x=\"4\" y=\"2.5\" width=\"12\" height=\"15\" rx=\"6\"></rect><path d=\"M4 10h12\"></path></svg>"
+  },
+  {
+    "i": 43,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><path d=\"M6 2h6l3 3v13H6z M12 2v4h4\"></path></svg>"
+  },
+  {
+    "i": 44,
+    "cls": null,
+    "viewBox": "0 0 20 20",
+    "html": "<svg viewBox=\"0 0 20 20\"><circle cx=\"10\" cy=\"10\" r=\"3\"></circle><path d=\"M10 2v3M10 15v3M2 10h3M15 10h3\"></path></svg>"
+  }
+]

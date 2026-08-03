@@ -3,69 +3,98 @@
 A private, offline-capable PWA for women in perimenopause and beyond. Tracker first, with an
 evidence-graded reference library behind it.
 
-- **No account, no server, no analytics, no network requests.** Data lives in the browser's
-  local storage on the user's device.
+- **No account, backend, database, analytics, or third-party runtime requests.** Data lives in
+  the browser's local storage on the user's device.
 - **Works offline** once installed, via a service worker that caches the app shell.
-- **One file, no dependencies.** `index.html` contains all CSS and JS inline. No CDN, no build
-  step needed to run it.
+- **Single-file application bundle.** The build emits one self-contained `dist/index.html` plus
+  the manifest, service worker, and local install icons. There are no runtime npm dependencies.
 
 ---
 
 ## What's in the box
 
-```
-dist/                      ← deploy this folder
-  index.html               the whole app (263 KB, everything inlined)
-  manifest.webmanifest     PWA manifest (name, icons, shortcuts)
-  sw.js                    service worker (offline shell cache)
-  icons/                   192, 512, maskable 512, apple-touch, favicon
+The editable sources are intentionally flat at the repository root:
 
-src/                       ← edit these, then rebuild
-  styles.css               design system (light + dark)
-  content-a.js             symptom library, treatment landscape, supplements
-  content-b.js             staging, diet, exercise, weight, skin, sleep, mind,
+```text
+styles.css                 design system (light + dark)
+assets/fonts/              local Bricolage Grotesque webfont + OFL license
+content-a.js               symptom library, treatment landscape, supplements
+content-b.js               staging, diet, exercise, weight, skin, sleep, mind,
                            sexual health, screening, red flags, sources
-  app-core.js              storage, data model, charts, insights engine
-  app-views.js             views, tools, router
+app-core.js                storage, data model, charts, insights engine
+app-views.js               views, tools, router
+manifest.webmanifest       PWA metadata
+sw.js                      offline shell cache
+*.png                      source icons
+index.html                 generated standalone mirror; do not edit directly
+
+build.py                   recreates the deployable dist/ directory
+test.js                    Playwright end-to-end suite
+package.json               pinned tooling and repeatable commands
+vercel.json                Vercel build/output and security headers
+
+dist/                      generated; deploy this directory, do not edit it
+  index.html               CSS and JavaScript inlined in dependency order
   manifest.webmanifest
   sw.js
-
-build.py                   assembles src/ → dist/index.html
-make_icons.py              regenerates the icon set
-test.js                    Playwright end-to-end suite (~140 assertions)
+  assets/fonts/
+  icons/
 ```
 
 ## Running it
 
-**Locally, no server:** open `dist/index.html` in a browser. Everything works except the
-service worker and install prompt, which need HTTP(S).
+Install the pinned development dependency, install its Chromium build once, then build and test:
+
+```bash
+npm ci
+npm run test:install
+npm test
+```
+
+`npm test` rebuilds `dist/` before running the full browser suite. Test screenshots go to the
+ignored `test-results/` directory.
+
+The same command runs on every push and pull request through `.github/workflows/ci.yml` using
+the pinned Playwright version and Chromium. Failed runs retain browser screenshots as a short-lived
+CI artifact.
+
+**Locally, no server:** after `npm run build`, open the generated root `index.html` (or the
+identical `dist/index.html`) in a browser. Everything except service-worker registration and
+installation works from a file URL.
 
 **Locally, with a server** (needed to test install/offline):
 
 ```bash
-cd dist && python3 -m http.server 8080
-# then open http://localhost:8080
+npm run build
+cd dist
+python -m http.server 8080
+# open http://localhost:8080
 ```
 
 ## Deploying
 
-Any static host works. It must be served over **HTTPS** for the service worker and the
-"Add to Home Screen" install prompt to function.
+Any static host works. It must use **HTTPS** for service-worker and install support.
 
-**Netlify / Vercel / Cloudflare Pages** — drag the `dist` folder onto the dashboard, or point
-the project at the repo with `dist` as the publish directory. No build command.
+### Vercel (recommended)
 
-**GitHub Pages:**
+Import the Git repository into Vercel. The committed `vercel.json` runs `npm run build`, publishes
+`dist/`, prevents stale HTML/service-worker caching, and applies baseline static security headers.
+No Vercel environment variables, Functions, or database are required for the current app.
 
-```bash
-git init && git add . && git commit -m "Meno Compass"
-git branch -M main
-git remote add origin git@github.com:USERNAME/meno-compass.git
-git push -u origin main
-# Settings → Pages → Source: main, folder: /dist
-```
+Vercel's Git integration creates preview deployments for branches and production deployments from
+the configured production branch. Run `npm test` locally or in CI before promotion. Do not commit
+the generated `.vercel/` directory or tokens.
 
-**Any web host** — upload the contents of `dist/` to a folder. Paths are all relative, so it
+The current privacy model is deliberately device-local. If account sync or multi-device backup is
+added later, put database access behind authenticated Vercel Functions and keep Neon credentials in
+Vercel environment variables—never in browser JavaScript. That would be a separate privacy,
+security, migration, and consent project; Neon is not needed for this static release.
+
+### Other static hosts
+
+Run `npm run build`, then publish the contents of `dist/`.
+
+**Any web host** — upload the contents of `dist/` to a folder. App paths are relative, so it
 works from a subdirectory (`example.com/meno/`) as well as a root domain.
 
 ### Installing it as an app
@@ -77,17 +106,19 @@ After installing, it opens full-screen with no browser chrome and works with no 
 ## Rebuilding after edits
 
 ```bash
-python3 build.py      # src/ → dist/index.html
-node test.js          # run the test suite (needs: npm install playwright)
+npm run build         # root sources → dist/
+npm run test:e2e      # test an already-built dist/
+npm test              # rebuild, then test
 ```
 
 `build.py` inlines `styles.css` and the four JS files, in this order:
 `content-a.js`, `content-b.js`, `app-core.js`, `app-views.js`. They share globals, so the order
-matters.
+matters. It writes identical HTML to the tracked root `index.html` convenience mirror and to
+`dist/index.html`; neither generated file should be edited manually.
 
-**Important:** after changing anything in `dist/`, bump `CACHE` in `dist/sw.js`
-(`meno-compass-v1` → `v2`). Otherwise returning users keep the old cached version until the
-background refresh catches up on their second launch.
+**Important:** never edit `dist/` directly. When changing a file listed in the service-worker
+shell, bump `CACHE` in the root `sw.js`, then rebuild. The activation handler removes only older
+`meno-compass-*` caches, leaving unrelated caches on the same origin alone.
 
 ## Data model
 
@@ -95,7 +126,7 @@ Everything lives under the single localStorage key `menocompass.v1`:
 
 ```js
 {
-  v: 1,
+  v: 2,
   profile:  { name, birthYear, region, units,
               uterus:   'intact'|'hyst'|'ablation'|'unknown',
               ovaries:  'kept'|'one'|'both'|'unknown',
@@ -103,9 +134,9 @@ Everything lives under the single localStorage key `menocompass.v1`:
               proteinGpk, weightGoal, waistGoal, theme, stage, onboarded },
   entries:  { "2026-07-29": { hf, ns, inBedH, sleepH, sym:{…}, wt, waist,
                               bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf}, notes } },
-  screening:{ dxa:{last}, mammo:{last}, … },
+  screening:{ dxa:{last}, mammo:{last,interval}, … },
   scores:   [ {date, type:'phq9'|'gad7', score, band} ],
-  trigger:  { active, item, start } | null
+  trigger:  { active, status:'running'|'stopped'|'completed', item, start, ended? } | null
 }
 ```
 
@@ -123,6 +154,10 @@ iframe), the app falls back to in-memory storage and tells the user their entrie
 a reload.
 
 Export/import is plain JSON round-trip; CSV export is one row per day plus a questionnaire block.
+Both export formats are unencrypted and may contain sensitive health information. Restore accepts
+up to 5 MB and passes every field through a strict allowlist, type/range checks, and date validation;
+unknown fields and invalid values are discarded. Schema v2 is read from the existing
+`menocompass.v1` storage key so earlier device-local records migrate in place.
 
 ## Editorial rules the content follows
 

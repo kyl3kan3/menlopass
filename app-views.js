@@ -3,26 +3,64 @@
    ============================================================ */
 
 const IC = {
-  today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><circle cx="12" cy="15" r="2.2" fill="currentColor" stroke="none"/></svg>',
-  trends:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 20V4M3 20h18"/><path d="M6.5 15.5l3.5-4.5 3.5 2.5L20 6.5"/></svg>',
-  learn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5.5A2 2 0 0 1 6 3.5h5v17H6a2 2 0 0 0-2 2z"/><path d="M20 5.5a2 2 0 0 0-2-2h-5v17h5a2 2 0 0 1 2 2z"/></svg>',
-  you:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c0-3.9 3.4-6.5 7.5-6.5s7.5 2.6 7.5 6.5"/></svg>',
+  /* Exact icon assets from the selected Twilight reference. */
+  today:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
+  trends:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
+  learn:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
+  you:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
   chev:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'
+};
+
+const TWILIGHT_IC = {
+  flame:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2c2 3 5 5 5 9a5 5 0 0 1-10 0c0-4 3-6 5-9z"></path></svg>',
+  moon:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15 12A7 7 0 1 1 8 3a6 6 0 0 0 7 9z"></path></svg>',
+  cloud:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 13a4 4 0 1 1 1-7.9A5 5 0 0 1 15.9 7 3.5 3.5 0 0 1 15 13z"></path></svg>',
+  bolt:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 2 4 11h5l-1 7 8-10h-5z"></path></svg>',
+  heart:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 17s-6-3.8-6-8a3.5 3.5 0 0 1 6-2.4A3.5 3.5 0 0 1 16 9c0 4.2-6 8-6 8z"></path></svg>',
+  horizon:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 12c2-6 10-6 12 0M4 12h12"></path></svg>',
+  cycle:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3"></rect><path d="M13 17v-4h4"></path></svg>',
+  pill:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>',
+  lab:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4M10 2v6l4 8a2 2 0 0 1-2 3H8a2 2 0 0 1-2-3l4-8"></path></svg>',
+  calendar:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
+  trend:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
+  document:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
+  sun:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>'
+};
+const SYM_IC = {
+  mood:TWILIGHT_IC.heart,
+  anx:TWILIGHT_IC.cloud,
+  fog:TWILIGHT_IC.cloud,
+  joint:TWILIGHT_IC.bolt,
+  dry:TWILIGHT_IC.horizon,
+  uri:TWILIGHT_IC.cycle,
+  energy:TWILIGHT_IC.bolt,
+  head:TWILIGHT_IC.cloud,
+  palp:TWILIGHT_IC.heart,
+  itch:TWILIGHT_IC.sun,
+  libido:TWILIGHT_IC.heart
+};
+const SYM_DISPLAY = {
+  mood:'Low mood', anx:'Anxiety', fog:'Brain fog', joint:'Joint pain',
+  dry:'Dryness', uri:'Bladder', energy:'Fatigue', head:'Headache',
+  palp:'Palpitations', itch:'Skin', libido:'Low libido'
 };
 
 let curDate = todayISO();
 let curTab = 'today';
 let sheetStack = [];
+let lastSheetTrigger = null;
+const APP_VERSION = '1.0.0';
 
 /* ---------- tiny helpers ---------- */
 const $ = s => document.querySelector(s);
 function h(tag, attrs, inner){
-  const a = Object.entries(attrs||{}).map(([k,v])=>v==null?'':' '+k+'="'+String(v).replace(/"/g,'&quot;')+'"').join('');
+  const a = Object.entries(attrs||{}).map(([k,v])=>v==null?'':' '+k+'="'+esc(v)+'"').join('');
   return '<'+tag+a+'>'+(inner==null?'':inner)+'</'+tag+'>';
 }
 function toast(msg){
   const old=$('.fab-note'); if(old) old.remove();
-  const el=document.createElement('div'); el.className='fab-note'; el.textContent=msg;
+  const el=document.createElement('div'); el.className='fab-note'; el.setAttribute('role','status');
+  el.setAttribute('aria-live','polite'); el.textContent=msg;
   document.body.appendChild(el); setTimeout(()=>el.remove(), 2600);
 }
 function setPath(obj, path, val){
@@ -37,16 +75,29 @@ function getPath(obj, path){
 }
 
 /* ---------- scale / chip builders ---------- */
-function scaleRow(path, labels, cur, min){
+function scaleRow(path, labels, cur, min, groupLabel){
   min = min==null?0:min;
+  groupLabel=groupLabel||'Severity';
   let b='';
   for(let i=min;i<labels.length+min;i++){
-    b += h('button',{'data-act':'set','data-k':path,'data-v':i,'aria-pressed':cur===i?'true':'false','aria-label':labels[i-min]}, i);
+    const level=i-min;
+    b += h('button',{class:'scale-choice','data-act':'set','data-k':path,'data-v':i,
+      'aria-pressed':cur===i?'true':'false','aria-label':groupLabel+': '+labels[level]},
+      '<span class="scale-dot fill-'+level+(cur===i?' on':'')+'" aria-hidden="true"></span>');
   }
-  return '<div class="scale">'+b+'</div><div class="scale-legend"><span>'+esc(labels[0])+'</span><span>'+esc(labels[labels.length-1])+'</span></div>';
+  return '<div class="scale" role="group" aria-label="'+esc(groupLabel)+'">'+b+'</div><div class="scale-legend" aria-hidden="true"><span>'+esc(labels[0])+'</span><span>'+esc(labels[labels.length-1])+'</span></div>';
 }
 function chip(path, label, on){
   return h('button',{class:'chip','data-act':'toggle','data-k':path,'aria-pressed':on?'true':'false'}, esc(label));
+}
+function proteinChoices(current, target){
+  const met=current===true || current===1;
+  const missed=current===false || current===0;
+  return h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':1,'aria-pressed':met?'true':'false'},
+      esc('Met protein target'+(target?' ('+target.grams+'g)':'')))
+    + h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':0,'aria-pressed':missed?'true':'false'},
+      'Missed target')
+    + ((met||missed) ? h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':''},'Clear') : '');
 }
 
 /* ============================================================
@@ -67,12 +118,14 @@ function viewToday(){
   const b = burden(e);
 
   return `
-  <div class="view">
+  <div class="view today-view">
     <div class="dayscroll" role="group" aria-label="Choose a day">${days}</div>
-    <p class="tiny muted" style="margin:6px 0 14px">${esc(fmtLong(curDate))}${curDate===t?'':' · editing a past day'}</p>
+    <p class="tiny muted" style="margin:6px 0 14px">${curDate===t?'Tap only what changed.':esc(fmtLong(curDate))+' · editing a past day'}</p>
 
-    <div class="card">
-      <div class="card-head"><h3>Hot flashes today</h3>${e.hf!=null?'<span class="badge accent">logged</span>':''}</div>
+    <div class="section-label day-label">Daily check-in</div>
+    <div class="checkin-grid">
+    <div class="card flash-card${e.hf>0?' sel':e.hf===0?' logged':''}">
+      <div class="card-head"><h3><span class="title-with-icon">${TWILIGHT_IC.flame}<span>Hot flashes</span></span></h3></div>
       <div class="stepper">
         <button data-act="hf" data-n="-1" aria-label="One fewer">–</button>
         <span class="val">${e.hf==null?'–':e.hf}</span>
@@ -82,13 +135,26 @@ function viewToday(){
         <button class="btn ghost sm" data-act="set" data-k="hf" data-v="0">None today</button>
         <button class="btn ghost sm" data-act="set" data-k="hf" data-v="">Clear</button>
       </div>
-      <hr class="sep">
-      <label class="fl">Night sweats last night</label>
-      ${scaleRow('ns', SCALE4, e.ns)}
+    </div>
+    <div class="card night-card${e.ns>0?' sel':e.ns===0?' logged':''}">
+      <label class="fl"><span class="title-with-icon">${TWILIGHT_IC.moon}<span>Night sweats</span></span></label>
+      ${scaleRow('ns', SCALE4, e.ns, 0, 'Night sweats last night')}
+    </div>
     </div>
 
+    <div class="section-label">Symptoms · 0 none → 4 very severe</div>
+    <div class="symptom-grid">
+      ${SYMS.filter(s=>s.k!=='sleepq').map(s=>`
+        <div class="card symptom-tile${sym[s.k]>0?' sel':sym[s.k]===0?' logged':''}">
+          <label class="fl symptom-name"><span class="symptom-title">${SYM_IC[s.k]||TWILIGHT_IC.cycle}<span>${esc(SYM_DISPLAY[s.k]||s.n)}</span></span></label>
+          ${scaleRow('sym.'+s.k, SCALE4, sym[s.k], 0, s.n)}
+        </div>`).join('')}
+    </div>
+    ${b!=null?`<div class="callout info burden-card"><span class="ctitle">Today's burden score: ${b} of 44</span>
+      Built on the same 0–4 per-symptom structure as the Menopause Rating Scale — a way to watch direction over weeks and to show a clinician. Single days bounce around, and we deliberately don't label it mild or severe: there is no validated cut-off for this set of symptoms.</div>`:''}
+
     <div class="section-label">How you slept</div>
-    <div class="card">
+    <div class="card sleep-card">
       <div class="grid2">
         <div class="field"><label class="fl" for="inbed">Hours in bed</label>
           <input id="inbed" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-k="inBedH" value="${e.inBedH??''}"></div>
@@ -96,28 +162,17 @@ function viewToday(){
           <input id="slept" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-k="sleepH" value="${e.sleepH??''}"></div>
       </div>
       <label class="fl">Sleep quality (0 = fine, 4 = terrible)</label>
-      ${scaleRow('sym.sleepq', ['Fine','Slightly off','Poor','Bad','Awful'], sym.sleepq)}
-      ${e.inBedH&&e.sleepH?`<p class="tiny muted" style="margin-top:10px">Sleep efficiency <b>${Math.round(e.sleepH/e.inBedH*100)}%</b>. CBT-I extends your sleep window once this passes about 85–90%.</p>`:''}
-    </div>
-
-    <div class="section-label">Symptoms · 0 none → 4 very severe</div>
-    <div class="card">
-      ${SYMS.filter(s=>s.k!=='sleepq').map(s=>`
-        <div style="margin-bottom:14px">
-          <label class="fl">${esc(s.n)}</label>
-          ${scaleRow('sym.'+s.k, SCALE4, sym[s.k])}
-        </div>`).join('')}
-      ${b!=null?`<div class="callout info" style="margin-bottom:0"><span class="ctitle">Today's burden score: ${b} of 44</span>
-        Built on the same 0–4 per-symptom structure as the Menopause Rating Scale — a way to watch direction over weeks and to show a clinician. Single days bounce around, and we deliberately don't label it mild or severe: there is no validated cut-off for this set of symptoms.</div>`:''}
+      ${scaleRow('sym.sleepq', ['Fine','Slightly off','Poor','Bad','Awful'], sym.sleepq, 0, 'Sleep quality')}
+      ${e.inBedH!=null&&e.inBedH>0&&e.sleepH!=null?`<p class="tiny muted" style="margin-top:10px">Sleep efficiency <b>${Math.round(e.sleepH/e.inBedH*100)}%</b>. CBT-I extends your sleep window once this passes about 85–90%.</p>`:''}
     </div>
 
     <div class="section-label">Body</div>
     <div class="card">
       <div class="grid2">
         <div class="field"><label class="fl" for="wt">Weight (${U.wLabel()})</label>
-          <input id="wt" type="number" step="0.1" inputmode="decimal" data-act="num" data-k="wt" data-conv="w" value="${e.wt!=null?r1(U.wOut(e.wt)):''}"></div>
+          <input id="wt" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="num" data-k="wt" data-conv="w" value="${e.wt!=null?r1(U.wOut(e.wt)):''}"></div>
         <div class="field"><label class="fl" for="wa">Waist (${U.lLabel()})</label>
-          <input id="wa" type="number" step="0.1" inputmode="decimal" data-act="num" data-k="waist" data-conv="l" value="${e.waist!=null?r1(U.lOut(e.waist)):''}"></div>
+          <input id="wa" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="num" data-k="waist" data-conv="l" value="${e.waist!=null?r1(U.lOut(e.waist)):''}"></div>
       </div>
       <p class="xtiny">Waist: same landmark every time, bare skin, end of a normal exhale. Self-measurement usually reads 1–3 cm low — fine, because you are tracking change.</p>
       <hr class="sep">
@@ -138,27 +193,27 @@ function viewToday(){
         ${chip('act.pf','Pelvic floor', act.pf)}
       </div>
       <div class="field" style="margin-bottom:0"><label class="fl" for="aero">Aerobic minutes</label>
-        <input id="aero" type="number" step="5" min="0" inputmode="numeric" data-act="num" data-k="act.aero" value="${act.aero??''}"></div>
+        <input id="aero" type="number" step="5" min="0" max="1440" inputmode="numeric" data-act="num" data-k="act.aero" value="${act.aero??''}"></div>
     </div>
 
     <div class="section-label">Food & drink</div>
     <div class="card">
       <div class="chips" style="margin-bottom:14px">
-        ${chip('nut.prot','Hit protein target'+(pt?' ('+pt.grams+'g)':''), nut.prot)}
+        ${proteinChoices(nut.prot, pt)}
         ${chip('nut.cal','2+ calcium servings', nut.cal)}
         ${chip('nut.fib','Good fibre day', nut.fib)}
       </div>
       <div class="grid2">
         <div class="field"><label class="fl" for="alc">Alcohol (drinks)</label>
-          <input id="alc" type="number" step="1" min="0" inputmode="numeric" data-act="num" data-k="nut.alc" value="${nut.alc??''}"></div>
+          <input id="alc" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-k="nut.alc" value="${nut.alc??''}"></div>
         <div class="field"><label class="fl" for="caf">Caffeine (cups)</label>
-          <input id="caf" type="number" step="1" min="0" inputmode="numeric" data-act="num" data-k="nut.caf" value="${nut.caf??''}"></div>
+          <input id="caf" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-k="nut.caf" value="${nut.caf??''}"></div>
       </div>
     </div>
 
     <div class="card">
       <label class="fl" for="notes">Notes</label>
-      <textarea id="notes" data-act="num" data-k="notes" placeholder="Anything worth remembering — what helped, what set it off, questions for your next appointment.">${esc(e.notes||'')}</textarea>
+      <textarea id="notes" maxlength="4000" data-act="num" data-k="notes" placeholder="Anything worth remembering — what helped, what set it off, questions for your next appointment.">${esc(e.notes||'')}</textarea>
     </div>
 
     ${DB.trigger&&DB.trigger.active?triggerBanner():''}
@@ -180,7 +235,7 @@ function viewTrends(){
   const dates = entryDates();
   if(!dates.length){
     return `<div class="view"><div class="empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 20V4M3 20h18"/><path d="M6.5 15.5l3.5-4.5 3.5 2.5L20 6.5"/></svg>
+      ${IC.trends}
       <h3>Nothing to chart yet</h3>
       <p class="tiny">Fill in a check-in on the Today tab. Most patterns need about two weeks before they mean anything.</p>
       <button class="btn primary" data-act="tab" data-v="today">Start today's check-in</button>
@@ -256,21 +311,21 @@ function viewTrends(){
    LEARN
    ============================================================ */
 const LEARN_MODULES = [
-  {id:'stage',      i:'◔', n:'Where am I?',              s:'Staging, and how menopause is actually diagnosed'},
-  {id:'symptoms',   i:'≡', n:'Symptom library',           s:'What is happening, how long it lasts, what helps'},
-  {id:'treatment',  i:'℞', n:'Treatment options',         s:'Hormone therapy, non-hormonal options, absolute risks'},
-  {id:'supplements',i:'◈', n:'Supplements & remedies',    s:'What the trials actually show — mostly not much'},
-  {id:'diet',       i:'◍', n:'Eating for this stage',     s:'Protein, calcium, patterns, alcohol, energy myths'},
-  {id:'exercise',   i:'△', n:'Movement & strength',       s:'Resistance, bone loading, balance, pelvic floor'},
-  {id:'weight',     i:'◎', n:'Weight & body composition', s:'What really changes, and what works'},
-  {id:'skin',       i:'✧', n:'Skin, hair & nails',        s:'Four things with evidence; the rest is optional'},
-  {id:'sleep',      i:'☾', n:'Sleep',                     s:'Triage, then real CBT-I — not a hygiene checklist'},
-  {id:'mind',       i:'◇', n:'Mood, anxiety & mind',      s:'The risk window, brain fog, techniques that work'},
-  {id:'sex',        i:'♡', n:'Intimacy & sexual health',  s:'Options table, lubricant criteria, pain pathway'},
-  {id:'screening',  i:'✓', n:'Preventive care checklist', s:'Scans and screens for this decade — track them'},
-  {id:'clinician',  i:'✎', n:'Prepare for an appointment', s:'Build a question list from your own data'},
-  {id:'redflags',   i:'!', n:'Red flags',                  s:'Ten things that need care promptly'},
-  {id:'sources',    i:'§', n:'Sources & what we left out', s:'Where all of this comes from'}
+  {id:'stage',      i:TWILIGHT_IC.cycle, n:'Where am I?',              s:'Staging, and how menopause is actually diagnosed'},
+  {id:'symptoms',   i:TWILIGHT_IC.cloud, n:'Symptom library',           s:'What is happening, how long it lasts, what helps'},
+  {id:'treatment',  i:TWILIGHT_IC.pill, n:'Treatment options',         s:'Hormone therapy, non-hormonal options, absolute risks'},
+  {id:'supplements',i:TWILIGHT_IC.lab, n:'Supplements & remedies',    s:'What the trials actually show — mostly not much'},
+  {id:'diet',       i:TWILIGHT_IC.horizon, n:'Eating for this stage',     s:'Protein, calcium, patterns, alcohol, energy myths'},
+  {id:'exercise',   i:TWILIGHT_IC.bolt, n:'Movement & strength',       s:'Resistance, bone loading, balance, pelvic floor'},
+  {id:'weight',     i:TWILIGHT_IC.horizon, n:'Weight & body composition', s:'What really changes, and what works'},
+  {id:'skin',       i:TWILIGHT_IC.sun, n:'Skin, hair & nails',        s:'Four things with evidence; the rest is optional'},
+  {id:'sleep',      i:TWILIGHT_IC.moon, n:'Sleep',                     s:'Triage, then real CBT-I — not a hygiene checklist'},
+  {id:'mind',       i:TWILIGHT_IC.heart, n:'Mood, anxiety & mind',      s:'The risk window, brain fog, techniques that work'},
+  {id:'sex',        i:TWILIGHT_IC.heart, n:'Intimacy & sexual health',  s:'Options table, lubricant criteria, pain pathway'},
+  {id:'screening',  i:TWILIGHT_IC.calendar, n:'Preventive care checklist', s:'Scans and screens for this decade — track them'},
+  {id:'clinician',  i:TWILIGHT_IC.document, n:'Prepare for an appointment', s:'Build a question list from your own data'},
+  {id:'redflags',   i:TWILIGHT_IC.flame, n:'Red flags',                  s:'Ten things that need care promptly'},
+  {id:'sources',    i:TWILIGHT_IC.document, n:'Sources & what we left out', s:'Where all of this comes from'}
 ];
 function viewLearn(){
   return `<div class="view">
@@ -298,9 +353,9 @@ function viewYou(){
         ${age?'<span class="badge">'+age+'</span>':''}</div>
       <div class="grid2">
         <div class="field"><label class="fl" for="pn">Name</label>
-          <input id="pn" type="text" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
+          <input id="pn" type="text" maxlength="80" autocomplete="given-name" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
         <div class="field"><label class="fl" for="by">Birth year</label>
-          <input id="by" type="number" min="1920" max="2015" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
+          <input id="by" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
       </div>
       <div class="field"><label class="fl" for="ut">Uterus (womb)</label>
         <select id="ut" data-act="prof" data-k="uterus">
@@ -315,10 +370,10 @@ function viewYou(){
         <p class="xtiny">Asked separately on purpose: a hysterectomy often leaves both ovaries in place, and ovaries are sometimes removed with the uterus left. The two have completely different consequences.</p></div>
       ${periodsPossible()
         ? `<div class="field"><label class="fl" for="lp">Date of your last period</label>
-           <input id="lp" type="date" data-act="prof" data-k="lastPeriod" value="${p.lastPeriod||''}">
+           <input id="lp" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="lastPeriod" value="${p.lastPeriod||''}">
            <p class="xtiny">Used to count months without a period and to flag bleeding that needs checking.</p></div>`
         : `<div class="field"><label class="fl" for="sd">Date of your surgery, if you know it</label>
-           <input id="sd" type="date" data-act="prof" data-k="surgeryDate" value="${p.surgeryDate||''}">
+           <input id="sd" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="surgeryDate" value="${p.surgeryDate||''}">
            <p class="xtiny">${p.ovaries==='both'
               ? 'Both ovaries removed means menopause dates from this operation, so this app uses the surgery date rather than a last period.'
               : 'With no readable bleeding pattern, a last-period date would not mean anything — so this app asks for the surgery date instead. Staging should not be attempted until at least 3 months after surgery.'}</p></div>`}
@@ -347,22 +402,22 @@ function viewYou(){
              :'<p class="xtiny">Log a weight on the Today tab to see your grams.</p>'}</div>
       <div class="grid2" style="margin-bottom:0">
         <div class="field" style="margin-bottom:0"><label class="fl" for="wg">Weight goal (${U.wLabel()})</label>
-          <input id="wg" type="number" step="0.1" inputmode="decimal" data-act="prof" data-k="weightGoal" data-conv="w" value="${p.weightGoal!=null?r1(U.wOut(p.weightGoal)):''}"></div>
+          <input id="wg" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="prof" data-k="weightGoal" data-conv="w" value="${p.weightGoal!=null?r1(U.wOut(p.weightGoal)):''}"></div>
         <div class="field" style="margin-bottom:0"><label class="fl" for="wag">Waist goal (${U.lLabel()})</label>
-          <input id="wag" type="number" step="0.1" inputmode="decimal" data-act="prof" data-k="waistGoal" data-conv="l" value="${p.waistGoal!=null?r1(U.lOut(p.waistGoal)):''}"></div>
+          <input id="wag" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="prof" data-k="waistGoal" data-conv="l" value="${p.waistGoal!=null?r1(U.lOut(p.waistGoal)):''}"></div>
       </div>
     </div>
 
     <div class="section-label">Tools</div>
     <div class="rows">
-      ${[['protein','◍','Protein calculator','Grams a day and per meal, from your weight'],
-         ['phq9','◇','PHQ-9 mood check','Nine questions, tracked over time'],
-         ['gad7','◇','GAD-7 anxiety check','Seven questions, tracked over time'],
-         ['sleepwin','☾','Sleep window calculator','Sets your CBT-I schedule from your own logs'],
-         ['breath','~','Paced breathing','Six breaths a minute, for stress and anxiety'],
-         ['pmr','▤','Progressive muscle relaxation','A guided ten-minute sequence'],
-         ['trigger','⚗','Two-week trigger test','Test a suspected trigger properly'],
-         ['waist','◎','Waist reference','Thresholds and how to measure consistently']
+      ${[['protein',TWILIGHT_IC.horizon,'Protein calculator','Grams a day and per meal, from your weight'],
+         ['phq9',TWILIGHT_IC.heart,'PHQ-9 mood check','Nine questions, tracked over time'],
+         ['gad7',TWILIGHT_IC.heart,'GAD-7 anxiety check','Seven questions, tracked over time'],
+         ['sleepwin',TWILIGHT_IC.moon,'Sleep window calculator','Sets your CBT-I schedule from your own logs'],
+         ['breath',TWILIGHT_IC.cloud,'Paced breathing','Six breaths a minute, for stress and anxiety'],
+         ['pmr',TWILIGHT_IC.document,'Progressive muscle relaxation','A guided ten-minute sequence'],
+         ['trigger',TWILIGHT_IC.lab,'28-day trigger test','Removal, then reintroduction'],
+         ['waist',TWILIGHT_IC.horizon,'Waist reference','Thresholds and how to measure consistently']
         ].map(([id,i,n,s])=>h('button',{class:'row','data-act':'sheet','data-s':'tool:'+id},
           '<span class="ico">'+i+'</span><span class="txt"><b>'+n+'</b><span>'+s+'</span></span><span class="chev">'+IC.chev+'</span>')).join('')}
     </div>
@@ -400,32 +455,94 @@ function viewYou(){
 
     <div class="card flat">
       <h4>Privacy, plainly</h4>
-      <p class="tiny">Your entries live in this browser's storage on this device. There is no account, no server, no analytics, and no network request of any kind. Nobody — including whoever made this — can see what you write. The flip side: <b>clearing your browser data deletes it</b>, and it does not sync between devices. Export a backup now and then.</p>
+      <p class="tiny">Your health entries stay in this browser's storage on this device. The app has no account, analytics, health-data API, or sync service and does not transmit what you log. It fetches only its own static app files; external source links contact those sites only when you open them. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices. Export a backup now and then.</p>
       <h4 style="margin-top:14px">Medical disclaimer</h4>
-      <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, and it is not a substitute for professional medical advice. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
+      <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
     </div>
-    <p class="xtiny center" style="margin-bottom:20px">Meno Compass · content reviewed July 2026</p>
+    <p class="xtiny center" style="margin-bottom:20px">Meno Compass ${APP_VERSION} · content reviewed July 2026</p>
   </div>`;
 }
 
 /* ============================================================
    SHEETS
    ============================================================ */
-function openSheet(id){ sheetStack.push(id); renderSheet(); }
-function closeSheet(){ sheetStack.pop(); renderSheet(); }
-function renderSheet(){
+function setBackgroundInert(on){
+  ['#app','#topbar','#tabs'].forEach(selector=>{
+    const el=$(selector); if(!el) return;
+    if(on){ el.setAttribute('inert',''); el.setAttribute('aria-hidden','true'); }
+    else { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }
+  });
+}
+function focusDescriptor(el){
+  return el ? {node:el,tag:el.tagName.toLowerCase(),data:Object.assign({},el.dataset)} : null;
+}
+function findFocusTarget(desc,root){
+  if(!desc) return null;
+  if(desc.node&&desc.node.isConnected) return desc.node;
+  return [...(root||document).querySelectorAll(desc.tag)].find(el=>
+    Object.entries(desc.data).every(([key,value])=>el.dataset[key]===value)
+  )||null;
+}
+function openSheet(id){
+  if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
+  sheetStack.push(id); renderSheet(true);
+}
+function closeSheet(){
+  const closing=sheetStack.pop();
+  if(closing==='learn:stage'){
+    stageAns={}; stageStep=0; stageEditing=false;
+    render(true);
+  }
+  renderSheet(true);
+}
+function renderSheet(moveFocus){
   const host = $('#sheet-host');
-  if(!sheetStack.length){ host.innerHTML=''; document.body.style.overflow=''; return; }
+  if(!sheetStack.length){
+    host.innerHTML=''; document.body.style.overflow=''; setBackgroundInert(false);
+    const target=lastSheetTrigger; lastSheetTrigger=null;
+    setTimeout(()=>{
+      const restored=findFocusTarget(target,document)
+        ||document.querySelector('#app button,#app input,#app select,#tabs button');
+      if(restored) restored.focus();
+    },0);
+    return;
+  }
+  const previous=host.contains(document.activeElement) ? focusDescriptor(document.activeElement) : null;
   const id = sheetStack[sheetStack.length-1];
   const {title, body} = sheetContent(id);
+  setBackgroundInert(true);
   host.innerHTML = `<div class="sheet-bg" data-act="bg">
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-      <div class="sheet-bar"><h2>${esc(title)}</h2><button class="xbtn" data-act="close" aria-label="Close">✕</button></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
+      <div class="sheet-bar"><h2 id="sheet-title">${esc(title)}</h2><button class="close-btn" data-act="close" aria-label="Close ${esc(title)}">Close</button></div>
       ${body}
     </div></div>`;
   document.body.style.overflow='hidden';
   const s = host.querySelector('.sheet'); if(s) s.scrollTop=0;
   runSheetHooks(id);
+  if(s) setTimeout(()=>{
+    let target=null;
+    if(!moveFocus && previous){
+      target=findFocusTarget(previous,s);
+      if(!target) target=s.querySelector('[data-act]:not(.xbtn)');
+    }
+    if(moveFocus) target=s.querySelector('.xbtn,button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled])');
+    (target||s).focus();
+  },0);
+}
+
+function keepFocusInSheet(ev){
+  if(!sheetStack.length) return;
+  if(ev.key==='Escape'){ ev.preventDefault(); closeSheet(); return; }
+  if(ev.key!=='Tab') return;
+  const sheet=$('.sheet'); if(!sheet) return;
+  const focusable=[...sheet.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    .filter(el=>el.getClientRects().length && getComputedStyle(el).visibility!=='hidden');
+  if(!focusable.length){ ev.preventDefault(); sheet.focus(); return; }
+  const first=focusable[0], last=focusable[focusable.length-1];
+  if(document.activeElement===sheet){ ev.preventDefault(); (ev.shiftKey?last:first).focus(); }
+  else if(ev.shiftKey && document.activeElement===first){ ev.preventDefault(); last.focus(); }
+  else if(!ev.shiftKey && document.activeElement===last){ ev.preventDefault(); first.focus(); }
+  else if(!sheet.contains(document.activeElement)){ ev.preventDefault(); first.focus(); }
 }
 
 function sheetContent(id){
@@ -434,7 +551,7 @@ function sheetContent(id){
   if(id==='redflags') return learnSheet('redflags');
   if(id==='screening') return learnSheet('screening');
   if(id==='tools') return {title:'Tools', body:`<div class="rows">
-    ${[['protein','Protein calculator'],['phq9','PHQ-9 mood check'],['gad7','GAD-7 anxiety check'],['sleepwin','Sleep window calculator'],['breath','Paced breathing'],['pmr','Progressive muscle relaxation'],['trigger','Two-week trigger test'],['waist','Waist reference']]
+    ${[['protein','Protein calculator'],['phq9','PHQ-9 mood check'],['gad7','GAD-7 anxiety check'],['sleepwin','Sleep window calculator'],['breath','Paced breathing'],['pmr','Progressive muscle relaxation'],['trigger','28-day trigger test'],['waist','Waist reference']]
       .map(([t,n])=>h('button',{class:'row','data-act':'sheet','data-s':'tool:'+t},'<span class="txt"><b>'+n+'</b></span><span class="chev">'+IC.chev+'</span>')).join('')}
   </div>`};
   if(id==='data') return dataSheet();
@@ -517,20 +634,90 @@ function boneGate(){
 /* ---------- staging ---------- */
 let stageAns = {};
 let stageStep = 0;
+let stageEditing = false;
+
+function stageAnswerAllowed(q, value){
+  return q && q.a.some(a=>a.v===value);
+}
+function completeStageAnswers(ans){
+  if(!ans || typeof ans!=='object') return false;
+  const qs=stageQueue(ans);
+  return qs.length>0 && qs.every(q=>stageAnswerAllowed(q,ans[q.id]));
+}
+function ageStageAnswer(birthYear){
+  if(birthYear==null || birthYear==='' || !Number.isInteger(+birthYear)) return null;
+  const age=new Date().getFullYear()-(+birthYear);
+  return age<40?'u40':age<45?'40s_e':age<55?'45p':'55p';
+}
+function surgeryStageAnswer(date){
+  if(!pastOrTodayISO(date)) return 'unsure';
+  const days=daysBetween(date,todayISO());
+  return days<92?'lt3m':days<365?'lt1y':days<=Math.round(5*365.25)?'1to5':'gt5';
+}
+function storeStageAssessment(ans){
+  const p=DB.profile;
+  const clean={};
+  STAGE_Q.forEach(q=>{ if(stageAnswerAllowed(q,ans[q.id])) clean[q.id]=ans[q.id]; });
+  p.uterus=clean.uterus==='unsure'?'unknown':clean.uterus;
+  p.ovaries=clean.ovaries==='unsure'?'unknown':clean.ovaries;
+  const res=stageResult(clean);
+  p.stage=res.label;
+  p.stageAnswers=clean;
+  /* Older versions persisted rendered HTML here. Results are now derived
+     from the structured answers so updated guidance renders immediately. */
+  delete p.stageResult;
+  return res;
+}
+function invalidateStage(){
+  DB.profile.stage=null;
+  DB.profile.stageAnswers=null;
+  delete DB.profile.stageResult;
+}
+function refreshStageForProfile(key){
+  const p=DB.profile;
+  delete p.stageResult;
+  if(!p.stage || !p.stageAnswers) return;
+  const ans=Object.assign({},p.stageAnswers);
+  if(key==='uterus') ans.uterus=p.uterus==='unknown'?'unsure':p.uterus;
+  else if(key==='ovaries') ans.ovaries=p.ovaries==='unknown'?'unsure':p.ovaries;
+  else if(key==='birthYear'){
+    const age=ageStageAnswer(p.birthYear);
+    if(!age){ invalidateStage(); return; }
+    ans.age=age;
+  } else if(key==='surgeryDate'){
+    ans.surgWhen=surgeryStageAnswer(p.surgeryDate);
+  } else if(key==='lastPeriod'){
+    /* A date alone cannot tell regularity, variability, or skipped-cycle
+       history. Re-asking is safer than retaining a contradictory label. */
+    invalidateStage(); return;
+  } else return;
+
+  if(!completeStageAnswers(ans)){ invalidateStage(); return; }
+  const res=stageResult(ans);
+  p.stage=res.label;
+  p.stageAnswers=ans;
+}
 function stageSheetBody(){
   const p = DB.profile;
-  if(p.stage && stageStep===0 && !Object.keys(stageAns).length){
-    const res = p.stageResult||{};
-    return `<div class="callout ok"><span class="ctitle">${esc(p.stage)}</span>${res.body||''}</div>
-    ${(res.flags||[]).map(f=>'<div class="callout warn">'+f+'</div>').join('')}
+  if(Object.prototype.hasOwnProperty.call(p,'stageResult')){
+    delete p.stageResult;
+    save();
+  }
+  if(p.stage && !completeStageAnswers(p.stageAnswers)){
+    invalidateStage();
+    save();
+  }
+  if(p.stage && !stageEditing){
+    const res = stageResult(p.stageAnswers);
+    return `<div class="callout ok"><span class="ctitle">${esc(res.label)}</span>${res.body}</div>
+    ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
     ${STAGE_CAVEAT}
     <button class="btn block ghost" data-act="stage-restart">Answer the questions again</button>`;
   }
+  if(!stageEditing) stageEditing=true;
   const qs = stageQueue(stageAns);
   if(stageStep>=qs.length){
-    const res = stageResult(stageAns);
-    DB.profile.stage = res.label; DB.profile.stageAnswers = Object.assign({},stageAns);
-    DB.profile.stageResult = {body:res.body, flags:res.flags};
+    const res = storeStageAssessment(stageAns);
     save();
     return `<div class="callout ok"><span class="ctitle">${esc(res.label)}</span>${res.body}</div>
     ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
@@ -552,6 +739,14 @@ function stageSheetBody(){
 }
 
 /* ---------- screening ---------- */
+function screeningIntervalLabel(id, years){
+  if(id==='cervical') return years===3?'3 years — cytology':'5 years — HPV testing / co-test';
+  if(id==='colon') return years===1?'1 year — FIT / annual review'
+    : years===3?'3 years — stool DNA-FIT'
+    : years===5?'5 years — CT colonography / sigmoidoscopy'
+    : '10 years — colonoscopy';
+  return years+' years';
+}
 function screeningBody(){
   const age = DB.profile.birthYear ? new Date().getFullYear()-DB.profile.birthYear : null;
   const nonUS = DB.profile.region && DB.profile.region!=='us';
@@ -561,24 +756,35 @@ function screeningBody(){
   Screening ages, intervals and invitation systems differ substantially outside the US, and many countries run national invitation programmes instead. Use this page as a prompt to ask what <i>your</i> programme covers, and record the dates you were actually seen.</div>`:''}
   ${SCREENING.map(s=>{
     const rec = DB.screening[s.id]||{};
-    return `<details class="acc"><summary><span style="flex:1">${esc(s.n)}</span>${rec.last?'<span class="badge strong">'+fmtDay(rec.last)+'</span>':''}</summary>
+    const rule=SCREENING_RULES[s.id];
+    const status=rule?screeningStatus(s.id,age):{due:false};
+    const validLast=pastOrTodayISO(rec.last);
+    const selected=rule && rule.years.includes(+rec.intervalYears) ? +rec.intervalYears : (rule?rule.defaultYears:null);
+    const badge=status.due
+      ? '<span class="badge warn">due to check</span>'
+      : validLast?'<span class="badge strong">'+fmtDay(rec.last)+'</span>':'';
+    return `<details class="acc"><summary><span style="flex:1">${esc(s.n)}</span>${badge}</summary>
     <div>
       <p class="tiny"><b>${esc(s.w)}</b></p>
       <p class="tiny">${s.d}</p>
       <label class="fl" for="sc-${s.id}">Date you last had this</label>
-      <input id="sc-${s.id}" type="date" data-act="screen" data-k="${s.id}" value="${rec.last||''}">
+      <input id="sc-${s.id}" type="date" min="${DB.profile.birthYear?DB.profile.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="screen" data-k="${s.id}" value="${validLast?rec.last:''}">
+      ${rule&&rule.years.length>1?`<label class="fl" for="sci-${s.id}" style="margin-top:10px">Reminder interval for the test you had</label>
+        <select id="sci-${s.id}" data-act="screen-int" data-k="${s.id}">
+          ${rule.years.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}
+        </select>`:''}
     </div></details>`;
   }).join('')}
-  <p class="xtiny">Recording dates here is just for your own reference — it does not book anything, and nothing is sent anywhere.</p>`;
+  <p class="xtiny">Recording dates here is just for your own reference — it does not book anything, and nothing is sent anywhere. Reminder intervals are prompts, not a substitute for the schedule your clinician gives you.</p>`;
 }
 
 /* ---------- red flags ---------- */
 function redflagBody(){
-  return `<div class="callout alert"><span class="ctitle">If something on this list applies, contact a clinician</span>
-  This page is deliberately short and unhedged. Every item has a documented reason, given underneath.</div>
+  return `<div class="callout alert"><span class="ctitle">Some symptoms need emergency help now</span>
+  Call your local emergency number now for chest pressure or pain, sudden severe trouble breathing, signs of a stroke, fainting with severe symptoms, or immediate danger. Use <b>911</b> in the US or Canada, <b>999</b> in the UK, or <b>112</b> in the EU. Do not drive yourself. The other items below need prompt clinical advice even when they are not emergencies.</div>
   ${REDFLAGS.map(r=>`<details class="acc"><summary><span style="flex:1">${esc(r.n)}</span></summary><div><p style="margin-bottom:0">${r.why}</p></div></details>`).join('')}
   <div class="callout warn"><span class="ctitle">If you are thinking about harming yourself</span>
-  Please reach out today — to a clinician, a crisis line in your country, or someone you trust. In the US you can call or text 988. In the UK, call 111 or the Samaritans on 116 123. You do not have to be in crisis to use them.</div>`;
+  If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer">988</a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer">Samaritans on 116 123</a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>. You do not have to explain yourself perfectly.</div>`;
 }
 
 /* ---------- clinician prep ---------- */
@@ -616,14 +822,15 @@ function dataSheet(){
     <button class="btn primary" data-act="export-json">Download JSON</button>
     <button class="btn ghost" data-act="export-csv">Download CSV</button>
   </div>
-  <p class="xtiny">JSON restores everything including settings. CSV is one row per day for a spreadsheet or to share with a clinician.</p>
+  <p class="xtiny"><b>These downloads are plain, unencrypted files containing sensitive health information.</b> Save them only somewhere private. JSON restores everything including settings. CSV is one row per day for a spreadsheet or to share with a clinician.</p>
   <div class="section-label">Copy instead</div>
   <p class="tiny">If downloads are blocked, copy this and paste it into a file:</p>
   <textarea id="dump" readonly style="min-height:130px;font-family:ui-monospace,monospace;font-size:.72rem">${esc(JSON.stringify(DB))}</textarea>
   <div class="btn-row"><button class="btn ghost sm" data-act="copy-dump">Copy to clipboard</button></div>
   <div class="section-label">Restore</div>
   <p class="tiny">Paste a previously exported JSON backup. <b>This replaces everything currently stored.</b></p>
-  <textarea id="restore" placeholder='{"v":1,"profile":...}'></textarea>
+  <textarea id="restore" maxlength="5000000" aria-describedby="restore-help" placeholder='{"v":2,"profile":...}'></textarea>
+  <p class="xtiny" id="restore-help">Restore accepts a Meno Compass JSON file up to 5 MB. Unknown fields and invalid values are discarded.</p>
   <button class="btn block" data-act="import-json" style="margin-top:8px">Restore from this backup</button>
   <div class="section-label">Delete</div>
   <button class="btn block danger" data-act="wipe">Erase everything on this device</button>
@@ -643,24 +850,38 @@ function reportSheet(){
   })).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,6);
   const meds = DB.scores.slice(-6).reverse();
   const bleeds = entryDates().filter(x=>DB.entries[x].bleed && DB.entries[x].bleed!=='none');
+  const hfValues=hf.map(x=>x.v).filter(v=>v!=null);
+  const nsValues=rangeDates(30).map(x=>DB.entries[x]&&DB.entries[x].ns).filter(v=>v!=null);
+  const strengthValues=rangeDates(28).map(x=>DB.entries[x]&&DB.entries[x].act?DB.entries[x].act.res:null).filter(v=>typeof v==='boolean');
+  const strengthCount=strengthValues.filter(Boolean).length;
+  const alcoholValues=rangeDates(28).map(x=>{const e=DB.entries[x];return e&&e.nut?e.nut.alc:null;}).filter(v=>v!=null);
+  const strengthSummary=!strengthValues.length?'not tracked'
+    : strengthValues.length===28?r1(strengthCount/4)+' / week'
+    : strengthCount+' session'+(strengthCount===1?'':'s')+' across '+strengthValues.length+' logged activity day'+(strengthValues.length===1?'':'s');
+  const alcoholSummary=!alcoholValues.length?'not tracked'
+    : alcoholValues.length===28?r1(sum(alcoholValues)/4)+' drinks / week'
+    : sum(alcoholValues)+' drinks across '+alcoholValues.length+' logged day'+(alcoholValues.length===1?'':'s');
   return {title:'Report for your clinician', body:`
   <p class="tiny muted">A one-page summary of what you have tracked. Print it, or read from it.</p>
+  <div class="report-page">
+  <div class="report-brand"><b>MenoCompass</b><span>Clinician summary · 90 days</span></div>
   <div class="card">
     <h3 style="margin-bottom:2px">Symptom summary</h3>
     <p class="xtiny">${p.name?esc(p.name)+' · ':''}${age?age+' years · ':''}Prepared ${fmtLong(todayISO())}</p>
     <hr class="sep">
     <div class="kv"><span>Days tracked (last 90)</span><b>${d.length}</b></div>
     ${p.stage?`<div class="kv"><span>Self-assessed stage</span><b>${esc(p.stage)}</b></div>`:''}
-    ${p.lastPeriod?`<div class="kv"><span>Last period</span><b>${fmtDay(p.lastPeriod)} (${Math.floor(daysBetween(p.lastPeriod,todayISO())/30)} months)</b></div>`:''}
-    <div class="kv"><span>Hot flashes / day (30 d)</span><b>${avg(hf.map(x=>x.v))!=null?r1(avg(hf.map(x=>x.v))):'not tracked'}</b></div>
-    <div class="kv"><span>Worst single day</span><b>${hf.filter(x=>x.v!=null).length?Math.max(...hf.filter(x=>x.v!=null).map(x=>x.v)):'–'}</b></div>
-    <div class="kv"><span>Night sweats, moderate+ (30 d)</span><b>${rangeDates(30).filter(x=>DB.entries[x]&&DB.entries[x].ns>=2).length} nights</b></div>
+    ${periodsPossible()&&pastOrTodayISO(p.lastPeriod)?`<div class="kv"><span>Last period</span><b>${fmtDay(p.lastPeriod)} (${Math.floor(daysBetween(p.lastPeriod,todayISO())/30)} months)</b></div>`:''}
+    ${!periodsPossible()&&pastOrTodayISO(p.surgeryDate)?`<div class="kv"><span>${surgicalMenopause()?'Surgical menopause date':'Surgery date'}</span><b>${fmtDay(p.surgeryDate)} (${Math.floor(daysBetween(p.surgeryDate,todayISO())/30)} months)</b></div>`:''}
+    <div class="kv"><span>Hot flashes / day (30 d)</span><b>${hfValues.length?r1(avg(hfValues)):'not tracked'}</b></div>
+    <div class="kv"><span>Worst single day</span><b>${hfValues.length?Math.max(...hfValues):'not tracked'}</b></div>
+    <div class="kv"><span>Night sweats, moderate+ (30 d)</span><b>${nsValues.length?nsValues.filter(v=>v>=2).length+' nights':'not tracked'}</b></div>
     <div class="kv"><span>Sleep (30 d average)</span><b>${avg(series(rangeDates(30),e=>e.sleepH).map(x=>x.v))!=null?r1(avg(series(rangeDates(30),e=>e.sleepH).map(x=>x.v)))+' h':'not tracked'}</b></div>
     <div class="kv"><span>Symptom burden (30 d avg)</span><b>${avg(bd.map(x=>x.v))!=null?r1(avg(bd.map(x=>x.v)))+' / 44':'not tracked'}</b></div>
     ${wt.length?`<div class="kv"><span>Weight</span><b>${r1(U.wOut(wt[wt.length-1].v))} ${U.wLabel()} (${wt.length>1?(wt[wt.length-1].v>wt[0].v?'+':'')+r1(U.wOut(wt[wt.length-1].v-wt[0].v))+' over '+daysBetween(wt[0].d,wt[wt.length-1].d)+' d':'single reading'})</b></div>`:''}
     ${wa.length?`<div class="kv"><span>Waist</span><b>${r1(U.lOut(wa[wa.length-1].v))} ${U.lLabel()}${wa.length>1?' ('+(wa[wa.length-1].v>wa[0].v?'+':'')+r1(U.lOut(wa[wa.length-1].v-wa[0].v))+')':''}</b></div>`:''}
-    <div class="kv"><span>Strength sessions / week (28 d)</span><b>${r1(rangeDates(28).filter(x=>DB.entries[x]&&DB.entries[x].act&&DB.entries[x].act.res).length/4)}</b></div>
-    <div class="kv"><span>Alcohol / week (28 d)</span><b>${r1(sum(rangeDates(28).map(x=>{const e=DB.entries[x];return e&&e.nut?e.nut.alc:null;}))/4)} drinks</b></div>
+    <div class="kv"><span>Strength sessions (28 d)</span><b>${strengthSummary}</b></div>
+    <div class="kv"><span>Alcohol (28 d)</span><b>${alcoholSummary}</b></div>
   </div>
   ${topSym.length?`<div class="card"><h4>Most prominent symptoms (30-day average, 0–4)</h4>
     ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
@@ -670,6 +891,7 @@ function reportSheet(){
   ${bleeds.length?`<div class="card"><h4>Bleeding logged</h4>
     ${bleeds.slice(-8).reverse().map(x=>`<div class="kv"><span>${fmtDay(x)}</span><b>${esc(DB.entries[x].bleed)}</b></div>`).join('')}</div>`:''}
   ${notesDigest()}
+  </div>
   <div class="btn-row split">
     <button class="btn primary" data-act="print">Print / save as PDF</button>
     <button class="btn ghost" data-act="sheet" data-s="learn:clinician">Question list</button>
@@ -700,7 +922,7 @@ function latestWeight(){
 const PHQ9 = ['Little interest or pleasure in doing things','Feeling down, depressed, or hopeless','Trouble falling or staying asleep, or sleeping too much','Feeling tired or having little energy','Poor appetite or overeating','Feeling bad about yourself, or that you are a failure, or have let yourself or your family down','Trouble concentrating on things, such as reading the newspaper or watching television','Moving or speaking so slowly that other people could have noticed, or the opposite — being fidgety or restless','Thoughts that you would be better off dead, or of hurting yourself in some way'];
 const GAD7 = ['Feeling nervous, anxious or on edge','Not being able to stop or control worrying','Worrying too much about different things','Trouble relaxing','Being so restless that it is hard to sit still','Becoming easily annoyed or irritable','Feeling afraid as if something awful might happen'];
 const FREQ = ['Not at all','Several days','More than half the days','Nearly every day'];
-let qAns = {};
+const qDrafts = {phq9:{}, gad7:{}};
 
 function toolSheet(t){
   switch(t){
@@ -710,7 +932,7 @@ function toolSheet(t){
     case 'sleepwin':return {title:'Sleep window calculator', body:sleepWinTool()};
     case 'breath':  return {title:'Paced breathing', body:breathTool()};
     case 'pmr':     return {title:'Progressive muscle relaxation', body:pmrTool()};
-    case 'trigger': return {title:'Two-week trigger test', body:triggerTool()};
+    case 'trigger': return {title:'28-day trigger test', body:triggerTool()};
     case 'waist':   return {title:'Waist reference', body:waistTool()};
   }
   return {title:'', body:''};
@@ -721,7 +943,7 @@ function proteinTool(){
   const gpk = +DB.profile.proteinGpk||1.2;
   return `<p class="tiny">The RDA of 0.8 g/kg is a floor for avoiding deficiency, not a target for keeping muscle. Guidelines for healthy older adults use 1.0–1.2 g/kg; the training and body-composition literature uses 1.2–1.6; during intentional weight loss, 1.2–1.5.</p>
   <div class="field"><label class="fl" for="ptw">Your weight (${U.wLabel()})</label>
-    <input id="ptw" type="number" step="0.1" inputmode="decimal" value="${pt?r1(U.wOut(pt.kg)):''}" data-act="prot-calc"></div>
+    <input id="ptw" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" value="${pt?r1(U.wOut(pt.kg)):''}" data-act="prot-calc"></div>
   <div class="field"><label class="fl" for="ptg">Target</label>
     <select id="ptg" data-act="prot-calc">
       ${[1.0,1.2,1.4,1.6].map(v=>`<option value="${v}"${gpk===v?' selected':''}>${v.toFixed(1)} g/kg</option>`).join('')}
@@ -743,7 +965,7 @@ function proteinTool(){
   <p class="xtiny">Breakfast is nearly always the meal that falls short. For BMI 30+, guidelines generally apply g/kg to an adjusted rather than actual body weight — we are not publishing a formula for that because we could not verify a menopause-specific one. Ask a dietitian. Anyone with kidney disease should get a target from their clinician, not an app.</p>`;
 }
 function proteinOut(kg, gpk){
-  if(kg==null) return '<p class="tiny muted">Enter a weight to see your numbers.</p>';
+  if(kg==null || !Number.isFinite(kg) || kg<=0 || !Number.isFinite(gpk)) return '<p class="tiny muted">Enter a valid weight to see your numbers.</p>';
   const g = Math.round(kg*gpk);
   return `<div class="tiles" style="margin-bottom:12px">
     <div class="tile"><div class="k">Per day</div><div class="v">${g}<small> g</small></div></div>
@@ -754,8 +976,9 @@ function proteinOut(kg, gpk){
 
 function questionTool(kind){
   const items = kind==='phq9'?PHQ9:GAD7;
-  const done = Object.keys(qAns).length===items.length;
-  const score = done? Object.values(qAns).reduce((a,b)=>a+b,0) : null;
+  const answers=qDrafts[kind];
+  const done = items.every((_,i)=>answers[i]!=null);
+  const score = done? items.reduce((total,_,i)=>total+answers[i],0) : null;
   let band='', note='';
   if(done){
     if(kind==='phq9'){
@@ -764,23 +987,23 @@ function questionTool(kind){
       band = score<5?'minimal':score<10?'mild':score<15?'moderate':'severe';
     }
   }
-  const risk = kind==='phq9' && qAns[8]>0;
+  const risk = kind==='phq9' && answers[8]>0;
   const past = DB.scores.filter(s=>s.type===kind).slice(-6);
   return `<p class="tiny">Over the <b>last two weeks</b>, how often have you been bothered by the following?</p>
   <div class="callout warn"><span class="ctitle">Read the score carefully</span>
   Several menopause symptoms — broken sleep, fatigue, poor concentration, low libido — <b>also score points on this questionnaire</b>. The perimenopausal depression guideline says so explicitly. A raised total is a reason to talk to someone, not a diagnosis.</div>
-  ${items.map((q,i)=>`<div style="margin-bottom:15px"><label class="fl">${i+1}. ${esc(q)}</label>
-    <div class="scale">${FREQ.map((f,v)=>h('button',{'data-act':'q-a','data-i':i,'data-v':v,'aria-pressed':qAns[i]===v?'true':'false','aria-label':f}, v)).join('')}</div>
-    <div class="scale-legend"><span>Not at all</span><span>Nearly every day</span></div></div>`).join('')}
+  ${items.map((q,i)=>`<div style="margin-bottom:15px"><p class="fl" id="q-${kind}-${i}">${i+1}. ${esc(q)}</p>
+    <div class="scale" role="group" aria-labelledby="q-${kind}-${i}">${FREQ.map((f,v)=>h('button',{'data-act':'q-a','data-k':kind,'data-i':i,'data-v':v,'aria-pressed':answers[i]===v?'true':'false','aria-label':(i+1)+'. '+q+': '+f}, v)).join('')}</div>
+    <div class="scale-legend" aria-hidden="true"><span>Not at all</span><span>Nearly every day</span></div></div>`).join('')}
   ${done?`<div class="callout ${score>=15?'alert':score>=10?'warn':'ok'}"><span class="ctitle">Score: ${score} of ${items.length*3} — ${band}</span>
     ${kind==='phq9'
       ? 'For context: elevated depressive symptoms are found in 45–68% of perimenopausal women versus 28–31% before. Women are 2–4× more likely to have a major depressive episode during the transition and early postmenopause. Prior depression is the strongest predictor.'
       : 'GAD-7 is the standard anxiety measure. The bands shown are its usual published ones, but we could not find validation specific to menopausal women — so read your trend over time rather than the label.'}
     ${score>=10?'<p style="margin:8px 0 0"><b>A score in this range warrants a conversation with a clinician.</b> Take these numbers with you.</p>':''}</div>`:''}
   ${risk?`<div class="callout alert"><span class="ctitle">Please reach out today</span>
-    You answered yes to thoughts of being better off dead or of hurting yourself. Please contact a clinician or a crisis line now — in the US call or text <b>988</b>; in the UK call <b>111</b> or the Samaritans on <b>116 123</b>. You do not have to be in crisis to use them, and you do not have to explain yourself well.</div>`:''}
+    You answered yes to thoughts of being better off dead or of hurting yourself. If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer"><b>988</b></a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer"><b>116 123</b></a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>. You do not have to explain yourself perfectly.</div>`:''}
   <div class="btn-row split">
-    <button class="btn ghost" data-act="q-reset">Clear</button>
+    <button class="btn ghost" data-act="q-reset" data-k="${kind}">Clear</button>
     <button class="btn primary" data-act="q-save" data-k="${kind}" ${done?'':'disabled style="opacity:.5"'}>Save ${done?'score of '+score:'score'}</button>
   </div>
   ${past.length?`<div class="section-label">Your history</div>
@@ -791,17 +1014,22 @@ function sleepWinTool(){
   const ds = rangeDates(14);
   const sleeps = ds.map(d=>{const e=DB.entries[d];return e&&e.sleepH!=null?e.sleepH:null;}).filter(v=>v!=null);
   const beds = ds.map(d=>{const e=DB.entries[d];return e&&e.inBedH!=null?e.inBedH:null;}).filter(v=>v!=null);
+  const paired=ds.map(d=>DB.entries[d]).filter(e=>
+    e && e.sleepH!=null && e.inBedH!=null && e.inBedH>0 && e.sleepH<=e.inBedH
+  );
   const aSleep = avg(sleeps), aBed = avg(beds);
-  const eff = (aSleep&&aBed)? aSleep/aBed*100 : null;
-  const win = aSleep? Math.max(5, Math.round(aSleep*4)/4) : null;
+  const eff = paired.length ? avg(paired.map(e=>e.sleepH/e.inBedH*100)) : null;
+  const win = aSleep!=null&&aSleep>0 ? Math.max(5, Math.round(aSleep*4)/4) : null;
   return `<div class="callout info"><span class="ctitle">Why this is the effective part</span>
   In 150 postmenopausal women with chronic insomnia: sleep hygiene education alone produced <b>4%</b> remission. CBT-I produced <b>54%</b> at the end of treatment and <b>68% at six months</b>, with 40–43 more minutes of sleep a night. Sleep restriction is the engine.</div>
-  ${sleeps.length<5
-    ? '<div class="callout warn"><span class="ctitle">Log a few more nights first</span>You have '+sleeps.length+' night'+(sleeps.length===1?'':'s')+' of sleep data in the last two weeks. This needs about a week of honest logging — hours in bed and hours actually asleep — before it gives you a sensible window.</div>'
+  ${sleeps.length<5||win==null
+    ? (sleeps.length>=5&&aSleep===0
+        ? '<div class="callout alert"><span class="ctitle">Zero sleep is not a basis for sleep restriction</span>You recorded no sleep across these nights. Do not shorten your time in bed from this calculator; contact a clinician promptly for help and check that the entries are accurate.</div>'
+        : '<div class="callout warn"><span class="ctitle">Log a few more nights first</span>You have '+sleeps.length+' night'+(sleeps.length===1?'':'s')+' of sleep data in the last two weeks. This needs about a week of honest logging — hours in bed and hours actually asleep — before it gives you a sensible window.</div>')
     : `<div class="tiles" style="margin-bottom:14px">
         <div class="tile"><div class="k">Actual sleep</div><div class="v">${r1(aSleep)}<small> h</small></div><div class="d">14-day average</div></div>
-        ${aBed?`<div class="tile"><div class="k">Time in bed</div><div class="v">${r1(aBed)}<small> h</small></div></div>
-        <div class="tile"><div class="k">Efficiency</div><div class="v">${Math.round(eff)}<small>%</small></div><div class="d">${eff>=85?'extend the window':'hold the window'}</div></div>`:''}
+        ${aBed!=null?`<div class="tile"><div class="k">Time in bed</div><div class="v">${r1(aBed)}<small> h</small></div></div>`:''}
+        ${eff!=null?`<div class="tile"><div class="k">Efficiency</div><div class="v">${Math.round(eff)}<small>%</small></div><div class="d">${eff>=85?'extend the window':'hold the window'}</div></div>`:''}
       </div>
       <div class="card">
         <h4>Your starting window: ${r1(win)} hours</h4>
@@ -824,7 +1052,7 @@ function sleepWinTool(){
   <p class="xtiny">This calculator implements the sleep-restriction component of CBT-I. It is not therapy, and clinician- or programme-delivered CBT-I is better. Telephone-delivered CBT-I worked well in peri- and postmenopausal women, so ask about remote options.</p>`;
 }
 function swOut(wake, win){
-  if(!win) return '';
+  if(win==null || win<=0) return '';
   const [hh,mm] = wake.split(':').map(Number);
   let t = hh*60+mm - Math.round(win*60);
   while(t<0) t+=1440;
@@ -875,31 +1103,52 @@ function pmrTool(){
   <p class="xtiny">If you have an injury or pain anywhere, skip that group or tense only very gently. Effects improve when combined with music, mindfulness or slow breathing.</p>`;
 }
 
+function refreshTriggerStatus(){
+  const t=DB.trigger;
+  if(!t || !t.active) return;
+  if(!pastOrTodayISO(t.start)){
+    t.active=false; t.status='stopped'; t.ended=todayISO();
+    save();
+    return;
+  }
+  if(daysBetween(t.start,todayISO())>=28){
+    t.active=false; t.status='completed'; t.ended=addDays(t.start,27);
+    save();
+  }
+}
 function triggerTool(){
+  refreshTriggerStatus();
   const t = DB.trigger;
   if(t && t.active){
-    const day = daysBetween(t.start, todayISO())+1;
+    const day = Math.max(1,daysBetween(t.start, todayISO())+1);
     const phase = day<=14 ? 'removal' : 'reintroduction';
     const dayIn = day<=14 ? day : day-14;
-    const A = triggerStats(t, 'remove'), B = triggerStats(t, 'base');
+    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
     return `<div class="callout ok"><span class="ctitle">Test running: ${esc(t.item)}</span>
     Day ${day} — <b>${phase} phase</b>, day ${dayIn} of 14. Keep logging as normal; the comparison happens automatically.</div>
     <div class="progress"><i style="width:${Math.min(100, Math.round(day/28*100))}%"></i></div>
-    <div class="tiles" style="margin:14px 0">
-      <div class="tile"><div class="k">Before</div><div class="v">${B!=null?r1(B):'–'}</div><div class="d">flashes/day</div></div>
-      <div class="tile"><div class="k">During removal</div><div class="v">${A!=null?r1(A):'–'}</div><div class="d">flashes/day</div></div>
-    </div>
-    ${A!=null&&B!=null&&day>=14?`<div class="callout info"><span class="ctitle">${Math.abs(A-B)<0.8?'No clear difference so far':(A<B?'Symptoms lower without it':'Symptoms higher without it — probably noise')}</span>
-      ${Math.abs(A-B)<0.8?'That is a useful result. It means you can stop policing this one and put the effort somewhere with better evidence.':'Now reintroduce it for two weeks and see whether the pattern reverses. If it does not, the first result was probably coincidence.'}</div>`:''}
+    ${triggerPhaseTiles(before,remove,reintro)}
+    ${day>=15?triggerComparison(remove,reintro,false):`<div class="callout info"><span class="ctitle">Reintroduction starts on day 15</span>
+      A change during removal is only a clue. Bringing ${esc(t.item)} back for the second two weeks tests whether the pattern reverses.</div>`}
     <button class="btn block ghost" data-act="trig-stop">End this test</button>
     <p class="xtiny">Honest caveat: this is a single-person, unblinded experiment with no control for everything else changing in your life. It is the fairest version available to you, which is not the same as proof.</p>`;
+  }
+  if(t){
+    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
+    const complete=t.status==='completed';
+    return `<div class="callout ${complete?'ok':'warn'}"><span class="ctitle">${complete?'Test complete':'Test ended early'}: ${esc(t.item)}</span>
+      ${complete?'You completed both 14-day phases.':'The available numbers are shown, but an incomplete phase is much harder to interpret.'}</div>
+      ${triggerPhaseTiles(before,remove,reintro)}
+      ${triggerComparison(remove,reintro,complete)}
+      <button class="btn block primary" data-act="trig-reset">Start another test</button>
+      <p class="xtiny">These are personal observations, not proof of cause. Illness, weather, stress, treatment changes and ordinary symptom variation can all move the numbers.</p>`;
   }
   return `<div class="callout warn"><span class="ctitle">Start here: trigger-avoidance is not a proven treatment</span>
   The Menopause Society states plainly that <b>there are no clinical trials assessing whether avoiding triggers relieves vasomotor symptoms</b>, and rates it not recommended. The most-quoted caffeine study was cross-sectional, and its own authors said they could not advise patients without further research.</div>
   <p class="tiny">So why offer this? Because individual responses vary, and a structured two-week removal followed by reintroduction is far more informative than the usual approach of vaguely avoiding six things at once and never knowing which mattered.</p>
   <div class="field"><label class="fl" for="trig">What do you want to test?</label>
     <select id="trig">${['Alcohol','Caffeine','Spicy food','Sugar','Late meals','Hot drinks','Something else'].map(v=>`<option>${v}</option>`).join('')}</select></div>
-  <button class="btn block primary" data-act="trig-start">Start a 14-day removal</button>
+  <button class="btn block primary" data-act="trig-start">Start the 28-day test</button>
   <h4 style="margin-top:18px">How it works</h4>
   <ul class="tick">
     <li><b>Days 1–14:</b> remove it completely. Change nothing else. Keep logging.</li>
@@ -910,16 +1159,44 @@ function triggerTool(){
   <p class="xtiny">One separate note: if alcohol is the thing you are testing, cutting it back is worth doing regardless of what this shows. The evidence for that sits with breast cancer risk and sleep quality, not hot flashes.</p>`;
 }
 function triggerStats(t, which){
-  if(which==='base'){
-    const ds=[]; for(let i=1;i<=14;i++) ds.push(addDays(t.start,-i));
-    return avg(ds.map(d=>{const e=DB.entries[d];return e?e.hf:null;}));
+  const offsets=which==='base' ? [-14,-1] : which==='remove' ? [0,13] : [14,27];
+  const ds=[];
+  for(let i=offsets[0];i<=offsets[1];i++){
+    const d=addDays(t.start,i);
+    if(d<=todayISO()) ds.push(d);
   }
-  const ds=[]; for(let i=0;i<14;i++){ const d=addDays(t.start,i); if(d<=todayISO()) ds.push(d); }
-  return avg(ds.map(d=>{const e=DB.entries[d];return e?e.hf:null;}));
+  const hf=ds.map(d=>DB.entries[d]&&DB.entries[d].hf).filter(v=>v!=null);
+  const sleep=ds.map(d=>DB.entries[d]&&DB.entries[d].sleepH).filter(v=>v!=null);
+  return {hf:avg(hf), sleep:avg(sleep), hfN:hf.length, sleepN:sleep.length};
+}
+function triggerPhaseTiles(before,remove,reintro){
+  const tile=(label,s)=>`<div class="tile"><div class="k">${label}</div>
+    <div class="v">${s.hf!=null?r1(s.hf):'–'}<small> flashes</small></div>
+    <div class="d">${s.sleep!=null?r1(s.sleep)+' h sleep':'sleep not logged'} · ${s.hfN} day${s.hfN===1?'':'s'}</div></div>`;
+  return `<div class="tiles" style="margin:14px 0">${tile('Before',before)}${tile('Removal',remove)}${tile('Reintroduction',reintro)}</div>`;
+}
+function triggerComparison(remove,reintro,complete){
+  if(remove.hf==null || reintro.hf==null){
+    return `<div class="callout warn"><span class="ctitle">Not enough paired phase data yet</span>
+      Log hot-flash counts during both removal and reintroduction. Sleep averages appear when hours asleep are logged.</div>`;
+  }
+  const delta=reintro.hf-remove.hf;
+  const small=Math.abs(delta)<0.8;
+  const title=small?'No clear hot-flash difference'
+    : delta>0?'Hot flashes were lower during removal':'Hot flashes were higher during removal';
+  const sleepNote=remove.sleep!=null&&reintro.sleep!=null
+    ? ' Average sleep was '+r1(remove.sleep)+' hours during removal and '+r1(reintro.sleep)+' after reintroduction.'
+    : '';
+  return `<div class="callout info"><span class="ctitle">${complete?'Final result':'Result so far'}: ${title}</span>
+    Removal averaged ${r1(remove.hf)} flashes/day; reintroduction averaged ${r1(reintro.hf)}.${sleepNote}
+    ${small?'A difference under about one flash a day is best treated as ordinary noise.':'A reversal after reintroduction is more suggestive than removal alone, but this still cannot establish cause.'}</div>`;
 }
 function triggerBanner(){
-  const t=DB.trigger, day=daysBetween(t.start,todayISO())+1;
-  if(day>28){ return ''; }
+  refreshTriggerStatus();
+  const t=DB.trigger;
+  if(!t || !t.active){ return ''; }
+  const day=daysBetween(t.start,todayISO())+1;
+  if(day<1 || day>28){ return ''; }
   return `<div class="callout info"><span class="ctitle">Trigger test day ${day}: ${esc(t.item)}</span>
   ${day<=14?'Removal phase — keep it out and keep logging.':'Reintroduction phase — back to your usual amount.'}
   <div style="margin-top:8px"><button class="btn sm ghost" data-act="sheet" data-s="tool:trigger">View results</button></div></div>`;
@@ -994,7 +1271,7 @@ function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
 function viewOnboard(){
   return `<div class="view">
     <div style="text-align:center;padding:18px 0 6px">
-      <div style="font-size:2.6rem;line-height:1">◔</div>
+      <div class="onboard-mark">${TWILIGHT_IC.cycle}</div>
       <h1 style="margin-top:8px">Meno Compass</h1>
       <p class="muted tiny">A private tracker and a straight-talking reference for perimenopause and beyond.</p>
     </div>
@@ -1003,24 +1280,26 @@ function viewOnboard(){
       <ul class="tick">
         <li><b>A tracker first.</b> Twenty seconds a day builds the patterns and the report your clinician actually needs.</li>
         <li><b>A reference that tells you when the evidence is thin.</b> Every claim is tagged, and where major guidelines disagree, it says so.</li>
-        <li><b>Completely private.</b> No account, no server, no analytics. Your entries stay in this browser on this device.</li>
+        <li><b>Private by design.</b> No account, sync service, or analytics. Your health entries stay in this browser on this device and are not sent to the app maker.</li>
       </ul>
       <div class="callout warn" style="margin-bottom:0"><span class="ctitle">What it is not</span>
-      It does not diagnose, treat or prescribe, and it is not a substitute for a clinician who knows your history. Content reviewed July 2026 — this field moves fast.</div>
+      It does not diagnose, treat or prescribe, is not a substitute for a clinician who knows your history, and is not a medical device or regulator-reviewed clinical tool. Content reviewed July 2026 — this field moves fast.</div>
     </div>
     <div class="card">
       <h3>A few basics</h3>
       <div class="grid2">
         <div class="field"><label class="fl" for="ob-n">First name (optional)</label>
-          <input id="ob-n" type="text" placeholder="Optional"></div>
-        <div class="field"><label class="fl" for="ob-y">Birth year</label>
-          <input id="ob-y" type="number" min="1920" max="2015" inputmode="numeric" placeholder="e.g. 1975"></div>
+          <input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional"></div>
+        <div class="field"><label class="fl" for="ob-y">Birth year (optional)</label>
+          <input id="ob-y" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" placeholder="e.g. 1975"></div>
       </div>
       <div class="field"><label class="fl" for="ob-u">Units</label>
         <select id="ob-u"><option value="imperial">Pounds and inches</option><option value="metric">Kilograms and centimetres</option></select></div>
       <div class="field"><label class="fl" for="ob-r">Where you are</label>
         <select id="ob-r"><option value="us">United States</option><option value="uk">United Kingdom</option><option value="other">Elsewhere</option></select>
         <p class="xtiny">Guidance differs between the US and UK on several points, and the app will tell you where.</p></div>
+      <div class="callout info"><span class="ctitle">This device is your only copy</span>
+      Clearing this site's browser data deletes your entries, there is no automatic sync, and anyone who can use this browser profile may be able to open them. Export an unencrypted backup occasionally and store it somewhere private.</div>
       <button class="btn block primary" data-act="ob-done">Get started</button>
       <button class="btn block ghost" data-act="ob-skip" style="margin-top:8px">Skip for now</button>
     </div>
@@ -1035,10 +1314,28 @@ function applyTheme(){
   const dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', dark?'dark':'light');
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content', dark?'#141016':'#fbf9fa');
+  if(meta) meta.setAttribute('content', dark?'#0E1618':'#F1F4F3');
 }
 const TAB_TITLES = {today:['Today','Daily check-in'], trends:['Trends','Patterns & insights'], learn:['Learn','Evidence-based guidance'], you:['You','Profile, tools & data']};
-function render(){
+function topbarContent(){
+  const name=safeText(DB.profile.name,80).trim();
+  const hour=new Date().getHours();
+  const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+  if(curTab==='today'){
+    const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+    return '<div class="top-copy"><h1>'+esc(selected)+'</h1>'
+      +'<span class="sub">'+esc((greeting+(name?', '+name:'')).toUpperCase())+'</span></div>';
+  }
+  const copy={
+    trends:['Patterns are taking shape','WHAT YOUR LOGS SHOW'],
+    learn:['Know what helps','EVIDENCE WITHOUT THE HYPE'],
+    you:['Your compass','PROFILE, TOOLS & DATA']
+  }[curTab];
+  return '<div class="top-copy"><h1>'+esc(copy[0])+'</h1><span class="sub">'+esc(copy[1])+'</span></div>';
+}
+function render(preserveScroll){
+  const scrollY=preserveScroll ? window.scrollY : 0;
+  refreshTriggerStatus();
   applyTheme();
   if(!DB.profile.onboarded){
     $('#app').innerHTML = viewOnboard();
@@ -1048,9 +1345,8 @@ function render(){
   }
   $('#tabs').style.display='';
   $('#topbar').style.display='';
-  const [t,s] = TAB_TITLES[curTab];
-  $('#topbar').innerHTML = '<h1>'+esc(t)+'<span class="sub">'+esc(s)+'</span></h1>'
-    + (curTab==='today'? '<button class="xbtn" data-act="sheet" data-s="redflags" aria-label="Red flags" title="Red flags">!</button>':'');
+  $('#topbar').innerHTML = topbarContent()
+    + (curTab==='today'? '<button class="urgent-btn" data-act="sheet" data-s="redflags" aria-label="Open urgent symptom guidance">Urgent</button>':'');
   const map = {today:viewToday, trends:viewTrends, learn:viewLearn, you:viewYou};
   $('#app').innerHTML = map[curTab]();
   const strip = document.querySelector('.dayscroll');
@@ -1061,7 +1357,7 @@ function render(){
   document.querySelectorAll('nav.tabs button').forEach(b=>{
     b.setAttribute('aria-current', b.dataset.v===curTab?'page':'false');
   });
-  window.scrollTo(0,0);
+  window.scrollTo(0,preserveScroll?scrollY:0);
 }
 
 function handleAction(el, ev){
@@ -1074,19 +1370,19 @@ function handleAction(el, ev){
     case 'hf': {
       const cur = e().hf==null?0:e().hf;
       const nv = Math.max(0, cur + (+el.dataset.n));
-      e().hf = nv; save(); render(); return;
+      e().hf = nv; save(); render(true); return;
     }
     case 'set': {
       const v = el.dataset.v;
       setPath(e(), el.dataset.k, v===''?null:(isNaN(v)?v:+v));
-      save(); render(); return;
+      save(); render(true); return;
     }
     case 'toggle': {
       const cur = getPath(e(), el.dataset.k);
       setPath(e(), el.dataset.k, cur?null:true);
-      save(); render(); return;
+      save(); render(true); return;
     }
-    case 'theme': DB.profile.theme = el.value; save(true); render(); return;
+    case 'theme': DB.profile.theme = el.value; save(true); render(true); return;
     case 'sheet': openSheet(el.dataset.s); return;
     case 'close': closeSheet(); return;
     case 'bg': if(ev.target===el) closeSheet(); return;
@@ -1096,24 +1392,30 @@ function handleAction(el, ev){
       else openSheet(g);
       return;
     }
-    case 'stage-a': stageAns[el.dataset.k]=el.dataset.v; stageStep++; renderSheet(); return;
+    case 'stage-a': stageEditing=true; stageAns[el.dataset.k]=el.dataset.v; stageStep++; renderSheet(); return;
     case 'stage-back': {
       stageStep = Math.max(0, stageStep-1);
       const q = stageQueue(stageAns)[stageStep];
       if(q) delete stageAns[q.id];
       renderSheet(); return;
     }
-    case 'stage-restart': stageAns={}; stageStep=0; DB.profile.stage=null; save(); renderSheet(); return;
-    case 'q-a': qAns[+el.dataset.i]=+el.dataset.v; renderSheet(); return;
-    case 'q-reset': qAns={}; renderSheet(); return;
+    case 'stage-restart': stageAns={}; stageStep=0; stageEditing=true; renderSheet(); return;
+    case 'q-a': {
+      const kind=el.dataset.k;
+      if(qDrafts[kind]) qDrafts[kind][+el.dataset.i]=+el.dataset.v;
+      renderSheet(); return;
+    }
+    case 'q-reset': if(qDrafts[el.dataset.k]) qDrafts[el.dataset.k]={}; renderSheet(); return;
     case 'q-save': {
       const kind = el.dataset.k;
       const items = kind==='phq9'?PHQ9:GAD7;
-      const score = Object.values(qAns).reduce((x,y)=>x+y,0);
+      const answers=qDrafts[kind];
+      if(!answers || !items.every((_,i)=>answers[i]!=null)){ toast('Answer every question first'); return; }
+      const score = items.reduce((total,_,i)=>total+answers[i],0);
       const band = kind==='phq9' ? (score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe')
                                  : (score<5?'minimal':score<10?'mild':score<15?'moderate':'severe');
       DB.scores.push({date:todayISO(), type:kind, score, band});
-      save(true); qAns={}; toast('Score saved'); renderSheet(); return;
+      save(true); qDrafts[kind]={}; toast('Score saved'); renderSheet(); return;
     }
     case 'breath-start': breathStart(); return;
     case 'breath-stop': breathStop(); return;
@@ -1121,10 +1423,13 @@ function handleAction(el, ev){
     case 'pmr-stop': pmrStop(); return;
     case 'trig-start': {
       const sel=document.getElementById('trig');
-      DB.trigger = {active:true, item: sel?sel.value:'Alcohol', start: todayISO()};
+      DB.trigger = {active:true, status:'running', item: sel?sel.value:'Alcohol', start: todayISO()};
       save(true); toast('Trigger test started'); renderSheet(); return;
     }
-    case 'trig-stop': DB.trigger=null; save(true); renderSheet(); return;
+    case 'trig-stop':
+      if(DB.trigger){ DB.trigger.active=false; DB.trigger.status='stopped'; DB.trigger.ended=todayISO(); }
+      save(true); renderSheet(); return;
+    case 'trig-reset': DB.trigger=null; save(true); renderSheet(); return;
     case 'export-json': download('meno-compass-backup-'+todayISO()+'.json', JSON.stringify(DB,null,2), 'application/json'); return;
     case 'export-csv': download('meno-compass-'+todayISO()+'.csv', toCSV(), 'text/csv'); return;
     case 'copy-dump': {
@@ -1135,10 +1440,10 @@ function handleAction(el, ev){
     case 'import-json': {
       const ta=document.getElementById('restore');
       if(!ta||!ta.value.trim()){ toast('Paste a backup first'); return; }
+      if(ta.value.length>5000000){ toast('That backup is larger than the 5 MB limit'); return; }
       try{
         const obj=JSON.parse(ta.value);
-        if(!obj || typeof obj!=='object' || !obj.entries) throw new Error('bad');
-        DB = migrate(obj); save(true); sheetStack=[]; renderSheet(); render(); toast('Backup restored');
+        DB = validateBackup(obj); save(true); sheetStack=[]; renderSheet(); render(); toast('Backup restored and checked');
       }catch(x){ toast('That does not look like a valid backup'); }
       return;
     }
@@ -1152,8 +1457,13 @@ function handleAction(el, ev){
     case 'ob-done': {
       const n=document.getElementById('ob-n'), y=document.getElementById('ob-y'),
             u=document.getElementById('ob-u'), r=document.getElementById('ob-r');
-      DB.profile.name = n.value.trim();
-      if(y.value) DB.profile.birthYear = +y.value;
+      const year=readNumberInput(y);
+      if(!year.ok || (year.value!=null&&!Number.isInteger(year.value))){
+        if(year.ok) setFieldError(y,'Enter a whole birth year.');
+        y.reportValidity(); return;
+      }
+      DB.profile.name = safeText(n.value.trim(),80);
+      DB.profile.birthYear = year.value;
       DB.profile.units = u.value; DB.profile.region = r.value;
       DB.profile.onboarded = true; save(true); render();
       setTimeout(()=>openSheet('learn:stage'), 350);
@@ -1163,47 +1473,120 @@ function handleAction(el, ev){
   }
 }
 
+function setFieldError(el, message){
+  el.setCustomValidity(message||'');
+  if(message){ el.setAttribute('aria-invalid','true'); el.title=message; }
+  else { el.removeAttribute('aria-invalid'); el.removeAttribute('title'); }
+  return !message;
+}
+function readNumberInput(el){
+  setFieldError(el,'');
+  if(el.validity && el.validity.badInput){
+    setFieldError(el,'Enter a number.'); return {ok:false,value:null};
+  }
+  if(el.value==='') return {ok:true,value:null};
+  const value=Number(el.value);
+  if(!Number.isFinite(value)){
+    setFieldError(el,'Enter a finite number.'); return {ok:false,value:null};
+  }
+  const min=el.min!==''?Number(el.min):null, max=el.max!==''?Number(el.max):null;
+  if((min!=null&&value<min)||(max!=null&&value>max)){
+    const range=min!=null&&max!=null?' from '+min+' to '+max:min!=null?' of at least '+min:' no more than '+max;
+    setFieldError(el,'Enter a value'+range+'.'); return {ok:false,value:null};
+  }
+  return {ok:true,value};
+}
+function readDateInput(el){
+  setFieldError(el,'');
+  if(el.value==='') return {ok:true,value:null};
+  if(!pastOrTodayISO(el.value)){
+    setFieldError(el,'Choose a valid date that is not in the future.');
+    return {ok:false,value:null};
+  }
+  if(el.min && el.value<el.min){
+    setFieldError(el,'Choose a date on or after '+el.min+'.');
+    return {ok:false,value:null};
+  }
+  return {ok:true,value:el.value};
+}
+
 function handleInput(el){
   const a = el.dataset.act;
   if(a==='num'){
     const k = el.dataset.k, conv = el.dataset.conv;
-    let v = el.type==='number' ? (el.value===''?null:+el.value) : (el.value.trim()||null);
+    const parsed=el.type==='number'?readNumberInput(el):{ok:true,value:el.value.trim()||null};
+    if(!parsed.ok) return;
+    let v=parsed.value;
+    const day=entry(curDate);
+    if(v!=null && k==='sleepH' && day.inBedH!=null && v>day.inBedH){
+      setFieldError(el,'Hours asleep cannot be greater than hours in bed.'); return;
+    }
+    if(v!=null && k==='inBedH' && day.sleepH!=null && day.sleepH>v){
+      setFieldError(el,'Hours in bed cannot be less than hours asleep.'); return;
+    }
     if(v!=null && conv==='w') v = U.wIn(v);
     if(v!=null && conv==='l') v = U.lIn(v);
-    setPath(entry(curDate), k, v);
+    setPath(day, k, v);
     save(); return;
   }
   if(a==='prof'){
     const k=el.dataset.k, conv=el.dataset.conv;
-    let v = el.type==='number' ? (el.value===''?null:+el.value) : el.value;
+    let parsed;
+    if(el.type==='number') parsed=readNumberInput(el);
+    else if(el.type==='date') parsed=readDateInput(el);
+    else parsed={ok:true,value:k==='name'?safeText(el.value,80):el.value};
+    if(!parsed.ok) return;
+    let v=parsed.value;
+    if(k==='birthYear'&&v!=null&&!Number.isInteger(v)){
+      setFieldError(el,'Enter a whole birth year.'); return;
+    }
     if(el.tagName==='SELECT' && !isNaN(v) && k==='proteinGpk') v=+v;
     if(v!=null && v!=='' && conv==='w') v=U.wIn(v);
     if(v!=null && v!=='' && conv==='l') v=U.lIn(v);
     DB.profile[k] = (v===''?null:v);
+    refreshStageForProfile(k);
     save();
-    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries') render();
+    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries') render(true);
     return;
   }
   if(a==='screen'){
-    DB.screening[el.dataset.k] = {last: el.value||null};
+    const parsed=readDateInput(el);
+    if(!parsed.ok) return;
+    const rec=DB.screening[el.dataset.k]||{};
+    rec.last=parsed.value;
+    DB.screening[el.dataset.k]=rec;
     save(); return;
+  }
+  if(a==='screen-int'){
+    const id=el.dataset.k, rule=SCREENING_RULES[id], years=+el.value;
+    if(!rule || !rule.years.includes(years)) return;
+    const rec=DB.screening[id]||{};
+    rec.intervalYears=years; DB.screening[id]=rec; save(); return;
   }
   if(a==='prot-calc'){
     const w=document.getElementById('ptw'), g=document.getElementById('ptg');
-    const kg = w.value? U.wIn(+w.value) : null;
+    const parsed=readNumberInput(w);
+    const kg = parsed.ok&&parsed.value!=null ? U.wIn(parsed.value) : null;
     document.getElementById('prot-out').innerHTML = proteinOut(kg, +g.value);
     return;
   }
   if(a==='sw-calc'){
     const ds=rangeDates(14);
     const sleeps=ds.map(d=>{const x=DB.entries[d];return x&&x.sleepH!=null?x.sleepH:null;}).filter(v=>v!=null);
-    const aSleep=avg(sleeps); const win = aSleep?Math.max(5,Math.round(aSleep*4)/4):null;
+    const aSleep=avg(sleeps); const win = aSleep!=null&&aSleep>0?Math.max(5,Math.round(aSleep*4)/4):null;
     document.getElementById('sw-out').innerHTML = swOut(el.value, win);
     return;
   }
 }
 
 /* ---------- export ---------- */
+function csvText(value){
+  let text=String(value==null?'':value);
+  /* Spreadsheet apps may execute cells beginning with formula characters,
+     even when the CSV field is quoted. Prefix user-authored text defensively. */
+  if(/^[=+\-@\t\r]/.test(text)) text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+}
 function toCSV(){
   const cols = ['date','hot_flashes','night_sweats_0_4','hours_in_bed','hours_asleep','sleep_efficiency_pct',
     ...SYMS.map(s=>s.k), 'burden_score_0_44_unvalidated','weight_kg','waist_cm','bleeding','strength_session','balance','pelvic_floor',
@@ -1211,13 +1594,13 @@ function toCSV(){
   const rows = [cols.join(',')];
   entryDates().forEach(d=>{
     const e=DB.entries[d], s=e.sym||{}, ac=e.act||{}, nu=e.nut||{};
-    const eff = (e.sleepH&&e.inBedH)?Math.round(e.sleepH/e.inBedH*100):'';
+    const eff = (e.sleepH!=null&&e.inBedH!=null&&e.inBedH>0)?Math.round(e.sleepH/e.inBedH*100):'';
     const r = [d, e.hf??'', e.ns??'', e.inBedH??'', e.sleepH??'', eff,
       ...SYMS.map(x=>s[x.k]??''), burden(e)??'',
       e.wt!=null?r1(e.wt):'', e.waist!=null?r1(e.waist):'', e.bleed||'',
       ac.res?1:'', ac.bal?1:'', ac.pf?1:'', ac.aero??'',
-      nu.prot?1:'', nu.cal?1:'', nu.fib?1:'', nu.alc??'', nu.caf??'',
-      '"'+String(e.notes||'').replace(/"/g,'""')+'"'];
+      nu.prot==null?'':(nu.prot?1:0), nu.cal?1:'', nu.fib?1:'', nu.alc??'', nu.caf??'',
+      csvText(e.notes||'')];
     rows.push(r.join(','));
   });
   if(DB.scores.length){
@@ -1243,7 +1626,7 @@ function boot(){
   load();
   document.body.insertAdjacentHTML('afterbegin',
     '<header class="topbar" id="topbar"></header><main id="app"></main>'
-    + '<nav class="tabs" id="tabs"><div class="inner">'
+    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="inner">'
     + Object.entries(TAB_TITLES).map(([k,v])=>h('button',{'data-act':'tab','data-v':k},IC[k]+'<span>'+v[0]+'</span>')).join('')
     + '</div></nav><div id="sheet-host"></div>');
   document.addEventListener('click', ev=>{
@@ -1270,10 +1653,18 @@ function boot(){
     if(el && el.type==='date') handleInput(el);
     if(el && el.type==='time') handleInput(el);
   });
-  document.addEventListener('keydown', ev=>{ if(ev.key==='Escape' && sheetStack.length) closeSheet(); });
+  document.addEventListener('keydown', keepFocusInSheet);
   if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
   window.addEventListener('beforeunload', flush);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flush(); });
+  window.addEventListener('storage', ev=>{
+    if(ev.key!==Store.key || dirty) return;
+    try{
+      DB=ev.newValue ? migrate(JSON.parse(ev.newValue)) : blankDB();
+      render(true); if(sheetStack.length) renderSheet();
+      toast(ev.newValue?'Updated from another tab':'Data was cleared in another tab');
+    }catch(e){ /* Ignore malformed writes from another script on the origin. */ }
+  });
   const hash = (location.hash||'').replace('#','');
   if(TAB_TITLES[hash]) curTab = hash;
   render();

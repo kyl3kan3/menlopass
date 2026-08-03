@@ -1,0 +1,20 @@
+# Generated release and test output
+dist/
+test-results/
+shot-*.png
+
+# Dependencies and local Vercel state
+node_modules/
+.vercel/
+
+# Local secrets (keep documented examples)
+.env
+.env.*
+!.env.example
+
+# Runtime/editor noise
+*.log
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db

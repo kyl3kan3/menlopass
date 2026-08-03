@@ -4,14 +4,27 @@ const fs = require('fs');
 const path = require('path');
 
 const DIST = path.join(__dirname, 'dist');
-const MIME = {'.html':'text/html','.js':'application/javascript','.png':'image/png','.webmanifest':'application/manifest+json','.css':'text/css'};
+const TEST_RESULTS = path.join(__dirname, 'test-results');
+const MIME = {'.html':'text/html','.js':'application/javascript','.png':'image/png','.webmanifest':'application/manifest+json','.css':'text/css','.woff2':'font/woff2','.txt':'text/plain'};
 
 const server = http.createServer((req,res)=>{
-  let p = req.url.split('?')[0];
-  if(p==='/') p='/index.html';
-  const f = path.join(DIST, decodeURIComponent(p));
-  if(!f.startsWith(DIST) || !fs.existsSync(f)){ res.writeHead(404); res.end('nf'); return; }
-  res.writeHead(200, {'Content-Type': MIME[path.extname(f)]||'application/octet-stream'});
+  let pathname;
+  try { pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname); }
+  catch { res.writeHead(400); res.end('bad request'); return; }
+  if(pathname==='/') pathname='/index.html';
+  const f = path.resolve(DIST, pathname.replace(/^\/+/, ''));
+  const insideDist = f.startsWith(DIST + path.sep);
+  if(!insideDist || !fs.existsSync(f) || !fs.statSync(f).isFile()){
+    res.writeHead(404, {'Content-Type':'text/plain; charset=utf-8'});
+    res.end('not found');
+    return;
+  }
+  const headers = {
+    'Content-Type': MIME[path.extname(f)]||'application/octet-stream',
+    'Cache-Control': 'no-store'
+  };
+  if(path.basename(f)==='sw.js') headers['Service-Worker-Allowed']='/';
+  res.writeHead(200, headers);
   res.end(fs.readFileSync(f));
 });
 
@@ -20,6 +33,23 @@ const fails = [];
 function check(name, cond, extra){
   if(cond) console.log('  PASS  ' + name);
   else { console.log('  FAIL  ' + name + (extra? ' :: '+extra : '')); fails.push(name); }
+}
+
+function monitorPage(page, label, baseUrl){
+  page.on('console', message=>{
+    if(message.type()==='error') errors.push(`CONSOLE(${label}): ${message.text()}`);
+  });
+  page.on('pageerror', error=>errors.push(`PAGEERROR(${label}): ${error.message}`));
+  page.on('requestfailed', request=>{
+    if(request.url().startsWith(baseUrl)){
+      errors.push(`REQUESTFAILED(${label}): ${request.url()} :: ${request.failure()?.errorText||'unknown'}`);
+    }
+  });
+  page.on('response', response=>{
+    if(response.url().startsWith(baseUrl) && response.status()>=400){
+      errors.push(`HTTP ${response.status()}(${label}): ${response.url()}`);
+    }
+  });
 }
 
 // synthetic 45 days of data
@@ -45,8 +75,8 @@ function seed(){
     };
   }
   return {
-    v:1,
-    profile:{name:'Test', birthYear:1974, region:'us', units:'imperial', lastPeriod:'', uterus:'intact',
+    v:2,
+    profile:{name:'Test', birthYear:1974, region:'us', units:'imperial', lastPeriod:'', surgeryDate:'', uterus:'intact', ovaries:'kept',
              bone:'unknown', proteinGpk:1.2, weightGoal:null, waistGoal:null, theme:'auto', stage:null, onboarded:true},
     entries, screening:{}, scores:[{date:'2026-07-20',type:'phq9',score:11,band:'moderate'}], trigger:null,
     meta:{created:'2026-06-01'}
@@ -54,15 +84,29 @@ function seed(){
 }
 
 (async()=>{
-  await new Promise(r=>server.listen(8099, r));
-  const browser = await chromium.launch({executablePath:'/opt/pw-browsers/chromium', args:['--no-sandbox']});
+  let browser;
+  try {
+  if(!fs.existsSync(path.join(DIST, 'index.html'))){
+    throw new Error('dist/index.html is missing. Run "npm run build" first.');
+  }
+  check(
+    'root index mirror matches dist',
+    fs.readFileSync(path.join(__dirname, 'index.html')).equals(fs.readFileSync(path.join(DIST, 'index.html')))
+  );
+  fs.mkdirSync(TEST_RESULTS, {recursive:true});
+  await new Promise((resolve,reject)=>{
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  browser = await chromium.launch({headless:true});
   const ctx = await browser.newContext({viewport:{width:390,height:844}, deviceScaleFactor:2});
   const page = await ctx.newPage();
-  page.on('console', m=>{ if(m.type()==='error') errors.push(m.text()); });
-  page.on('pageerror', e=>errors.push('PAGEERROR: '+e.message));
+  monitorPage(page, 'main', baseUrl);
 
   console.log('\n== 1. First run / onboarding ==');
-  await page.goto('http://localhost:8099/index.html');
+  await page.goto(`${baseUrl}/index.html`);
   await page.waitForTimeout(400);
   check('onboarding shown', await page.locator('text=Meno Compass').first().isVisible());
   check('tabs hidden on onboarding', !(await page.locator('nav.tabs').isVisible()));
@@ -298,7 +342,7 @@ function seed(){
 
   console.log('\n== 5. Seeded 45 days -> trends & insights ==');
   await page.addInitScript(d=>{ try{ localStorage.setItem('menocompass.v1', JSON.stringify(d)); }catch(e){} }, seed());
-  await page.goto('http://localhost:8099/index.html'); await page.waitForTimeout(500);
+  await page.goto(`${baseUrl}/index.html`); await page.waitForTimeout(500);
   await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
   const tr = await page.locator('#app').innerText();
   check('tiles render', /flashes\/day/i.test(tr));
@@ -312,7 +356,7 @@ function seed(){
     check('range '+n+' renders', (await page.locator('svg.chart').count())>=1);
   }
   await page.locator('[data-act="range"][data-v="30"]').click(); await page.waitForTimeout(250);
-  await page.screenshot({path:'shot-trends.png', fullPage:false});
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-trends.png'), fullPage:false});
 
   console.log('\n== 6. Learn library: every module opens ==');
   await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(300);
@@ -344,7 +388,7 @@ function seed(){
 
   console.log('\n== 8. Tools ==');
   await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(300);
-  const toolNames = ['Protein calculator','PHQ-9 mood check','GAD-7 anxiety check','Sleep window calculator','Paced breathing','Progressive muscle relaxation','Two-week trigger test','Waist reference'];
+  const toolNames = ['Protein calculator','PHQ-9 mood check','GAD-7 anxiety check','Sleep window calculator','Paced breathing','Progressive muscle relaxation','28-day trigger test','Waist reference'];
   for(const t of toolNames){
     await page.locator('.row', {hasText:t}).first().click(); await page.waitForTimeout(250);
     check('tool opens: '+t, (await page.locator('.sheet').innerText()).length>150);
@@ -403,7 +447,7 @@ function seed(){
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
 
   console.log('\n== 13. Trigger test lifecycle ==');
-  await page.locator('.row', {hasText:'Two-week trigger'}).first().click(); await page.waitForTimeout(250);
+  await page.locator('.row', {hasText:'28-day trigger'}).first().click(); await page.waitForTimeout(250);
   check('trigger tool leads with the honest caveat', /no clinical trials/.test(await page.locator('.sheet').innerText()));
   await page.selectOption('#trig','Alcohol');
   await page.click('[data-act="trig-start"]'); await page.waitForTimeout(300);
@@ -414,9 +458,20 @@ function seed(){
   await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
   check('trigger banner on Today', /Trigger test day/.test(await page.locator('#app').innerText()));
   await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(200);
-  await page.locator('.row', {hasText:'Two-week trigger'}).first().click(); await page.waitForTimeout(250);
+  await page.locator('.row', {hasText:'28-day trigger'}).first().click(); await page.waitForTimeout(250);
   await page.click('[data-act="trig-stop"]'); await page.waitForTimeout(250);
-  check('trigger test ends', /no clinical trials/.test(await page.locator('.sheet').innerText()));
+  check('trigger test can end early', /Test ended early/.test(await page.locator('.sheet').innerText()));
+  await page.evaluate(()=>{
+    DB.trigger={active:true, status:'running', item:'Alcohol', start:addDays(todayISO(),-28)};
+    save(true);
+    renderSheet();
+  });
+  await page.waitForTimeout(250);
+  const completedTrigger = await page.evaluate(()=>DB.trigger);
+  check('28-day trigger test auto-completes',
+    completedTrigger.active===false && completedTrigger.status==='completed');
+  check('completed trigger result is retained',
+    /Test complete/.test(await page.locator('.sheet').innerText()));
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
 
   console.log('\n== 14. Screening tracker ==');
@@ -439,7 +494,7 @@ function seed(){
   check('report lists bleeding events', /bleeding logged/i.test(rep));
   check('report includes notes digest', /recent notes/i.test(rep));
   check('report includes questionnaire scores', /questionnaire scores/i.test(rep));
-  await page.screenshot({path:'shot-report.png'});
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-report.png')});
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
 
   console.log('\n== 16. Export / import round trip ==');
@@ -514,7 +569,7 @@ function seed(){
   await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
   await page.selectOption('#th','dark'); await page.waitForTimeout(400);
   check('dark theme applied', (await page.getAttribute('html','data-theme'))==='dark');
-  await page.screenshot({path:'shot-dark.png'});
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-dark.png')});
   await page.selectOption('#th','light'); await page.waitForTimeout(300);
   check('light theme applied', (await page.getAttribute('html','data-theme'))==='light');
   const noLabel = await page.evaluate(()=>{
@@ -526,6 +581,13 @@ function seed(){
     return bad;
   });
   check('all form controls have labels', noLabel.length===0, JSON.stringify(noLabel).slice(0,300));
+  const fontLoaded = await page.evaluate(async()=>{
+    await document.fonts.ready;
+    return document.fonts.check('700 29px "Bricolage Grotesque"');
+  });
+  check('Bricolage Grotesque loads locally', fontLoaded);
+  check('primary navigation is labelled', (await page.locator('nav[aria-label="Primary"]').count())===1);
+  check('navigation icons are decorative', await page.locator('nav.tabs svg:not([aria-hidden="true"])').count()===0);
   const tapTargets = await page.evaluate(()=>{
     let small=0;
     document.querySelectorAll('button').forEach(b=>{ const r=b.getBoundingClientRect(); if(r.width>0 && (r.height<40)) small++; });
@@ -534,22 +596,52 @@ function seed(){
   check('no undersized tap targets', tapTargets===0, 'small='+tapTargets);
 
   console.log('\n== 21. PWA plumbing ==');
-  const man = await (await ctx.request.get('http://localhost:8099/manifest.webmanifest')).json();
+  const shellAssets = [
+    '/',
+    '/index.html',
+    '/manifest.webmanifest',
+    '/sw.js',
+    '/assets/fonts/bricolage-grotesque-latin.woff2',
+    '/icons/apple-touch-icon.png',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
+    '/icons/maskable-512.png'
+  ];
+  for(const asset of shellAssets){
+    const response = await ctx.request.get(baseUrl+asset);
+    check(`asset ${asset} returns 200`, response.status()===200, `status=${response.status()}`);
+  }
+  const manifestResponse = await ctx.request.get(`${baseUrl}/manifest.webmanifest`);
+  const man = await manifestResponse.json();
   check('manifest name', !!man.name);
   check('manifest standalone', man.display==='standalone');
   check('manifest has 3 icons', man.icons.length===3);
   check('manifest maskable icon', man.icons.some(i=>i.purpose==='maskable'));
+  for(const icon of man.icons){
+    const iconUrl = new URL(icon.src, `${baseUrl}/manifest.webmanifest`).href;
+    const response = await ctx.request.get(iconUrl);
+    check(`manifest icon ${icon.src} loads`, response.status()===200, `status=${response.status()}`);
+  }
   const swReg = await page.evaluate(async()=>{
     const r = await navigator.serviceWorker.getRegistration();
     return !!r;
   });
   check('service worker registered', swReg);
   const offline = await page.evaluate(async()=>{
-    const c = await caches.open('meno-compass-v1');
-    const k = await c.keys();
-    return k.length;
+    const names = await caches.keys();
+    const cache = await caches.open('meno-compass-v4');
+    const keys = await cache.keys();
+    return {names, paths:keys.map(request=>new URL(request.url).pathname)};
   });
-  check('assets precached', offline>=2, 'cached='+offline);
+  check('v4 shell cache exists', offline.names.includes('meno-compass-v4'), JSON.stringify(offline.names));
+  check('stale v3 shell cache removed', !offline.names.includes('meno-compass-v3'), JSON.stringify(offline.names));
+  check('stale v2 shell cache removed', !offline.names.includes('meno-compass-v2'), JSON.stringify(offline.names));
+  check('stale v1 shell cache removed', !offline.names.includes('meno-compass-v1'), JSON.stringify(offline.names));
+  const expectedCached = [
+    '/', '/index.html', '/manifest.webmanifest', '/assets/fonts/bricolage-grotesque-latin.woff2', '/icons/apple-touch-icon.png',
+    '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'
+  ];
+  check('all shell assets precached', expectedCached.every(asset=>offline.paths.includes(asset)), JSON.stringify(offline.paths));
   // offline reload
   await ctx.setOffline(true);
   await page.reload({waitUntil:'domcontentloaded'}).catch(()=>{});
@@ -560,11 +652,11 @@ function seed(){
   console.log('\n== 22. Storage-blocked fallback ==');
   const ctx2 = await browser.newContext({viewport:{width:390,height:844}});
   const p2 = await ctx2.newPage();
-  p2.on('pageerror', e=>errors.push('PAGEERROR(nostorage): '+e.message));
+  monitorPage(p2, 'nostorage', baseUrl);
   await p2.addInitScript(()=>{
     Object.defineProperty(window,'localStorage',{get(){ throw new Error('blocked'); }});
   });
-  await p2.goto('http://localhost:8099/index.html');
+  await p2.goto(`${baseUrl}/index.html`);
   await p2.waitForTimeout(500);
   check('app still boots with storage blocked', await p2.locator('text=Meno Compass').first().isVisible());
   await p2.click('[data-act="ob-skip"]'); await p2.waitForTimeout(400);
@@ -577,26 +669,41 @@ function seed(){
   console.log('\n== 23. Empty-state trends ==');
   const ctx3 = await browser.newContext({viewport:{width:390,height:844}});
   const p3 = await ctx3.newPage();
-  p3.on('pageerror', e=>errors.push('PAGEERROR(empty): '+e.message));
-  await p3.goto('http://localhost:8099/index.html'); await p3.waitForTimeout(400);
+  monitorPage(p3, 'empty', baseUrl);
+  await p3.goto(`${baseUrl}/index.html`); await p3.waitForTimeout(400);
   await p3.click('[data-act="ob-skip"]'); await p3.waitForTimeout(400);
   await p3.click('[data-act="tab"][data-v="trends"]'); await p3.waitForTimeout(300);
   check('empty trends state', /Nothing to chart yet/.test(await p3.locator('#app').innerText()));
   await p3.click('[data-act="tab"][data-v="learn"]'); await p3.waitForTimeout(250);
   check('learn works with no data', (await p3.locator('.rows .row').count())===15);
+  await p3.click('[data-act="tab"][data-v="you"]'); await p3.waitForTimeout(200);
+  await p3.click('[data-act="sheet"][data-s="report"]'); await p3.waitForTimeout(200);
+  check('modal moves focus inside and makes background inert', await p3.evaluate(()=>
+    !!document.activeElement.closest('.sheet') && document.getElementById('app').hasAttribute('inert')
+  ));
+  check('empty report does not turn missing night sweats into zero',
+    (await p3.locator('.kv',{hasText:'Night sweats'}).locator('b').innerText())==='not tracked');
+  check('empty report does not turn missing strength into zero',
+    (await p3.locator('.kv',{hasText:'Strength sessions'}).locator('b').innerText())==='not tracked');
+  check('empty report does not turn missing alcohol into zero',
+    (await p3.locator('.kv',{hasText:'Alcohol (28 d)'}).locator('b').innerText())==='not tracked');
+  await p3.click('[data-act="close"]'); await p3.waitForTimeout(150);
+  check('closing modal restores its trigger and background access', await p3.evaluate(()=>
+    document.activeElement?.dataset?.s==='report' && !document.getElementById('app').hasAttribute('inert')
+  ));
   await ctx3.close();
 
   console.log('\n== 23b. Migration of v1 single-field surgical history ==');
   const ctx4 = await browser.newContext({viewport:{width:390,height:844}});
   const p4 = await ctx4.newPage();
-  p4.on('pageerror', e=>errors.push('PAGEERROR(migrate): '+e.message));
+  monitorPage(p4, 'migrate', baseUrl);
   await p4.addInitScript(()=>{
     localStorage.setItem('menocompass.v1', JSON.stringify({
       v:1, profile:{name:'Legacy', birthYear:1970, units:'metric', region:'us', uterus:'oophor', onboarded:true},
       entries:{}, screening:{}, scores:[]
     }));
   });
-  await p4.goto('http://localhost:8099/index.html'); await p4.waitForTimeout(500);
+  await p4.goto(`${baseUrl}/index.html`); await p4.waitForTimeout(500);
   const mig = await p4.evaluate(()=>({u:DB.profile.uterus, o:DB.profile.ovaries, surg:surgicalMenopause(), per:periodsPossible()}));
   check('legacy "oophor" maps to uterus intact + both ovaries removed', mig.u==='intact' && mig.o==='both', JSON.stringify(mig));
   check('legacy record recognised as surgical menopause', mig.surg===true);
@@ -606,25 +713,79 @@ function seed(){
     load(); return {u:DB.profile.uterus, o:DB.profile.ovaries};
   });
   check('legacy "both" maps to hysterectomy + both ovaries removed', mig2.u==='hyst' && mig2.o==='both', JSON.stringify(mig2));
+
+  console.log('\n== 23c. Backup sanitisation and CSV formula defence ==');
+  const sanitised = await p4.evaluate(()=>{
+    const date=todayISO();
+    let unsupportedRejected=false;
+    try{ validateBackup({v:999,profile:{},entries:{}}); }catch(e){ unsupportedRejected=true; }
+    const cross=validateBackup({
+      v:2,profile:{birthYear:1970,onboarded:true,lastPeriod:'1960-01-01',surgeryDate:'1960-01-01'},
+      entries:{'1960-01-01':{hf:2}},screening:{},scores:[],
+      trigger:{active:true,status:'running',item:'Alcohol',start:date,ended:date}
+    });
+    DB=validateBackup({
+      v:2,
+      profile:{name:'"><img id="xss-probe" src=x onerror="window.pwned=1">',birthYear:'not-a-year',region:'bad',onboarded:true},
+      entries:{[date]:{hf:9999,notes:'=1+1',sym:{mood:99},unknown:'drop me'}},
+      screening:{notARealScreen:{last:date}},
+      scores:[{date,type:'phq9',score:27,band:'minimal'}],
+      unknownRoot:{secret:true}
+    });
+    curTab='you'; render();
+    const csv=toCSV();
+    return {
+      schema:DB.v,
+      unsupportedRejected,
+      preBirthDatesCleared:!cross.profile.lastPeriod&&!cross.profile.surgeryDate&&!cross.entries['1960-01-01'],
+      endedTriggerCanonical:cross.trigger&&!cross.trigger.active&&cross.trigger.status==='stopped'&&cross.trigger.ended===date,
+      probe:!!document.querySelector('#xss-probe'),
+      pwned:!!window.pwned,
+      shown:document.querySelector('#app').textContent.includes('<img id="xss-probe"'),
+      birthYear:DB.profile.birthYear,
+      region:DB.profile.region,
+      hf:DB.entries[date].hf,
+      mood:DB.entries[date].sym.mood,
+      unknownEntry:Object.prototype.hasOwnProperty.call(DB.entries[date],'unknown'),
+      unknownRoot:Object.prototype.hasOwnProperty.call(DB,'unknownRoot'),
+      unknownScreen:Object.prototype.hasOwnProperty.call(DB.screening,'notARealScreen'),
+      scoreBand:DB.scores[0].band,
+      csvFormulaNeutralised:csv.includes('"\'=1+1"')
+    };
+  });
+  check('restored data migrates to schema v2', sanitised.schema===2, JSON.stringify(sanitised));
+  check('unsupported backup schema is rejected', sanitised.unsupportedRejected, JSON.stringify(sanitised));
+  check('dates before birth are discarded', sanitised.preBirthDatesCleared, JSON.stringify(sanitised));
+  check('ended running trigger is canonicalised inactive', sanitised.endedTriggerCanonical, JSON.stringify(sanitised));
+  check('backup HTML is rendered only as text', sanitised.shown && !sanitised.probe && !sanitised.pwned, JSON.stringify(sanitised));
+  check('invalid profile values use safe defaults', sanitised.birthYear===null && sanitised.region==='us', JSON.stringify(sanitised));
+  check('invalid and unknown entry fields are discarded', sanitised.hf==null && sanitised.mood==null && !sanitised.unknownEntry, JSON.stringify(sanitised));
+  check('unknown root and screening fields are discarded', !sanitised.unknownRoot && !sanitised.unknownScreen, JSON.stringify(sanitised));
+  check('questionnaire band is derived from its score', sanitised.scoreBand==='severe', JSON.stringify(sanitised));
+  check('CSV user text cannot become a spreadsheet formula', sanitised.csvFormulaNeutralised, JSON.stringify(sanitised));
   await ctx4.close();
 
   console.log('\n== 24. Screenshots ==');
   await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(400);
-  await page.screenshot({path:'shot-today.png'});
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-today.png')});
   await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(300);
-  await page.screenshot({path:'shot-learn.png'});
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-learn.png')});
   await page.locator('.row',{hasText:'Treatment options'}).click(); await page.waitForTimeout(400);
   await page.locator('.sheet details.acc').nth(3).locator('summary').click(); await page.waitForTimeout(300);
-  await page.screenshot({path:'shot-treatment.png'});
-
-  await browser.close();
-  server.close();
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-treatment.png')});
 
   console.log('\n===== SUMMARY =====');
   console.log('failures: ' + fails.length);
   if(fails.length) fails.forEach(f=>console.log('  - '+f));
-  const realErrors = errors.filter(e=>!/favicon|404|manifest/i.test(e));
-  console.log('console/page errors: ' + realErrors.length);
-  realErrors.slice(0,12).forEach(e=>console.log('  ! '+e));
-  process.exit(fails.length || realErrors.length ? 1 : 0);
+  console.log('console/page/network errors: ' + errors.length);
+  errors.slice(0,12).forEach(e=>console.log('  ! '+e));
+  process.exitCode = fails.length || errors.length ? 1 : 0;
+  } catch(error) {
+    console.error('\nFATAL: '+(error && error.stack ? error.stack : error));
+    console.error('If Chromium is missing, run "npm run test:install" once.');
+    process.exitCode = 1;
+  } finally {
+    if(browser) await browser.close().catch(()=>{});
+    if(server.listening) await new Promise(resolve=>server.close(resolve));
+  }
 })();

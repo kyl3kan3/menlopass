@@ -14,6 +14,7 @@ const Store = (() => {
   const ok = probe();
   if(!ok) usingMemory = true;
   return {
+    get key(){ return KEY; },
     get ephemeral(){ return usingMemory; },
     read(){
       if(usingMemory) return mem;
@@ -30,7 +31,7 @@ const Store = (() => {
 })();
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 1;
+const SCHEMA_V = 2;
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -48,29 +49,154 @@ let DB = null;
 
 function load(){
   const raw = Store.read();
-  DB = raw && typeof raw==='object' ? migrate(raw) : blankDB();
+  try{ DB = raw && typeof raw==='object' ? migrate(raw) : blankDB(); }
+  catch(e){ DB = blankDB(); }
   DB.meta = DB.meta || {}; DB.meta.lastOpen = todayISO();
 }
 function migrate(d){
-  const base = blankDB();
-  const out = Object.assign(base, d);
-  out.profile = Object.assign(base.profile, d.profile||{});
-  /* v1 stored uterus and ovaries as one field, which wrongly implied you
-     could not have a hysterectomy and keep your ovaries. Split them. */
-  const legacy = {
-    intact: {uterus:'intact',  ovaries:'kept'},
-    hyst:   {uterus:'hyst',    ovaries:'unknown'},
-    oophor: {uterus:'intact',  ovaries:'both'},
-    both:   {uterus:'hyst',    ovaries:'both'}
-  }[out.profile.uterus];
-  if(legacy && (!d.profile || d.profile.ovaries==null)){
-    out.profile.uterus = legacy.uterus;
-    out.profile.ovaries = legacy.ovaries;
+  if(!plainRecord(d)) throw new Error('Invalid backup root');
+  if(!Number.isInteger(d.v) || d.v<1 || d.v>SCHEMA_V) throw new Error('Unsupported schema version');
+  const out=blankDB(), rawProfile=plainRecord(d.profile)?d.profile:{};
+  const p=out.profile;
+
+  p.name=safeText(rawProfile.name,80);
+  p.birthYear=safeInteger(rawProfile.birthYear,1920,new Date().getFullYear()-18);
+  p.region=safeEnum(rawProfile.region,['us','uk','other'],'us');
+  p.units=safeEnum(rawProfile.units,['imperial','metric'],'imperial');
+  p.lastPeriod=safePastDate(rawProfile.lastPeriod);
+  p.surgeryDate=safePastDate(rawProfile.surgeryDate);
+  const birthDate=p.birthYear?p.birthYear+'-01-01':'';
+  if(birthDate && p.lastPeriod && p.lastPeriod<birthDate) p.lastPeriod='';
+  if(birthDate && p.surgeryDate && p.surgeryDate<birthDate) p.surgeryDate='';
+  p.uterus=safeEnum(rawProfile.uterus,['unknown','intact','hyst','ablation'],'unknown');
+  p.ovaries=safeEnum(rawProfile.ovaries,['unknown','kept','one','both'],'unknown');
+  /* Earlier records stored uterus and ovaries in one field. Split only when
+     no explicit ovary value exists, then continue through the strict schema. */
+  const legacy={
+    intact:{uterus:'intact',ovaries:'kept'}, hyst:{uterus:'hyst',ovaries:'unknown'},
+    oophor:{uterus:'intact',ovaries:'both'}, both:{uterus:'hyst',ovaries:'both'}
+  }[rawProfile.uterus];
+  if(legacy && rawProfile.ovaries==null){ p.uterus=legacy.uterus; p.ovaries=legacy.ovaries; }
+  p.bone=safeEnum(rawProfile.bone,['unknown','normal','osteopenia','osteoporosis','fracture'],'unknown');
+  p.proteinGpk=safeEnum(+rawProfile.proteinGpk,[1,1.2,1.4,1.6],1.2);
+  p.weightGoal=safeNumber(rawProfile.weightGoal,20,500);
+  p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
+  p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
+  p.onboarded=rawProfile.onboarded===true;
+  const stageAnswers=safeStageAnswers(rawProfile.stageAnswers);
+  if(stageAnswers && typeof completeStageAnswers==='function' && completeStageAnswers(stageAnswers)
+      && typeof stageResult==='function'){
+    p.stageAnswers=stageAnswers;
+    p.stage=safeText(stageResult(stageAnswers).label,160)||null;
   }
-  out.entries = d.entries||{}; out.screening = d.screening||{};
-  out.scores = Array.isArray(d.scores)?d.scores:[];
-  out.v = SCHEMA_V;
+
+  if(plainRecord(d.entries)){
+    Object.keys(d.entries).filter(date=>pastOrTodayISO(date)&&(!birthDate||date>=birthDate)).sort().slice(-10000).forEach(date=>{
+      const clean=safeEntry(d.entries[date]);
+      if(clean) out.entries[date]=clean;
+    });
+  }
+  if(plainRecord(d.screening)){
+    const ids=typeof SCREENING!=='undefined' ? SCREENING.map(item=>item.id) : Object.keys(SCREENING_RULES);
+    ids.forEach(id=>{
+      const rec=d.screening[id]; if(!plainRecord(rec)) return;
+      const last=safePastDate(rec.last), requested=+rec.intervalYears;
+      const rule=SCREENING_RULES[id], cleaned={};
+      if(last && (!birthDate||last>=birthDate)) cleaned.last=last;
+      if(rule) cleaned.intervalYears=rule.years.includes(requested)?requested:rule.defaultYears;
+      if(Object.keys(cleaned).length) out.screening[id]=cleaned;
+    });
+  }
+  if(Array.isArray(d.scores)){
+    out.scores=d.scores.map(safeScore).filter(score=>score&&(!birthDate||score.date>=birthDate))
+      .sort((a,b)=>a.date.localeCompare(b.date)).slice(-500);
+  }
+  out.trigger=safeTrigger(d.trigger);
+  if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
+  const meta=plainRecord(d.meta)?d.meta:{};
+  out.meta.created=safePastDate(meta.created)||todayISO();
+  out.meta.lastOpen=todayISO();
   return out;
+}
+
+function plainRecord(v){ return !!v && typeof v==='object' && !Array.isArray(v); }
+function safeText(v,max){ return typeof v==='string' ? v.slice(0,max) : ''; }
+function safeEnum(v,values,fallback){ return values.includes(v)?v:fallback; }
+function safeNumber(v,min,max){
+  if(v===null || v==='' || typeof v==='boolean') return null;
+  const n=Number(v); return Number.isFinite(n)&&n>=min&&n<=max?n:null;
+}
+function safeInteger(v,min,max){
+  const n=safeNumber(v,min,max); return n!=null&&Number.isInteger(n)?n:null;
+}
+function safePastDate(v){ return typeof v==='string'&&pastOrTodayISO(v)?v:''; }
+function safeStageAnswers(raw){
+  if(!plainRecord(raw) || typeof STAGE_Q==='undefined') return null;
+  const out={};
+  STAGE_Q.forEach(q=>{
+    const value=raw[q.id];
+    if(q.a.some(a=>a.v===value)) out[q.id]=value;
+  });
+  return Object.keys(out).length?out:null;
+}
+function safeEntry(raw){
+  if(!plainRecord(raw)) return null;
+  const out={sym:{},act:{},nut:{}};
+  const integer=(k,min,max)=>{ const n=safeInteger(raw[k],min,max); if(n!=null) out[k]=n; };
+  const number=(k,min,max)=>{ const n=safeNumber(raw[k],min,max); if(n!=null) out[k]=n; };
+  integer('hf',0,500); integer('ns',0,4); number('inBedH',0,16); number('sleepH',0,16);
+  if(out.sleepH!=null&&out.inBedH!=null&&out.sleepH>out.inBedH) delete out.sleepH;
+  if(plainRecord(raw.sym)){
+    ['sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'].forEach(k=>{
+      const n=safeInteger(raw.sym[k],0,4); if(n!=null) out.sym[k]=n;
+    });
+  }
+  number('wt',20,500); number('waist',30,300);
+  const bleed=safeEnum(raw.bleed,['none','spotting','light','moderate','heavy'],null);
+  if(bleed) out.bleed=bleed;
+  if(plainRecord(raw.act)){
+    ['res','bal','pf'].forEach(k=>{ if(typeof raw.act[k]==='boolean') out.act[k]=raw.act[k]; });
+    const aero=safeInteger(raw.act.aero,0,1440); if(aero!=null) out.act.aero=aero;
+  }
+  if(plainRecord(raw.nut)){
+    if(raw.nut.prot===true||raw.nut.prot===1) out.nut.prot=true;
+    if(raw.nut.prot===false||raw.nut.prot===0) out.nut.prot=false;
+    ['cal','fib'].forEach(k=>{ if(typeof raw.nut[k]==='boolean') out.nut[k]=raw.nut[k]; });
+    ['alc','caf'].forEach(k=>{ const n=safeInteger(raw.nut[k],0,50); if(n!=null) out.nut[k]=n; });
+  }
+  const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
+  return out;
+}
+function safeScore(raw){
+  if(!plainRecord(raw)) return null;
+  const type=safeEnum(raw.type,['phq9','gad7'],null), date=safePastDate(raw.date);
+  const max=type==='phq9'?27:type==='gad7'?21:null;
+  const score=max==null?null:safeInteger(raw.score,0,max);
+  if(!type || !date || score==null) return null;
+  const band=type==='phq9'
+    ? (score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe')
+    : (score<5?'minimal':score<10?'mild':score<15?'moderate':'severe');
+  return {date,type,score,band};
+}
+function safeTrigger(raw){
+  if(!plainRecord(raw)) return null;
+  const start=safePastDate(raw.start); if(!start) return null;
+  const item=safeEnum(raw.item,['Alcohol','Caffeine','Spicy food','Sugar','Late meals','Hot drinks','Something else'],null);
+  if(!item) return null;
+  const status=safeEnum(raw.status,['running','stopped','completed'],raw.active===true?'running':'stopped');
+  const ended=safePastDate(raw.ended);
+  const validEnded=ended&&ended>=start?ended:'';
+  const finalStatus=validEnded ? (status==='completed'?'completed':'stopped') : status;
+  const out={active:finalStatus==='running'&&raw.active===true&&!validEnded,status:finalStatus,item,start};
+  if(validEnded) out.ended=validEnded;
+  return out;
+}
+function validateBackup(raw){
+  if(!plainRecord(raw) || !Number.isInteger(raw.v) || raw.v<1 || raw.v>SCHEMA_V
+      || !plainRecord(raw.profile) || !plainRecord(raw.entries)){
+    throw new Error('Invalid backup');
+  }
+  return migrate(raw);
 }
 let saveTimer=null, dirty=false;
 function save(now){
@@ -94,6 +220,12 @@ function iso(d){
 function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
 function addDays(s,n){ const d=parseISO(s); d.setDate(d.getDate()+n); return iso(d); }
 function daysBetween(a,b){ return Math.round((parseISO(b)-parseISO(a))/86400000); }
+function validISODate(s){
+  if(typeof s!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d=parseISO(s);
+  return !isNaN(d.getTime()) && iso(d)===s;
+}
+function pastOrTodayISO(s){ return validISODate(s) && s<=todayISO(); }
 function fmtDay(s){
   const d=parseISO(s), t=todayISO();
   if(s===t) return 'Today';
@@ -125,6 +257,41 @@ function periodsPossible(){
 }
 function surgicalMenopause(){ return DB.profile.ovaries==='both'; }
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* Screening records can carry the interval that matches the test a person
+   actually used. That matters most for cervical and colorectal screening,
+   where a date alone cannot tell us whether the next check is due in one,
+   three, five or ten years. Defaults use the shortest standard interval so a
+   recorded date never suppresses reminders indefinitely. */
+const SCREENING_RULES = {
+  mammo:    {label:'mammogram', minAge:40, maxAge:74, years:[2], defaultYears:2},
+  cervical: {label:'cervical screening', minAge:30, maxAge:65, years:[3,5], defaultYears:3},
+  colon:    {label:'colorectal screening', minAge:45, maxAge:75, years:[1,3,5,10], defaultYears:1},
+  dxa:      {label:'bone density scan', minAge:65, maxAge:null, years:[5], defaultYears:5}
+};
+function screeningStatus(id, age){
+  const rule=SCREENING_RULES[id];
+  if(!rule || age==null || age<rule.minAge || (rule.maxAge!=null && age>rule.maxAge)){
+    return {eligible:false, due:false};
+  }
+  const rec=DB.screening[id]||{};
+  const validLast=pastOrTodayISO(rec.last);
+  const requested=+rec.intervalYears;
+  const intervalYears=rule.years.includes(requested) ? requested : rule.defaultYears;
+  if(!validLast){
+    return {eligible:true, due:true, never:true, invalid:!!rec.last, intervalYears, rule};
+  }
+  const elapsed=daysBetween(rec.last,todayISO());
+  return {
+    eligible:true,
+    due:elapsed>=Math.round(intervalYears*365.25),
+    never:false,
+    last:rec.last,
+    elapsed,
+    intervalYears,
+    rule
+  };
+}
 
 /* ---------- entries ---------- */
 const SYMS = [
@@ -286,7 +453,10 @@ function insights(){
         cta:{l:'Red flags', go:'redflags'}});
       flagged = null;
     }
-    if(flagged && daysBetween(flagged.d, todayISO()) <= 400){
+    /* There is no "resolved" state in the app. Keep this visible until the
+       underlying bleeding entry is removed so an unevaluated event cannot
+       disappear merely because time passed. */
+    if(flagged){
       const since = daysBetween(flagged.d, todayISO());
       out.push({t:'alert', h:'Bleeding after 12+ months without a period',
         b:'You logged bleeding on '+fmtDay(flagged.d)+' — about '+Math.floor(flagged.gap/30)+' months after the previous one. Any bleeding 12 months or more after your last period needs prompt evaluation: around <b>90% of women with endometrial cancer present with postmenopausal bleeding</b>.'
@@ -299,8 +469,12 @@ function insights(){
   /* Counting months of amenorrhoea only means something if a period was
      possible in the first place. */
   if(surgicalMenopause()){
+    const surgeryDate=pastOrTodayISO(DB.profile.surgeryDate) ? DB.profile.surgeryDate : null;
+    const surgeryWhen=surgeryDate
+      ? ' on '+fmtDay(surgeryDate)+' ('+Math.max(0,Math.floor(daysBetween(surgeryDate,todayISO())/30))+' months ago)'
+      : '';
     out.push({t:'info', h:'You are postmenopausal — the count of months since a period does not apply',
-      b:'Both ovaries removed means menopause happened at the operation, so this app will not try to date it from bleeding. What is worth attention instead: hormone therapy at least until around age 52 unless there is a reason not to, bone protection, and cardiovascular risk factors. Vaginal and urinary symptoms are the ones that get worse rather than better if left alone.',
+      b:'Both ovaries removed means menopause happened at the operation'+surgeryWhen+', so this app will not try to date it from bleeding. What is worth attention instead: hormone therapy at least until around age 52 unless there is a reason not to, bone protection, and cardiovascular risk factors. Vaginal and urinary symptoms are the ones that get worse rather than better if left alone.',
       cta:{l:'Your stage', go:'learn:stage'}});
   } else if(!periodsPossible()){
     out.push({t:'info', h:'Your bleeding pattern cannot stage you — that is expected',
@@ -470,9 +644,12 @@ function insights(){
       cta:{l:'How to do it', go:'learn:exercise'}});
   }
   /* --- OSA screen prompt --- */
-  const badSleep = rangeDates(21).map(d=>DB.entries[d]).filter(e=>e&&e.sym&&e.sym.sleepq>=3);
-  const lowNS = rangeDates(21).map(d=>DB.entries[d]).filter(e=>e&&e.ns!=null&&e.ns<=1);
-  if(badSleep.length>=8 && lowNS.length>=badSleep.length*0.6){
+  const sleepObs = rangeDates(21).map(d=>DB.entries[d]).filter(e=>
+    e && e.sym && e.sym.sleepq!=null && e.ns!=null
+  );
+  const badSleep = sleepObs.filter(e=>e.sym.sleepq>=3);
+  const badSleepLowNS = badSleep.filter(e=>e.ns<=1);
+  if(badSleep.length>=8 && badSleepLowNS.length>=Math.ceil(badSleep.length*0.6)){
     out.push({t:'warn', h:'Bad sleep, but not much night sweating',
       b:'You are logging poor sleep frequently without heavy night sweats. That pattern points away from vasomotor fragmentation and toward insomnia — or sleep apnea, which affects <b>20% of midlife women</b> versus 4% of younger women and is badly underdiagnosed, because women present with insomnia and fatigue rather than loud snoring. CBT-I is first line for insomnia; if it does not work, that is itself a reason to be tested.',
       cta:{l:'Sleep module', go:'learn:sleep'}});
@@ -490,14 +667,17 @@ function insights(){
   /* --- screening due --- */
   const age = DB.profile.birthYear ? (new Date().getFullYear() - DB.profile.birthYear) : null;
   if(age){
-    const due=[];
-    const has = id => DB.screening[id] && DB.screening[id].last;
-    if(age>=40 && !has('mammo')) due.push('mammogram');
-    if(age>=45 && !has('colon')) due.push('colorectal screening');
-    if(age>=65 && !has('dxa')) due.push('bone density scan');
-    if(due.length) out.push({t:'info', h:'Worth checking: '+due.join(', '),
-      b:'You have not recorded these. At '+age+', US guidance covers '+due.join(' and ')+'. Record the dates in the preventive care checklist so you can see what is coming up.',
-      cta:{l:'Preventive care', go:'screening'}});
+    const due=Object.keys(SCREENING_RULES).map(id=>screeningStatus(id,age)).filter(s=>s.due);
+    if(due.length){
+      const labels=due.map(s=>s.rule.label);
+      const overdue=due.filter(s=>!s.never);
+      out.push({t:'info', h:'Worth checking: '+labels.join(', '),
+        b:(overdue.length
+            ? 'Your recorded date has reached the reminder interval for '+overdue.map(s=>s.rule.label).join(' and ')+'. '
+            : 'You have not recorded these yet. ')
+          +'At '+age+', US guidance covers '+labels.join(' and ')+'. Record the date and the interval that matches the test you had in the preventive care checklist.',
+        cta:{l:'Preventive care', go:'screening'}});
+    }
   }
   /* --- consistency --- */
   if(nLogged>0 && nLogged<5){

@@ -44,7 +44,7 @@ const SYMPTOMS = [
     <div class="callout warn"><span class="ctitle">The honest bad news</span>
     <p>The Menopause Society reviewed the trials and does <b>not</b> recommend, <i>for hot flashes specifically</i>: paced breathing, cooling techniques, avoiding triggers, exercise, yoga, mindfulness, relaxation, dietary change, acupuncture, or any dietary supplement.</p>
     <p>That is a narrow claim about one symptom. Exercise, sleep work and mindfulness have strong evidence for mood, sleep, bone, heart health and muscle — just not for stopping flashes.</p></div>
-    <p class="tiny"><b>Triggers.</b> Alcohol, caffeine and spicy food are commonly blamed. The evidence is cross-sectional at best, and trigger-avoidance has never been tested as a treatment. Treat it as a personal experiment, not a rule — the app has a 2-week trigger test for exactly this.</p>
+    <p class="tiny"><b>Triggers.</b> Alcohol, caffeine and spicy food are commonly blamed. The evidence is cross-sectional at best, and trigger-avoidance has never been tested as a treatment. Treat it as a personal experiment, not a rule — the app has a 28-day removal-and-reintroduction test for exactly this.</p>
     <p class="tiny"><b>Not just discomfort.</b> The American Heart Association notes hot flashes are associated with subclinical atherosclerosis and worse cardiovascular risk factors — a reason to take them seriously rather than endure them.</p>`
   },
   {
