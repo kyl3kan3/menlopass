@@ -52,6 +52,15 @@ function monitorPage(page, label, baseUrl){
   });
 }
 
+async function goLearn(page){
+  await page.click('[data-act="tab"][data-v="settings"]');
+  await page.click('[data-act="tab"][data-v="learn"]');
+}
+async function goTodayDetails(page){
+  await page.click('[data-act="tab"][data-v="settings"]');
+  await page.click('[data-act="tab"][data-v="today-details"]');
+}
+
 // synthetic 45 days of data
 function seed(){
   const entries = {};
@@ -75,10 +84,15 @@ function seed(){
     };
   }
   return {
-    v:2,
+    v:3,
     profile:{name:'Test', birthYear:1974, region:'us', units:'imperial', lastPeriod:'', surgeryDate:'', uterus:'intact', ovaries:'kept',
              bone:'unknown', proteinGpk:1.2, weightGoal:null, waistGoal:null, theme:'auto', stage:null, onboarded:true},
-    entries, screening:{}, scores:[{date:'2026-07-20',type:'phq9',score:11,band:'moderate'}], trigger:null,
+    entries,
+    medications:[
+      {id:'estradot',name:'Estradot 50µg',detail:'patch · Mon & Thu',due:'08:00',icon:'patch',taken:true,takenAt:'08:02'},
+      {id:'utrogestan',name:'Utrogestan 100mg',detail:'tablet · nightly',due:'22:00',icon:'pill',taken:false,takenAt:''}
+    ],
+    screening:{}, scores:[{date:'2026-07-20',type:'phq9',score:11,band:'moderate'}], trigger:null,
     meta:{created:'2026-06-01'}
   };
 }
@@ -127,7 +141,7 @@ function seed(){
       await page.waitForTimeout(180);
     }
     await page.evaluate(()=>{ stageAns={}; stageStep=0; DB.profile.stage=null; save(true); });
-    await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+    await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
     await page.click('[data-act="sheet"][data-s="learn:stage"]'); await page.waitForTimeout(300);
     const restart = page.locator('[data-act="stage-restart"]');
     if(await restart.count()){ await restart.first().click(); await page.waitForTimeout(250); }
@@ -227,7 +241,7 @@ function seed(){
   await closeQuiz();
 
   console.log('\n== 2b. Profile reflects the split fields ==');
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(300);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(300);
   check('profile has a separate uterus field', (await page.locator('#ut').count())===1);
   check('profile has a separate ovaries field', (await page.locator('#ov').count())===1);
   await page.selectOption('#ut','intact'); await page.waitForTimeout(200);
@@ -235,24 +249,24 @@ function seed(){
   check('last-period field shown when periods are possible', (await page.locator('#lp').count())===1);
   await page.selectOption('#ut','hyst'); await page.waitForTimeout(350);
   check('last-period field replaced by surgery date after hysterectomy', (await page.locator('#lp').count())===0 && (await page.locator('#sd').count())===1);
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  await goTodayDetails(page); await page.waitForTimeout(300);
   check('Today relabels the bleeding row after hysterectomy', /Any vaginal bleeding or spotting/.test(await page.locator('#app').innerText()));
   check('Today explains why bleeding matters after hysterectomy', /unexpected/i.test(await page.locator('#app').innerText()));
 
   console.log('\n== 2c. Treatment module personalises endometrial protection ==');
-  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await goLearn(page); await page.waitForTimeout(250);
   await page.locator('.row', {hasText:'Treatment options'}).click(); await page.waitForTimeout(350);
   check('no-uterus: progestogen section marked not applicable', /does not apply to you/i.test(await page.locator('.sheet').innerText()));
   await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
   await page.selectOption('#ut','ablation'); await page.waitForTimeout(300);
-  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await goLearn(page); await page.waitForTimeout(250);
   await page.locator('.row', {hasText:'Treatment options'}).click(); await page.waitForTimeout(350);
   check('ablation: progestogen still required', /still need a progestogen/i.test(await page.locator('.sheet').innerText()));
   await page.click('[data-act="close"]'); await page.waitForTimeout(200);
 
   console.log('\n== 2d. Insights respect surgical history ==');
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
   await page.selectOption('#ut','hyst'); await page.waitForTimeout(200);
   await page.selectOption('#ov','both'); await page.waitForTimeout(300);
   await page.evaluate(()=>{
@@ -267,7 +281,7 @@ function seed(){
   let ins = await page.locator('#app').innerText();
   check('surgical menopause: no months-since-period counter', !/months since your last logged period/i.test(ins));
   check('surgical menopause: explains why that count does not apply', /does not apply/i.test(ins));
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
   await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
   await page.evaluate(()=>{
     const iso = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -279,14 +293,14 @@ function seed(){
   check('post-hysterectomy bleeding gets its own alert', /you have had a hysterectomy/i.test(ins));
   check('post-hysterectomy alert does not use the 12-month framing', !/Bleeding after 12\+ months/i.test(ins));
   // restore an ordinary profile for the rest of the suite
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
   await page.selectOption('#ut','intact'); await page.waitForTimeout(200);
   await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
   await page.evaluate(()=>{ DB.profile.lastPeriod=''; DB.entries={}; save(true); render(); });
 
   console.log('\n== 3. Today check-in interactions ==');
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
-  check('today tab active', (await page.locator('nav.tabs button[aria-current="page"] span').innerText())==='Today');
+  await goTodayDetails(page); await page.waitForTimeout(300);
+  check('detailed daily log opens', (await page.locator('.today-view').count())===1);
   await page.click('[data-act="hf"][data-n="1"]');
   await page.click('[data-act="hf"][data-n="1"]');
   await page.click('[data-act="hf"][data-n="1"]');
@@ -301,8 +315,8 @@ function seed(){
   await page.fill('#inbed','8');
   await page.fill('#slept','6');
   await page.waitForTimeout(250);
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(150);
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(150);
+  await goTodayDetails(page); await page.waitForTimeout(250);
   check('sleep efficiency computed & persisted', (await page.locator('#app').innerText()).includes('75%'));
   await page.locator('[data-act="set"][data-k="sym.mood"][data-v="3"]').click();
   await page.locator('[data-act="set"][data-k="sym.anx"][data-v="2"]').click();
@@ -327,6 +341,7 @@ function seed(){
   await page.waitForTimeout(300);
   // reload to confirm persistence
   await page.reload(); await page.waitForTimeout(500);
+  await goTodayDetails(page); await page.waitForTimeout(250);
   const todayTxt = await page.locator('#app').innerText();
   check('data persisted across reload (weight)', (await page.inputValue('#wt'))==='168');
   check('data persisted across reload (notes)', (await page.inputValue('#notes'))==='test note');
@@ -359,7 +374,7 @@ function seed(){
   await page.screenshot({path:path.join(TEST_RESULTS, 'shot-trends.png'), fullPage:false});
 
   console.log('\n== 6. Learn library: every module opens ==');
-  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(300);
+  await goLearn(page); await page.waitForTimeout(300);
   const modules = await page.locator('.rows .row').count();
   check('all 15 modules listed', modules===15, 'got '+modules);
   for(let i=0;i<modules;i++){
@@ -387,7 +402,7 @@ function seed(){
   await page.click('[data-act="close"]'); await page.waitForTimeout(200);
 
   console.log('\n== 8. Tools ==');
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(300);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(300);
   const toolNames = ['Protein calculator','PHQ-9 mood check','GAD-7 anxiety check','Sleep window calculator','Paced breathing','Progressive muscle relaxation','28-day trigger test','Waist reference'];
   for(const t of toolNames){
     await page.locator('.row', {hasText:t}).first().click(); await page.waitForTimeout(250);
@@ -455,9 +470,9 @@ function seed(){
   check('trigger test running', /Test running/.test(tg));
   check('baseline computed from prior 14 days', /before/i.test(tg));
   await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  await goTodayDetails(page); await page.waitForTimeout(300);
   check('trigger banner on Today', /Trigger test day/.test(await page.locator('#app').innerText()));
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(200);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(200);
   await page.locator('.row', {hasText:'28-day trigger'}).first().click(); await page.waitForTimeout(250);
   await page.click('[data-act="trig-stop"]'); await page.waitForTimeout(250);
   check('trigger test can end early', /Test ended early/.test(await page.locator('.sheet').innerText()));
@@ -491,7 +506,7 @@ function seed(){
     JSON.stringify(screeningRules.cervical25Intervals)==='[3]',JSON.stringify(screeningRules));
   check('US-timed reminders are suppressed outside the US',
     !screeningRules.uk45.mammo.due&&!screeningRules.uk45.colon.due,JSON.stringify(screeningRules));
-  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await goLearn(page); await page.waitForTimeout(250);
   await page.locator('.row', {hasText:'Preventive care'}).click(); await page.waitForTimeout(250);
   await page.locator('.sheet details.acc summary').first().click(); await page.waitForTimeout(150);
   await page.fill('#sc-dxa','2025-03-14'); await page.waitForTimeout(250);
@@ -523,7 +538,7 @@ function seed(){
   await page.click('[data-act="close"]'); await page.waitForTimeout(200);
   await page.evaluate(()=>{ DB.entries={}; save(true); render(); });
   await page.waitForTimeout(300);
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
   await page.click('[data-act="sheet"][data-s="data"]'); await page.waitForTimeout(300);
   await page.fill('#restore', backup);
   await page.click('[data-act="import-json"]'); await page.waitForTimeout(500);
@@ -539,25 +554,25 @@ function seed(){
   console.log('\n== 17. Units switch ==');
   await page.selectOption('#un','metric'); await page.waitForTimeout(400);
   check('metric labels appear', /kg/.test(await page.locator('#app').innerText()));
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  await goTodayDetails(page); await page.waitForTimeout(300);
   const wtMetric = await page.inputValue('#wt');
   check('weight converted to kg', Math.abs(parseFloat(wtMetric)-76)<2.5, wtMetric);
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(200);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(200);
   await page.selectOption('#un','imperial'); await page.waitForTimeout(400);
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(300);
+  await goTodayDetails(page); await page.waitForTimeout(300);
   const wtImp = await page.inputValue('#wt');
   check('weight round-trips to lb', Math.abs(parseFloat(wtImp) - parseFloat(wtMetric)*2.20462) < 0.6, wtImp+' vs '+wtMetric);
 
   console.log('\n== 18. Bone-status gating ==');
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
   await page.selectOption('#bn','osteoporosis'); await page.waitForTimeout(300);
-  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
+  await goLearn(page); await page.waitForTimeout(250);
   await page.locator('.row', {hasText:'Movement & strength'}).click(); await page.waitForTimeout(300);
   check('osteoporosis warning gates impact advice', /Skip the high-impact/.test(await page.locator('.sheet').innerText()));
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(200);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(200);
   await page.selectOption('#bn','unknown'); await page.waitForTimeout(300);
-  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(200);
+  await goLearn(page); await page.waitForTimeout(200);
   await page.locator('.row', {hasText:'Movement & strength'}).click(); await page.waitForTimeout(300);
   check('unknown bone status warning', /have not recorded your bone status/.test(await page.locator('.sheet').innerText()));
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
@@ -582,7 +597,7 @@ function seed(){
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
 
   console.log('\n== 20. Theme, dark mode, a11y basics ==');
-  await page.click('[data-act="tab"][data-v="you"]'); await page.waitForTimeout(250);
+  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
   await page.selectOption('#th','dark'); await page.waitForTimeout(400);
   check('dark theme applied', (await page.getAttribute('html','data-theme'))==='dark');
   await page.screenshot({path:path.join(TEST_RESULTS, 'shot-dark.png')});
@@ -676,9 +691,9 @@ function seed(){
   await p2.waitForTimeout(500);
   check('app still boots with storage blocked', await p2.locator('text=Meno Compass').first().isVisible());
   await p2.click('[data-act="ob-skip"]'); await p2.waitForTimeout(400);
-  await p2.click('[data-act="hf"][data-n="1"]'); await p2.waitForTimeout(250);
-  check('in-memory logging works', (await p2.locator('.stepper .val').innerText())==='1');
-  await p2.click('[data-act="tab"][data-v="you"]'); await p2.waitForTimeout(300);
+  await p2.click('[data-act="set"][data-k="hf"][data-v="1"]'); await p2.waitForTimeout(250);
+  check('in-memory logging works', (await p2.locator('[data-k="hf"][data-v="1"]').getAttribute('aria-pressed'))==='true');
+  await p2.click('[data-act="tab"][data-v="settings"]'); await p2.waitForTimeout(300);
   check('ephemeral warning shown to user', /cannot save to disk/.test(await p2.locator('#app').innerText()));
   await ctx2.close();
 
@@ -690,9 +705,9 @@ function seed(){
   await p3.click('[data-act="ob-skip"]'); await p3.waitForTimeout(400);
   await p3.click('[data-act="tab"][data-v="trends"]'); await p3.waitForTimeout(300);
   check('empty trends state', /Nothing to chart yet/.test(await p3.locator('#app').innerText()));
-  await p3.click('[data-act="tab"][data-v="learn"]'); await p3.waitForTimeout(250);
+  await goLearn(p3); await p3.waitForTimeout(250);
   check('learn works with no data', (await p3.locator('.rows .row').count())===15);
-  await p3.click('[data-act="tab"][data-v="you"]'); await p3.waitForTimeout(200);
+  await p3.click('[data-act="tab"][data-v="settings"]'); await p3.waitForTimeout(200);
   await p3.click('[data-act="sheet"][data-s="report"]'); await p3.waitForTimeout(200);
   check('modal moves focus inside and makes background inert', await p3.evaluate(()=>
     !!document.activeElement.closest('.sheet') && document.getElementById('app').hasAttribute('inert')
@@ -769,7 +784,7 @@ function seed(){
       csvFormulaNeutralised:csv.includes('"\'=1+1"')
     };
   });
-  check('restored data migrates to schema v2', sanitised.schema===2, JSON.stringify(sanitised));
+  check('restored data migrates to schema v3', sanitised.schema===3, JSON.stringify(sanitised));
   check('unsupported backup schema is rejected', sanitised.unsupportedRejected, JSON.stringify(sanitised));
   check('dates before birth are discarded', sanitised.preBirthDatesCleared, JSON.stringify(sanitised));
   check('ended running trigger is canonicalised inactive', sanitised.endedTriggerCanonical, JSON.stringify(sanitised));
@@ -784,7 +799,7 @@ function seed(){
   console.log('\n== 24. Screenshots ==');
   await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(400);
   await page.screenshot({path:path.join(TEST_RESULTS, 'shot-today.png')});
-  await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(300);
+  await goLearn(page); await page.waitForTimeout(300);
   await page.screenshot({path:path.join(TEST_RESULTS, 'shot-learn.png')});
   await page.locator('.row',{hasText:'Treatment options'}).click(); await page.waitForTimeout(400);
   await page.locator('.sheet details.acc').nth(3).locator('summary').click(); await page.waitForTimeout(300);

@@ -31,7 +31,7 @@ const Store = (() => {
 })();
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 2;
+const SCHEMA_V = 3;
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -39,9 +39,9 @@ function blankDB(){
       name:'', birthYear:null, region:'us', units:'imperial',
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
-      theme:'auto', stage:null, stageAnswers:null, onboarded:false
+      theme:'dark', stage:null, stageAnswers:null, onboarded:false
     },
-    entries:{}, screening:{}, scores:[], trigger:null,
+    entries:{}, medications:[], screening:{}, scores:[], trigger:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
   };
 }
@@ -111,6 +111,9 @@ function migrate(d){
     out.scores=d.scores.map(safeScore).filter(score=>score&&(!birthDate||score.date>=birthDate))
       .sort((a,b)=>a.date.localeCompare(b.date)).slice(-500);
   }
+  if(Array.isArray(d.medications)){
+    out.medications=d.medications.map(safeMedication).filter(Boolean).slice(0,50);
+  }
   out.trigger=safeTrigger(d.trigger);
   if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
   const meta=plainRecord(d.meta)?d.meta:{};
@@ -166,6 +169,20 @@ function safeEntry(raw){
   }
   const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
   return out;
+}
+function safeMedication(raw){
+  if(!plainRecord(raw)) return null;
+  const name=safeText(raw.name,80).trim();
+  if(!name) return null;
+  return {
+    id:safeText(raw.id,40)||('med-'+Math.random().toString(36).slice(2,10)),
+    name,
+    detail:safeText(raw.detail,100),
+    due:safeText(raw.due,20),
+    icon:safeEnum(raw.icon,['patch','pill'],'pill'),
+    taken:raw.taken===true,
+    takenAt:safeText(raw.takenAt,20)
+  };
 }
 function safeScore(raw){
   if(!plainRecord(raw)) return null;

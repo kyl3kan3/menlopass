@@ -986,3 +986,65 @@ html[data-theme="dark"] .dayscroll button[aria-pressed="true"]{color:var(--text)
   .view{padding:0 20px 32px}
   h1{font-size:29px}
 }
+
+/* ============================================================
+   Supplied Twilight reference — primary mobile shell
+   ============================================================ */
+:root{
+  --bg:#0E1618;--surface:#16232A;--surface-2:#16232A;--surface-3:#1b2b31;
+  --border:#26383E;--border-strong:#334950;--text:#E9F1EE;--text-2:#93A8A8;
+  --text-3:#5C7176;--accent:#E8A552;--accent-text:#E8A552;--ok:#6FB79A;
+  --alert:#E0755F;--button-bg:#E9F1EE;--button-label:#0E1618;--maxw:384px;--nav-h:82px;
+  --r:10px;--r-sm:10px;--shadow:none;
+}
+html[data-theme="dark"]{
+  --bg:#0E1618;--surface:#16232A;--surface-2:#16232A;--surface-3:#1b2b31;
+  --border:#26383E;--border-strong:#334950;--text:#E9F1EE;--text-2:#93A8A8;
+  --text-3:#5C7176;--accent:#E8A552;--accent-text:#E8A552;--ok:#6FB79A;
+  --alert:#E0755F;--button-bg:#E9F1EE;--button-label:#0E1618;
+}
+body{background:#080D0E;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#topbar{display:none!important}
+#app{min-height:calc(100dvh - var(--nav-h));padding:0 0 var(--nav-h);background:var(--bg)}
+.tw-screen{padding:18px 20px 16px;animation:none;color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.tw-status{display:flex;justify-content:space-between;padding:6px 6px 0;font-size:12px;font-weight:600}
+.tw-status span:last-child{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:var(--text-2);letter-spacing:.02em}
+.tw-heading{margin-top:14px}
+.tw-heading h1{margin:0;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:29px;line-height:1.16;letter-spacing:-.02em;font-weight:700;white-space:nowrap}
+.tw-heading p{margin:4px 0 0;color:var(--text-2);font-size:14px;line-height:1.45}
+.tw-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.tw-tile{position:relative;min-height:64px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);display:flex;flex-direction:column;gap:9px}
+.tw-tile.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 16px -4px var(--accent)}
+.tw-tile-top{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:500;white-space:nowrap}
+.tw-tile-top svg,.tw-medrow>svg{width:18px;height:18px;stroke:var(--text-2);fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.tw-tile.sel .tw-tile-top svg{stroke:var(--ok)}
+.tw-dots{display:flex;gap:8px}
+.tw-dot{width:12px;height:12px;min-width:12px;padding:0;border-radius:50%;border:1.5px solid var(--accent);background:transparent}
+.tw-dot.f1{background:color-mix(in srgb,var(--accent) 30%,transparent);border-color:transparent}
+.tw-dot.f2{background:color-mix(in srgb,var(--accent) 60%,transparent);border-color:transparent}
+.tw-dot.f3{background:var(--accent);border-color:transparent}
+.tw-dot.on{transform:scale(1.28)}
+.tw-meds{margin-top:15px}.tw-label{margin-bottom:8px;color:var(--text-2);font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+.tw-medcard,.tw-med-card{padding:2px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.tw-medrow{width:100%;min-height:59px;display:flex;align-items:center;gap:12px;padding:10px 2px;border:0;border-bottom:1px solid var(--border);background:none;color:var(--text);text-align:left}
+.tw-medrow:last-child{border-bottom:0}.tw-medrow.static{cursor:default}
+.tw-grow{flex:1;min-width:0;display:flex;flex-direction:column}.tw-grow b{font-size:17px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tw-grow small{color:var(--text-2);font-size:14px}
+.tw-due{font:14px ui-monospace,"SF Mono",Menlo,monospace;color:var(--text-2);white-space:nowrap}.tw-due.ok{color:var(--ok)}
+.tw-empty-med{width:100%;padding:16px 2px;border:0;background:none;color:var(--accent);font-weight:600;text-align:center}
+.tw-quiet{display:block;margin:12px auto 0;padding:4px 10px;border:0;background:none;color:var(--accent);font-size:14px;font-weight:600}
+.tw-notes{min-height:64px;margin-top:12px;background:var(--surface);border-color:var(--border);font-size:14px}
+nav.tabs{background:var(--surface);border-color:var(--border);backdrop-filter:none;-webkit-backdrop-filter:none}
+nav.tabs .inner{max-width:384px}
+nav.tabs button{height:var(--nav-h);padding:10px 2px 20px;gap:5px;color:var(--text-3);font-size:10px;font-weight:600;position:relative}
+nav.tabs button svg{width:22px;height:22px;stroke-width:1.75}
+nav.tabs button[aria-current="page"]{color:var(--text)}
+nav.tabs button[aria-current="page"]::after{content:"";position:absolute;bottom:12px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.tw-secondary{display:flex;flex-direction:column;gap:15px;min-height:calc(100dvh - var(--nav-h))}
+.tw-h2{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:21px;font-weight:600;margin:0}
+.tw-med-list{display:flex;flex-direction:column;gap:15px}.tw-med-card{padding:14px}.tw-med-card .tw-medrow{padding:0}.tw-med-card.tw-empty{display:flex;flex-direction:column;gap:4px;color:var(--text-2)}
+.tw-remove{border:0;background:none;color:var(--text-2);font-size:24px}.tw-labs-label{margin:4px 0 -7px}
+.tw-chips{display:flex;gap:8px}.tw-chips span{height:32px;padding:0 14px;display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;color:var(--text-2);font-size:13px;font-weight:600}.tw-chips .on{border-color:var(--accent);color:var(--accent)}
+.tw-pagewrap{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.tw-doc{padding:15px;border:1px solid #E3DDD2;border-radius:3px;background:#FFFDF9;color:#1B2A28;font-size:10px;line-height:1.45}.tw-doc h2{margin:0 0 2px;font-size:14px}.tw-doc p{margin:0 0 9px;color:#6E675C}.tw-doc-rule{height:74px;margin:8px 0;background:repeating-linear-gradient(to bottom,transparent 0 17px,#E3DDD2 18px)}
+.tw-observed{padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}.tw-observed>span{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.tw-observed p{margin:4px 0 6px;font-size:16px;line-height:1.5}.tw-observed small{color:var(--text-2)}
+@media (min-width:600px){.tw-screen{padding:18px 20px 16px}}

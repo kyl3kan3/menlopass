@@ -6,6 +6,9 @@ const IC = {
   /* Exact icon assets from the selected Twilight reference. */
   today:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
   trends:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
+  meds:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>',
+  report:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
+  settings:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
   learn:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
   you:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
   chev:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'
@@ -348,6 +351,8 @@ function viewYou(){
   const pt = proteinTarget();
   const dates = entryDates();
   return `<div class="view">
+    <button class="btn ghost block settings-learn" data-act="tab" data-v="learn">Evidence guide</button>
+    <button class="btn ghost block settings-learn" data-act="tab" data-v="today-details">Detailed daily log</button>
     <div class="card">
       <div class="card-head"><h3>${p.name?esc(p.name):'Your profile'}</h3>
         ${age?'<span class="badge">'+age+'</span>':''}</div>
@@ -1308,16 +1313,76 @@ function viewOnboard(){
 }
 
 /* ============================================================
+   TWILIGHT PRIMARY SCREENS
+   These are deliberately shaped to the supplied 384 x 772 reference.
+   ============================================================ */
+let notesOpen=false;
+function twilightDots(path,value,label){
+  const current=Math.max(0,Math.min(3,Number(value)||0));
+  return '<div class="tw-dots" role="group" aria-label="'+esc(label)+'">'
+    +[0,1,2,3].map(i=>h('button',{class:'tw-dot f'+i+(current===i?' on':''),'data-act':'set','data-k':path,'data-v':i,'aria-label':label+': '+i,'aria-pressed':current===i?'true':'false'},'')).join('')+'</div>';
+}
+function twilightTile(path,value,label,icon){
+  const v=Math.max(0,Math.min(3,Number(value)||0));
+  return '<div class="tw-tile'+(v>0?' sel':'')+'"><div class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span></div>'+twilightDots(path,v,label)+'</div>';
+}
+function todayMedicationRows(){
+  const meds=Array.isArray(DB.medications)?DB.medications:[];
+  if(!meds.length) return '<button class="tw-empty-med" data-act="tab" data-v="meds">Add your medications</button>';
+  return meds.map((m,i)=>'<button class="tw-medrow" data-act="med-taken" data-i="'+i+'">'
+    +(m.icon==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill)
+    +'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(m.detail||'Medication')+'</small></span>'
+    +'<span class="tw-due'+(m.taken?' ok':'')+'">'+(m.taken?'✓ '+esc(m.takenAt||'taken'):esc(m.due||'Due'))+'</span></button>').join('');
+}
+function viewTodayCompact(){
+  const e=DB.entries[curDate]||{sym:{},act:{},nut:{}}, sym=e.sym||{};
+  const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  return `<div class="view tw-screen tw-today">
+    <div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
+    <div class="tw-heading"><h1>${esc(selected)}</h1><p>${curDate===todayISO()?'Prefilled from yesterday — tap anything that changed.':'Editing '+esc(fmtLong(curDate))+'.'}</p></div>
+    <div class="tw-grid">
+      ${twilightTile('hf',e.hf,'Hot flashes',TWILIGHT_IC.flame)}
+      ${twilightTile('ns',e.ns,'Night sweats',TWILIGHT_IC.moon)}
+      ${twilightTile('sym.fog',sym.fog,'Brain fog',TWILIGHT_IC.cloud)}
+      ${twilightTile('sym.energy',sym.energy,'Fatigue',TWILIGHT_IC.bolt)}
+      ${twilightTile('sym.joint',sym.joint,'Joint pain',TWILIGHT_IC.heart)}
+      ${twilightTile('sym.anx',sym.anx,'Anxiety',TWILIGHT_IC.horizon)}
+    </div>
+    <section class="tw-meds"><div class="tw-label">Today's meds</div><div class="tw-medcard">${todayMedicationRows()}</div></section>
+    ${notesOpen?'<textarea class="tw-notes" maxlength="4000" data-act="num" data-k="notes" placeholder="Anything worth remembering…">'+esc(e.notes||'')+'</textarea>':''}
+    <button class="tw-quiet" data-act="notes-toggle">${notesOpen?'Done':'Add a note about today'}</button>
+  </div>`;
+}
+function viewMeds(){
+  const meds=Array.isArray(DB.medications)?DB.medications:[];
+  return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
+    <h1 class="tw-h2">Medications</h1>
+    <div class="tw-med-list">${meds.length?meds.map((m,i)=>'<div class="tw-med-card"><div class="tw-medrow static">'+(m.icon==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(m.detail)+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-i="'+i+'" aria-label="Remove '+esc(m.name)+'">×</button></div></div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
+    <button class="btn ghost block" data-act="med-add">Add a medication</button>
+    <div class="tw-label tw-labs-label">Labs</div><div class="tw-medcard"><button class="tw-empty-med" data-act="sheet" data-s="tools">Add result</button></div>
+  </div>`;
+}
+function viewReport(){
+  const dates=entryDates(), logged=dates.length, end=todayISO(), start=addDays(end,-89);
+  return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
+    <h1 class="tw-h2">Doctor report</h1><div class="tw-chips"><span>30d</span><span class="on">90d</span><span>180d</span></div>
+    <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtShort(start))} – ${esc(fmtShort(end))} · ${logged} days logged · prepared with MenoCompass</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
+    <div class="tw-observed"><span>Observed</span><p>Patterns become more useful as you log consistently and mark treatment changes.</p><small>Correlation is not causation — bring the report to your clinician.</small></div>
+    <button class="btn primary block" data-act="sheet" data-s="report">Generate report</button>
+  </div>`;
+}
+
+/* ============================================================
    RENDER + EVENTS
    ============================================================ */
 function applyTheme(){
   const t = DB.profile.theme||'auto';
-  const dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  const dark = t!=='light';
   document.documentElement.setAttribute('data-theme', dark?'dark':'light');
   const meta=document.querySelector('meta[name="theme-color"]');
   if(meta) meta.setAttribute('content', dark?'#0E1618':'#F1F4F3');
 }
-const TAB_TITLES = {today:['Today','Daily check-in'], trends:['Trends','Patterns & insights'], learn:['Learn','Evidence-based guidance'], you:['You','Profile, tools & data']};
+const TAB_TITLES = {today:['Today','Daily check-in'], trends:['Trends','Patterns & insights'], meds:['Meds','Medication tracking'], report:['Report','Doctor summary'], settings:['Settings','Profile, tools & data']};
 function topbarContent(){
   const name=safeText(DB.profile.name,80).trim();
   const hour=new Date().getHours();
@@ -1329,8 +1394,12 @@ function topbarContent(){
   }
   const copy={
     trends:['Patterns are taking shape','WHAT YOUR LOGS SHOW'],
+    meds:['Medications','TREATMENT & ADHERENCE'],
+    report:['Doctor report','YOUR CLINICIAN SUMMARY'],
+    settings:['Your compass','PROFILE, TOOLS & DATA'],
+    you:['Your compass','PROFILE, TOOLS & DATA'],
     learn:['Know what helps','EVIDENCE WITHOUT THE HYPE'],
-    you:['Your compass','PROFILE, TOOLS & DATA']
+    'today-details':['Detailed daily log','SLEEP, BODY & LIFESTYLE']
   }[curTab];
   return '<div class="top-copy"><h1>'+esc(copy[0])+'</h1><span class="sub">'+esc(copy[1])+'</span></div>';
 }
@@ -1348,7 +1417,7 @@ function render(preserveScroll){
   $('#topbar').style.display='';
   $('#topbar').innerHTML = topbarContent()
     + (curTab==='today'? '<button class="urgent-btn" data-act="sheet" data-s="redflags" aria-label="Open urgent symptom guidance">Urgent</button>':'');
-  const map = {today:viewToday, trends:viewTrends, learn:viewLearn, you:viewYou};
+  const map = {today:viewTodayCompact, trends:viewTrends, meds:viewMeds, report:viewReport, settings:viewYou, you:viewYou, learn:viewLearn, 'today-details':viewToday};
   $('#app').innerHTML = map[curTab]();
   const strip = document.querySelector('.dayscroll');
   if(strip){
@@ -1366,6 +1435,24 @@ function handleAction(el, ev){
   const e = () => entry(curDate);
   switch(a){
     case 'tab': curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
+    case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
+    case 'med-taken': {
+      const m=DB.medications[+el.dataset.i]; if(!m) return;
+      m.taken=!m.taken; m.takenAt=m.taken?new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+      save(true); render(true); return;
+    }
+    case 'med-add': {
+      const name=prompt('Medication name and dose'); if(!name||!name.trim()) return;
+      const detail=prompt('Form and schedule (for example: patch · Mon & Thu)','')||'';
+      const due=prompt('Usual time (for example: 22:00)','')||'';
+      DB.medications.push({id:'med-'+Date.now(),name:name.trim(),detail:detail.trim(),due:due.trim(),icon:/patch/i.test(detail)?'patch':'pill',taken:false,takenAt:''});
+      save(true); render(); return;
+    }
+    case 'med-remove': {
+      const i=+el.dataset.i; if(!DB.medications[i]) return;
+      if(confirm('Remove '+DB.medications[i].name+'?')){ DB.medications.splice(i,1); save(true); render(); }
+      return;
+    }
     case 'day': curDate = el.dataset.d; render(); return;
     case 'range': trendRange = +el.dataset.v; render(); return;
     case 'hf': {

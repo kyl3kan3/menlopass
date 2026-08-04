@@ -1003,6 +1003,68 @@ html[data-theme="dark"] .dayscroll button[aria-pressed="true"]{color:var(--text)
   h1{font-size:29px}
 }
 
+/* ============================================================
+   Supplied Twilight reference — primary mobile shell
+   ============================================================ */
+:root{
+  --bg:#0E1618;--surface:#16232A;--surface-2:#16232A;--surface-3:#1b2b31;
+  --border:#26383E;--border-strong:#334950;--text:#E9F1EE;--text-2:#93A8A8;
+  --text-3:#5C7176;--accent:#E8A552;--accent-text:#E8A552;--ok:#6FB79A;
+  --alert:#E0755F;--button-bg:#E9F1EE;--button-label:#0E1618;--maxw:384px;--nav-h:82px;
+  --r:10px;--r-sm:10px;--shadow:none;
+}
+html[data-theme="dark"]{
+  --bg:#0E1618;--surface:#16232A;--surface-2:#16232A;--surface-3:#1b2b31;
+  --border:#26383E;--border-strong:#334950;--text:#E9F1EE;--text-2:#93A8A8;
+  --text-3:#5C7176;--accent:#E8A552;--accent-text:#E8A552;--ok:#6FB79A;
+  --alert:#E0755F;--button-bg:#E9F1EE;--button-label:#0E1618;
+}
+body{background:#080D0E;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#topbar{display:none!important}
+#app{min-height:calc(100dvh - var(--nav-h));padding:0 0 var(--nav-h);background:var(--bg)}
+.tw-screen{padding:18px 20px 16px;animation:none;color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.tw-status{display:flex;justify-content:space-between;padding:6px 6px 0;font-size:12px;font-weight:600}
+.tw-status span:last-child{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:var(--text-2);letter-spacing:.02em}
+.tw-heading{margin-top:14px}
+.tw-heading h1{margin:0;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:29px;line-height:1.16;letter-spacing:-.02em;font-weight:700;white-space:nowrap}
+.tw-heading p{margin:4px 0 0;color:var(--text-2);font-size:14px;line-height:1.45}
+.tw-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.tw-tile{position:relative;min-height:64px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);display:flex;flex-direction:column;gap:9px}
+.tw-tile.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 16px -4px var(--accent)}
+.tw-tile-top{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:500;white-space:nowrap}
+.tw-tile-top svg,.tw-medrow>svg{width:18px;height:18px;stroke:var(--text-2);fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.tw-tile.sel .tw-tile-top svg{stroke:var(--ok)}
+.tw-dots{display:flex;gap:8px}
+.tw-dot{width:12px;height:12px;min-width:12px;padding:0;border-radius:50%;border:1.5px solid var(--accent);background:transparent}
+.tw-dot.f1{background:color-mix(in srgb,var(--accent) 30%,transparent);border-color:transparent}
+.tw-dot.f2{background:color-mix(in srgb,var(--accent) 60%,transparent);border-color:transparent}
+.tw-dot.f3{background:var(--accent);border-color:transparent}
+.tw-dot.on{transform:scale(1.28)}
+.tw-meds{margin-top:15px}.tw-label{margin-bottom:8px;color:var(--text-2);font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+.tw-medcard,.tw-med-card{padding:2px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.tw-medrow{width:100%;min-height:59px;display:flex;align-items:center;gap:12px;padding:10px 2px;border:0;border-bottom:1px solid var(--border);background:none;color:var(--text);text-align:left}
+.tw-medrow:last-child{border-bottom:0}.tw-medrow.static{cursor:default}
+.tw-grow{flex:1;min-width:0;display:flex;flex-direction:column}.tw-grow b{font-size:17px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tw-grow small{color:var(--text-2);font-size:14px}
+.tw-due{font:14px ui-monospace,"SF Mono",Menlo,monospace;color:var(--text-2);white-space:nowrap}.tw-due.ok{color:var(--ok)}
+.tw-empty-med{width:100%;padding:16px 2px;border:0;background:none;color:var(--accent);font-weight:600;text-align:center}
+.tw-quiet{display:block;margin:12px auto 0;padding:4px 10px;border:0;background:none;color:var(--accent);font-size:14px;font-weight:600}
+.tw-notes{min-height:64px;margin-top:12px;background:var(--surface);border-color:var(--border);font-size:14px}
+nav.tabs{background:var(--surface);border-color:var(--border);backdrop-filter:none;-webkit-backdrop-filter:none}
+nav.tabs .inner{max-width:384px}
+nav.tabs button{height:var(--nav-h);padding:10px 2px 20px;gap:5px;color:var(--text-3);font-size:10px;font-weight:600;position:relative}
+nav.tabs button svg{width:22px;height:22px;stroke-width:1.75}
+nav.tabs button[aria-current="page"]{color:var(--text)}
+nav.tabs button[aria-current="page"]::after{content:"";position:absolute;bottom:12px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.tw-secondary{display:flex;flex-direction:column;gap:15px;min-height:calc(100dvh - var(--nav-h))}
+.tw-h2{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:21px;font-weight:600;margin:0}
+.tw-med-list{display:flex;flex-direction:column;gap:15px}.tw-med-card{padding:14px}.tw-med-card .tw-medrow{padding:0}.tw-med-card.tw-empty{display:flex;flex-direction:column;gap:4px;color:var(--text-2)}
+.tw-remove{border:0;background:none;color:var(--text-2);font-size:24px}.tw-labs-label{margin:4px 0 -7px}
+.tw-chips{display:flex;gap:8px}.tw-chips span{height:32px;padding:0 14px;display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;color:var(--text-2);font-size:13px;font-weight:600}.tw-chips .on{border-color:var(--accent);color:var(--accent)}
+.tw-pagewrap{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.tw-doc{padding:15px;border:1px solid #E3DDD2;border-radius:3px;background:#FFFDF9;color:#1B2A28;font-size:10px;line-height:1.45}.tw-doc h2{margin:0 0 2px;font-size:14px}.tw-doc p{margin:0 0 9px;color:#6E675C}.tw-doc-rule{height:74px;margin:8px 0;background:repeating-linear-gradient(to bottom,transparent 0 17px,#E3DDD2 18px)}
+.tw-observed{padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}.tw-observed>span{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.tw-observed p{margin:4px 0 6px;font-size:16px;line-height:1.5}.tw-observed small{color:var(--text-2)}
+@media (min-width:600px){.tw-screen{padding:18px 20px 16px}}
+
 </style>
 </head>
 <body>
@@ -2307,7 +2369,7 @@ const Store = (() => {
 })();
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 2;
+const SCHEMA_V = 3;
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -2315,9 +2377,9 @@ function blankDB(){
       name:'', birthYear:null, region:'us', units:'imperial',
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
-      theme:'auto', stage:null, stageAnswers:null, onboarded:false
+      theme:'dark', stage:null, stageAnswers:null, onboarded:false
     },
-    entries:{}, screening:{}, scores:[], trigger:null,
+    entries:{}, medications:[], screening:{}, scores:[], trigger:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
   };
 }
@@ -2387,6 +2449,9 @@ function migrate(d){
     out.scores=d.scores.map(safeScore).filter(score=>score&&(!birthDate||score.date>=birthDate))
       .sort((a,b)=>a.date.localeCompare(b.date)).slice(-500);
   }
+  if(Array.isArray(d.medications)){
+    out.medications=d.medications.map(safeMedication).filter(Boolean).slice(0,50);
+  }
   out.trigger=safeTrigger(d.trigger);
   if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
   const meta=plainRecord(d.meta)?d.meta:{};
@@ -2442,6 +2507,20 @@ function safeEntry(raw){
   }
   const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
   return out;
+}
+function safeMedication(raw){
+  if(!plainRecord(raw)) return null;
+  const name=safeText(raw.name,80).trim();
+  if(!name) return null;
+  return {
+    id:safeText(raw.id,40)||('med-'+Math.random().toString(36).slice(2,10)),
+    name,
+    detail:safeText(raw.detail,100),
+    due:safeText(raw.due,20),
+    icon:safeEnum(raw.icon,['patch','pill'],'pill'),
+    taken:raw.taken===true,
+    takenAt:safeText(raw.takenAt,20)
+  };
 }
 function safeScore(raw){
   if(!plainRecord(raw)) return null;
@@ -2984,6 +3063,9 @@ const IC = {
   /* Exact icon assets from the selected Twilight reference. */
   today:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
   trends:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
+  meds:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>',
+  report:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
+  settings:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
   learn:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
   you:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
   chev:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'
@@ -3326,6 +3408,8 @@ function viewYou(){
   const pt = proteinTarget();
   const dates = entryDates();
   return `<div class="view">
+    <button class="btn ghost block settings-learn" data-act="tab" data-v="learn">Evidence guide</button>
+    <button class="btn ghost block settings-learn" data-act="tab" data-v="today-details">Detailed daily log</button>
     <div class="card">
       <div class="card-head"><h3>${p.name?esc(p.name):'Your profile'}</h3>
         ${age?'<span class="badge">'+age+'</span>':''}</div>
@@ -4286,16 +4370,76 @@ function viewOnboard(){
 }
 
 /* ============================================================
+   TWILIGHT PRIMARY SCREENS
+   These are deliberately shaped to the supplied 384 x 772 reference.
+   ============================================================ */
+let notesOpen=false;
+function twilightDots(path,value,label){
+  const current=Math.max(0,Math.min(3,Number(value)||0));
+  return '<div class="tw-dots" role="group" aria-label="'+esc(label)+'">'
+    +[0,1,2,3].map(i=>h('button',{class:'tw-dot f'+i+(current===i?' on':''),'data-act':'set','data-k':path,'data-v':i,'aria-label':label+': '+i,'aria-pressed':current===i?'true':'false'},'')).join('')+'</div>';
+}
+function twilightTile(path,value,label,icon){
+  const v=Math.max(0,Math.min(3,Number(value)||0));
+  return '<div class="tw-tile'+(v>0?' sel':'')+'"><div class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span></div>'+twilightDots(path,v,label)+'</div>';
+}
+function todayMedicationRows(){
+  const meds=Array.isArray(DB.medications)?DB.medications:[];
+  if(!meds.length) return '<button class="tw-empty-med" data-act="tab" data-v="meds">Add your medications</button>';
+  return meds.map((m,i)=>'<button class="tw-medrow" data-act="med-taken" data-i="'+i+'">'
+    +(m.icon==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill)
+    +'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(m.detail||'Medication')+'</small></span>'
+    +'<span class="tw-due'+(m.taken?' ok':'')+'">'+(m.taken?'✓ '+esc(m.takenAt||'taken'):esc(m.due||'Due'))+'</span></button>').join('');
+}
+function viewTodayCompact(){
+  const e=DB.entries[curDate]||{sym:{},act:{},nut:{}}, sym=e.sym||{};
+  const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  return `<div class="view tw-screen tw-today">
+    <div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
+    <div class="tw-heading"><h1>${esc(selected)}</h1><p>${curDate===todayISO()?'Prefilled from yesterday — tap anything that changed.':'Editing '+esc(fmtLong(curDate))+'.'}</p></div>
+    <div class="tw-grid">
+      ${twilightTile('hf',e.hf,'Hot flashes',TWILIGHT_IC.flame)}
+      ${twilightTile('ns',e.ns,'Night sweats',TWILIGHT_IC.moon)}
+      ${twilightTile('sym.fog',sym.fog,'Brain fog',TWILIGHT_IC.cloud)}
+      ${twilightTile('sym.energy',sym.energy,'Fatigue',TWILIGHT_IC.bolt)}
+      ${twilightTile('sym.joint',sym.joint,'Joint pain',TWILIGHT_IC.heart)}
+      ${twilightTile('sym.anx',sym.anx,'Anxiety',TWILIGHT_IC.horizon)}
+    </div>
+    <section class="tw-meds"><div class="tw-label">Today's meds</div><div class="tw-medcard">${todayMedicationRows()}</div></section>
+    ${notesOpen?'<textarea class="tw-notes" maxlength="4000" data-act="num" data-k="notes" placeholder="Anything worth remembering…">'+esc(e.notes||'')+'</textarea>':''}
+    <button class="tw-quiet" data-act="notes-toggle">${notesOpen?'Done':'Add a note about today'}</button>
+  </div>`;
+}
+function viewMeds(){
+  const meds=Array.isArray(DB.medications)?DB.medications:[];
+  return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
+    <h1 class="tw-h2">Medications</h1>
+    <div class="tw-med-list">${meds.length?meds.map((m,i)=>'<div class="tw-med-card"><div class="tw-medrow static">'+(m.icon==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(m.detail)+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-i="'+i+'" aria-label="Remove '+esc(m.name)+'">×</button></div></div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
+    <button class="btn ghost block" data-act="med-add">Add a medication</button>
+    <div class="tw-label tw-labs-label">Labs</div><div class="tw-medcard"><button class="tw-empty-med" data-act="sheet" data-s="tools">Add result</button></div>
+  </div>`;
+}
+function viewReport(){
+  const dates=entryDates(), logged=dates.length, end=todayISO(), start=addDays(end,-89);
+  return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
+    <h1 class="tw-h2">Doctor report</h1><div class="tw-chips"><span>30d</span><span class="on">90d</span><span>180d</span></div>
+    <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtShort(start))} – ${esc(fmtShort(end))} · ${logged} days logged · prepared with MenoCompass</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
+    <div class="tw-observed"><span>Observed</span><p>Patterns become more useful as you log consistently and mark treatment changes.</p><small>Correlation is not causation — bring the report to your clinician.</small></div>
+    <button class="btn primary block" data-act="sheet" data-s="report">Generate report</button>
+  </div>`;
+}
+
+/* ============================================================
    RENDER + EVENTS
    ============================================================ */
 function applyTheme(){
   const t = DB.profile.theme||'auto';
-  const dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  const dark = t!=='light';
   document.documentElement.setAttribute('data-theme', dark?'dark':'light');
   const meta=document.querySelector('meta[name="theme-color"]');
   if(meta) meta.setAttribute('content', dark?'#0E1618':'#F1F4F3');
 }
-const TAB_TITLES = {today:['Today','Daily check-in'], trends:['Trends','Patterns & insights'], learn:['Learn','Evidence-based guidance'], you:['You','Profile, tools & data']};
+const TAB_TITLES = {today:['Today','Daily check-in'], trends:['Trends','Patterns & insights'], meds:['Meds','Medication tracking'], report:['Report','Doctor summary'], settings:['Settings','Profile, tools & data']};
 function topbarContent(){
   const name=safeText(DB.profile.name,80).trim();
   const hour=new Date().getHours();
@@ -4307,8 +4451,12 @@ function topbarContent(){
   }
   const copy={
     trends:['Patterns are taking shape','WHAT YOUR LOGS SHOW'],
+    meds:['Medications','TREATMENT & ADHERENCE'],
+    report:['Doctor report','YOUR CLINICIAN SUMMARY'],
+    settings:['Your compass','PROFILE, TOOLS & DATA'],
+    you:['Your compass','PROFILE, TOOLS & DATA'],
     learn:['Know what helps','EVIDENCE WITHOUT THE HYPE'],
-    you:['Your compass','PROFILE, TOOLS & DATA']
+    'today-details':['Detailed daily log','SLEEP, BODY & LIFESTYLE']
   }[curTab];
   return '<div class="top-copy"><h1>'+esc(copy[0])+'</h1><span class="sub">'+esc(copy[1])+'</span></div>';
 }
@@ -4326,7 +4474,7 @@ function render(preserveScroll){
   $('#topbar').style.display='';
   $('#topbar').innerHTML = topbarContent()
     + (curTab==='today'? '<button class="urgent-btn" data-act="sheet" data-s="redflags" aria-label="Open urgent symptom guidance">Urgent</button>':'');
-  const map = {today:viewToday, trends:viewTrends, learn:viewLearn, you:viewYou};
+  const map = {today:viewTodayCompact, trends:viewTrends, meds:viewMeds, report:viewReport, settings:viewYou, you:viewYou, learn:viewLearn, 'today-details':viewToday};
   $('#app').innerHTML = map[curTab]();
   const strip = document.querySelector('.dayscroll');
   if(strip){
@@ -4344,6 +4492,24 @@ function handleAction(el, ev){
   const e = () => entry(curDate);
   switch(a){
     case 'tab': curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
+    case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
+    case 'med-taken': {
+      const m=DB.medications[+el.dataset.i]; if(!m) return;
+      m.taken=!m.taken; m.takenAt=m.taken?new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+      save(true); render(true); return;
+    }
+    case 'med-add': {
+      const name=prompt('Medication name and dose'); if(!name||!name.trim()) return;
+      const detail=prompt('Form and schedule (for example: patch · Mon & Thu)','')||'';
+      const due=prompt('Usual time (for example: 22:00)','')||'';
+      DB.medications.push({id:'med-'+Date.now(),name:name.trim(),detail:detail.trim(),due:due.trim(),icon:/patch/i.test(detail)?'patch':'pill',taken:false,takenAt:''});
+      save(true); render(); return;
+    }
+    case 'med-remove': {
+      const i=+el.dataset.i; if(!DB.medications[i]) return;
+      if(confirm('Remove '+DB.medications[i].name+'?')){ DB.medications.splice(i,1); save(true); render(); }
+      return;
+    }
     case 'day': curDate = el.dataset.d; render(); return;
     case 'range': trendRange = +el.dataset.v; render(); return;
     case 'hf': {
