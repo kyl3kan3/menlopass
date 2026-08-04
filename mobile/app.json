@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "MenoCompass",
+    "slug": "menlopass",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "menlopass",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kyl3kan3.menlopass"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0E1618",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.kyl3kan3.menlopass"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e7a9bddc-4193-41a0-81f6-b7c74b59aece"
+      }
+    },
+    "owner": "kyl3kan3"
+  }
+}

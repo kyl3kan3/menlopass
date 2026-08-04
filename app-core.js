@@ -31,7 +31,7 @@ const Store = (() => {
 })();
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 3;
+const SCHEMA_V = 4;
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -41,7 +41,7 @@ function blankDB(){
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
       theme:'dark', stage:null, stageAnswers:null, onboarded:false
     },
-    entries:{}, medications:[], screening:{}, scores:[], trigger:null,
+    entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
   };
 }
@@ -113,6 +113,15 @@ function migrate(d){
   }
   if(Array.isArray(d.medications)){
     out.medications=d.medications.map(safeMedication).filter(Boolean).slice(0,50);
+    d.medications.forEach(raw=>{
+      if(!plainRecord(raw)||raw.taken!==true) return;
+      const med=safeMedication(raw); if(!med) return;
+      const day=out.entries[todayISO()]||(out.entries[todayISO()]={sym:{},act:{},nut:{}});
+      day.med=day.med||{}; day.med[med.id]={taken:true,at:safeText(raw.takenAt,20)};
+    });
+  }
+  if(Array.isArray(d.labs)){
+    out.labs=d.labs.map(safeLab).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,200);
   }
   out.trigger=safeTrigger(d.trigger);
   if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
@@ -168,21 +177,48 @@ function safeEntry(raw){
     ['alc','caf'].forEach(k=>{ const n=safeInteger(raw.nut[k],0,50); if(n!=null) out.nut[k]=n; });
   }
   const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
+  const prefilled=safePastDate(raw.prefilledFrom); if(prefilled) out.prefilledFrom=prefilled;
+  if(plainRecord(raw.med)){
+    out.med={};
+    Object.keys(raw.med).slice(0,50).forEach(id=>{
+      if(!/^[A-Za-z0-9_-]{1,40}$/.test(id) || !plainRecord(raw.med[id])) return;
+      const rec=raw.med[id], taken=rec.taken===true, at=safeText(rec.at,20);
+      if(taken) out.med[id]={taken:true,at};
+    });
+    if(!Object.keys(out.med).length) delete out.med;
+  }
   return out;
 }
 function safeMedication(raw){
   if(!plainRecord(raw)) return null;
   const name=safeText(raw.name,80).trim();
   if(!name) return null;
+  const rawId=safeText(raw.id,40), id=/^[A-Za-z0-9_-]{1,40}$/.test(rawId)?rawId:'med-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30);
+  const days=Array.isArray(raw.days)?[...new Set(raw.days.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6))].sort():[];
   return {
-    id:safeText(raw.id,40)||('med-'+Math.random().toString(36).slice(2,10)),
+    id,
     name,
-    detail:safeText(raw.detail,100),
+    form:safeEnum(raw.form,['patch','tablet','capsule','gel','spray','cream','other'],raw.icon==='patch'?'patch':'tablet'),
+    days:days.length?days:[0,1,2,3,4,5,6],
     due:safeText(raw.due,20),
-    icon:safeEnum(raw.icon,['patch','pill'],'pill'),
-    taken:raw.taken===true,
-    takenAt:safeText(raw.takenAt,20)
+    notes:safeText(raw.notes||raw.detail,120)
   };
+}
+function safeLab(raw){
+  if(!plainRecord(raw)) return null;
+  const name=safeText(raw.name,80).trim(), value=safeText(raw.value,40).trim(), date=safePastDate(raw.date);
+  if(!name||!value||!date) return null;
+  return {id:safeText(raw.id,40)||'lab-'+date+'-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20),name,value,date,unit:safeText(raw.unit,30)};
+}
+function prefillTodayFromYesterday(){
+  const t=todayISO(), y=addDays(t,-1);
+  if(DB.entries[t] || !DB.entries[y]) return false;
+  const prev=DB.entries[y], next={sym:{},act:{},nut:{},prefilledFrom:y};
+  if(prev.hf!=null) next.hf=Math.min(3,prev.hf);
+  if(prev.ns!=null) next.ns=Math.min(3,prev.ns);
+  ['fog','energy','joint','anx'].forEach(k=>{ if(prev.sym&&prev.sym[k]!=null) next.sym[k]=Math.min(3,prev.sym[k]); });
+  DB.entries[t]=next;
+  return true;
 }
 function safeScore(raw){
   if(!plainRecord(raw)) return null;

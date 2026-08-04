@@ -237,7 +237,7 @@ function viewTrends(){
   const days = rangeDates(trendRange);
   const dates = entryDates();
   if(!dates.length){
-    return `<div class="view"><div class="empty">
+    return `<div class="view tw-screen"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div><h1 class="tw-h2">Trends</h1><div class="empty">
       ${IC.trends}
       <h3>Nothing to chart yet</h3>
       <p class="tiny">Fill in a check-in on the Today tab. Most patterns need about two weeks before they mean anything.</p>
@@ -260,7 +260,7 @@ function viewTrends(){
 
   const ins = insights();
 
-  return `<div class="view">
+  return `<div class="view tw-screen"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div><h1 class="tw-h2">Trends</h1>
     <div class="seg" role="group" aria-label="Time range">
       ${[7,30,90].map(n=>h('button',{'data-act':'range','data-v':n,'aria-pressed':trendRange===n?'true':'false'}, n+' days')).join('')}
     </div>
@@ -350,7 +350,7 @@ function viewYou(){
   const age = p.birthYear? (new Date().getFullYear()-p.birthYear) : null;
   const pt = proteinTarget();
   const dates = entryDates();
-  return `<div class="view">
+  return `<div class="view tw-screen"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div><h1 class="tw-h2">Settings</h1>
     <button class="btn ghost block settings-learn" data-act="tab" data-v="learn">Evidence guide</button>
     <button class="btn ghost block settings-learn" data-act="tab" data-v="today-details">Detailed daily log</button>
     <div class="card">
@@ -854,7 +854,9 @@ function reportSheet(){
   const topSym = SYMS.filter(s=>s.k!=='sleepq').map(s=>({
     n:s.n, v:avg(rangeDates(30).map(dd=>{const e=DB.entries[dd];return e&&e.sym?e.sym[s.k]:null;}))
   })).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,6);
-  const meds = DB.scores.slice(-6).reverse();
+  const questionnaires = DB.scores.slice(-6).reverse();
+  const medications = Array.isArray(DB.medications)?DB.medications:[];
+  const labs = Array.isArray(DB.labs)?DB.labs.slice(0,8):[];
   const bleeds = entryDates().filter(x=>DB.entries[x].bleed && DB.entries[x].bleed!=='none');
   const hfValues=hf.map(x=>x.v).filter(v=>v!=null);
   const nsValues=rangeDates(30).map(x=>DB.entries[x]&&DB.entries[x].ns).filter(v=>v!=null);
@@ -891,8 +893,10 @@ function reportSheet(){
   </div>
   ${topSym.length?`<div class="card"><h4>Most prominent symptoms (30-day average, 0–4)</h4>
     ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
-  ${meds.length?`<div class="card"><h4>Questionnaire scores</h4>
-    ${meds.map(s=>`<div class="kv"><span>${s.type.toUpperCase()} · ${fmtDay(s.date)}</span><b>${s.score}${s.band?' — '+esc(s.band):''}</b></div>`).join('')}
+  ${medications.length?`<div class="card"><h4>Current medications</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.due?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
+  ${labs.length?`<div class="card"><h4>Recent lab results</h4>${labs.map(x=>`<div class="kv"><span>${esc(x.name)} · ${fmtDay(x.date)}</span><b>${esc(x.value+(x.unit?' '+x.unit:''))}</b></div>`).join('')}</div>`:''}
+  ${questionnaires.length?`<div class="card"><h4>Questionnaire scores</h4>
+    ${questionnaires.map(s=>`<div class="kv"><span>${s.type.toUpperCase()} · ${fmtDay(s.date)}</span><b>${s.score}${s.band?' — '+esc(s.band):''}</b></div>`).join('')}
     <p class="xtiny">Note: several menopause symptoms — broken sleep, fatigue, poor concentration, low libido — also score points on depression scales, which can inflate totals.</p></div>`:''}
   ${bleeds.length?`<div class="card"><h4>Bleeding logged</h4>
     ${bleeds.slice(-8).reverse().map(x=>`<div class="kv"><span>${fmtDay(x)}</span><b>${esc(DB.entries[x].bleed)}</b></div>`).join('')}</div>`:''}
@@ -1316,7 +1320,9 @@ function viewOnboard(){
    TWILIGHT PRIMARY SCREENS
    These are deliberately shaped to the supplied 384 x 772 reference.
    ============================================================ */
-let notesOpen=false;
+let notesOpen=false, medFormOpen=false, labFormOpen=false;
+let medDaysDraft=[0,1,2,3,4,5,6];
+const DAY_SHORT=['S','M','T','W','T','F','S'];
 function twilightDots(path,value,label){
   const current=Math.max(0,Math.min(3,Number(value)||0));
   return '<div class="tw-dots" role="group" aria-label="'+esc(label)+'">'
@@ -1326,20 +1332,30 @@ function twilightTile(path,value,label,icon){
   const v=Math.max(0,Math.min(3,Number(value)||0));
   return '<div class="tw-tile'+(v>0?' sel':'')+'"><div class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span></div>'+twilightDots(path,v,label)+'</div>';
 }
+function medicationDetail(m){
+  const days=m.days||[0,1,2,3,4,5,6];
+  const schedule=days.length===7?'daily':days.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(' & ');
+  return (m.form||'medication')+' · '+schedule;
+}
+function medicationIcon(m){ return m.form==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill; }
+function scheduledMeds(date){
+  const dow=parseISO(date).getDay();
+  return (Array.isArray(DB.medications)?DB.medications:[]).filter(m=>(m.days||[0,1,2,3,4,5,6]).includes(dow));
+}
 function todayMedicationRows(){
-  const meds=Array.isArray(DB.medications)?DB.medications:[];
+  const meds=Array.isArray(DB.medications)?DB.medications:[], day=DB.entries[curDate]||{}, adherence=day.med||{};
   if(!meds.length) return '<button class="tw-empty-med" data-act="tab" data-v="meds">Add your medications</button>';
-  return meds.map((m,i)=>'<button class="tw-medrow" data-act="med-taken" data-i="'+i+'">'
-    +(m.icon==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill)
-    +'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(m.detail||'Medication')+'</small></span>'
-    +'<span class="tw-due'+(m.taken?' ok':'')+'">'+(m.taken?'✓ '+esc(m.takenAt||'taken'):esc(m.due||'Due'))+'</span></button>').join('');
+  return meds.map(m=>{const rec=adherence[m.id]||{};return '<button class="tw-medrow" data-act="med-taken" data-id="'+esc(m.id)+'">'
+    +medicationIcon(m)
+    +'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+'</small></span>'
+    +'<span class="tw-due'+(rec.taken?' ok':'')+'">'+(rec.taken?'✓ '+esc(rec.at||'taken'):esc(m.due||'Due'))+'</span></button>';}).join('');
 }
 function viewTodayCompact(){
   const e=DB.entries[curDate]||{sym:{},act:{},nut:{}}, sym=e.sym||{};
   const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   return `<div class="view tw-screen tw-today">
     <div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
-    <div class="tw-heading"><h1>${esc(selected)}</h1><p>${curDate===todayISO()?'Prefilled from yesterday — tap anything that changed.':'Editing '+esc(fmtLong(curDate))+'.'}</p></div>
+    <div class="tw-heading"><h1>${esc(selected)}</h1><p>${curDate===todayISO()?(e.prefilledFrom?'Prefilled from yesterday — tap anything that changed.':'Tap anything that changed today.'):'Editing '+esc(fmtLong(curDate))+'.'}</p></div>
     <div class="tw-grid">
       ${twilightTile('hf',e.hf,'Hot flashes',TWILIGHT_IC.flame)}
       ${twilightTile('ns',e.ns,'Night sweats',TWILIGHT_IC.moon)}
@@ -1353,20 +1369,40 @@ function viewTodayCompact(){
     <button class="tw-quiet" data-act="notes-toggle">${notesOpen?'Done':'Add a note about today'}</button>
   </div>`;
 }
+function adherenceDots(m){
+  return '<div class="wk" aria-label="Last seven scheduled doses">'+rangeDates(7).map(d=>{
+    if(!(m.days||[]).includes(parseISO(d).getDay())) return '<i></i>';
+    const rec=DB.entries[d]&&DB.entries[d].med&&DB.entries[d].med[m.id];
+    return '<i class="'+(rec&&rec.taken?'t':'s')+'"></i>';
+  }).join('')+'</div>';
+}
+function medicationForm(){
+  return `<div class="tw-form-card" aria-label="Add medication">
+    <label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Estradot 50µg">
+    <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form"><option>patch</option><option>tablet</option><option>capsule</option><option>gel</option><option>spray</option><option>cream</option><option>other</option></select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time"></div></div>
+    <label class="fl">Scheduled days</label><div class="tw-day-picks">${DAY_SHORT.map((d,i)=>h('button',{class:'chip','data-act':'med-day','data-v':i,'aria-pressed':medDaysDraft.includes(i)?'true':'false','aria-label':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]},d)).join('')}</div>
+    <label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions">
+    <div class="btn-row split"><button class="btn primary" data-act="med-save">Save medication</button><button class="btn ghost" data-act="med-cancel">Cancel</button></div>
+  </div>`;
+}
+function labForm(){
+  return `<div class="tw-form-card" aria-label="Add lab result"><div class="grid2"><div><label class="fl" for="lab-name">Test</label><input id="lab-name" type="text" maxlength="80" placeholder="Estradiol"></div><div><label class="fl" for="lab-date">Date</label><input id="lab-date" type="date" max="${todayISO()}" value="${todayISO()}"></div></div><div class="grid2"><div><label class="fl" for="lab-value">Result</label><input id="lab-value" type="text" maxlength="40" placeholder="312"></div><div><label class="fl" for="lab-unit">Unit</label><input id="lab-unit" type="text" maxlength="30" placeholder="pmol/L"></div></div><div class="btn-row split"><button class="btn primary" data-act="lab-save">Save result</button><button class="btn ghost" data-act="lab-cancel">Cancel</button></div></div>`;
+}
 function viewMeds(){
-  const meds=Array.isArray(DB.medications)?DB.medications:[];
+  const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[];
   return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
     <h1 class="tw-h2">Medications</h1>
-    <div class="tw-med-list">${meds.length?meds.map((m,i)=>'<div class="tw-med-card"><div class="tw-medrow static">'+(m.icon==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(m.detail)+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-i="'+i+'" aria-label="Remove '+esc(m.name)+'">×</button></div></div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
-    <button class="btn ghost block" data-act="med-add">Add a medication</button>
-    <div class="tw-label tw-labs-label">Labs</div><div class="tw-medcard"><button class="tw-empty-med" data-act="sheet" data-s="tools">Add result</button></div>
+    <div class="tw-med-list">${meds.length?meds.map((m,i)=>'<div class="tw-med-card"><div class="tw-medrow static">'+medicationIcon(m)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-i="'+i+'" aria-label="Remove '+esc(m.name)+'">×</button></div>'+adherenceDots(m)+'</div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
+    ${medFormOpen?medicationForm():'<button class="btn ghost block" data-act="med-add">Add a medication</button>'}
+    <div class="tw-label tw-labs-label">Labs</div><div class="tw-medcard">${labs.length?labs.slice(0,6).map((x,i)=>'<div class="tw-medrow static">'+TWILIGHT_IC.lab+'<span class="tw-grow"><b>'+esc(x.name)+'</b><small>'+esc(fmtDay(x.date))+'</small></span><span class="tw-due">'+esc(x.value+(x.unit?' '+x.unit:''))+'</span><button class="tw-remove" data-act="lab-remove" data-i="'+i+'" aria-label="Remove '+esc(x.name)+'">×</button></div>').join(''):'<div class="tw-empty-med">No lab results yet</div>'}</div>
+    ${labFormOpen?labForm():'<button class="tw-quiet" data-act="lab-add">Add result</button>'}
   </div>`;
 }
 function viewReport(){
   const dates=entryDates(), logged=dates.length, end=todayISO(), start=addDays(end,-89);
   return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
     <h1 class="tw-h2">Doctor report</h1><div class="tw-chips"><span>30d</span><span class="on">90d</span><span>180d</span></div>
-    <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtShort(start))} – ${esc(fmtShort(end))} · ${logged} days logged · prepared with MenoCompass</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
+    <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtDay(start))} – ${esc(fmtDay(end))} · ${logged} days logged · prepared with MenoCompass</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
     <div class="tw-observed"><span>Observed</span><p>Patterns become more useful as you log consistently and mark treatment changes.</p><small>Correlation is not causation — bring the report to your clinician.</small></div>
     <button class="btn primary block" data-act="sheet" data-s="report">Generate report</button>
   </div>`;
@@ -1437,20 +1473,40 @@ function handleAction(el, ev){
     case 'tab': curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
     case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
     case 'med-taken': {
-      const m=DB.medications[+el.dataset.i]; if(!m) return;
-      m.taken=!m.taken; m.takenAt=m.taken?new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+      const m=DB.medications.find(x=>x.id===el.dataset.id); if(!m) return;
+      const day=e(), records=day.med||(day.med={}), current=records[m.id];
+      if(current&&current.taken) delete records[m.id];
+      else records[m.id]={taken:true,at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
       save(true); render(true); return;
     }
-    case 'med-add': {
-      const name=prompt('Medication name and dose'); if(!name||!name.trim()) return;
-      const detail=prompt('Form and schedule (for example: patch · Mon & Thu)','')||'';
-      const due=prompt('Usual time (for example: 22:00)','')||'';
-      DB.medications.push({id:'med-'+Date.now(),name:name.trim(),detail:detail.trim(),due:due.trim(),icon:/patch/i.test(detail)?'patch':'pill',taken:false,takenAt:''});
-      save(true); render(); return;
+    case 'med-add': medFormOpen=true; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
+    case 'med-cancel': medFormOpen=false; render(true); return;
+    case 'med-day': {
+      const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort(); render(true); return;
+    }
+    case 'med-save': {
+      const name=document.getElementById('med-name'), form=document.getElementById('med-form'), due=document.getElementById('med-due'), notes=document.getElementById('med-notes');
+      if(!name||!name.value.trim()){ toast('Enter the medication and dose'); name&&name.focus(); return; }
+      if(!medDaysDraft.length){ toast('Choose at least one scheduled day'); return; }
+      let id='med-'+Date.now().toString(36); while(DB.medications.some(m=>m.id===id)) id+='x';
+      DB.medications.push({id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim()});
+      medFormOpen=false; save(true); render(); toast('Medication added'); return;
     }
     case 'med-remove': {
       const i=+el.dataset.i; if(!DB.medications[i]) return;
       if(confirm('Remove '+DB.medications[i].name+'?')){ DB.medications.splice(i,1); save(true); render(); }
+      return;
+    }
+    case 'lab-add': labFormOpen=true; render(true); return;
+    case 'lab-cancel': labFormOpen=false; render(true); return;
+    case 'lab-save': {
+      const name=document.getElementById('lab-name'), date=document.getElementById('lab-date'), value=document.getElementById('lab-value'), unit=document.getElementById('lab-unit');
+      if(!name.value.trim()||!value.value.trim()||!pastOrTodayISO(date.value)){ toast('Enter a test, date, and result'); return; }
+      DB.labs.unshift({id:'lab-'+Date.now().toString(36),name:name.value.trim(),date:date.value,value:value.value.trim(),unit:unit.value.trim()});
+      labFormOpen=false; save(true); render(); toast('Lab result added'); return;
+    }
+    case 'lab-remove': {
+      const i=+el.dataset.i; if(DB.labs[i]&&confirm('Remove '+DB.labs[i].name+' result?')){ DB.labs.splice(i,1); save(true); render(); }
       return;
     }
     case 'day': curDate = el.dataset.d; render(); return;
@@ -1713,6 +1769,7 @@ function download(name, text, mime){
 /* ---------- boot ---------- */
 function boot(){
   load();
+  if(prefillTodayFromYesterday()) save(true);
   document.body.insertAdjacentHTML('afterbegin',
     '<header class="topbar" id="topbar"></header><main id="app"></main>'
     + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="inner">'

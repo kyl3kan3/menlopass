@@ -1,7 +1,7 @@
 # Meno Compass
 
-A private, offline-capable PWA for women in perimenopause and beyond. Tracker first, with an
-evidence-graded reference library behind it.
+A private, offline-capable PWA and Expo app for women in perimenopause and beyond. Tracker first,
+with an evidence-graded reference library behind it.
 
 - **No account, backend, database, analytics, or third-party runtime requests.** Data lives in
   the browser's local storage on the user's device.
@@ -32,6 +32,7 @@ build.py                   recreates the deployable dist/ directory
 test.js                    Playwright end-to-end suite
 package.json               pinned tooling and repeatable commands
 vercel.json                Vercel build/output and security headers
+mobile/                    Expo SDK 57 package for Android, iOS, and web export
 
 dist/                      generated; deploy this directory, do not edit it
   index.html               CSS and JavaScript inlined in dependency order
@@ -49,6 +50,9 @@ Install the pinned development dependency, install its Chromium build once, then
 npm ci
 npm run test:install
 npm test
+npm run mobile:sync
+npm run mobile:typecheck
+npm run mobile:export:web
 ```
 
 `npm test` rebuilds `dist/` before running the full browser suite. Test screenshots go to the
@@ -57,6 +61,11 @@ ignored `test-results/` directory.
 The same command runs on every push and pull request through `.github/workflows/ci.yml` using
 the pinned Playwright version and Chromium. Failed runs retain browser screenshots as a short-lived
 CI artifact.
+
+The Expo SDK 57 package bundles the generated app and local font into the native binary. It uses
+an offline WebView, so symptom, medication, lab, and report data remain on the device and do not
+depend on the hosted site. Run `npm --prefix mobile start` for local Expo development. EAS
+configuration lives in `mobile/eas.json`; the linked project is `@kyl3kan3/menlopass`.
 
 **Locally, no server:** after `npm run build`, open the generated root `index.html` (or the
 identical `dist/index.html`) in a browser. Everything except service-worker registration and
@@ -126,14 +135,17 @@ Everything lives under the single localStorage key `menocompass.v1`:
 
 ```js
 {
-  v: 2,
+  v: 4,
   profile:  { name, birthYear, region, units,
               uterus:   'intact'|'hyst'|'ablation'|'unknown',
               ovaries:  'kept'|'one'|'both'|'unknown',
               lastPeriod, surgeryDate, bone,
               proteinGpk, weightGoal, waistGoal, theme, stage, onboarded },
   entries:  { "2026-07-29": { hf, ns, inBedH, sleepH, sym:{…}, wt, waist,
-                              bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf}, notes } },
+                              bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf},
+                              med:{ medicationId:{taken,at} }, notes, prefilledFrom? } },
+  medications:[ {id,name,form,days,due,notes} ],
+  labs:      [ {id,name,date,value,unit} ],
   screening:{ dxa:{last}, mammo:{last,intervalYears}, … },
   scores:   [ {date, type:'phq9'|'gad7', score, band} ],
   trigger:  { active, status:'running'|'stopped'|'completed', item, start, ended? } | null
@@ -156,7 +168,7 @@ a reload.
 Export/import is plain JSON round-trip; CSV export is one row per day plus a questionnaire block.
 Both export formats are unencrypted and may contain sensitive health information. Restore accepts
 up to 5 MB and passes every field through a strict allowlist, type/range checks, and date validation;
-unknown fields and invalid values are discarded. Schema v2 is read from the existing
+unknown fields and invalid values are discarded. Schemas v1–v3 are read from the existing
 `menocompass.v1` storage key so earlier device-local records migrate in place.
 
 ## Editorial rules the content follows

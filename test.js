@@ -84,14 +84,15 @@ function seed(){
     };
   }
   return {
-    v:3,
+    v:4,
     profile:{name:'Test', birthYear:1974, region:'us', units:'imperial', lastPeriod:'', surgeryDate:'', uterus:'intact', ovaries:'kept',
              bone:'unknown', proteinGpk:1.2, weightGoal:null, waistGoal:null, theme:'auto', stage:null, onboarded:true},
     entries,
     medications:[
-      {id:'estradot',name:'Estradot 50µg',detail:'patch · Mon & Thu',due:'08:00',icon:'patch',taken:true,takenAt:'08:02'},
-      {id:'utrogestan',name:'Utrogestan 100mg',detail:'tablet · nightly',due:'22:00',icon:'pill',taken:false,takenAt:''}
+      {id:'estradot',name:'Estradot 50µg',form:'patch',days:[1,4],due:'08:00',notes:''},
+      {id:'utrogestan',name:'Utrogestan 100mg',form:'tablet',days:[0,1,2,3,4,5,6],due:'22:00',notes:''}
     ],
+    labs:[{id:'lab-estradiol',name:'Estradiol',date:'2026-07-28',value:'312',unit:'pmol/L'}],
     screening:{}, scores:[{date:'2026-07-20',type:'phq9',score:11,band:'moderate'}], trigger:null,
     meta:{created:'2026-06-01'}
   };
@@ -298,6 +299,15 @@ function seed(){
   await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
   await page.evaluate(()=>{ DB.profile.lastPeriod=''; DB.entries={}; save(true); render(); });
 
+  const prefill = await page.evaluate(()=>{
+    const yesterday=addDays(todayISO(),-1);
+    DB.entries={}; DB.entries[yesterday]={hf:2,ns:1,sym:{fog:3,energy:1,joint:0,anx:2},act:{},nut:{}};
+    const copied=prefillTodayFromYesterday(), today=DB.entries[todayISO()];
+    DB.entries={}; save(true); render();
+    return {copied,source:today&&today.prefilledFrom,hf:today&&today.hf,fog:today&&today.sym.fog};
+  });
+  check('Today truthfully prefills the compact check-in from yesterday', prefill.copied && prefill.source && prefill.hf===2 && prefill.fog===3, JSON.stringify(prefill));
+
   console.log('\n== 3. Today check-in interactions ==');
   await goTodayDetails(page); await page.waitForTimeout(300);
   check('detailed daily log opens', (await page.locator('.today-view').count())===1);
@@ -489,6 +499,19 @@ function seed(){
     /Test complete/.test(await page.locator('.sheet').innerText()));
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
 
+  console.log('\n== 13b. Medication and lab workflow ==');
+  await page.evaluate(()=>{ medFormOpen=false; labFormOpen=false; curTab='meds'; sheetStack=[]; renderSheet(); render(); }); await page.waitForTimeout(250);
+  await page.click('[data-act="med-add"]');
+  await page.fill('#med-name','Test gel 1mg'); await page.selectOption('#med-form','gel'); await page.fill('#med-due','09:30');
+  await page.click('[data-act="med-save"]'); await page.waitForTimeout(250);
+  check('medication form saves a scheduled medication', /Test gel 1mg/.test(await page.locator('#app').innerText()));
+  await page.click('[data-act="lab-add"]'); await page.fill('#lab-name','FSH'); await page.fill('#lab-value','42'); await page.fill('#lab-unit','IU/L');
+  await page.click('[data-act="lab-save"]'); await page.waitForTimeout(250);
+  check('lab form saves a dated result', /FSH/.test(await page.locator('#app').innerText()) && /42 IU\/L/.test(await page.locator('#app').innerText()));
+  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(200);
+  const medicationButton=page.locator('[data-act="med-taken"]').last(); await medicationButton.click(); await page.waitForTimeout(200);
+  check('medication adherence is stored on the selected date', await page.evaluate(()=>Object.values((DB.entries[todayISO()]&&DB.entries[todayISO()].med)||{}).some(x=>x.taken===true)));
+
   console.log('\n== 14. Screening tracker ==');
   const screeningRules = await page.evaluate(()=>{
     const originalProfile=Object.assign({},DB.profile);
@@ -660,11 +683,12 @@ function seed(){
   check('service worker registered', swReg);
   const offline = await page.evaluate(async()=>{
     const names = await caches.keys();
-    const cache = await caches.open('meno-compass-v4');
+    const cache = await caches.open('meno-compass-v5');
     const keys = await cache.keys();
     return {names, paths:keys.map(request=>new URL(request.url).pathname)};
   });
-  check('v4 shell cache exists', offline.names.includes('meno-compass-v4'), JSON.stringify(offline.names));
+  check('v5 shell cache exists', offline.names.includes('meno-compass-v5'), JSON.stringify(offline.names));
+  check('stale v4 shell cache removed', !offline.names.includes('meno-compass-v4'), JSON.stringify(offline.names));
   check('stale v3 shell cache removed', !offline.names.includes('meno-compass-v3'), JSON.stringify(offline.names));
   check('stale v2 shell cache removed', !offline.names.includes('meno-compass-v2'), JSON.stringify(offline.names));
   check('stale v1 shell cache removed', !offline.names.includes('meno-compass-v1'), JSON.stringify(offline.names));
@@ -784,7 +808,7 @@ function seed(){
       csvFormulaNeutralised:csv.includes('"\'=1+1"')
     };
   });
-  check('restored data migrates to schema v3', sanitised.schema===3, JSON.stringify(sanitised));
+  check('restored data migrates to schema v4', sanitised.schema===4, JSON.stringify(sanitised));
   check('unsupported backup schema is rejected', sanitised.unsupportedRejected, JSON.stringify(sanitised));
   check('dates before birth are discarded', sanitised.preBirthDatesCleared, JSON.stringify(sanitised));
   check('ended running trigger is canonicalised inactive', sanitised.endedTriggerCanonical, JSON.stringify(sanitised));

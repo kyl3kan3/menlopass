@@ -1,5 +1,5 @@
 {
-  "name": "meno-compass",
+  "name": "menlopass",
   "version": "1.0.0",
   "private": true,
   "description": "Private, offline-capable menopause tracker and reference PWA",
@@ -7,7 +7,10 @@
     "build": "python build.py",
     "test": "npm run build && node test.js",
     "test:e2e": "node test.js",
-    "test:install": "playwright install chromium"
+    "test:install": "playwright install chromium",
+    "mobile:sync": "npm --prefix mobile run sync:web",
+    "mobile:typecheck": "npm --prefix mobile run typecheck",
+    "mobile:export:web": "npm --prefix mobile run export:web"
   },
   "engines": {
     "node": ">=20"

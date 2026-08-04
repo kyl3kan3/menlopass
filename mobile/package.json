@@ -1,0 +1,33 @@
+{
+  "name": "menlopass-mobile",
+  "version": "1.0.0",
+  "main": "index",
+  "dependencies": {
+    "expo": "~57.0.10",
+    "expo-asset": "~57.0.8",
+    "expo-file-system": "~57.0.1",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "sync:web": "npm --prefix .. run build && node scripts/sync-web.cjs",
+    "prestart": "npm run sync:web",
+    "start": "expo start",
+    "preandroid": "npm run sync:web",
+    "android": "expo start --android",
+    "preios": "npm run sync:web",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "export:web": "expo export --platform web"
+  },
+  "private": true
+}

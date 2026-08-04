@@ -29,5 +29,8 @@
 - The detailed legacy log and evidence library remain reachable from Settings.
 - 384 × 772 render checked with no overlap or horizontal overflow.
 - Full Playwright regression run: all checks pass; browser console/page/network errors: 0.
+- Release captures for Today, Trends, Meds, Report, and Settings were inspected at 384 × 772.
+- Trends and Settings now carry the same compact status/header hierarchy as the supplied board;
+  the report document keeps dark ink on its white clinician-paper surface.
 
 final result: passed
