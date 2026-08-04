@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
 JS_ORDER = ("content-a.js", "content-b.js", "app-core.js", "app-views.js")
 PWA_FILES = ("manifest.webmanifest", "sw.js")
+PUBLIC_PAGES = ("privacy.html", "support.html")
 ICONS = (
     "apple-touch-icon.png",
     "favicon-64.png",
@@ -29,7 +30,7 @@ FONT_FILES = (
     "assets/fonts/bricolage-grotesque-latin.woff2",
     "assets/fonts/OFL.txt",
 )
-SOURCE_FILES = ("styles.css", *JS_ORDER, *PWA_FILES, *ICONS, *FONT_FILES)
+SOURCE_FILES = ("styles.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES)
 
 
 def source_text(name: str) -> str:
@@ -101,6 +102,8 @@ def main() -> None:
 
     for name in PWA_FILES:
         shutil.copyfile(ROOT / name, DIST / name)
+    for name in PUBLIC_PAGES:
+        shutil.copyfile(ROOT / name, DIST / name)
     for name in ICONS:
         shutil.copyfile(ROOT / name, DIST / "icons" / name)
     for name in FONT_FILES:
@@ -109,6 +112,7 @@ def main() -> None:
     size_kib = len(html.encode("utf-8")) / 1024
     print(f"Built index.html and dist/index.html ({size_kib:.0f} KiB each)")
     print(f"Copied {len(PWA_FILES)} PWA files and {len(ICONS)} icons")
+    print(f"Copied {len(PUBLIC_PAGES)} public policy/support pages")
     print(f"Copied {len(FONT_FILES)} local font files")
 
 

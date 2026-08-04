@@ -655,6 +655,8 @@ function seed(){
     '/index.html',
     '/manifest.webmanifest',
     '/sw.js',
+    '/privacy.html',
+    '/support.html',
     '/assets/fonts/bricolage-grotesque-latin.woff2',
     '/icons/apple-touch-icon.png',
     '/icons/icon-192.png',

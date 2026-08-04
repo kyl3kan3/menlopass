@@ -9,7 +9,10 @@
     "scheme": "menlopass",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kyl3kan3.menlopass"
+      "bundleIdentifier": "com.kyl3kan3.menlopass",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

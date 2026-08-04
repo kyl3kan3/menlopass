@@ -1,0 +1,40 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 MenoCompass",
+    "categories": ["HEALTH_AND_FITNESS", "MEDICAL"],
+    "info": {
+      "en-US": {
+        "title": "MenoCompass",
+        "subtitle": "Menopause symptom tracker",
+        "description": "Track menopause symptoms, treatment context, medications, lab results, sleep, movement, and notes in one private place.\n\nMenoCompass is offline-first: your health entries remain on your device. There is no account, advertising, analytics, or third-party tracking.\n\nKEY FEATURES\n• Fast daily symptom check-ins\n• Medication schedules and dose tracking\n• Lab result history\n• Trends across symptoms, sleep, and activity\n• Clinician-friendly printable reports\n• Evidence-graded educational reference library\n• Local backup and restore\n\nMenoCompass provides general health education and self-tracking. It is not a medical device and does not diagnose, prescribe, or replace care from a qualified clinician.",
+        "keywords": ["menopause,perimenopause,symptom,tracker,hot flash,sleep,HRT,health,medication,mood"],
+        "releaseNotes": "Initial TestFlight release with private symptom tracking, medication schedules, lab results, trends, and clinician reports.",
+        "privacyPolicyUrl": "https://menlopass.vercel.app/privacy.html",
+        "supportUrl": "https://menlopass.vercel.app/support.html",
+        "marketingUrl": "https://menlopass.vercel.app"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "INFREQUENT_OR_MILD",
+      "gamblingSimulated": "NONE",
+      "medicalOrTreatmentInformation": "FREQUENT_OR_INTENSE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "INFREQUENT_OR_MILD",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "contests": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "seventeenPlus": false
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": false
+    }
+  }
+}
