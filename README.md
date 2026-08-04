@@ -134,7 +134,7 @@ Everything lives under the single localStorage key `menocompass.v1`:
               proteinGpk, weightGoal, waistGoal, theme, stage, onboarded },
   entries:  { "2026-07-29": { hf, ns, inBedH, sleepH, sym:{…}, wt, waist,
                               bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf}, notes } },
-  screening:{ dxa:{last}, mammo:{last,interval}, … },
+  screening:{ dxa:{last}, mammo:{last,intervalYears}, … },
   scores:   [ {date, type:'phq9'|'gad7', score, band} ],
   trigger:  { active, status:'running'|'stopped'|'completed', item, start, ended? } | null
 }

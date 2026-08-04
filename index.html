@@ -2144,8 +2144,8 @@ const SCREENING = [
    d:'US Preventive Services Task Force (Jan 2025): screen all women 65+, and postmenopausal women under 65 who are at increased fracture risk, using risk tools like FRAX to decide who needs the scan. The Menopause Society adds: screen any woman with a fracture since menopause (excluding skull, face, ankle, fingers, toes), or any medical cause of bone loss. Consider before 65 if you weigh under 127 lb or have BMI under 21, a parent who fractured a hip, currently smoke, or are stopping oestrogen with other risk factors. Repeat interval: 5+ years if untreated and low-risk, sooner if within 5 years of menopause with a T-score below −1.5. US treatment thresholds: 10-year major fracture risk 20%+, or hip fracture risk 3%+.'},
   {id:'mammo', n:'Mammogram', w:'Every 2 years, ages 40–74',
    d:'US Preventive Services Task Force (April 2024), Grade B: biennial screening mammography for women 40–74. This changed from the 2016 version, which left ages 40–49 to individual decision. For women 75+ the evidence is insufficient. For dense breasts, evidence on supplemental ultrasound or MRI is also insufficient — worth discussing your options with your clinician. Note: screening intervals apply to women without symptoms. A new lump or skin or nipple change needs assessment regardless of when you were last screened.'},
-  {id:'cervical', n:'Cervical screening', w:'Ages 30–65: every 3 or 5 years depending on test',
-   d:'US Preventive Services Task Force: ages 30–65 — cytology every 3 years, OR high-risk HPV testing alone every 5 years, OR HPV plus cytology co-testing every 5 years. Over 65 with adequate prior screening: no further screening. After hysterectomy: the recommendation to stop applies only if you have <b>no cervix</b> and no history of high-grade changes. Some hysterectomies leave the cervix in place — sometimes called a subtotal or partial hysterectomy, though that phrase is used loosely — and if yours did, <b>you still need cervical screening</b>. Worth confirming which you had. Note this recommendation is currently under update, and the American Cancer Society updated its own guideline in 2025 to include self-collection, which the Task Force recommendation does not yet address. Confirm the current interval with your clinician.'},
+  {id:'cervical', n:'Cervical screening', w:'Ages 21–29: cytology every 3 years; ages 30–65: every 3 or 5 years depending on test',
+   d:'US Preventive Services Task Force: ages 21–29 — cervical cytology every 3 years. Ages 30–65 — cytology every 3 years, OR high-risk HPV testing alone every 5 years, OR HPV plus cytology co-testing every 5 years. Over 65 with adequate prior screening: no further screening. After hysterectomy: the recommendation to stop applies only if you have <b>no cervix</b> and no history of high-grade changes. Some hysterectomies leave the cervix in place — sometimes called a subtotal or partial hysterectomy, though that phrase is used loosely — and if yours did, <b>you still need cervical screening</b>. Worth confirming which you had. Note this recommendation is currently under update, and the American Cancer Society updated its own guideline in 2025 to include self-collection, which the Task Force recommendation does not yet address. Confirm the current interval with your clinician.'},
   {id:'colon', n:'Colorectal cancer screening', w:'Start at 45',
    d:'US Preventive Services Task Force (2021): screen from age 45 (Grade B) through 75 (Grade A); ages 76–85 selectively. Options include annual stool FIT, stool DNA-FIT every 1–3 years, CT colonography every 5 years, flexible sigmoidoscopy every 5 years, or colonoscopy every 10 years.'},
   {id:'diabetes', n:'Prediabetes & type 2 diabetes', w:'Ages 35–70 with BMI 25+, every 3 years',
@@ -2541,19 +2541,26 @@ const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'
    recorded date never suppresses reminders indefinitely. */
 const SCREENING_RULES = {
   mammo:    {label:'mammogram', minAge:40, maxAge:74, years:[2], defaultYears:2},
-  cervical: {label:'cervical screening', minAge:30, maxAge:65, years:[3,5], defaultYears:3},
+  cervical: {label:'cervical screening', minAge:21, maxAge:65, years:[3,5], defaultYears:3,
+             yearsForAge:age=>age<30?[3]:[3,5]},
   colon:    {label:'colorectal screening', minAge:45, maxAge:75, years:[1,3,5,10], defaultYears:1},
   dxa:      {label:'bone density scan', minAge:65, maxAge:null, years:[5], defaultYears:5}
 };
+function screeningIntervals(rule, age){
+  return rule&&rule.yearsForAge&&age!=null ? rule.yearsForAge(age) : (rule?rule.years:[]);
+}
 function screeningStatus(id, age){
   const rule=SCREENING_RULES[id];
-  if(!rule || age==null || age<rule.minAge || (rule.maxAge!=null && age>rule.maxAge)){
+  /* Automated due dates encode US guidance. Other regions keep the checklist
+     for recording dates, but do not receive misleading US-timed reminders. */
+  if(DB.profile.region!=='us' || !rule || age==null || age<rule.minAge || (rule.maxAge!=null && age>rule.maxAge)){
     return {eligible:false, due:false};
   }
   const rec=DB.screening[id]||{};
   const validLast=pastOrTodayISO(rec.last);
   const requested=+rec.intervalYears;
-  const intervalYears=rule.years.includes(requested) ? requested : rule.defaultYears;
+  const allowed=screeningIntervals(rule,age);
+  const intervalYears=allowed.includes(requested) ? requested : rule.defaultYears;
   if(!validLast){
     return {eligible:true, due:true, never:true, invalid:!!rec.last, intervalYears, rule};
   }
@@ -2808,7 +2815,7 @@ function insights(){
       const a=avg(withA.map(p=>p.hf)), b=avg(without.map(p=>p.hf));
       if(a!=null && b!=null && Math.abs(a-b) >= 1){
         out.push({t:'info', h:'A personal pattern worth testing properly',
-          b:'On days after you logged alcohol, you recorded '+r1(a)+' hot flashes on average, versus '+r1(b)+' after alcohol-free days ('+withA.length+' vs '+without.length+' days). <b>This is your own pattern, not proof of cause</b> — trigger-avoidance has never been shown to work as a treatment in trials, and plenty of other things differ between those days. The 2-week trigger test is a fairer way to check it.',
+          b:'On days after you logged alcohol, you recorded '+r1(a)+' hot flashes on average, versus '+r1(b)+' after alcohol-free days ('+withA.length+' vs '+without.length+' days). <b>This is your own pattern, not proof of cause</b> — trigger-avoidance has never been shown to work as a treatment in trials, and plenty of other things differ between those days. The 28-day removal-and-reintroduction test is a fairer way to check it.',
           cta:{l:'Run a trigger test', go:'tool:trigger'}});
       }
     }
@@ -3730,7 +3737,8 @@ function screeningBody(){
     const rule=SCREENING_RULES[s.id];
     const status=rule?screeningStatus(s.id,age):{due:false};
     const validLast=pastOrTodayISO(rec.last);
-    const selected=rule && rule.years.includes(+rec.intervalYears) ? +rec.intervalYears : (rule?rule.defaultYears:null);
+    const intervals=rule?screeningIntervals(rule,age):[];
+    const selected=intervals.includes(+rec.intervalYears) ? +rec.intervalYears : (rule?rule.defaultYears:null);
     const badge=status.due
       ? '<span class="badge warn">due to check</span>'
       : validLast?'<span class="badge strong">'+fmtDay(rec.last)+'</span>':'';
@@ -3740,9 +3748,9 @@ function screeningBody(){
       <p class="tiny">${s.d}</p>
       <label class="fl" for="sc-${s.id}">Date you last had this</label>
       <input id="sc-${s.id}" type="date" min="${DB.profile.birthYear?DB.profile.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="screen" data-k="${s.id}" value="${validLast?rec.last:''}">
-      ${rule&&rule.years.length>1?`<label class="fl" for="sci-${s.id}" style="margin-top:10px">Reminder interval for the test you had</label>
+      ${intervals.length>1?`<label class="fl" for="sci-${s.id}" style="margin-top:10px">Reminder interval for the test you had</label>
         <select id="sci-${s.id}" data-act="screen-int" data-k="${s.id}">
-          ${rule.years.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}
+          ${intervals.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}
         </select>`:''}
     </div></details>`;
   }).join('')}
@@ -4530,7 +4538,8 @@ function handleInput(el){
   }
   if(a==='screen-int'){
     const id=el.dataset.k, rule=SCREENING_RULES[id], years=+el.value;
-    if(!rule || !rule.years.includes(years)) return;
+    const age=DB.profile.birthYear ? new Date().getFullYear()-DB.profile.birthYear : null;
+    if(!rule || !screeningIntervals(rule,age).includes(years)) return;
     const rec=DB.screening[id]||{};
     rec.intervalYears=years; DB.screening[id]=rec; save(); return;
   }

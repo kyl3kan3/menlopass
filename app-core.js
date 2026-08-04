@@ -265,19 +265,26 @@ const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'
    recorded date never suppresses reminders indefinitely. */
 const SCREENING_RULES = {
   mammo:    {label:'mammogram', minAge:40, maxAge:74, years:[2], defaultYears:2},
-  cervical: {label:'cervical screening', minAge:30, maxAge:65, years:[3,5], defaultYears:3},
+  cervical: {label:'cervical screening', minAge:21, maxAge:65, years:[3,5], defaultYears:3,
+             yearsForAge:age=>age<30?[3]:[3,5]},
   colon:    {label:'colorectal screening', minAge:45, maxAge:75, years:[1,3,5,10], defaultYears:1},
   dxa:      {label:'bone density scan', minAge:65, maxAge:null, years:[5], defaultYears:5}
 };
+function screeningIntervals(rule, age){
+  return rule&&rule.yearsForAge&&age!=null ? rule.yearsForAge(age) : (rule?rule.years:[]);
+}
 function screeningStatus(id, age){
   const rule=SCREENING_RULES[id];
-  if(!rule || age==null || age<rule.minAge || (rule.maxAge!=null && age>rule.maxAge)){
+  /* Automated due dates encode US guidance. Other regions keep the checklist
+     for recording dates, but do not receive misleading US-timed reminders. */
+  if(DB.profile.region!=='us' || !rule || age==null || age<rule.minAge || (rule.maxAge!=null && age>rule.maxAge)){
     return {eligible:false, due:false};
   }
   const rec=DB.screening[id]||{};
   const validLast=pastOrTodayISO(rec.last);
   const requested=+rec.intervalYears;
-  const intervalYears=rule.years.includes(requested) ? requested : rule.defaultYears;
+  const allowed=screeningIntervals(rule,age);
+  const intervalYears=allowed.includes(requested) ? requested : rule.defaultYears;
   if(!validLast){
     return {eligible:true, due:true, never:true, invalid:!!rec.last, intervalYears, rule};
   }
@@ -532,7 +539,7 @@ function insights(){
       const a=avg(withA.map(p=>p.hf)), b=avg(without.map(p=>p.hf));
       if(a!=null && b!=null && Math.abs(a-b) >= 1){
         out.push({t:'info', h:'A personal pattern worth testing properly',
-          b:'On days after you logged alcohol, you recorded '+r1(a)+' hot flashes on average, versus '+r1(b)+' after alcohol-free days ('+withA.length+' vs '+without.length+' days). <b>This is your own pattern, not proof of cause</b> — trigger-avoidance has never been shown to work as a treatment in trials, and plenty of other things differ between those days. The 2-week trigger test is a fairer way to check it.',
+          b:'On days after you logged alcohol, you recorded '+r1(a)+' hot flashes on average, versus '+r1(b)+' after alcohol-free days ('+withA.length+' vs '+without.length+' days). <b>This is your own pattern, not proof of cause</b> — trigger-avoidance has never been shown to work as a treatment in trials, and plenty of other things differ between those days. The 28-day removal-and-reintroduction test is a fairer way to check it.',
           cta:{l:'Run a trigger test', go:'tool:trigger'}});
       }
     }

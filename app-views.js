@@ -759,7 +759,8 @@ function screeningBody(){
     const rule=SCREENING_RULES[s.id];
     const status=rule?screeningStatus(s.id,age):{due:false};
     const validLast=pastOrTodayISO(rec.last);
-    const selected=rule && rule.years.includes(+rec.intervalYears) ? +rec.intervalYears : (rule?rule.defaultYears:null);
+    const intervals=rule?screeningIntervals(rule,age):[];
+    const selected=intervals.includes(+rec.intervalYears) ? +rec.intervalYears : (rule?rule.defaultYears:null);
     const badge=status.due
       ? '<span class="badge warn">due to check</span>'
       : validLast?'<span class="badge strong">'+fmtDay(rec.last)+'</span>':'';
@@ -769,9 +770,9 @@ function screeningBody(){
       <p class="tiny">${s.d}</p>
       <label class="fl" for="sc-${s.id}">Date you last had this</label>
       <input id="sc-${s.id}" type="date" min="${DB.profile.birthYear?DB.profile.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="screen" data-k="${s.id}" value="${validLast?rec.last:''}">
-      ${rule&&rule.years.length>1?`<label class="fl" for="sci-${s.id}" style="margin-top:10px">Reminder interval for the test you had</label>
+      ${intervals.length>1?`<label class="fl" for="sci-${s.id}" style="margin-top:10px">Reminder interval for the test you had</label>
         <select id="sci-${s.id}" data-act="screen-int" data-k="${s.id}">
-          ${rule.years.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}
+          ${intervals.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}
         </select>`:''}
     </div></details>`;
   }).join('')}
@@ -1559,7 +1560,8 @@ function handleInput(el){
   }
   if(a==='screen-int'){
     const id=el.dataset.k, rule=SCREENING_RULES[id], years=+el.value;
-    if(!rule || !rule.years.includes(years)) return;
+    const age=DB.profile.birthYear ? new Date().getFullYear()-DB.profile.birthYear : null;
+    if(!rule || !screeningIntervals(rule,age).includes(years)) return;
     const rec=DB.screening[id]||{};
     rec.intervalYears=years; DB.screening[id]=rec; save(); return;
   }

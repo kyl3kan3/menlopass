@@ -475,6 +475,22 @@ function seed(){
   await page.click('[data-act="close"]'); await page.waitForTimeout(150);
 
   console.log('\n== 14. Screening tracker ==');
+  const screeningRules = await page.evaluate(()=>{
+    const originalProfile=Object.assign({},DB.profile);
+    DB.profile.region='us';
+    const cervical25=screeningStatus('cervical',25);
+    const cervical25Intervals=screeningIntervals(SCREENING_RULES.cervical,25);
+    DB.profile.region='uk';
+    const uk45={mammo:screeningStatus('mammo',45),colon:screeningStatus('colon',45)};
+    DB.profile=originalProfile;
+    return {cervical25,cervical25Intervals,uk45};
+  });
+  check('US cervical reminders start at age 21', screeningRules.cervical25.eligible&&screeningRules.cervical25.due,
+    JSON.stringify(screeningRules));
+  check('ages 21–29 only receive the 3-year cervical interval',
+    JSON.stringify(screeningRules.cervical25Intervals)==='[3]',JSON.stringify(screeningRules));
+  check('US-timed reminders are suppressed outside the US',
+    !screeningRules.uk45.mammo.due&&!screeningRules.uk45.colon.due,JSON.stringify(screeningRules));
   await page.click('[data-act="tab"][data-v="learn"]'); await page.waitForTimeout(250);
   await page.locator('.row', {hasText:'Preventive care'}).click(); await page.waitForTimeout(250);
   await page.locator('.sheet details.acc summary').first().click(); await page.waitForTimeout(150);
