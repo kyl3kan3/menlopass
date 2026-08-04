@@ -6,7 +6,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "scheme": "menlopass",
+    "scheme": [
+      "menlopass",
+      "rc-0fcafb99f0"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kyl3kan3.menlopass",
