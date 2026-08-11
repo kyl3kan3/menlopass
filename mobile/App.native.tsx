@@ -1,11 +1,11 @@
 import { Asset } from 'expo-asset';
 import { File } from 'expo-file-system';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import Purchases, { CustomerInfo, LOG_LEVEL } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
-import { WebView } from 'react-native-webview';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
 
 const appAsset = require('./assets/menlopass.html');
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || 'appl_SJzoZsrDheugNgeVISkHmDeKoOk';
@@ -16,11 +16,20 @@ function hasProAccess(customerInfo: CustomerInfo) {
 }
 
 export default function App() {
+  const webViewRef = useRef<WebView>(null);
   const [html, setHtml] = useState<string>();
   const [error, setError] = useState<string>();
   const [revenueCatReady, setRevenueCatReady] = useState(false);
   const [proActive, setProActive] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
+
+  const syncProStatusToWeb = (active: boolean) => {
+    webViewRef.current?.injectJavaScript(`
+      window.__MENO_PRO_ACTIVE__ = ${active ? 'true' : 'false'};
+      window.dispatchEvent(new Event('menocompass-pro-changed'));
+      true;
+    `);
+  };
 
   useEffect(() => {
     let active = true;
@@ -36,7 +45,10 @@ export default function App() {
 
     let active = true;
     const updateCustomer = (customerInfo: CustomerInfo) => {
-      if (active) setProActive(hasProAccess(customerInfo));
+      if (!active) return;
+      const nextProActive = hasProAccess(customerInfo);
+      setProActive(nextProActive);
+      syncProStatusToWeb(nextProActive);
     };
 
     try {
@@ -61,7 +73,7 @@ export default function App() {
     try {
       const offerings = await Purchases.getOfferings();
       if (!offerings.current || offerings.current.availablePackages.length === 0) {
-        Alert.alert('MenoCompass Pro', 'Subscriptions are being prepared for TestFlight. No purchase was made.');
+        Alert.alert('MenoCompass Pro', 'Subscriptions are temporarily unavailable. Please try again later.');
         return;
       }
       await RevenueCatUI.presentPaywall({ offering: offerings.current, displayCloseButton: true });
@@ -70,6 +82,15 @@ export default function App() {
       Alert.alert('Subscriptions unavailable', 'MenoCompass could not reach the App Store. Please try again later.');
     } finally {
       setPurchaseBusy(false);
+    }
+  };
+
+  const handleWebMessage = (event: WebViewMessageEvent) => {
+    try {
+      const message = JSON.parse(event.nativeEvent.data);
+      if (message?.type === 'open-pro-paywall') void openPaywall();
+    } catch {
+      // Ignore non-MenoCompass messages from the embedded document.
     }
   };
 
@@ -107,14 +128,22 @@ export default function App() {
         </View>
       </View> : null}
       <WebView
+        ref={webViewRef}
         originWhitelist={['*']}
         source={{ html }}
+        injectedJavaScriptBeforeContentLoaded={`
+          window.__MENO_NATIVE__ = true;
+          window.__MENO_PRO_ACTIVE__ = ${proActive ? 'true' : 'false'};
+          true;
+        `}
         javaScriptEnabled
         domStorageEnabled
         allowFileAccess
         allowUniversalAccessFromFileURLs={false}
         mixedContentMode="never"
         setSupportMultipleWindows={false}
+        onLoadEnd={() => syncProStatusToWeb(proActive)}
+        onMessage={handleWebMessage}
         onShouldStartLoadWithRequest={({ url }) => {
           if (url === 'about:blank' || url.startsWith('data:') || url.startsWith('file:')) return true;
           if (/^https?:/i.test(url)) { Linking.openURL(url); return false; }

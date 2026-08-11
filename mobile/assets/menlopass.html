@@ -1052,6 +1052,7 @@ body{background:#080D0E;font-family:system-ui,-apple-system,"Segoe UI",sans-seri
 nav.tabs{background:var(--surface);border-color:var(--border);backdrop-filter:none;-webkit-backdrop-filter:none}
 nav.tabs .inner{max-width:384px}
 nav.tabs button{height:var(--nav-h);padding:10px 2px 20px;gap:5px;color:var(--text-3);font-size:10px;font-weight:600;position:relative}
+nav.tabs button.pro-locked span::after{content:"PRO";display:block;margin-top:2px;color:var(--accent);font-size:7px;font-weight:800;letter-spacing:.08em}
 nav.tabs button svg{width:22px;height:22px;stroke-width:1.75}
 nav.tabs button[aria-current="page"]{color:var(--text)}
 nav.tabs button[aria-current="page"]::after{content:"";position:absolute;bottom:12px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
@@ -1067,7 +1068,12 @@ nav.tabs button[aria-current="page"]::after{content:"";position:absolute;bottom:
 .tw-pagewrap{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
 .tw-doc{padding:15px;border:1px solid #E3DDD2;border-radius:3px;background:#FFFDF9;color:#1B2A28;font-size:10px;line-height:1.45}.tw-doc h2{margin:0 0 2px;font-size:14px;color:#1B2A28}.tw-doc p{margin:0 0 9px;color:#6E675C}.tw-doc-rule{height:74px;margin:8px 0;background:repeating-linear-gradient(to bottom,transparent 0 17px,#E3DDD2 18px)}
 .tw-observed{padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}.tw-observed>span{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.tw-observed p{margin:4px 0 6px;font-size:16px;line-height:1.5}.tw-observed small{color:var(--text-2)}
-@media (min-width:600px){.tw-screen{padding:18px 20px 16px}}
+@media (min-width:600px){
+  :root{--maxw:720px}
+  .tw-screen{padding:24px 28px 20px}
+  .tw-grid{grid-template-columns:repeat(3,1fr)}
+  nav.tabs .inner{max-width:720px}
+}
 
 </style>
 </head>
@@ -4559,15 +4565,39 @@ function render(preserveScroll){
   }
   document.querySelectorAll('nav.tabs button').forEach(b=>{
     b.setAttribute('aria-current', b.dataset.v===curTab?'page':'false');
+    const locked = nativeProLocked(b.dataset.v);
+    b.classList.toggle('pro-locked', locked);
+    if(locked) b.setAttribute('aria-label', (TAB_TITLES[b.dataset.v]||[b.dataset.v])[0]+' — MenoCompass Pro');
+    else b.removeAttribute('aria-label');
   });
   window.scrollTo(0,preserveScroll?scrollY:0);
 }
+
+function nativeProLocked(area){
+  return window.__MENO_NATIVE__===true
+    && window.__MENO_PRO_ACTIVE__!==true
+    && (area==='trends'||area==='report');
+}
+function requestNativePro(area){
+  if(!nativeProLocked(area)) return false;
+  try{
+    if(window.ReactNativeWebView){
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-pro-paywall',feature:area}));
+    }
+  }catch(e){}
+  toast('MenoCompass Pro unlocks trends and clinician reports');
+  return true;
+}
+window.addEventListener('menocompass-pro-changed',()=>{
+  if(nativeProLocked(curTab)) curTab='today';
+  render(true);
+});
 
 function handleAction(el, ev){
   const a = el.dataset.act;
   const e = () => entry(curDate);
   switch(a){
-    case 'tab': curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
+    case 'tab': if(requestNativePro(el.dataset.v)) return; curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
     case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
     case 'med-taken': {
       const m=DB.medications.find(x=>x.id===el.dataset.id); if(!m) return;
@@ -4624,7 +4654,7 @@ function handleAction(el, ev){
       save(); render(true); return;
     }
     case 'theme': DB.profile.theme = el.value; save(true); render(true); return;
-    case 'sheet': openSheet(el.dataset.s); return;
+    case 'sheet': if(requestNativePro(el.dataset.s)) return; openSheet(el.dataset.s); return;
     case 'close': closeSheet(); return;
     case 'bg': if(ev.target===el) closeSheet(); return;
     case 'go': {

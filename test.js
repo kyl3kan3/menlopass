@@ -383,6 +383,24 @@ function seed(){
   await page.locator('[data-act="range"][data-v="30"]').click(); await page.waitForTimeout(250);
   await page.screenshot({path:path.join(TEST_RESULTS, 'shot-trends.png'), fullPage:false});
 
+  console.log('\n== 5b. Native Pro access ==');
+  await page.evaluate(()=>{
+    window.__MENO_NATIVE__=true;
+    window.__MENO_PRO_ACTIVE__=false;
+    window.__nativeMessages=[];
+    window.ReactNativeWebView={postMessage:message=>window.__nativeMessages.push(JSON.parse(message))};
+    curTab='today'; render();
+  });
+  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(150);
+  const lockedPro = await page.evaluate(()=>({tab:curTab,messages:window.__nativeMessages,locked:document.querySelector('[data-v="trends"]').classList.contains('pro-locked')}));
+  check('native trends are marked as Pro', lockedPro.locked);
+  check('locked native trends stay on Today', lockedPro.tab==='today', JSON.stringify(lockedPro));
+  check('locked native trends request the paywall', lockedPro.messages.some(x=>x.type==='open-pro-paywall'&&x.feature==='trends'), JSON.stringify(lockedPro));
+  await page.evaluate(()=>{ window.__MENO_PRO_ACTIVE__=true; window.dispatchEvent(new Event('menocompass-pro-changed')); });
+  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(150);
+  check('active Pro customer can open trends', await page.evaluate(()=>curTab==='trends'));
+  await page.evaluate(()=>{ window.__MENO_NATIVE__=false; window.__MENO_PRO_ACTIVE__=false; delete window.ReactNativeWebView; curTab='trends'; render(); });
+
   console.log('\n== 6. Learn library: every module opens ==');
   await goLearn(page); await page.waitForTimeout(300);
   const modules = await page.locator('.rows .row').count();
@@ -657,6 +675,7 @@ function seed(){
     '/sw.js',
     '/privacy.html',
     '/support.html',
+    '/terms.html',
     '/assets/fonts/bricolage-grotesque-latin.woff2',
     '/icons/apple-touch-icon.png',
     '/icons/icon-192.png',

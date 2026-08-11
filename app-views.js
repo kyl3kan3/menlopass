@@ -1462,15 +1462,39 @@ function render(preserveScroll){
   }
   document.querySelectorAll('nav.tabs button').forEach(b=>{
     b.setAttribute('aria-current', b.dataset.v===curTab?'page':'false');
+    const locked = nativeProLocked(b.dataset.v);
+    b.classList.toggle('pro-locked', locked);
+    if(locked) b.setAttribute('aria-label', (TAB_TITLES[b.dataset.v]||[b.dataset.v])[0]+' — MenoCompass Pro');
+    else b.removeAttribute('aria-label');
   });
   window.scrollTo(0,preserveScroll?scrollY:0);
 }
+
+function nativeProLocked(area){
+  return window.__MENO_NATIVE__===true
+    && window.__MENO_PRO_ACTIVE__!==true
+    && (area==='trends'||area==='report');
+}
+function requestNativePro(area){
+  if(!nativeProLocked(area)) return false;
+  try{
+    if(window.ReactNativeWebView){
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-pro-paywall',feature:area}));
+    }
+  }catch(e){}
+  toast('MenoCompass Pro unlocks trends and clinician reports');
+  return true;
+}
+window.addEventListener('menocompass-pro-changed',()=>{
+  if(nativeProLocked(curTab)) curTab='today';
+  render(true);
+});
 
 function handleAction(el, ev){
   const a = el.dataset.act;
   const e = () => entry(curDate);
   switch(a){
-    case 'tab': curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
+    case 'tab': if(requestNativePro(el.dataset.v)) return; curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
     case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
     case 'med-taken': {
       const m=DB.medications.find(x=>x.id===el.dataset.id); if(!m) return;
@@ -1527,7 +1551,7 @@ function handleAction(el, ev){
       save(); render(true); return;
     }
     case 'theme': DB.profile.theme = el.value; save(true); render(true); return;
-    case 'sheet': openSheet(el.dataset.s); return;
+    case 'sheet': if(requestNativePro(el.dataset.s)) return; openSheet(el.dataset.s); return;
     case 'close': closeSheet(); return;
     case 'bg': if(ev.target===el) closeSheet(); return;
     case 'go': {

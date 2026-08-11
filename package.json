@@ -8,6 +8,7 @@
     "test": "npm run build && node test.js",
     "test:e2e": "node test.js",
     "test:install": "playwright install chromium",
+    "screenshots:store": "node mobile/store-assets/generate-screenshots.js",
     "mobile:sync": "npm --prefix mobile run sync:web",
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:export:web": "npm --prefix mobile run export:web"

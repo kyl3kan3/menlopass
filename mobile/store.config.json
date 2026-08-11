@@ -5,11 +5,12 @@
     "categories": ["HEALTH_AND_FITNESS", "MEDICAL"],
     "info": {
       "en-US": {
-        "title": "MenoCompass",
-        "subtitle": "Menopause symptom tracker",
-        "description": "Track menopause symptoms, treatment context, medications, lab results, sleep, movement, and notes in one private place.\n\nMenoCompass is offline-first: your health entries remain on your device. There is no account, advertising, analytics, or third-party tracking.\n\nKEY FEATURES\n• Fast daily symptom check-ins\n• Medication schedules and dose tracking\n• Lab result history\n• Trends across symptoms, sleep, and activity\n• Clinician-friendly printable reports\n• Evidence-graded educational reference library\n• Local backup and restore\n\nMenoCompass provides general health education and self-tracking. It is not a medical device and does not diagnose, prescribe, or replace care from a qualified clinician.",
+        "title": "MenoCompass: Menopause Tracker",
+        "subtitle": "Private symptom tracking",
+        "description": "See the patterns behind your menopause symptoms and walk into appointments with a clearer record. MenoCompass brings symptoms, sleep, medication context, lab results, movement, and notes together in one private place.\n\nPRIVATE BY DESIGN\nYour health entries stay on your device. There is no account, advertising, cross-app tracking, or cloud health database.\n\nFREE FEATURES\n• Fast daily symptom check-ins\n• Medication schedules and dose tracking\n• Lab result history\n• Evidence-graded menopause reference library\n• Local backup and restore\n\nMENOCOMPASS PRO\n• Advanced 30- and 90-day symptom trends\n• Personal pattern summaries\n• Clinician-ready reports\n\nMenoCompass Pro is available as an auto-renewable monthly or annual subscription. The exact price is shown before purchase. Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period. Manage or cancel in your Apple ID subscription settings.\n\nPrivacy Policy: https://menlopass.vercel.app/privacy.html\nTerms of Use: https://menlopass.vercel.app/terms.html\n\nMenoCompass provides general health education and self-tracking. It is not a medical device and does not diagnose, prescribe, or replace care from a qualified clinician.",
         "keywords": ["menopause,perimenopause,symptom,tracker,hot flash,sleep,HRT,health,medication,mood"],
-        "releaseNotes": "Initial TestFlight release with private symptom tracking, medication schedules, lab results, trends, and clinician reports.",
+        "releaseNotes": "Initial release with private symptom tracking, medication schedules, lab results, evidence-graded education, advanced trends, and clinician-ready reports.",
+        "promoText": "Private menopause tracking, clear personal patterns, and reports built for better appointments.",
         "privacyPolicyUrl": "https://menlopass.vercel.app/privacy.html",
         "supportUrl": "https://menlopass.vercel.app/support.html",
         "marketingUrl": "https://menlopass.vercel.app"
@@ -33,7 +34,7 @@
       "seventeenPlus": false
     },
     "release": {
-      "automaticRelease": false,
+      "automaticRelease": true,
       "phasedRelease": false
     }
   }
