@@ -1,0 +1,224 @@
+import { Observe } from 'expo-observe';
+import {
+  getTrackingPermissionsAsync,
+  requestTrackingPermissionsAsync,
+} from 'expo-tracking-transparency';
+import { Platform } from 'react-native';
+import {
+  AFInAppEventType,
+  AppsFlyer,
+  ConversionData,
+  DeepLinkData,
+} from 'react-native-appsflyer';
+import { AppEventsLogger, Settings } from 'react-native-fbsdk-next';
+import Purchases from 'react-native-purchases';
+
+const appleAppId = process.env.EXPO_PUBLIC_APPLE_APP_ID?.trim() || '6798018790';
+const appsFlyerDevKey = process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY?.trim();
+const metaAppId = process.env.EXPO_PUBLIC_META_APP_ID?.trim();
+const metaClientToken = process.env.EXPO_PUBLIC_META_CLIENT_TOKEN?.trim();
+
+type TrackingPermission = 'granted' | 'denied' | 'undetermined' | 'unavailable';
+type TelemetryEvent =
+  | 'paywall_opened'
+  | 'subscription_activated'
+  | 'subscription_restore_started'
+  | 'subscription_restore_completed'
+  | 'subscription_restore_failed';
+
+const eventDefinitions: Record<
+  TelemetryEvent,
+  { observe: string; appsFlyer?: string; meta?: string }
+> = {
+  paywall_opened: {
+    observe: 'paywall.opened',
+    appsFlyer: AFInAppEventType.CONTENT_VIEW,
+    meta: AppEventsLogger.AppEvents.ViewedContent,
+  },
+  subscription_activated: { observe: 'subscription.activated' },
+  subscription_restore_started: { observe: 'subscription.restore_started' },
+  subscription_restore_completed: { observe: 'subscription.restore_completed' },
+  subscription_restore_failed: { observe: 'subscription.restore_failed' },
+};
+
+let appsFlyerReady = false;
+let metaReady = false;
+let initialization: Promise<void> | undefined;
+
+function recordInitializationFailure(
+  service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat',
+  error: unknown,
+) {
+  Observe.logEvent('telemetry.initialization_failed', {
+    severity: 'warn',
+    attributes: {
+      service,
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    },
+  });
+  if (__DEV__) console.warn(`${service} telemetry setup failed`, error);
+}
+
+async function withRevenueCat(action: () => Promise<void>) {
+  if (await Purchases.isConfigured()) await action();
+}
+
+async function getRevenueCatCustomerId() {
+  if (!(await Purchases.isConfigured())) return undefined;
+  return Purchases.getAppUserID();
+}
+
+async function resolveTrackingPermission(): Promise<TrackingPermission> {
+  if (Platform.OS !== 'ios') return 'granted';
+
+  try {
+    const current = await getTrackingPermissionsAsync();
+    if (current.status !== 'undetermined') return current.status;
+    return (await requestTrackingPermissionsAsync()).status;
+  } catch (error) {
+    recordInitializationFailure('permissions', error);
+    return 'unavailable';
+  }
+}
+
+function sendAppsFlyerConversionDataToRevenueCat(data: ConversionData) {
+  void withRevenueCat(() => Purchases.setAppsFlyerConversionData({ status: 'success', data })).catch(error => {
+    recordInitializationFailure('revenuecat', error);
+  });
+}
+
+async function initializeAppsFlyer() {
+  if (!appsFlyerDevKey) return;
+
+  const revenueCatCustomerId = await getRevenueCatCustomerId().catch(error => {
+    recordInitializationFailure('revenuecat', error);
+    return undefined;
+  });
+
+  await AppsFlyer.registerDeepLinkListener({
+    onDeepLinking: (data: DeepLinkData) => {
+      Observe.logEvent('attribution.deep_link_resolved', {
+        attributes: { status: data.status },
+      });
+    },
+  });
+
+  const initialized = AppsFlyer.init({ devKey: appsFlyerDevKey, appId: appleAppId });
+  const started = new Promise<void>((resolve, reject) => {
+    const registration = AppsFlyer.registerSessionReadyListener(() => {
+      void (async () => {
+        if (revenueCatCustomerId) {
+          try {
+            await AppsFlyer.setCustomerUserId({ customerId: revenueCatCustomerId });
+          } catch (error) {
+            recordInitializationFailure('appsflyer', error);
+          }
+        }
+        await AppsFlyer.start({ awaitResponse: true });
+      })().then(resolve, reject);
+    });
+    void registration.catch(reject);
+  });
+  const conversionListener = AppsFlyer.registerConversionListener({
+    onConversionDataSuccess: sendAppsFlyerConversionDataToRevenueCat,
+    onConversionDataFail: error => recordInitializationFailure('appsflyer', error),
+  });
+
+  await Promise.all([initialized, conversionListener]);
+  await started;
+  appsFlyerReady = true;
+
+  const appsFlyerId = await AppsFlyer.getAppsFlyerUID();
+  if (appsFlyerId) await withRevenueCat(() => Purchases.setAppsflyerID(appsFlyerId));
+}
+
+async function initializeMeta(trackingAuthorized: boolean) {
+  if (!metaAppId || !metaClientToken) return;
+
+  Settings.setAppID(metaAppId);
+  Settings.setClientToken(metaClientToken);
+  Settings.setAppName('MenoCompass');
+  Settings.setAutoLogAppEventsEnabled(false);
+  Settings.setAdvertiserIDCollectionEnabled(trackingAuthorized);
+  Settings.initializeSDK();
+
+  if (Platform.OS === 'ios') {
+    await Settings.setAdvertiserTrackingEnabled(trackingAuthorized);
+  }
+
+  metaReady = true;
+  AppEventsLogger.logEvent('fb_mobile_activate_app');
+
+  if (trackingAuthorized) {
+    const anonymousId = await AppEventsLogger.getAnonymousID();
+    if (anonymousId) await withRevenueCat(() => Purchases.setFBAnonymousID(anonymousId));
+  }
+}
+
+export function initializeTelemetry() {
+  if (initialization) return initialization;
+
+  initialization = (async () => {
+    Observe.configure({
+      environment: __DEV__ ? 'development' : 'production',
+      dispatchInDebug: false,
+      sampleRate: 1,
+    });
+
+    const permission = await resolveTrackingPermission();
+    const trackingAuthorized = permission === 'granted';
+    Observe.setGlobalAttributes({
+      trackingPermission: permission,
+      subscriptionTier: 'free',
+    });
+
+    const tasks = [
+      initializeAppsFlyer().catch(error => recordInitializationFailure('appsflyer', error)),
+      initializeMeta(trackingAuthorized).catch(error => recordInitializationFailure('meta', error)),
+    ];
+
+    if (trackingAuthorized) {
+      tasks.push(
+        withRevenueCat(() => Purchases.collectDeviceIdentifiers()).catch(error => {
+          recordInitializationFailure('revenuecat', error);
+        }),
+      );
+    }
+
+    await Promise.all(tasks);
+  })();
+
+  return initialization;
+}
+
+export function setTelemetrySubscriptionState(active: boolean) {
+  Observe.setGlobalAttributes({
+    subscriptionTier: active ? 'pro' : 'free',
+  });
+}
+
+export function trackTelemetryEvent(event: TelemetryEvent) {
+  const definition = eventDefinitions[event];
+  Observe.logEvent(definition.observe);
+
+  if (appsFlyerReady && definition.appsFlyer) {
+    void AppsFlyer.logEvent({
+      eventName: definition.appsFlyer,
+      eventValues: {
+        af_content_id: 'menocompass_pro',
+        af_content_type: 'subscription_paywall',
+      },
+    }).catch(error => recordInitializationFailure('appsflyer', error));
+  }
+
+  if (metaReady && definition.meta) {
+    AppEventsLogger.logEvent(definition.meta, {
+      fb_content_id: 'menocompass_pro',
+      fb_content_type: 'subscription_paywall',
+    });
+  }
+}
+
+export function reportTelemetryError(error: unknown) {
+  Observe.reportError(error);
+}

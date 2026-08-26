@@ -1,11 +1,18 @@
 import { Asset } from 'expo-asset';
 import { File } from 'expo-file-system';
+import { ObserveRoot, useObserve } from 'expo-observe';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import Purchases, { CustomerInfo, LOG_LEVEL } from 'react-native-purchases';
-import RevenueCatUI from 'react-native-purchases-ui';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import {
+  initializeTelemetry,
+  reportTelemetryError,
+  setTelemetrySubscriptionState,
+  trackTelemetryEvent,
+} from './telemetry.native';
 
 const appAsset = require('./assets/menlopass.html');
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || 'appl_SJzoZsrDheugNgeVISkHmDeKoOk';
@@ -15,8 +22,9 @@ function hasProAccess(customerInfo: CustomerInfo) {
   return Boolean(customerInfo.entitlements.active[proEntitlement]);
 }
 
-export default function App() {
+function App() {
   const webViewRef = useRef<WebView>(null);
+  const { markInteractive } = useObserve();
   const [html, setHtml] = useState<string>();
   const [error, setError] = useState<string>();
   const [revenueCatReady, setRevenueCatReady] = useState(false);
@@ -41,6 +49,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (html) markInteractive({ routeName: 'main' });
+  }, [html, markInteractive]);
+
+  useEffect(() => {
     if (Platform.OS !== 'ios') return;
 
     let active = true;
@@ -48,15 +60,20 @@ export default function App() {
       if (!active) return;
       const nextProActive = hasProAccess(customerInfo);
       setProActive(nextProActive);
+      setTelemetrySubscriptionState(nextProActive);
       syncProStatusToWeb(nextProActive);
     };
 
     try {
       Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
-      Purchases.configure({ apiKey: revenueCatIosApiKey });
+      Purchases.configure({
+        apiKey: revenueCatIosApiKey,
+        automaticDeviceIdentifierCollectionEnabled: false,
+      });
       Purchases.addCustomerInfoUpdateListener(updateCustomer);
       setRevenueCatReady(true);
       Purchases.getCustomerInfo().then(updateCustomer).catch(() => undefined);
+      void initializeTelemetry();
     } catch {
       setRevenueCatReady(false);
     }
@@ -65,6 +82,10 @@ export default function App() {
       active = false;
       Purchases.removeCustomerInfoUpdateListener(updateCustomer);
     };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') void initializeTelemetry();
   }, []);
 
   const openPaywall = async () => {
@@ -76,9 +97,14 @@ export default function App() {
         Alert.alert('MenoCompass Pro', 'Subscriptions are temporarily unavailable. Please try again later.');
         return;
       }
-      await RevenueCatUI.presentPaywall({ offering: offerings.current, displayCloseButton: true });
-      setProActive(hasProAccess(await Purchases.getCustomerInfo()));
-    } catch {
+      trackTelemetryEvent('paywall_opened');
+      const result = await RevenueCatUI.presentPaywall({ offering: offerings.current, displayCloseButton: true });
+      const active = hasProAccess(await Purchases.getCustomerInfo());
+      setProActive(active);
+      setTelemetrySubscriptionState(active);
+      if (result === PAYWALL_RESULT.PURCHASED) trackTelemetryEvent('subscription_activated');
+    } catch (reason) {
+      reportTelemetryError(reason);
       Alert.alert('Subscriptions unavailable', 'MenoCompass could not reach the App Store. Please try again later.');
     } finally {
       setPurchaseBusy(false);
@@ -97,12 +123,17 @@ export default function App() {
   const restorePurchases = async () => {
     if (!revenueCatReady || purchaseBusy) return;
     setPurchaseBusy(true);
+    trackTelemetryEvent('subscription_restore_started');
     try {
       const customerInfo = await Purchases.restorePurchases();
       const restored = hasProAccess(customerInfo);
       setProActive(restored);
+      setTelemetrySubscriptionState(restored);
+      trackTelemetryEvent('subscription_restore_completed');
       Alert.alert(restored ? 'Purchase restored' : 'Nothing to restore', restored ? 'MenoCompass Pro is active.' : 'No MenoCompass Pro purchase was found for this Apple ID.');
-    } catch {
+    } catch (reason) {
+      trackTelemetryEvent('subscription_restore_failed');
+      reportTelemetryError(reason);
       Alert.alert('Restore unavailable', 'MenoCompass could not restore purchases. Please try again later.');
     } finally {
       setPurchaseBusy(false);
@@ -154,6 +185,8 @@ export default function App() {
     </SafeAreaView>
   );
 }
+
+export default ObserveRoot.wrap(App);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0E1618' },

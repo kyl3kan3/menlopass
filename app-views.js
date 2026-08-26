@@ -460,7 +460,7 @@ function viewYou(){
 
     <div class="card flat">
       <h4>Privacy, plainly</h4>
-      <p class="tiny">Your health entries stay in this browser's storage on this device. The app has no account, analytics, health-data API, or sync service and does not transmit what you log. It fetches only its own static app files; external source links contact those sites only when you open them. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices. Export a backup now and then.</p>
+      <p class="tiny">Your health entries stay in this browser's storage on this device. The app has no account, health-data API, or sync service and does not transmit what you log. The native app sends limited performance and advertising-attribution data—never symptoms, medications, labs, notes, profile answers, or reports—to Expo, AppsFlyer, Meta, and RevenueCat as described in the Privacy Policy. External source links contact those sites only when you open them. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices. Export a backup now and then.</p>
       <h4 style="margin-top:14px">Medical disclaimer</h4>
       <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
     </div>
@@ -1290,7 +1290,7 @@ function viewOnboard(){
       <ul class="tick">
         <li><b>A tracker first.</b> Twenty seconds a day builds the patterns and the report your clinician actually needs.</li>
         <li><b>A reference that tells you when the evidence is thin.</b> Every claim is tagged, and where major guidelines disagree, it says so.</li>
-        <li><b>Private by design.</b> No account, sync service, or analytics. Your health entries stay in this browser on this device and are not sent to the app maker.</li>
+        <li><b>Private by design.</b> No account or sync service. Your health entries stay in this browser on this device and are not sent to the app maker; the native app sends only limited performance and advertising-attribution data described in the Privacy Policy.</li>
       </ul>
       <div class="callout warn" style="margin-bottom:0"><span class="ctitle">What it is not</span>
       It does not diagnose, treat or prescribe, is not a substitute for a clinician who knows your history, and is not a medical device or regulator-reviewed clinical tool. Content reviewed July 2026 — this field moves fast.</div>
