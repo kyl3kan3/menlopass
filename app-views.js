@@ -489,6 +489,7 @@ function findFocusTarget(desc,root){
   )||null;
 }
 function openSheet(id){
+  if(requestNativePro(id)) return;
   if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
   sheetStack.push(id); renderSheet(true);
 }
@@ -1325,12 +1326,13 @@ let medDaysDraft=[0,1,2,3,4,5,6];
 const DAY_SHORT=['S','M','T','W','T','F','S'];
 function twilightDots(path,value,label){
   const current=Math.max(0,Math.min(3,Number(value)||0));
-  return '<div class="tw-dots" role="group" aria-label="'+esc(label)+'">'
-    +[0,1,2,3].map(i=>h('button',{class:'tw-dot f'+i+(current===i?' on':''),'data-act':'set','data-k':path,'data-v':i,'aria-label':label+': '+i,'aria-pressed':current===i?'true':'false'},'')).join('')+'</div>';
+  return '<span class="tw-dots" aria-hidden="true">'
+    +[0,1,2,3].map(i=>'<i class="tw-dot f'+i+(current===i?' on':'')+'"></i>').join('')+'</span>';
 }
 function twilightTile(path,value,label,icon){
   const v=Math.max(0,Math.min(3,Number(value)||0));
-  return '<div class="tw-tile'+(v>0?' sel':'')+'"><div class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span></div>'+twilightDots(path,v,label)+'</div>';
+  const next=(v+1)%4;
+  return '<button class="tw-tile'+(v>0?' sel':'')+'" data-act="set" data-k="'+esc(path)+'" data-v="'+next+'" aria-label="'+esc(label)+': '+v+' of 3. Tap to choose the next level." aria-pressed="'+(v>0?'true':'false')+'"><span class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span></span>'+twilightDots(path,v,label)+'</button>';
 }
 function medicationDetail(m){
   const days=m.days||[0,1,2,3,4,5,6];
@@ -1551,11 +1553,12 @@ function handleAction(el, ev){
       save(); render(true); return;
     }
     case 'theme': DB.profile.theme = el.value; save(true); render(true); return;
-    case 'sheet': if(requestNativePro(el.dataset.s)) return; openSheet(el.dataset.s); return;
+    case 'sheet': openSheet(el.dataset.s); return;
     case 'close': closeSheet(); return;
     case 'bg': if(ev.target===el) closeSheet(); return;
     case 'go': {
       const g = el.dataset.v;
+      if(requestNativePro(g)) return;
       if(g.startsWith('learn:')||g.startsWith('tool:')) openSheet(g);
       else openSheet(g);
       return;

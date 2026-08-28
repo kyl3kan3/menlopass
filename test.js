@@ -309,6 +309,21 @@ function seed(){
   check('Today truthfully prefills the compact check-in from yesterday', prefill.copied && prefill.source && prefill.hf===2 && prefill.fog===3, JSON.stringify(prefill));
 
   console.log('\n== 3. Today check-in interactions ==');
+  await page.evaluate(()=>{
+    curTab='today'; curDate=todayISO();
+    DB.entries[curDate]={sym:{},act:{},nut:{}};
+    save(true); render();
+  });
+  await page.locator('.tw-tile').filter({hasText:'Hot flashes'}).click();
+  await page.waitForTimeout(150);
+  const compactTap = await page.evaluate(()=>({
+    value:DB.entries[todayISO()].hf,
+    pressed:document.querySelector('.tw-tile')?.getAttribute('aria-pressed'),
+    label:document.querySelector('.tw-tile')?.getAttribute('aria-label')
+  }));
+  check('whole Today symptom card registers a level', compactTap.value===1 && compactTap.pressed==='true', JSON.stringify(compactTap));
+  check('Today symptom card exposes its level accessibly', /1 of 3/.test(compactTap.label||''), JSON.stringify(compactTap));
+  await page.evaluate(()=>{ DB.entries[todayISO()].hf=0; save(true); render(); });
   await goTodayDetails(page); await page.waitForTimeout(300);
   check('detailed daily log opens', (await page.locator('.today-view').count())===1);
   await page.click('[data-act="hf"][data-n="1"]');
@@ -396,6 +411,10 @@ function seed(){
   check('native trends are marked as Pro', lockedPro.locked);
   check('locked native trends stay on Today', lockedPro.tab==='today', JSON.stringify(lockedPro));
   check('locked native trends request the paywall', lockedPro.messages.some(x=>x.type==='open-pro-paywall'&&x.feature==='trends'), JSON.stringify(lockedPro));
+  await page.evaluate(()=>openSheet('report')); await page.waitForTimeout(100);
+  const lockedReport = await page.evaluate(()=>({messages:window.__nativeMessages,sheets:[...sheetStack]}));
+  check('direct locked report requests the paywall', lockedReport.messages.some(x=>x.type==='open-pro-paywall'&&x.feature==='report'), JSON.stringify(lockedReport));
+  check('direct locked report does not open behind the paywall', !lockedReport.sheets.includes('report'), JSON.stringify(lockedReport));
   await page.evaluate(()=>{ window.__MENO_PRO_ACTIVE__=true; window.dispatchEvent(new Event('menocompass-pro-changed')); });
   await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(150);
   check('active Pro customer can open trends', await page.evaluate(()=>curTab==='trends'));
@@ -736,8 +755,8 @@ function seed(){
   await p2.waitForTimeout(500);
   check('app still boots with storage blocked', await p2.locator('text=Meno Compass').first().isVisible());
   await p2.click('[data-act="ob-skip"]'); await p2.waitForTimeout(400);
-  await p2.click('[data-act="set"][data-k="hf"][data-v="1"]'); await p2.waitForTimeout(250);
-  check('in-memory logging works', (await p2.locator('[data-k="hf"][data-v="1"]').getAttribute('aria-pressed'))==='true');
+  await p2.locator('.tw-tile').filter({hasText:'Hot flashes'}).click(); await p2.waitForTimeout(250);
+  check('in-memory logging works', await p2.evaluate(()=>DB.entries[todayISO()]?.hf===1));
   await p2.click('[data-act="tab"][data-v="settings"]'); await p2.waitForTimeout(300);
   check('ephemeral warning shown to user', /cannot save to disk/.test(await p2.locator('#app').innerText()));
   await ctx2.close();

@@ -28,8 +28,10 @@ function App() {
   const [html, setHtml] = useState<string>();
   const [error, setError] = useState<string>();
   const [revenueCatReady, setRevenueCatReady] = useState(false);
+  const [revenueCatUnavailable, setRevenueCatUnavailable] = useState(false);
   const [proActive, setProActive] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const pendingPaywallRef = useRef(false);
 
   const syncProStatusToWeb = (active: boolean) => {
     webViewRef.current?.injectJavaScript(`
@@ -71,10 +73,13 @@ function App() {
         automaticDeviceIdentifierCollectionEnabled: false,
       });
       Purchases.addCustomerInfoUpdateListener(updateCustomer);
+      setRevenueCatUnavailable(false);
       setRevenueCatReady(true);
       Purchases.getCustomerInfo().then(updateCustomer).catch(() => undefined);
       void initializeTelemetry();
     } catch {
+      pendingPaywallRef.current = false;
+      setRevenueCatUnavailable(true);
       setRevenueCatReady(false);
     }
 
@@ -111,10 +116,29 @@ function App() {
     }
   };
 
+  const requestPaywall = () => {
+    if (purchaseBusy || proActive) return;
+    if (revenueCatUnavailable) {
+      Alert.alert('Subscriptions unavailable', 'MenoCompass could not connect to the App Store. Please try again after reopening the app.');
+      return;
+    }
+    if (!revenueCatReady) {
+      pendingPaywallRef.current = true;
+      return;
+    }
+    void openPaywall();
+  };
+
+  useEffect(() => {
+    if (!revenueCatReady || purchaseBusy || !pendingPaywallRef.current) return;
+    pendingPaywallRef.current = false;
+    void openPaywall();
+  }, [revenueCatReady, purchaseBusy]);
+
   const handleWebMessage = (event: WebViewMessageEvent) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
-      if (message?.type === 'open-pro-paywall') void openPaywall();
+      if (message?.type === 'open-pro-paywall') requestPaywall();
     } catch {
       // Ignore non-MenoCompass messages from the embedded document.
     }
@@ -153,7 +177,7 @@ function App() {
           <Pressable accessibilityRole="button" disabled={!revenueCatReady || purchaseBusy} onPress={restorePurchases} style={styles.restoreButton}>
             <Text style={styles.restoreText}>Restore</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" disabled={!revenueCatReady || purchaseBusy || proActive} onPress={openPaywall} style={[styles.proButton, proActive && styles.proButtonActive]}>
+          <Pressable accessibilityRole="button" disabled={purchaseBusy || proActive} onPress={requestPaywall} style={[styles.proButton, proActive && styles.proButtonActive]}>
             <Text style={styles.proButtonText}>{proActive ? 'Pro active' : purchaseBusy ? 'Opening…' : 'Explore Pro'}</Text>
           </Pressable>
         </View>
@@ -165,6 +189,21 @@ function App() {
         injectedJavaScriptBeforeContentLoaded={`
           window.__MENO_NATIVE__ = true;
           window.__MENO_PRO_ACTIVE__ = ${proActive ? 'true' : 'false'};
+          (function lockNativeViewport() {
+            var apply = function () {
+              if (!document.head) return;
+              var viewport = document.querySelector('meta[name="viewport"]');
+              if (!viewport) {
+                viewport = document.createElement('meta');
+                viewport.name = 'viewport';
+                document.head.appendChild(viewport);
+              }
+              viewport.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+              document.documentElement.classList.add('native-app');
+            };
+            apply();
+            document.addEventListener('DOMContentLoaded', apply, { once: true });
+          })();
           true;
         `}
         javaScriptEnabled
