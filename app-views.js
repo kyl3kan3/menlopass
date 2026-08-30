@@ -52,7 +52,7 @@ let curDate = todayISO();
 let curTab = 'today';
 let sheetStack = [];
 let lastSheetTrigger = null;
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 
 /* ---------- tiny helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -93,6 +93,10 @@ function scaleRow(path, labels, cur, min, groupLabel){
 function chip(path, label, on){
   return h('button',{class:'chip','data-act':'toggle','data-k':path,'aria-pressed':on?'true':'false'}, esc(label));
 }
+function twilightHeader(title, subtitle){
+  return '<div class="tw-status"><span>'+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span><span>MENOCOMPASS</span></div>'
+    +'<div class="tw-heading tw-page-heading"><h1>'+esc(title)+'</h1><p>'+esc(subtitle)+'</p></div>';
+}
 function proteinChoices(current, target){
   const met=current===true || current===1;
   const missed=current===false || current===0;
@@ -121,7 +125,8 @@ function viewToday(){
   const b = burden(e);
 
   return `
-  <div class="view today-view">
+  <div class="view tw-screen tw-secondary today-view">
+    ${twilightHeader('Detailed daily log','Sleep, body, movement and lifestyle — saved automatically.')}
     <div class="dayscroll" role="group" aria-label="Choose a day">${days}</div>
     <p class="tiny muted" style="margin:6px 0 14px">${curDate===t?'Tap only what changed.':esc(fmtLong(curDate))+' · editing a past day'}</p>
 
@@ -237,7 +242,8 @@ function viewTrends(){
   const days = rangeDates(trendRange);
   const dates = entryDates();
   if(!dates.length){
-    return `<div class="view tw-screen"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div><h1 class="tw-h2">Trends</h1><div class="empty">
+    return `<div class="view tw-screen tw-secondary">${twilightHeader('Trends','Your patterns will appear here as you log.')}
+      <div class="empty tw-empty-state">
       ${IC.trends}
       <h3>Nothing to chart yet</h3>
       <p class="tiny">Fill in a check-in on the Today tab. Most patterns need about two weeks before they mean anything.</p>
@@ -260,7 +266,7 @@ function viewTrends(){
 
   const ins = insights();
 
-  return `<div class="view tw-screen"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div><h1 class="tw-h2">Trends</h1>
+  return `<div class="view tw-screen tw-secondary">${twilightHeader('Trends','Patterns from your daily check-ins — direction matters more than one day.')}
     <div class="seg" role="group" aria-label="Time range">
       ${[7,30,90].map(n=>h('button',{'data-act':'range','data-v':n,'aria-pressed':trendRange===n?'true':'false'}, n+' days')).join('')}
     </div>
@@ -331,7 +337,7 @@ const LEARN_MODULES = [
   {id:'sources',    i:TWILIGHT_IC.document, n:'Sources & what we left out', s:'Where all of this comes from'}
 ];
 function viewLearn(){
-  return `<div class="view">
+  return `<div class="view tw-screen tw-secondary">${twilightHeader('Evidence guide','Straight answers, clear evidence, and no wellness hype.')}
     <div class="callout info"><span class="ctitle">How to read this library</span>
       Claims are tagged by evidence quality where a badge helps, and where major bodies disagree we say so rather than picking a side quietly. Reviewed July 2026.</div>
     <div class="rows">
@@ -350,7 +356,7 @@ function viewYou(){
   const age = p.birthYear? (new Date().getFullYear()-p.birthYear) : null;
   const pt = proteinTarget();
   const dates = entryDates();
-  return `<div class="view tw-screen"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div><h1 class="tw-h2">Settings</h1>
+  return `<div class="view tw-screen tw-secondary">${twilightHeader('Settings','Your profile, tools, preferences and private data.')}
     <button class="btn ghost block settings-learn" data-act="tab" data-v="learn">Evidence guide</button>
     <button class="btn ghost block settings-learn" data-act="tab" data-v="today-details">Detailed daily log</button>
     <div class="card">
@@ -1280,11 +1286,13 @@ function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
    ONBOARDING
    ============================================================ */
 function viewOnboard(){
-  return `<div class="view">
-    <div style="text-align:center;padding:18px 0 6px">
+  const p=DB.profile;
+  return `<div class="view tw-screen tw-secondary tw-onboard">
+    <div class="tw-status"><span>PRIVATE BY DESIGN</span><span>MENOCOMPASS</span></div>
+    <div class="tw-onboard-hero">
       <div class="onboard-mark">${TWILIGHT_IC.cycle}</div>
-      <h1 style="margin-top:8px">Meno Compass</h1>
-      <p class="muted tiny">A private tracker and a straight-talking reference for perimenopause and beyond.</p>
+      <div><h1>Welcome to MenoCompass</h1>
+      <p>A private tracker and a straight-talking reference for perimenopause and beyond.</p></div>
     </div>
     <div class="card">
       <h3>What this is</h3>
@@ -1300,15 +1308,16 @@ function viewOnboard(){
       <h3>A few basics</h3>
       <div class="grid2">
         <div class="field"><label class="fl" for="ob-n">First name (optional)</label>
-          <input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional"></div>
+          <input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
         <div class="field"><label class="fl" for="ob-y">Birth year (optional)</label>
-          <input id="ob-y" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" placeholder="e.g. 1975"></div>
+          <input id="ob-y" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" placeholder="e.g. 1975" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
       </div>
       <div class="field"><label class="fl" for="ob-u">Units</label>
-        <select id="ob-u"><option value="imperial">Pounds and inches</option><option value="metric">Kilograms and centimetres</option></select></div>
+        <select id="ob-u" data-act="prof" data-k="units"><option value="imperial"${p.units==='imperial'?' selected':''}>Pounds and inches</option><option value="metric"${p.units==='metric'?' selected':''}>Kilograms and centimetres</option></select></div>
       <div class="field"><label class="fl" for="ob-r">Where you are</label>
-        <select id="ob-r"><option value="us">United States</option><option value="uk">United Kingdom</option><option value="other">Elsewhere</option></select>
+        <select id="ob-r" data-act="prof" data-k="region"><option value="us"${p.region==='us'?' selected':''}>United States</option><option value="uk"${p.region==='uk'?' selected':''}>United Kingdom</option><option value="other"${p.region==='other'?' selected':''}>Elsewhere</option></select>
         <p class="xtiny">Guidance differs between the US and UK on several points, and the app will tell you where.</p></div>
+      <div class="tw-save-note">${TWILIGHT_IC.calendar}<span><b>Your progress saves as you go.</b><small>You can leave the app and continue here later.</small></span></div>
       <div class="callout info"><span class="ctitle">This device is your only copy</span>
       Clearing this site's browser data deletes your entries, there is no automatic sync, and anyone who can use this browser profile may be able to open them. Export an unencrypted backup occasionally and store it somewhere private.</div>
       <button class="btn block primary" data-act="ob-done">Get started</button>
@@ -1324,15 +1333,15 @@ function viewOnboard(){
 let notesOpen=false, medFormOpen=false, labFormOpen=false;
 let medDaysDraft=[0,1,2,3,4,5,6];
 const DAY_SHORT=['S','M','T','W','T','F','S'];
-function twilightDots(path,value,label){
-  const current=Math.max(0,Math.min(3,Number(value)||0));
-  return '<span class="tw-dots" aria-hidden="true">'
-    +[0,1,2,3].map(i=>'<i class="tw-dot f'+i+(current===i?' on':'')+'"></i>').join('')+'</span>';
-}
-function twilightTile(path,value,label,icon){
-  const v=Math.max(0,Math.min(3,Number(value)||0));
-  const next=(v+1)%4;
-  return '<button class="tw-tile'+(v>0?' sel':'')+'" data-act="set" data-k="'+esc(path)+'" data-v="'+next+'" aria-label="'+esc(label)+': '+v+' of 3. Tap to choose the next level." aria-pressed="'+(v>0?'true':'false')+'"><span class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span></span>'+twilightDots(path,v,label)+'</button>';
+const TWILIGHT_LEVELS=['None','Mild','Moderate','Severe'];
+function twilightTile(path,value,label,icon,levels){
+  const choices=levels||TWILIGHT_LEVELS;
+  const logged=value!=null&&Number.isFinite(Number(value));
+  const v=logged?Math.max(0,Math.min(3,Number(value))):null;
+  const current=logged?choices[v]:'Choose level';
+  return '<div class="tw-tile'+(logged?' logged':'')+(v>0?' sel':'')+'" role="group" aria-label="'+esc(label)+'">'
+    +'<div class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span><b class="tw-level">'+esc(current)+'</b></div>'
+    +'<div class="tw-level-grid">'+choices.map((choice,i)=>'<button class="tw-level-choice" data-act="set" data-k="'+esc(path)+'" data-v="'+i+'" aria-label="'+esc(label)+': '+esc(choice)+'" aria-pressed="'+(v===i?'true':'false')+'"><i class="tw-dot f'+i+'" aria-hidden="true"></i><span>'+esc(choice)+'</span></button>').join('')+'</div></div>';
 }
 function medicationDetail(m){
   const days=m.days||[0,1,2,3,4,5,6];
@@ -1356,10 +1365,9 @@ function viewTodayCompact(){
   const e=DB.entries[curDate]||{sym:{},act:{},nut:{}}, sym=e.sym||{};
   const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   return `<div class="view tw-screen tw-today">
-    <div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
-    <div class="tw-heading"><h1>${esc(selected)}</h1><p>${curDate===todayISO()?(e.prefilledFrom?'Prefilled from yesterday — tap anything that changed.':'Tap anything that changed today.'):'Editing '+esc(fmtLong(curDate))+'.'}</p></div>
+    ${twilightHeader(selected,curDate===todayISO()?(e.prefilledFrom?'Yesterday was copied forward. Choose the level that fits today.':'Choose a level for each symptom. Tap None when it did not happen.'):'Editing '+fmtLong(curDate)+'. Choose the level that fit that day.')}
     <div class="tw-grid">
-      ${twilightTile('hf',e.hf,'Hot flashes',TWILIGHT_IC.flame)}
+      ${twilightTile('hf',e.hf,'Hot flashes',TWILIGHT_IC.flame,['None','1 flash','2 flashes','3+ flashes'])}
       ${twilightTile('ns',e.ns,'Night sweats',TWILIGHT_IC.moon)}
       ${twilightTile('sym.fog',sym.fog,'Brain fog',TWILIGHT_IC.cloud)}
       ${twilightTile('sym.energy',sym.energy,'Fatigue',TWILIGHT_IC.bolt)}
@@ -1392,8 +1400,7 @@ function labForm(){
 }
 function viewMeds(){
   const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[];
-  return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
-    <h1 class="tw-h2">Medications</h1>
+  return `<div class="view tw-screen tw-secondary">${twilightHeader('Medications','Schedules, daily doses and lab context in one place.')}
     <div class="tw-med-list">${meds.length?meds.map((m,i)=>'<div class="tw-med-card"><div class="tw-medrow static">'+medicationIcon(m)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-i="'+i+'" aria-label="Remove '+esc(m.name)+'">×</button></div>'+adherenceDots(m)+'</div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
     ${medFormOpen?medicationForm():'<button class="btn ghost block" data-act="med-add">Add a medication</button>'}
     <div class="tw-label tw-labs-label">Labs</div><div class="tw-medcard">${labs.length?labs.slice(0,6).map((x,i)=>'<div class="tw-medrow static">'+TWILIGHT_IC.lab+'<span class="tw-grow"><b>'+esc(x.name)+'</b><small>'+esc(fmtDay(x.date))+'</small></span><span class="tw-due">'+esc(x.value+(x.unit?' '+x.unit:''))+'</span><button class="tw-remove" data-act="lab-remove" data-i="'+i+'" aria-label="Remove '+esc(x.name)+'">×</button></div>').join(''):'<div class="tw-empty-med">No lab results yet</div>'}</div>
@@ -1402,8 +1409,8 @@ function viewMeds(){
 }
 function viewReport(){
   const dates=entryDates(), logged=dates.length, end=todayISO(), start=addDays(end,-89);
-  return `<div class="view tw-screen tw-secondary"><div class="tw-status"><span>${new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</span><span>MENOCOMPASS</span></div>
-    <h1 class="tw-h2">Doctor report</h1><div class="tw-chips"><span>30d</span><span class="on">90d</span><span>180d</span></div>
+  return `<div class="view tw-screen tw-secondary">${twilightHeader('Doctor report','Turn your private log into a focused appointment summary.')}
+    <div class="tw-chips"><span>30d</span><span class="on">90d</span><span>180d</span></div>
     <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtDay(start))} – ${esc(fmtDay(end))} · ${logged} days logged · prepared with MenoCompass</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
     <div class="tw-observed"><span>Observed</span><p>Patterns become more useful as you log consistently and mark treatment changes.</p><small>Correlation is not causation — bring the report to your clinician.</small></div>
     <button class="btn primary block" data-act="sheet" data-s="report">Generate report</button>
@@ -1796,7 +1803,8 @@ function download(name, text, mime){
 /* ---------- boot ---------- */
 function boot(){
   load();
-  if(prefillTodayFromYesterday()) save(true);
+  const prefilled=prefillTodayFromYesterday();
+  if(prefilled||window.__MENO_NATIVE__===true) save(true);
   document.body.insertAdjacentHTML('afterbegin',
     '<header class="topbar" id="topbar"></header><main id="app"></main>'
     + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="inner">'
@@ -1829,6 +1837,7 @@ function boot(){
   document.addEventListener('keydown', keepFocusInSheet);
   if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
   window.addEventListener('beforeunload', flush);
+  window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flush(); });
   window.addEventListener('storage', ev=>{
     if(ev.key!==Store.key || dirty) return;

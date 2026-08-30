@@ -6,6 +6,24 @@
 const Store = (() => {
   const KEY = 'menocompass.v1';
   let mem = null, usingMemory = false;
+  function nativeBridge(){
+    return window.__MENO_NATIVE__===true && !!(window.ReactNativeWebView&&window.ReactNativeWebView.postMessage);
+  }
+  function postNative(serialized){
+    if(!nativeBridge()) return false;
+    try{
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'persist-state',state:serialized}));
+      return true;
+    }catch(e){ return false; }
+  }
+  function injectedState(){
+    try{
+      const serialized=window.__MENO_PERSISTED_STATE__;
+      if(typeof serialized!=='string'||!serialized) return null;
+      window.__MENO_PERSISTED_STATE__='';
+      return JSON.parse(serialized);
+    }catch(e){ return null; }
+  }
   function probe(){
     try{
       const t='__mc_t__'; localStorage.setItem(t,'1'); localStorage.removeItem(t); return true;
@@ -15,16 +33,22 @@ const Store = (() => {
   if(!ok) usingMemory = true;
   return {
     get key(){ return KEY; },
-    get ephemeral(){ return usingMemory; },
+    get ephemeral(){ return usingMemory&&!nativeBridge(); },
     read(){
+      const injected=injectedState();
+      if(injected) return injected;
       if(usingMemory) return mem;
       try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }
       catch(e){ usingMemory = true; return mem; }
     },
     write(obj){
-      if(usingMemory){ mem = obj; return true; }
-      try{ localStorage.setItem(KEY, JSON.stringify(obj)); return true; }
-      catch(e){ usingMemory = true; mem = obj; return false; }
+      let serialized;
+      try{ serialized=JSON.stringify(obj); }
+      catch(e){ return false; }
+      const nativeSaved=postNative(serialized);
+      if(usingMemory){ mem = obj; return nativeSaved; }
+      try{ localStorage.setItem(KEY, serialized); return true; }
+      catch(e){ usingMemory = true; mem = obj; return nativeSaved; }
     },
     clear(){ mem=null; try{ localStorage.removeItem(KEY); }catch(e){} }
   };

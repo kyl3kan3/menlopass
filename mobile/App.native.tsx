@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { ObserveRoot, useObserve } from 'expo-observe';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
@@ -17,6 +17,33 @@ import {
 const appAsset = require('./assets/menlopass.html');
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || 'appl_SJzoZsrDheugNgeVISkHmDeKoOk';
 const proEntitlement = 'MenoCompass Pro';
+const maxPersistedStateLength = 5_000_000;
+const persistedStateFile = new File(Paths.document, 'menocompass-state.json');
+
+function canonicalPersistedState(serialized: string) {
+  if (!serialized || serialized.length > maxPersistedStateLength) return null;
+  try {
+    const parsed = JSON.parse(serialized);
+    if (!parsed || typeof parsed !== 'object' || !Number.isInteger(parsed.v)) return null;
+    if (!parsed.profile || typeof parsed.profile !== 'object' || Array.isArray(parsed.profile)) return null;
+    if (!parsed.entries || typeof parsed.entries !== 'object' || Array.isArray(parsed.entries)) return null;
+    return JSON.stringify(parsed);
+  } catch {
+    return null;
+  }
+}
+
+async function readPersistedState() {
+  if (!persistedStateFile.exists) return null;
+  return canonicalPersistedState(await persistedStateFile.text());
+}
+
+function writePersistedState(serialized: string) {
+  const canonical = canonicalPersistedState(serialized);
+  if (!canonical) return;
+  if (!persistedStateFile.exists) persistedStateFile.create({ intermediates: true });
+  persistedStateFile.write(canonical);
+}
 
 function hasProAccess(customerInfo: CustomerInfo) {
   return Boolean(customerInfo.entitlements.active[proEntitlement]);
@@ -26,6 +53,7 @@ function App() {
   const webViewRef = useRef<WebView>(null);
   const { markInteractive } = useObserve();
   const [html, setHtml] = useState<string>();
+  const [persistedState, setPersistedState] = useState<string | null>(null);
   const [error, setError] = useState<string>();
   const [revenueCatReady, setRevenueCatReady] = useState(false);
   const [revenueCatUnavailable, setRevenueCatUnavailable] = useState(false);
@@ -43,9 +71,15 @@ function App() {
 
   useEffect(() => {
     let active = true;
-    Asset.fromModule(appAsset).downloadAsync()
-      .then(asset => new File(asset.localUri || asset.uri).text())
-      .then(source => { if (active) setHtml(source); })
+    Promise.all([
+      Asset.fromModule(appAsset).downloadAsync().then(asset => new File(asset.localUri || asset.uri).text()),
+      readPersistedState().catch(() => null),
+    ])
+      .then(([source, savedState]) => {
+        if (!active) return;
+        setPersistedState(savedState);
+        setHtml(source);
+      })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
     return () => { active = false; };
   }, []);
@@ -138,6 +172,10 @@ function App() {
   const handleWebMessage = (event: WebViewMessageEvent) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
+      if (message?.type === 'persist-state' && typeof message.state === 'string') {
+        writePersistedState(message.state);
+        return;
+      }
       if (message?.type === 'open-pro-paywall') requestPaywall();
     } catch {
       // Ignore non-MenoCompass messages from the embedded document.
@@ -189,6 +227,7 @@ function App() {
         injectedJavaScriptBeforeContentLoaded={`
           window.__MENO_NATIVE__ = true;
           window.__MENO_PRO_ACTIVE__ = ${proActive ? 'true' : 'false'};
+          window.__MENO_PERSISTED_STATE__ = ${JSON.stringify(persistedState || '')};
           (function lockNativeViewport() {
             var apply = function () {
               if (!document.head) return;

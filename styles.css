@@ -146,7 +146,7 @@ hr.sep{border:0;border-top:1px solid var(--border);margin:14px 0}
   border-radius:var(--r-sm); padding:11px 15px; min-height:44px; font-weight:600; font-size:.9rem;
   transition:transform .1s, background .15s; text-decoration:none;
 }
-.btn:active{transform:scale(.975)}
+.btn:active{transform:scale(.96)}
 .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
 html[data-theme="dark"] .btn.primary{color:#1b1119}
 .btn.ghost{background:transparent;border-color:var(--border)}
@@ -177,7 +177,7 @@ textarea{min-height:76px; resize:vertical}
   background:var(--surface-2); color:var(--text); font-size:1.4rem; font-weight:600;
   display:grid;place-items:center; line-height:1;
 }
-.stepper button:active{transform:scale(.93)}
+.stepper button:active{transform:scale(.96)}
 
 /* scale 0-4 / 1-5 pickers */
 .scale{display:flex; gap:6px}
@@ -1011,20 +1011,26 @@ body{background:#080D0E;font-family:system-ui,-apple-system,"Segoe UI",sans-seri
 .tw-status{display:flex;justify-content:space-between;padding:6px 6px 0;font-size:12px;font-weight:600}
 .tw-status span:last-child{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:var(--text-2);letter-spacing:.02em}
 .tw-heading{margin-top:14px}
-.tw-heading h1{margin:0;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:29px;line-height:1.16;letter-spacing:-.02em;font-weight:700;white-space:nowrap}
-.tw-heading p{margin:4px 0 0;color:var(--text-2);font-size:14px;line-height:1.45}
+.tw-heading h1{margin:0;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:29px;line-height:1.16;letter-spacing:-.02em;font-weight:700;white-space:normal;text-wrap:balance}
+.tw-heading p{margin:4px 0 0;color:var(--text-2);font-size:14px;line-height:1.45;text-wrap:pretty}
+.tw-page-heading{margin-bottom:2px}
 .tw-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
-.tw-tile{position:relative;width:100%;min-height:76px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);display:flex;flex-direction:column;gap:9px;text-align:left;-webkit-tap-highlight-color:transparent}
+.tw-tile{position:relative;width:100%;min-height:150px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);display:flex;flex-direction:column;gap:10px;text-align:left;-webkit-tap-highlight-color:transparent;transition:border-color .15s ease,box-shadow .15s ease}
 .tw-tile.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 16px -4px var(--accent)}
-.tw-tile-top{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:500;white-space:nowrap}
+.tw-tile-top{display:flex;align-items:center;gap:7px;font-size:15px;font-weight:600;min-width:0}
+.tw-tile-top>span{flex:1;min-width:0;line-height:1.2}
+.tw-level{color:var(--text-2);font-size:10px;font-weight:700;line-height:1.1;text-align:right;white-space:normal}
 .tw-tile-top svg,.tw-medrow>svg{width:18px;height:18px;stroke:var(--text-2);fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 .tw-tile.sel .tw-tile-top svg{stroke:var(--ok)}
-.tw-dots{display:flex;gap:10px;min-height:16px;align-items:center}
-.tw-dot{display:block;width:14px;height:14px;min-width:14px;padding:0;border-radius:50%;border:1.5px solid var(--accent);background:transparent}
+.tw-level-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:auto}
+.tw-level-choice{min-width:0;min-height:40px;padding:0 6px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-2);display:flex;align-items:center;gap:6px;font:600 10px/1.1 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left;transition:transform .1s ease,border-color .15s ease,background .15s ease,color .15s ease}
+.tw-level-choice:active{transform:scale(.96)}
+.tw-level-choice[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-text)}
+.tw-dot{display:block;width:10px;height:10px;min-width:10px;padding:0;border-radius:50%;border:1.5px solid var(--accent);background:transparent}
 .tw-dot.f1{background:color-mix(in srgb,var(--accent) 30%,transparent);border-color:transparent}
 .tw-dot.f2{background:color-mix(in srgb,var(--accent) 60%,transparent);border-color:transparent}
 .tw-dot.f3{background:var(--accent);border-color:transparent}
-.tw-dot.on{transform:scale(1.28)}
+.tw-level-choice[aria-pressed="true"] .tw-dot{box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--accent)}
 .tw-meds{margin-top:15px}.tw-label{margin-bottom:8px;color:var(--text-2);font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
 .tw-medcard,.tw-med-card{padding:2px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 .tw-medrow{width:100%;min-height:59px;display:flex;align-items:center;gap:12px;padding:10px 2px;border:0;border-bottom:1px solid var(--border);background:none;color:var(--text);text-align:left}
@@ -1034,6 +1040,15 @@ body{background:#080D0E;font-family:system-ui,-apple-system,"Segoe UI",sans-seri
 .tw-empty-med{width:100%;padding:16px 2px;border:0;background:none;color:var(--accent);font-weight:600;text-align:center}
 .tw-quiet{display:block;margin:12px auto 0;padding:4px 10px;border:0;background:none;color:var(--accent);font-size:14px;font-weight:600}
 .tw-notes{min-height:64px;margin-top:12px;background:var(--surface);border-color:var(--border);font-size:14px}
+.tw-onboard{min-height:100dvh;padding-bottom:24px}
+.tw-onboard-hero{display:flex;align-items:center;gap:14px;padding:10px 2px 2px}
+.tw-onboard-hero h1{margin:0;font-size:27px;line-height:1.12;text-wrap:balance}
+.tw-onboard-hero p{margin:4px 0 0;color:var(--text-2);font-size:13px;line-height:1.45;text-wrap:pretty}
+.tw-onboard-hero .onboard-mark{margin:0;flex:0 0 auto}
+.tw-save-note{display:flex;align-items:center;gap:11px;padding:11px 12px;margin:2px 0 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.tw-save-note>svg{width:20px;height:20px;fill:none;stroke:var(--ok);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.tw-save-note span{display:flex;flex-direction:column;gap:2px}.tw-save-note b{font-size:12px}.tw-save-note small{color:var(--text-2);font-size:11px}
+.tw-empty-state{border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 nav.tabs{background:var(--surface);border-color:var(--border);backdrop-filter:none;-webkit-backdrop-filter:none}
 nav.tabs .inner{max-width:384px}
 nav.tabs button{height:var(--nav-h);padding:10px 2px 20px;gap:5px;color:var(--text-3);font-size:10px;font-weight:600;position:relative}

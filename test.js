@@ -123,11 +123,16 @@ function seed(){
   console.log('\n== 1. First run / onboarding ==');
   await page.goto(`${baseUrl}/index.html`);
   await page.waitForTimeout(400);
-  check('onboarding shown', await page.locator('text=Meno Compass').first().isVisible());
+  check('onboarding shown', await page.getByText('Welcome to MenoCompass').isVisible());
   check('tabs hidden on onboarding', !(await page.locator('nav.tabs').isVisible()));
   await page.fill('#ob-n','Tia');
   await page.fill('#ob-y','1974');
   await page.selectOption('#ob-u','imperial');
+  await page.waitForTimeout(400);
+  await page.reload(); await page.waitForTimeout(400);
+  check('unfinished onboarding name survives a reload', (await page.inputValue('#ob-n'))==='Tia');
+  check('unfinished onboarding birth year survives a reload', (await page.inputValue('#ob-y'))==='1974');
+  check('onboarding explains that progress saves automatically', /progress saves as you go/i.test(await page.locator('#app').innerText()));
   await page.click('[data-act="ob-done"]');
   await page.waitForTimeout(600);
   check('staging quiz auto-opens', await page.locator('.sheet').isVisible());
@@ -314,15 +319,16 @@ function seed(){
     DB.entries[curDate]={sym:{},act:{},nut:{}};
     save(true); render();
   });
-  await page.locator('.tw-tile').filter({hasText:'Hot flashes'}).click();
+  check('unanswered Today tile prompts for a level', /Choose level/.test(await page.locator('.tw-tile').filter({hasText:'Brain fog'}).innerText()));
+  await page.locator('[data-act="set"][data-k="hf"][data-v="2"]').click();
   await page.waitForTimeout(150);
   const compactTap = await page.evaluate(()=>({
     value:DB.entries[todayISO()].hf,
-    pressed:document.querySelector('.tw-tile')?.getAttribute('aria-pressed'),
-    label:document.querySelector('.tw-tile')?.getAttribute('aria-label')
+    pressed:document.querySelector('[data-act="set"][data-k="hf"][data-v="2"]')?.getAttribute('aria-pressed'),
+    text:document.querySelector('.tw-tile')?.textContent
   }));
-  check('whole Today symptom card registers a level', compactTap.value===1 && compactTap.pressed==='true', JSON.stringify(compactTap));
-  check('Today symptom card exposes its level accessibly', /1 of 3/.test(compactTap.label||''), JSON.stringify(compactTap));
+  check('Today offers direct, non-cycling choices', compactTap.value===2 && compactTap.pressed==='true', JSON.stringify(compactTap));
+  check('Today shows the selected choice in plain language', /2 flashes/.test(compactTap.text||''), JSON.stringify(compactTap));
   await page.evaluate(()=>{ DB.entries[todayISO()].hf=0; save(true); render(); });
   await goTodayDetails(page); await page.waitForTimeout(300);
   check('detailed daily log opens', (await page.locator('.today-view').count())===1);
@@ -406,6 +412,15 @@ function seed(){
     window.ReactNativeWebView={postMessage:message=>window.__nativeMessages.push(JSON.parse(message))};
     curTab='today'; render();
   });
+  const nativePersist = await page.evaluate(()=>{
+    DB.profile.name='Native persistence check';
+    save(true);
+    const message=window.__nativeMessages.find(item=>item.type==='persist-state');
+    const state=message&&JSON.parse(message.state);
+    DB.profile.name='Test'; save(true);
+    return {message,stateName:state&&state.profile&&state.profile.name};
+  });
+  check('native bridge receives the complete saved app state', nativePersist.message&&nativePersist.stateName==='Native persistence check', JSON.stringify(nativePersist));
   await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(150);
   const lockedPro = await page.evaluate(()=>({tab:curTab,messages:window.__nativeMessages,locked:document.querySelector('[data-v="trends"]').classList.contains('pro-locked')}));
   check('native trends are marked as Pro', lockedPro.locked);
@@ -419,6 +434,16 @@ function seed(){
   await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(150);
   check('active Pro customer can open trends', await page.evaluate(()=>curTab==='trends'));
   await page.evaluate(()=>{ window.__MENO_NATIVE__=false; window.__MENO_PRO_ACTIVE__=false; delete window.ReactNativeWebView; curTab='trends'; render(); });
+
+  console.log('\n== 5c. Home visual language across primary screens ==');
+  for(const [tab,title] of [['trends','Trends'],['meds','Medications'],['report','Doctor report'],['settings','Settings']]){
+    await page.click(`[data-act="tab"][data-v="${tab}"]`); await page.waitForTimeout(120);
+    check(tab+' uses the Home page header system', (await page.locator('.tw-screen .tw-heading h1').first().innerText())===title);
+  }
+  await goLearn(page); await page.waitForTimeout(150);
+  check('evidence guide uses the Home page header system', (await page.locator('.tw-screen .tw-heading h1').first().innerText())==='Evidence guide');
+  await goTodayDetails(page); await page.waitForTimeout(150);
+  check('detailed daily log uses the Home page header system', (await page.locator('.tw-screen .tw-heading h1').first().innerText())==='Detailed daily log');
 
   console.log('\n== 6. Learn library: every module opens ==');
   await goLearn(page); await page.waitForTimeout(300);
@@ -753,9 +778,9 @@ function seed(){
   });
   await p2.goto(`${baseUrl}/index.html`);
   await p2.waitForTimeout(500);
-  check('app still boots with storage blocked', await p2.locator('text=Meno Compass').first().isVisible());
+  check('app still boots with storage blocked', await p2.getByText('Welcome to MenoCompass').isVisible());
   await p2.click('[data-act="ob-skip"]'); await p2.waitForTimeout(400);
-  await p2.locator('.tw-tile').filter({hasText:'Hot flashes'}).click(); await p2.waitForTimeout(250);
+  await p2.locator('[data-act="set"][data-k="hf"][data-v="1"]').click(); await p2.waitForTimeout(250);
   check('in-memory logging works', await p2.evaluate(()=>DB.entries[todayISO()]?.hf===1));
   await p2.click('[data-act="tab"][data-v="settings"]'); await p2.waitForTimeout(300);
   check('ephemeral warning shown to user', /cannot save to disk/.test(await p2.locator('#app').innerText()));
