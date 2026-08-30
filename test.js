@@ -111,6 +111,7 @@ function seed(){
 
   console.log('\n== 0. Native hard-paywall contract ==');
   const nativeAppSource = fs.readFileSync(path.join(__dirname, 'mobile', 'App.native.tsx'), 'utf8');
+  const reviewSource = fs.readFileSync(path.join(__dirname, 'mobile', 'reviewPrompt.native.ts'), 'utf8');
   const storeDescription = JSON.parse(
     fs.readFileSync(path.join(__dirname, 'mobile', 'store.config.json'), 'utf8')
   ).apple.info['en-US'].description;
@@ -120,6 +121,10 @@ function seed(){
   check('RevenueCat paywall cannot show a close button', nativeAppSource.includes('displayCloseButton: false'));
   check('zero-price App Store offers fail closed', nativeAppSource.includes('introPrice?.price === 0'));
   check('App Store copy discloses no free tier or trial', storeDescription.includes('There is no free tier or free trial.') && !storeDescription.includes('FREE FEATURES'));
+  check('review milestones are exactly openings 2, 5, and 20', reviewSource.includes('appReviewMilestones = [2, 5, 20] as const'));
+  check('review attempts persist separately from health data', reviewSource.includes("menocompass-review-state.json") && reviewSource.includes('requestedAtLaunches'));
+  check('reviews wait for entitlement, onboarding, main content, and ATT',
+    /!proActive[\s\S]*!experienceReady[\s\S]*!webContentReady[\s\S]*!telemetrySettled[\s\S]*trackingPromptedThisSession/.test(nativeAppSource));
 
   fs.mkdirSync(TEST_RESULTS, {recursive:true});
   await new Promise((resolve,reject)=>{
@@ -138,6 +143,14 @@ function seed(){
   await page.waitForTimeout(400);
   check('onboarding shown', await page.getByText('Welcome to MenoCompass').isVisible());
   check('tabs hidden on onboarding', !(await page.locator('nav.tabs').isVisible()));
+  check('first onboarding action is visible without scrolling', await page.locator('[data-act="ob-next"]').evaluate(el=>{
+    const r=el.getBoundingClientRect(); return r.top>=0 && r.bottom<=window.innerHeight;
+  }));
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-onboarding-step1.png'), fullPage:true});
+  await page.click('[data-act="ob-next"]');
+  await page.waitForTimeout(250);
+  check('onboarding advances to optional basics', await page.getByText('Make it yours').isVisible());
+  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-onboarding-step2.png'), fullPage:true});
   await page.fill('#ob-n','Tia');
   await page.fill('#ob-y','1974');
   await page.selectOption('#ob-u','imperial');
@@ -149,7 +162,11 @@ function seed(){
   await page.click('[data-act="ob-done"]');
   await page.waitForTimeout(600);
   check('staging quiz auto-opens', await page.locator('.sheet').isVisible());
-  check('quiz question 1 present', (await page.locator('.sheet h3').first().innerText()).includes('old'));
+  check('birth year prevents duplicate age question', /uterus|hysterectomy/i.test(await page.locator('.stage-focus-target').innerText()));
+  check('adaptive staging avoids a shifting total', !/Question \d+ of \d+/.test(await page.locator('.sheet').innerText()));
+  check('staging focus lands on the active question', await page.evaluate(()=>document.activeElement?.classList.contains('stage-focus-target')));
+  await page.locator('.sheet .row').first().click(); await page.waitForTimeout(250);
+  check('focus follows each staging answer', await page.evaluate(()=>document.activeElement?.classList.contains('stage-focus-target')));
 
   console.log('\n== 2. Staging quiz — surgical combinations ==');
 
@@ -159,7 +176,7 @@ function seed(){
       await page.locator('[data-act="close"]').first().click();
       await page.waitForTimeout(180);
     }
-    await page.evaluate(()=>{ stageAns={}; stageStep=0; DB.profile.stage=null; save(true); });
+    await page.evaluate(()=>{ stageAns={}; stageStep=0; stageEditing=false; DB.profile.stage=null; DB.profile.birthYear=null; save(true); });
     await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
     await page.click('[data-act="sheet"][data-s="learn:stage"]'); await page.waitForTimeout(300);
     const restart = page.locator('[data-act="stage-restart"]');
@@ -170,6 +187,11 @@ function seed(){
       await row.first().click();
       await page.waitForTimeout(140);
     }
+    const resultDetails = page.locator('.sheet details');
+    for(let i=0;i<await resultDetails.count();i++){
+      await resultDetails.nth(i).locator('summary').click();
+    }
+    if(await resultDetails.count()) await page.waitForTimeout(100);
     const txt = await page.locator('.sheet').innerText();
     const label = (await page.locator('.sheet .callout .ctitle').first().innerText().catch(()=>''));
     return {txt, label};
@@ -183,6 +205,10 @@ function seed(){
   //        and must not ask about periods ---
   let r = await runQuiz(['45–54','Yes — I have had a hysterectomy','No — both ovaries are still there','1–5 years ago','Occasionally']);
   check('A: hysterectomy+ovaries-kept path completes', !r.error, r.error||'');
+  check('A: completion actions appear before optional detail', await page.evaluate(()=>{
+    const done=document.querySelector('.stage-result-actions'), detail=document.querySelector('.sheet details');
+    return !!done && !!detail && Boolean(done.compareDocumentPosition(detail)&Node.DOCUMENT_POSITION_FOLLOWING);
+  }));
   check('A: explicitly says this is not menopause', /this is not menopause/i.test(r.txt||''));
   check('A: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
   check('A: explains ovaries carry on working', /carry on producing hormones/i.test(r.txt||''));
@@ -793,6 +819,10 @@ function seed(){
   await p2.waitForTimeout(500);
   check('app still boots with storage blocked', await p2.getByText('Welcome to MenoCompass').isVisible());
   await p2.click('[data-act="ob-skip"]'); await p2.waitForTimeout(400);
+  check('deferred setup remains visible on Today', await p2.getByText('Finish your setup').isVisible());
+  await p2.click('[data-act="finish-setup"]'); await p2.waitForTimeout(300);
+  check('setup reminder returns to editable profile', (await p2.locator('#pn').count())===1 && await p2.evaluate(()=>document.activeElement?.id==='pn'));
+  await p2.click('[data-act="tab"][data-v="today"]'); await p2.waitForTimeout(250);
   await p2.locator('[data-act="set"][data-k="hf"][data-v="1"]').click(); await p2.waitForTimeout(250);
   check('in-memory logging works', await p2.evaluate(()=>DB.entries[todayISO()]?.hf===1));
   await p2.click('[data-act="tab"][data-v="settings"]'); await p2.waitForTimeout(300);

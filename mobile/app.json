@@ -13,6 +13,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kyl3kan3.menlopass",
+      "appStoreUrl": "https://apps.apple.com/app/id6798018790",
       "config": {
         "usesNonExemptEncryption": false
       }

@@ -19,6 +19,10 @@ const metaAppId = process.env.EXPO_PUBLIC_META_APP_ID?.trim();
 const metaClientToken = process.env.EXPO_PUBLIC_META_CLIENT_TOKEN?.trim();
 
 type TrackingPermission = 'granted' | 'denied' | 'undetermined' | 'unavailable';
+export type TelemetryInitializationResult = {
+  trackingPermission: TrackingPermission;
+  promptedForTracking: boolean;
+};
 type TelemetryEvent =
   | 'paywall_opened'
   | 'subscription_activated'
@@ -43,7 +47,7 @@ const eventDefinitions: Record<
 
 let appsFlyerReady = false;
 let metaReady = false;
-let initialization: Promise<void> | undefined;
+let initialization: Promise<TelemetryInitializationResult> | undefined;
 
 function recordInitializationFailure(
   service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat',
@@ -68,16 +72,23 @@ async function getRevenueCatCustomerId() {
   return Purchases.getAppUserID();
 }
 
-async function resolveTrackingPermission(): Promise<TrackingPermission> {
-  if (Platform.OS !== 'ios') return 'granted';
+async function resolveTrackingPermission(): Promise<TelemetryInitializationResult> {
+  if (Platform.OS !== 'ios') {
+    return { trackingPermission: 'granted', promptedForTracking: false };
+  }
 
   try {
     const current = await getTrackingPermissionsAsync();
-    if (current.status !== 'undetermined') return current.status;
-    return (await requestTrackingPermissionsAsync()).status;
+    if (current.status !== 'undetermined') {
+      return { trackingPermission: current.status, promptedForTracking: false };
+    }
+    return {
+      trackingPermission: (await requestTrackingPermissionsAsync()).status,
+      promptedForTracking: true,
+    };
   } catch (error) {
     recordInitializationFailure('permissions', error);
-    return 'unavailable';
+    return { trackingPermission: 'unavailable', promptedForTracking: false };
   }
 }
 
@@ -165,7 +176,8 @@ export function initializeTelemetry() {
       sampleRate: 1,
     });
 
-    const permission = await resolveTrackingPermission();
+    const permissionResult = await resolveTrackingPermission();
+    const permission = permissionResult.trackingPermission;
     const trackingAuthorized = permission === 'granted';
     Observe.setGlobalAttributes({
       trackingPermission: permission,
@@ -186,6 +198,7 @@ export function initializeTelemetry() {
     }
 
     await Promise.all(tasks);
+    return permissionResult;
   })();
 
   return initialization;

@@ -54,6 +54,14 @@ const Store = (() => {
   };
 })();
 
+function postNativeEvent(type){
+  if(window.__MENO_NATIVE__!==true || !window.ReactNativeWebView) return false;
+  try{
+    window.ReactNativeWebView.postMessage(JSON.stringify({type}));
+    return true;
+  }catch(e){ return false; }
+}
+
 /* ---------- defaults & schema ---------- */
 const SCHEMA_V = 4;
 function blankDB(){
@@ -63,7 +71,8 @@ function blankDB(){
       name:'', birthYear:null, region:'us', units:'imperial',
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
-      theme:'dark', stage:null, stageAnswers:null, onboarded:false
+      theme:'dark', stage:null, stageAnswers:null, onboarded:false,
+      onboardingStep:0, onboardingDeferred:false
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
@@ -107,6 +116,8 @@ function migrate(d){
   p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
   p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
   p.onboarded=rawProfile.onboarded===true;
+  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,1)||0;
+  p.onboardingDeferred=rawProfile.onboardingDeferred===true;
   const stageAnswers=safeStageAnswers(rawProfile.stageAnswers);
   if(stageAnswers && typeof completeStageAnswers==='function' && completeStageAnswers(stageAnswers)
       && typeof stageResult==='function'){

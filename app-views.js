@@ -496,6 +496,7 @@ function findFocusTarget(desc,root){
 }
 function openSheet(id){
   if(requestNativePro(id)) return;
+  if(id==='learn:stage' && !DB.profile.stage && !stageEditing) resetStageDraft();
   if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
   sheetStack.push(id); renderSheet(true);
 }
@@ -504,6 +505,7 @@ function closeSheet(){
   if(closing==='learn:stage'){
     stageAns={}; stageStep=0; stageEditing=false;
     render(true);
+    if(DB.profile.onboarded) postNativeEvent('onboarding-finished');
   }
   renderSheet(true);
 }
@@ -513,7 +515,8 @@ function renderSheet(moveFocus){
     host.innerHTML=''; document.body.style.overflow=''; setBackgroundInert(false);
     const target=lastSheetTrigger; lastSheetTrigger=null;
     setTimeout(()=>{
-      const restored=findFocusTarget(target,document)
+      const candidate=findFocusTarget(target,document);
+      const restored=(candidate&&candidate!==document.body?candidate:null)
         ||document.querySelector('#app button,#app input,#app select,#tabs button');
       if(restored) restored.focus();
     },0);
@@ -533,11 +536,13 @@ function renderSheet(moveFocus){
   runSheetHooks(id);
   if(s) setTimeout(()=>{
     let target=null;
-    if(!moveFocus && previous){
+    if(id==='learn:stage'){
+      target=s.querySelector('.stage-focus-target');
+    } else if(!moveFocus && previous){
       target=findFocusTarget(previous,s);
       if(!target) target=s.querySelector('[data-act]:not(.xbtn)');
     }
-    if(moveFocus) target=s.querySelector('.xbtn,button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled])');
+    if(moveFocus&&!target) target=s.querySelector('.xbtn,button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled])');
     (target||s).focus();
   },0);
 }
@@ -648,6 +653,17 @@ let stageAns = {};
 let stageStep = 0;
 let stageEditing = false;
 
+function resetStageDraft(){
+  stageAns={};
+  stageStep=0;
+  stageEditing=true;
+  const age=ageStageAnswer(DB.profile.birthYear);
+  if(age){
+    stageAns.age=age;
+    stageStep=1;
+  }
+}
+
 function stageAnswerAllowed(q, value){
   return q && q.a.some(a=>a.v===value);
 }
@@ -675,6 +691,7 @@ function storeStageAssessment(ans){
   const res=stageResult(clean);
   p.stage=res.label;
   p.stageAnswers=clean;
+  p.onboardingDeferred=false;
   /* Older versions persisted rendered HTML here. Results are now derived
      from the structured answers so updated guidance renders immediately. */
   delete p.stageResult;
@@ -709,6 +726,20 @@ function refreshStageForProfile(key){
   p.stage=res.label;
   p.stageAnswers=ans;
 }
+function stageResultView(res,justCompleted){
+  const firstParagraph=res.body.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i);
+  const intro=firstParagraph
+    ? '<p>'+firstParagraph[1]+'</p>'
+    : '<p>Your answers point to this result. Open the detailed explanation for more context.</p>';
+  const actions=justCompleted
+    ? '<div class="btn-row split stage-result-actions"><button class="btn ghost" data-act="stage-restart">Start again</button><button class="btn primary" data-act="close">Done</button></div>'
+    : '<button class="btn block ghost stage-result-actions" data-act="stage-restart">Answer the questions again</button>';
+  return `<div class="callout ok stage-result-summary"><h3 class="ctitle stage-focus-target" tabindex="-1">${esc(res.label)}</h3>${intro}</div>
+  ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
+  ${actions}
+  <details class="acc"><summary>Read your full result</summary><div>${res.body}</div></details>
+  <details class="acc"><summary>How menopause is diagnosed</summary><div>${STAGE_CAVEAT}</div></details>`;
+}
 function stageSheetBody(){
   const p = DB.profile;
   if(Object.prototype.hasOwnProperty.call(p,'stageResult')){
@@ -721,26 +752,18 @@ function stageSheetBody(){
   }
   if(p.stage && !stageEditing){
     const res = stageResult(p.stageAnswers);
-    return `<div class="callout ok"><span class="ctitle">${esc(res.label)}</span>${res.body}</div>
-    ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
-    ${STAGE_CAVEAT}
-    <button class="btn block ghost" data-act="stage-restart">Answer the questions again</button>`;
+    return stageResultView(res,false);
   }
-  if(!stageEditing) stageEditing=true;
+  if(!stageEditing) resetStageDraft();
   const qs = stageQueue(stageAns);
   if(stageStep>=qs.length){
     const res = storeStageAssessment(stageAns);
     save();
-    return `<div class="callout ok"><span class="ctitle">${esc(res.label)}</span>${res.body}</div>
-    ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
-    ${STAGE_CAVEAT}
-    <div class="btn-row split"><button class="btn ghost" data-act="stage-restart">Start again</button>
-    <button class="btn primary" data-act="close">Done</button></div>`;
+    return stageResultView(res,true);
   }
   const q = qs[stageStep];
-  return `<div class="progress"><i style="width:${Math.round(stageStep/qs.length*100)}%"></i></div>
-  <p class="xtiny">Question ${stageStep+1} of ${qs.length}</p>
-  <h3>${esc(q.q)}</h3>
+  return `<p class="xtiny stage-step" aria-live="polite">Question ${stageStep+1} · tailored to your history</p>
+  <h3 class="stage-focus-target" tabindex="-1">${esc(q.q)}</h3>
   ${q.note?`<p class="tiny muted">${esc(q.note)}</p>`:''}
   <div class="rows" style="margin-top:14px">
     ${q.a.map(a=>h('button',{class:'row','data-act':'stage-a','data-k':q.id,'data-v':a.v},
@@ -1287,25 +1310,43 @@ function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
    ============================================================ */
 function viewOnboard(){
   const p=DB.profile;
+  if(p.onboardingStep!==1){
+    return `<div class="view tw-screen tw-secondary tw-onboard">
+      <div class="tw-status"><span>STEP 1 OF 2</span><span>MENOCOMPASS</span></div>
+      <div class="tw-onboard-hero">
+        <div class="onboard-mark">${TWILIGHT_IC.cycle}</div>
+        <div><h1>Welcome to MenoCompass</h1>
+        <p>A private tracker and a straight-talking reference for perimenopause and beyond.</p></div>
+      </div>
+      <div class="card onboard-intro-card">
+        <h2>Clearer patterns. Better appointments.</h2>
+        <ul class="tick compact">
+          <li><b>Log the day in about twenty seconds.</b></li>
+          <li><b>See symptom and treatment patterns over time.</b></li>
+          <li><b>Bring a focused summary to your clinician.</b></li>
+        </ul>
+        <div class="tw-save-note">${TWILIGHT_IC.cycle}<span><b>Your health entries stay on this device.</b><small>No account, health-data server, or sale of personal data.</small></span></div>
+        <button class="btn block primary" data-act="ob-next">Continue</button>
+        <button class="btn block ghost" data-act="ob-skip" style="margin-top:8px">Set up later</button>
+        <p class="xtiny center" style="margin:10px 0 0">Set up takes about a minute. If you defer it, Today will remind you where to continue.</p>
+      </div>
+      <details class="acc onboard-details"><summary>Privacy, evidence and medical limits</summary><div>
+        <p class="tiny"><b>Private by design.</b> Your health entries stay in this browser on this device and are not sent to the app maker. The native app sends only the limited performance and advertising-attribution data described in the Privacy Policy.</p>
+        <p class="tiny"><b>Evidence without the hype.</b> Claims are tagged, and the app says when major guidelines disagree or evidence is thin.</p>
+        <p class="tiny"><b>Not medical care.</b> MenoCompass does not diagnose, treat or prescribe, is not a medical device, and does not replace a clinician who knows your history. Content reviewed July 2026.</p>
+      </div></details>
+    </div>`;
+  }
   return `<div class="view tw-screen tw-secondary tw-onboard">
-    <div class="tw-status"><span>PRIVATE BY DESIGN</span><span>MENOCOMPASS</span></div>
+    <div class="tw-status"><span>STEP 2 OF 2</span><span>MENOCOMPASS</span></div>
     <div class="tw-onboard-hero">
       <div class="onboard-mark">${TWILIGHT_IC.cycle}</div>
-      <div><h1>Welcome to MenoCompass</h1>
-      <p>A private tracker and a straight-talking reference for perimenopause and beyond.</p></div>
+      <div><h1>Make it yours</h1>
+      <p>Everything here is optional and can be changed later in Settings.</p></div>
     </div>
+    <button class="tw-quiet onboard-back" data-act="ob-back">Back</button>
     <div class="card">
-      <h3>What this is</h3>
-      <ul class="tick">
-        <li><b>A tracker first.</b> Twenty seconds a day builds the patterns and the report your clinician actually needs.</li>
-        <li><b>A reference that tells you when the evidence is thin.</b> Every claim is tagged, and where major guidelines disagree, it says so.</li>
-        <li><b>Private by design.</b> No account or sync service. Your health entries stay in this browser on this device and are not sent to the app maker; the native app sends only limited performance and advertising-attribution data described in the Privacy Policy.</li>
-      </ul>
-      <div class="callout warn" style="margin-bottom:0"><span class="ctitle">What it is not</span>
-      It does not diagnose, treat or prescribe, is not a substitute for a clinician who knows your history, and is not a medical device or regulator-reviewed clinical tool. Content reviewed July 2026 — this field moves fast.</div>
-    </div>
-    <div class="card">
-      <h3>A few basics</h3>
+      <h2>A few basics</h2>
       <div class="grid2">
         <div class="field"><label class="fl" for="ob-n">First name (optional)</label>
           <input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
@@ -1318,10 +1359,10 @@ function viewOnboard(){
         <select id="ob-r" data-act="prof" data-k="region"><option value="us"${p.region==='us'?' selected':''}>United States</option><option value="uk"${p.region==='uk'?' selected':''}>United Kingdom</option><option value="other"${p.region==='other'?' selected':''}>Elsewhere</option></select>
         <p class="xtiny">Guidance differs between the US and UK on several points, and the app will tell you where.</p></div>
       <div class="tw-save-note">${TWILIGHT_IC.calendar}<span><b>Your progress saves as you go.</b><small>You can leave the app and continue here later.</small></span></div>
-      <div class="callout info"><span class="ctitle">This device is your only copy</span>
-      Clearing this site's browser data deletes your entries, there is no automatic sync, and anyone who can use this browser profile may be able to open them. Export an unencrypted backup occasionally and store it somewhere private.</div>
-      <button class="btn block primary" data-act="ob-done">Get started</button>
-      <button class="btn block ghost" data-act="ob-skip" style="margin-top:8px">Skip for now</button>
+      <button class="btn block primary" data-act="ob-done">Continue to your stage</button>
+      <button class="btn block ghost" data-act="ob-skip" style="margin-top:8px">Set up later</button>
+      <p class="xtiny center" style="margin:10px 0 0">If you defer setup, a reminder on Today will bring you back.</p>
+      <details class="acc onboard-details"><summary>How local storage works</summary><div><p class="tiny">This device is your only copy. Clearing this site's browser data deletes your entries, there is no automatic sync, and anyone who can use this browser profile may be able to open them. Export an unencrypted backup occasionally and store it somewhere private.</p></div></details>
     </div>
   </div>`;
 }
@@ -1366,6 +1407,7 @@ function viewTodayCompact(){
   const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   return `<div class="view tw-screen tw-today">
     ${twilightHeader(selected,curDate===todayISO()?(e.prefilledFrom?'Yesterday was copied forward. Choose the level that fits today.':'Choose a level for each symptom. Tap None when it did not happen.'):'Editing '+fmtLong(curDate)+'. Choose the level that fit that day.')}
+    ${DB.profile.onboardingDeferred?`<button class="tw-setup-reminder" data-act="finish-setup">${TWILIGHT_IC.cycle}<span><b>Finish your setup</b><small>Add your basics and find where you are in the transition.</small></span><span class="chev">${IC.chev}</span></button>`:''}
     <div class="tw-grid">
       ${twilightTile('hf',e.hf,'Hot flashes',TWILIGHT_IC.flame,['None','1 flash','2 flashes','3+ flashes'])}
       ${twilightTile('ns',e.ns,'Night sweats',TWILIGHT_IC.moon)}
@@ -1504,6 +1546,10 @@ function handleAction(el, ev){
   const e = () => entry(curDate);
   switch(a){
     case 'tab': if(requestNativePro(el.dataset.v)) return; curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
+    case 'finish-setup':
+      curTab='settings'; render();
+      setTimeout(()=>document.querySelector('#pn,[data-act="sheet"][data-s="learn:stage"]')?.focus(),0);
+      return;
     case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
     case 'med-taken': {
       const m=DB.medications.find(x=>x.id===el.dataset.id); if(!m) return;
@@ -1577,7 +1623,7 @@ function handleAction(el, ev){
       if(q) delete stageAns[q.id];
       renderSheet(); return;
     }
-    case 'stage-restart': stageAns={}; stageStep=0; stageEditing=true; renderSheet(); return;
+    case 'stage-restart': resetStageDraft(); renderSheet(); return;
     case 'q-a': {
       const kind=el.dataset.k;
       if(qDrafts[kind]) qDrafts[kind][+el.dataset.i]=+el.dataset.v;
@@ -1632,6 +1678,14 @@ function handleAction(el, ev){
       el.dataset.confirm='1'; el.textContent='Tap again to erase permanently'; return;
     }
     case 'print': window.print(); return;
+    case 'ob-next':
+      DB.profile.onboardingStep=1; save(true); render();
+      setTimeout(()=>document.getElementById('ob-n')?.focus(),0);
+      return;
+    case 'ob-back':
+      DB.profile.onboardingStep=0; save(true); render();
+      setTimeout(()=>document.querySelector('[data-act="ob-next"]')?.focus(),0);
+      return;
     case 'ob-done': {
       const n=document.getElementById('ob-n'), y=document.getElementById('ob-y'),
             u=document.getElementById('ob-u'), r=document.getElementById('ob-r');
@@ -1643,11 +1697,20 @@ function handleAction(el, ev){
       DB.profile.name = safeText(n.value.trim(),80);
       DB.profile.birthYear = year.value;
       DB.profile.units = u.value; DB.profile.region = r.value;
-      DB.profile.onboarded = true; save(true); render();
+      DB.profile.onboardingStep=1;
+      DB.profile.onboarded=true;
+      DB.profile.onboardingDeferred=true;
+      save(true); render();
       setTimeout(()=>openSheet('learn:stage'), 350);
       return;
     }
-    case 'ob-skip': DB.profile.onboarded=true; save(true); render(); return;
+    case 'ob-skip':
+      DB.profile.onboarded=true;
+      DB.profile.onboardingDeferred=true;
+      save(true); render();
+      postNativeEvent('onboarding-finished');
+      setTimeout(()=>document.querySelector('#app button,#tabs button')?.focus(),0);
+      return;
   }
 }
 

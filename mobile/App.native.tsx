@@ -13,6 +13,11 @@ import {
   setTelemetrySubscriptionState,
   trackTelemetryEvent,
 } from './telemetry.native';
+import {
+  registerAppOpening,
+  requestReviewForMilestone,
+} from './reviewPrompt.native';
+import type { AppOpeningReviewState } from './reviewPrompt.native';
 
 const appAsset = require('./assets/menlopass.html');
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || 'appl_SJzoZsrDheugNgeVISkHmDeKoOk';
@@ -40,9 +45,19 @@ async function readPersistedState() {
 
 function writePersistedState(serialized: string) {
   const canonical = canonicalPersistedState(serialized);
-  if (!canonical) return;
+  if (!canonical) return null;
   if (!persistedStateFile.exists) persistedStateFile.create({ intermediates: true });
   persistedStateFile.write(canonical);
+  return canonical;
+}
+
+function persistedStateIsOnboarded(serialized: string | null) {
+  if (!serialized) return false;
+  try {
+    return JSON.parse(serialized)?.profile?.onboarded === true;
+  } catch {
+    return false;
+  }
 }
 
 function hasProAccess(customerInfo: CustomerInfo) {
@@ -132,7 +147,15 @@ function App() {
   const [subscriptionIssue, setSubscriptionIssue] = useState<string>();
   const [proActive, setProActive] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [experienceReady, setExperienceReady] = useState(false);
+  const [webContentReady, setWebContentReady] = useState(false);
+  const [pendingReviewMilestone, setPendingReviewMilestone] = useState<
+    AppOpeningReviewState['dueMilestone']
+  >(null);
+  const [telemetrySettled, setTelemetrySettled] = useState(Platform.OS !== 'ios');
+  const [trackingPromptedThisSession, setTrackingPromptedThisSession] = useState(false);
   const autoPaywallAttemptedRef = useRef(false);
+  const reviewRequestInFlightRef = useRef(false);
 
   const syncProStatusToWeb = (active: boolean) => {
     webViewRef.current?.injectJavaScript(`
@@ -151,9 +174,21 @@ function App() {
       .then(([source, savedState]) => {
         if (!active) return;
         setPersistedState(savedState);
+        setExperienceReady(persistedStateIsOnboarded(savedState));
         setHtml(source);
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let active = true;
+    registerAppOpening()
+      .then(({ dueMilestone }) => {
+        if (active) setPendingReviewMilestone(dueMilestone);
+      })
+      .catch(reportTelemetryError);
     return () => { active = false; };
   }, []);
 
@@ -195,7 +230,6 @@ function App() {
         setSubscriptionChecked(true);
         setSubscriptionIssue('MenoCompass could not verify your subscription. Check your connection and try again.');
       });
-      void initializeTelemetry();
     } catch (error) {
       reportTelemetryError(error);
       setSubscriptionChecked(true);
@@ -212,6 +246,65 @@ function App() {
   useEffect(() => {
     if (Platform.OS !== 'ios') void initializeTelemetry();
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !proActive || !experienceReady || !webContentReady) return;
+
+    let active = true;
+    const timer = setTimeout(() => {
+      initializeTelemetry()
+        .then(result => {
+          if (!active) return;
+          setTrackingPromptedThisSession(result.promptedForTracking);
+          setTelemetrySettled(true);
+        })
+        .catch(error => {
+          reportTelemetryError(error);
+          if (active) setTelemetrySettled(true);
+        });
+    }, 600);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [experienceReady, proActive, webContentReady]);
+
+  useEffect(() => {
+    if (
+      Platform.OS !== 'ios'
+      || !proActive
+      || !experienceReady
+      || !webContentReady
+      || !telemetrySettled
+      || trackingPromptedThisSession
+      || pendingReviewMilestone === null
+      || reviewRequestInFlightRef.current
+    ) return;
+
+    let active = true;
+    const timer = setTimeout(() => {
+      reviewRequestInFlightRef.current = true;
+      requestReviewForMilestone(pendingReviewMilestone)
+        .then(requested => {
+          if (active && requested) setPendingReviewMilestone(null);
+        })
+        .catch(reportTelemetryError)
+        .finally(() => { reviewRequestInFlightRef.current = false; });
+    }, 1_800);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [
+    experienceReady,
+    pendingReviewMilestone,
+    proActive,
+    telemetrySettled,
+    trackingPromptedThisSession,
+    webContentReady,
+  ]);
 
   const openPaywall = async () => {
     if (!revenueCatReady || purchaseBusy) return;
@@ -285,6 +378,10 @@ function App() {
       const message = JSON.parse(event.nativeEvent.data);
       if (message?.type === 'persist-state' && typeof message.state === 'string') {
         writePersistedState(message.state);
+        return;
+      }
+      if (message?.type === 'onboarding-finished') {
+        setExperienceReady(true);
         return;
       }
       if (message?.type === 'open-pro-paywall') requestPaywall();
@@ -365,7 +462,10 @@ function App() {
         allowUniversalAccessFromFileURLs={false}
         mixedContentMode="never"
         setSupportMultipleWindows={false}
-        onLoadEnd={() => syncProStatusToWeb(proActive)}
+        onLoadEnd={() => {
+          setWebContentReady(true);
+          syncProStatusToWeb(proActive);
+        }}
         onMessage={handleWebMessage}
         onShouldStartLoadWithRequest={({ url }) => {
           if (url === 'about:blank' || url.startsWith('data:') || url.startsWith('file:')) return true;
