@@ -4,8 +4,8 @@ A private, offline-capable PWA and Expo app for women in perimenopause and beyon
 with an evidence-graded reference library behind it.
 
 - **No account, backend health database, or health-data transmission.** Entries live in the
-  browser's local storage on the user's device. The native wrapper uses privacy-gated AppsFlyer
-  and Meta attribution plus EAS Observe performance metrics; none receive health entries.
+  browser's local storage on the user's device. The native wrapper uses privacy-gated AppsFlyer,
+  Meta, and TikTok attribution plus EAS Observe performance metrics; none receive health entries.
 - **Works offline** once installed, via a service worker that caches the app shell.
 - **Single-file application bundle.** The build emits one self-contained `dist/index.html` plus
   the manifest, service worker, and local install icons. There are no runtime npm dependencies.
@@ -65,10 +65,10 @@ CI artifact.
 
 The Expo SDK 57 package bundles the generated app and local font into the native binary. It uses
 an offline WebView, so symptom, medication, lab, and report data remain on the device and do not
-depend on the hosted site. The native shell initializes EAS Observe, AppsFlyer, and Meta App
-Events without forwarding WebView content or health fields. Configure the public SDK identifiers
-listed in `mobile/.env.example`, then use a development build because these packages contain
-native code. Run `npm --prefix mobile start` for local Expo development. EAS configuration lives
+depend on the hosted site. The native shell initializes EAS Observe, AppsFlyer, Meta, and TikTok App
+Events without forwarding WebView content or health fields. Configure the SDK identifiers and private
+build secret listed in `mobile/.env.example`, then use a development build because these packages
+contain native code. Run `npm --prefix mobile start` for local Expo development. EAS configuration lives
 in `mobile/eas.json`; the linked project is `@kyl3kan3/menlopass`.
 
 **Locally, no server:** after `npm run build`, open the generated root `index.html` (or the

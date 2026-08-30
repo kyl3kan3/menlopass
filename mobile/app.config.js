@@ -1,5 +1,9 @@
 const metaAppId = process.env.EXPO_PUBLIC_META_APP_ID?.trim();
 const metaClientToken = process.env.EXPO_PUBLIC_META_CLIENT_TOKEN?.trim();
+const tiktokAppId = process.env.TIKTOK_APP_ID?.trim() || '6798018790';
+const tiktokBusinessAppId =
+  process.env.TIKTOK_BUSINESS_APP_ID?.trim() || '7679768878880178197';
+const tiktokAppSecret = process.env.TIKTOK_APP_SECRET?.trim();
 
 function withoutPlugin(plugins, pluginName) {
   return plugins.filter(plugin => {
@@ -19,6 +23,7 @@ module.exports = ({ config }) => {
       !process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY?.trim() && 'EXPO_PUBLIC_APPSFLYER_DEV_KEY',
       !metaAppId && 'EXPO_PUBLIC_META_APP_ID',
       !metaClientToken && 'EXPO_PUBLIC_META_CLIENT_TOKEN',
+      !tiktokAppSecret && 'TIKTOK_APP_SECRET',
     ].filter(Boolean);
     if (missing.length) {
       throw new Error(`Missing production attribution configuration: ${missing.join(', ')}`);
@@ -63,6 +68,17 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    ios: {
+      ...config.ios,
+      infoPlist: {
+        ...config.ios?.infoPlist,
+        MenoCompassTikTokAppID: tiktokAppId,
+        MenoCompassTikTokBusinessAppID: tiktokBusinessAppId,
+        ...(tiktokAppSecret
+          ? { MenoCompassTikTokAppSecret: tiktokAppSecret }
+          : {}),
+      },
+    },
     plugins,
   };
 };
