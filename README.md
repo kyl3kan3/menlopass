@@ -71,6 +71,11 @@ build secret listed in `mobile/.env.example`, then use a development build becau
 contain native code. Run `npm --prefix mobile start` for local Expo development. EAS configuration lives
 in `mobile/eas.json`; the linked project is `@kyl3kan3/menlopass`.
 
+The iOS shell uses a hard RevenueCat paywall. It does not mount the health-record WebView until
+the `MenoCompass Pro` entitlement is active, and dismissing or losing the entitlement returns the
+user to the subscription gate. Zero-price introductory or promotional offers fail closed. See
+`mobile/SUBSCRIPTION_SETUP.md` for the required RevenueCat and App Store Connect configuration.
+
 **Locally, no server:** after `npm run build`, open the generated root `index.html` (or the
 identical `dist/index.html`) in a browser. Everything except service-worker registration and
 installation works from a file URL.

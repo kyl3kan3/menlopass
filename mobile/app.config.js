@@ -24,9 +24,10 @@ module.exports = ({ config }) => {
       !metaAppId && 'EXPO_PUBLIC_META_APP_ID',
       !metaClientToken && 'EXPO_PUBLIC_META_CLIENT_TOKEN',
       !tiktokAppSecret && 'TIKTOK_APP_SECRET',
+      !process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim() && 'EXPO_PUBLIC_REVENUECAT_IOS_API_KEY',
     ].filter(Boolean);
     if (missing.length) {
-      throw new Error(`Missing production attribution configuration: ${missing.join(', ')}`);
+      throw new Error(`Missing production mobile configuration: ${missing.join(', ')}`);
     }
   }
 

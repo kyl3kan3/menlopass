@@ -108,6 +108,19 @@ function seed(){
     'root index mirror matches dist',
     fs.readFileSync(path.join(__dirname, 'index.html')).equals(fs.readFileSync(path.join(DIST, 'index.html')))
   );
+
+  console.log('\n== 0. Native hard-paywall contract ==');
+  const nativeAppSource = fs.readFileSync(path.join(__dirname, 'mobile', 'App.native.tsx'), 'utf8');
+  const storeDescription = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'mobile', 'store.config.json'), 'utf8')
+  ).apple.info['en-US'].description;
+  const gateReturnIndex = nativeAppSource.indexOf("if (Platform.OS === 'ios' && !proActive)");
+  const webViewIndex = nativeAppSource.lastIndexOf('<WebView');
+  check('inactive iOS entitlement is gated before WebView content', gateReturnIndex >= 0 && gateReturnIndex < webViewIndex);
+  check('RevenueCat paywall cannot show a close button', nativeAppSource.includes('displayCloseButton: false'));
+  check('zero-price App Store offers fail closed', nativeAppSource.includes('introPrice?.price === 0'));
+  check('App Store copy discloses no free tier or trial', storeDescription.includes('There is no free tier or free trial.') && !storeDescription.includes('FREE FEATURES'));
+
   fs.mkdirSync(TEST_RESULTS, {recursive:true});
   await new Promise((resolve,reject)=>{
     server.once('error', reject);
