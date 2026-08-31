@@ -35,6 +35,7 @@ module.exports = ({ config }) => {
   plugins = withoutPlugin(plugins, 'expo-tracking-transparency');
   plugins = withoutPlugin(plugins, 'react-native-appsflyer');
   plugins = withoutPlugin(plugins, 'react-native-fbsdk-next');
+  plugins = withoutPlugin(plugins, './plugins/withTikTokPrivacyManifestFix');
 
   plugins.push([
     'expo-tracking-transparency',
@@ -66,6 +67,8 @@ module.exports = ({ config }) => {
       },
     ]);
   }
+
+  plugins.push('./plugins/withTikTokPrivacyManifestFix');
 
   return {
     ...config,

@@ -342,6 +342,13 @@ function marketingMarkup(asset, device, sourceData) {
       display: inline-flex; align-items: center; gap: ${isPhone ? 15 : 17}px; white-space: nowrap;
       color: #132b2e; font-size: ${isPhone ? 28 : 30}px; font-weight: 720; letter-spacing: -.02em;
     }
+    .subscription {
+      position: absolute; z-index: 4; top: ${dimensions.brandTop + (isPhone ? 4 : 2)}px; right: ${dimensions.edge}px;
+      padding: ${isPhone ? '11px 16px 10px' : '12px 18px 11px'};
+      color: #744712; background: #fff8edeb; border: 1px solid #b8742888;
+      border-radius: 999px; box-shadow: 0 9px 24px #10242616;
+      font-size: ${isPhone ? 17 : 19}px; line-height: 1; font-weight: 790; letter-spacing: .075em;
+    }
     .mark {
       position: relative; width: ${isPhone ? 54 : 58}px; height: ${isPhone ? 54 : 58}px; border-radius: 17px;
       display: grid; place-items: center; background: #132b2e; box-shadow: 0 10px 28px #10242624;
@@ -408,6 +415,7 @@ function marketingMarkup(asset, device, sourceData) {
   </style></head><body><main class="canvas">
     <div class="grain"></div><div class="night"></div><div class="rings"><i></i></div><div class="ghost">${asset.number}</div>
     <div class="brand"><span class="mark"></span><span>MenoCompass</span></div>
+    <div class="subscription">SUBSCRIPTION REQUIRED</div>
     <section class="copy"><div class="eyebrow">${asset.eyebrow}</div><h1>${asset.headline}</h1><p class="subhead">${asset.subhead}</p></section>
     <div class="device"><div class="speaker"></div><div class="screen"><img src="data:image/png;base64,${sourceData}" alt=""></div></div>
     <div class="badge"><b>${asset.number}</b><span>${asset.badge}</span></div>
@@ -442,6 +450,13 @@ async function composeStorefront(browser, device, rawDir, outputDir) {
       return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
     });
     if (!brandVisible) throw new Error(`Storefront brand lockup is not visible for ${asset.file}.`);
+    const subscriptionVisible = await page.$eval('.subscription', (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && rect.right <= innerWidth && rect.bottom <= innerHeight &&
+        style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    });
+    if (!subscriptionVisible) throw new Error(`Subscription disclosure is not visible for ${asset.file}.`);
     await page.screenshot({ path: path.join(outputDir, asset.file), fullPage: false });
     await page.close();
   }

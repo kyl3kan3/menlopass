@@ -28,6 +28,8 @@ The TikTok App ID defaults to Apple app ID `6798018790`, and the TikTok Business
 
 The TikTok SDK is linked through CocoaPods by the local Expo module in `mobile/modules/menocompass-tiktok-business`. Its podspec pins `TikTokBusinessSDK` 1.7.2 and applies `-ObjC` and `-lc++` to the app target. EAS Build runs CocoaPods after Expo prebuild; do not add or maintain a generated `ios/Podfile` in this repository.
 
+TikTokBusinessSDK 1.7.2 also ships an empty collected-data placeholder in its bundled privacy manifest. The local Expo config plugin `plugins/withTikTokPrivacyManifestFix.js` removes only that invalid placeholder during the iOS build, preserves TikTok's declared UserDefaults required-reason API, and fails the build if the upstream manifest shape changes. After every SDK upgrade, inspect the archived app's `TikTokBusinessSDK_Privacy.bundle/PrivacyInfo.xcprivacy` before submission.
+
 The SDK delays its first flush for 60 seconds so the existing ATT prompt can resolve. It auto-logs install, launch, and two-day retention only. TikTok automatic StoreKit purchase tracking and enhanced UIKit data collection are disabled. TikTok SKAdNetwork updates are also disabled because AppsFlyer is the app's single conversion-value writer.
 
 ## Dashboard configuration
