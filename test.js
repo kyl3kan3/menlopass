@@ -125,6 +125,11 @@ function seed(){
   check('review attempts persist separately from health data', reviewSource.includes("menocompass-review-state.json") && reviewSource.includes('requestedAtLaunches'));
   check('reviews wait for entitlement, onboarding, main content, and ATT',
     /!proActive[\s\S]*!experienceReady[\s\S]*!webContentReady[\s\S]*!telemetrySettled[\s\S]*trackingPromptedThisSession/.test(nativeAppSource));
+  check('iOS attribution initializes before the automatic hard paywall',
+    /Platform\.OS !== 'ios' \|\| !revenueCatReady \|\| !subscriptionChecked/.test(nativeAppSource)
+      && /!subscriptionChecked[\s\S]*!revenueCatReady[\s\S]*!telemetrySettled[\s\S]*autoPaywallAttemptedRef\.current/.test(nativeAppSource));
+  check('verified subscription tier survives attribution initialization',
+    /initializeTelemetry\(\)[\s\S]*setTelemetrySubscriptionState\(proActive\)[\s\S]*setTelemetrySettled\(true\)/.test(nativeAppSource));
 
   fs.mkdirSync(TEST_RESULTS, {recursive:true});
   await new Promise((resolve,reject)=>{
@@ -756,6 +761,7 @@ function seed(){
     '/index.html',
     '/manifest.webmanifest',
     '/sw.js',
+    '/get-app.html',
     '/privacy.html',
     '/support.html',
     '/terms.html',
@@ -769,6 +775,11 @@ function seed(){
     const response = await ctx.request.get(baseUrl+asset);
     check(`asset ${asset} returns 200`, response.status()===200, `status=${response.status()}`);
   }
+  const getAppResponse = await ctx.request.get(baseUrl+'/get-app.html');
+  const getAppHtml = await getAppResponse.text();
+  check('install page uses the MenoCompass OneLink', /https:\/\/menocompass\.onelink\.me\/4X6t\/qlc92l25/.test(getAppHtml));
+  check('install page does not load advertising pixels', !/(connect\.facebook\.net|analytics\.tiktok\.com|websdk\.appsflyer\.com)/.test(getAppHtml));
+  check('install page discloses hard-paywall pricing', /\$5\.99\/month[\s\S]*\$29\.99\/year[\s\S]*No free trial or free tier/.test(getAppHtml));
   const manifestResponse = await ctx.request.get(`${baseUrl}/manifest.webmanifest`);
   const man = await manifestResponse.json();
   check('manifest name', !!man.name);

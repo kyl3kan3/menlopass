@@ -10,6 +10,8 @@ The native app now uses:
 - RevenueCat as the source of subscription lifecycle and revenue events. The client does not duplicate purchase revenue events in AppsFlyer, Meta, or TikTok.
 - RevenueCat's random anonymous App User ID as the optional AppsFlyer customer ID. MenoCompass has no login identity, and no name, email address, phone number, or health value is used as a customer ID.
 
+On iOS, RevenueCat is configured first so its anonymous App User ID is available to the attribution SDKs. AppsFlyer and Meta then initialize, the ATT decision resolves, and only after that may the automatic hard paywall open. This ordering ensures first-time install, activation, and paywall-view signals are available without sending health-journal content or duplicating subscription revenue events.
+
 Health entries, medications, labs, notes, reports, and other free-form user content must never be added to these events.
 
 ## Required build values

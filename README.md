@@ -6,6 +6,8 @@ with an evidence-graded reference library behind it.
 - **No account, backend health database, or health-data transmission.** Entries live in the
   browser's local storage on the user's device. The native wrapper uses privacy-gated AppsFlyer,
   Meta, and TikTok attribution plus EAS Observe performance metrics; none receive health entries.
+- **Privacy-safe web-to-app attribution.** `get-app.html` is a public, health-data-free install page
+  whose App Store button uses AppsFlyer OneLink. The private tracker does not load ad pixels.
 - **Works offline** once installed, via a service worker that caches the app shell.
 - **Single-file application bundle.** The build emits one self-contained `dist/index.html` plus
   the manifest, service worker, and local install icons. There are no runtime npm dependencies.
@@ -26,6 +28,7 @@ app-core.js                storage, data model, charts, insights engine
 app-views.js               views, tools, router
 manifest.webmanifest       PWA metadata
 sw.js                      offline shell cache
+get-app.html               public App Store landing page using AppsFlyer OneLink
 *.png                      source icons
 index.html                 generated standalone mirror; do not edit directly
 

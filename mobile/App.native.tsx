@@ -248,27 +248,31 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'ios' || !proActive || !experienceReady || !webContentReady) return;
+    if (Platform.OS !== 'ios' || !revenueCatReady || !subscriptionChecked) return;
 
     let active = true;
     const timer = setTimeout(() => {
       initializeTelemetry()
         .then(result => {
           if (!active) return;
+          setTelemetrySubscriptionState(proActive);
           setTrackingPromptedThisSession(result.promptedForTracking);
           setTelemetrySettled(true);
         })
         .catch(error => {
           reportTelemetryError(error);
-          if (active) setTelemetrySettled(true);
+          if (active) {
+            setTelemetrySubscriptionState(proActive);
+            setTelemetrySettled(true);
+          }
         });
-    }, 600);
+    }, 300);
 
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [experienceReady, proActive, webContentReady]);
+  }, [proActive, revenueCatReady, subscriptionChecked]);
 
   useEffect(() => {
     if (
@@ -365,13 +369,14 @@ function App() {
     if (
       !subscriptionChecked
       || !revenueCatReady
+      || !telemetrySettled
       || purchaseBusy
       || autoPaywallAttemptedRef.current
     ) return;
 
     autoPaywallAttemptedRef.current = true;
     void openPaywall();
-  }, [subscriptionChecked, proActive, revenueCatReady, purchaseBusy]);
+  }, [subscriptionChecked, proActive, revenueCatReady, telemetrySettled, purchaseBusy]);
 
   const handleWebMessage = (event: WebViewMessageEvent) => {
     try {

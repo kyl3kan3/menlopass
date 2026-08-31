@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
 JS_ORDER = ("content-a.js", "content-b.js", "app-core.js", "app-views.js")
 PWA_FILES = ("manifest.webmanifest", "sw.js")
-PUBLIC_PAGES = ("privacy.html", "support.html", "terms.html")
+PUBLIC_PAGES = ("get-app.html", "privacy.html", "support.html", "terms.html")
 ICONS = (
     "apple-touch-icon.png",
     "favicon-64.png",
