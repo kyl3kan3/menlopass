@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const zlib = require('zlib');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DIST = path.join(ROOT, 'dist');
@@ -16,13 +17,18 @@ const MIME = {
   '.woff2': 'font/woff2',
 };
 
+const DEMO_DATE = '2026-08-11';
+const DEMO_NOW = new Date(`${DEMO_DATE}T14:19:00-05:00`);
+const BRICOLAGE_DATA = fs
+  .readFileSync(path.join(ROOT, 'assets', 'fonts', 'bricolage-grotesque-latin.woff2'))
+  .toString('base64');
+
 function demoData() {
   const entries = {};
-  const today = new Date();
+  const [year, month, day] = DEMO_DATE.split('-').map(Number);
+  const todayUtc = Date.UTC(year, month - 1, day);
   for (let i = 59; i >= 0; i -= 1) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const key = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    const key = new Date(todayUtc - i * 86400000).toISOString().slice(0, 10);
     const improving = i / 59;
     entries[key] = {
       hf: Math.max(0, Math.round(5 * improving + (i % 3))),
@@ -99,39 +105,112 @@ async function openDemoPage(browser, baseUrl, device, outputDir) {
     deviceScaleFactor: device.deviceScaleFactor,
     colorScheme: 'dark',
     locale: 'en-US',
+    timezoneId: 'America/Chicago',
+    reducedMotion: 'reduce',
   });
   const page = await context.newPage();
-  await page.addInitScript((data) => {
+  await page.addInitScript(({ data, now }) => {
+    const NativeDate = Date;
+    function DemoDate(...args) {
+      if (!(this instanceof DemoDate)) return new NativeDate(now).toString();
+      return new NativeDate(...(args.length ? args : [now]));
+    }
+    DemoDate.prototype = NativeDate.prototype;
+    Object.setPrototypeOf(DemoDate, NativeDate);
+    DemoDate.now = () => now;
+    window.Date = DemoDate;
     localStorage.setItem('menocompass.v1', JSON.stringify(data));
     window.__MENO_NATIVE__ = false;
     window.__MENO_PRO_ACTIVE__ = true;
-  }, demoData());
+  }, { data: demoData(), now: DEMO_NOW.getTime() });
   await page.goto(`${baseUrl}/index.html`, { waitUntil: 'networkidle' });
+  await page.addStyleTag({
+    content: '*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}',
+  });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
   fs.mkdirSync(outputDir, { recursive: true });
 
-  const capture = async (name) => {
+  const capture = async (name, readySelector) => {
+    if (readySelector) await page.waitForSelector(readySelector, { state: 'visible' });
+    await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(250);
     await page.screenshot({ path: path.join(outputDir, name), fullPage: false });
   };
 
   await page.click('[data-act="tab"][data-v="today"]');
-  await capture('01-today.png');
+  await capture('01-today.png', '.tw-screen .tw-tile');
 
   await page.click('[data-act="tab"][data-v="trends"]');
   await page.click('[data-act="range"][data-v="30"]');
-  await capture('02-trends.png');
+  if (device.kind === 'iphone') {
+    // Keep one complete insight above the fixed navigation instead of bisecting the next card.
+    await page.evaluate(() => {
+      const insightCards = [...document.querySelectorAll('#app > .view > .callout')];
+      insightCards.slice(1).forEach((card) => card.remove());
+      let trailing = insightCards[0]?.nextElementSibling;
+      while (trailing) {
+        const next = trailing.nextElementSibling;
+        trailing.remove();
+        trailing = next;
+      }
+    });
+  }
+  await capture('02-trends.png', '.tw-screen .tw-observed, .tw-screen .callout');
 
   await page.click('[data-act="tab"][data-v="meds"]');
-  await capture('03-medications.png');
+  await capture('03-medications.png', '.tw-screen .tw-med-list');
 
   await page.click('[data-act="tab"][data-v="report"]');
-  await capture('04-clinician-report.png');
+  await page.click('[data-act="sheet"][data-s="report"]');
+  if (device.kind === 'iphone') {
+    // End the portrait frame on complete report rows; the live report itself remains unchanged.
+    await page.evaluate(() => {
+      const reportCards = [...document.querySelectorAll('.sheet .report-page > .card')];
+      const symptomRows = reportCards[1] ? [...reportCards[1].querySelectorAll('.kv')] : [];
+      symptomRows.slice(4).forEach((row) => row.remove());
+      reportCards.slice(2).forEach((card) => card.remove());
+    });
+  }
+  await capture('04-clinician-report.png', '.sheet .report-page');
+  await page.click('.sheet .close-btn');
 
   await page.click('[data-act="tab"][data-v="settings"]');
   await page.click('[data-act="tab"][data-v="learn"]');
-  await capture('05-evidence-guide.png');
+  await page.click('[data-act="sheet"][data-s="learn:symptoms"]');
+  await page.click('.sheet [data-act="sheet"][data-s="learn:sym-vms"]');
+  const evidenceHeading = page.getByRole('heading', { name: 'What has evidence', exact: true });
+  await evidenceHeading.scrollIntoViewIfNeeded();
+  await page.evaluate(() => {
+    const sheet = document.querySelector('.sheet');
+    const heading = [...document.querySelectorAll('.sheet h4')].find((node) => node.textContent.trim() === 'What has evidence');
+    if (sheet && heading) sheet.scrollTop = Math.max(0, heading.offsetTop - 96);
+  });
+  if (device.kind === 'iphone') {
+    // Frame the evidence and limitation sections on full content boundaries in the portrait asset.
+    await page.evaluate(() => {
+      const heading = [...document.querySelectorAll('.sheet h4')]
+        .find((node) => node.textContent.trim() === 'What has evidence');
+      let leading = heading?.previousElementSibling;
+      while (leading && !leading.classList.contains('sheet-bar')) {
+        const previous = leading.previousElementSibling;
+        leading.remove();
+        leading = previous;
+      }
+      const limit = [...document.querySelectorAll('.sheet .callout.warn')]
+        .find((node) => node.textContent.includes('The honest bad news'));
+      let trailing = limit?.nextElementSibling;
+      while (trailing) {
+        const next = trailing.nextElementSibling;
+        trailing.remove();
+        trailing = next;
+      }
+      if (limit) limit.style.marginBottom = '72px';
+      const sheet = document.querySelector('.sheet');
+      if (sheet) sheet.scrollTop = 0;
+    });
+  }
+  await capture('05-evidence-guide.png', '.sheet .badge.strong');
 
   await context.close();
 }
@@ -139,163 +218,433 @@ async function openDemoPage(browser, baseUrl, device, outputDir) {
 const STOREFRONT = [
   {
     file: '01-today.png',
-    eyebrow: 'YOUR DAILY COMPASS',
-    headline: 'See the whole pattern',
-    subhead: 'Symptoms, sleep, movement, and treatment context—together in one private daily view.',
-    accent: '#49d6bd',
-    accentSoft: '#173f48',
-    badge: 'Private by design',
+    number: '01',
+    eyebrow: 'PRIVATE MENOPAUSE TRACKING',
+    headline: 'Clearer patterns.<br>Better appointments.',
+    subhead: 'Log symptoms, medications, and notes in about 20 seconds. Your health entries stay on your device.',
+    badge: 'Daily check-in · about 20 sec',
+    ipadScale: 1.27,
   },
   {
     file: '02-trends.png',
-    eyebrow: '30- & 90-DAY TRENDS',
-    headline: 'Make trends useful',
-    subhead: 'Compare how symptoms, sleep, and treatment context change over time.',
-    accent: '#70c9ff',
-    accentSoft: '#193c58',
-    badge: 'Context, not conclusions',
+    number: '02',
+    eyebrow: 'PATTERNS OVER TIME',
+    headline: 'See what’s<br>changing.',
+    subhead: 'Compare 7, 30, and 90 days—and read the direction, not one noisy day.',
+    badge: '7 · 30 · 90 day views',
+    ipadScale: 1.09,
   },
   {
     file: '03-medications.png',
-    eyebrow: 'TREATMENT TRACKING',
-    headline: 'Keep treatment in context',
-    subhead: 'Track schedules, doses, and adherence alongside how you feel.',
-    accent: '#f0b96a',
-    accentSoft: '#4c382a',
-    badge: 'Built for daily use',
+    number: '03',
+    eyebrow: 'TREATMENT + LABS',
+    headline: 'Keep treatment<br>in context.',
+    subhead: 'Track schedules, doses, adherence, and lab results alongside how you feel.',
+    badge: 'Medications + labs together',
+    ipadScale: 1.27,
   },
   {
     file: '04-clinician-report.png',
-    eyebrow: 'CLINICIAN-READY REPORTS',
-    headline: 'Walk in prepared',
-    subhead: 'Create a clear summary to bring to your next appointment.',
-    accent: '#c7a7ff',
-    accentSoft: '#392f59',
-    badge: 'Your data, clearly summarized',
+    number: '04',
+    eyebrow: 'CLINICIAN-READY SUMMARY',
+    headline: 'Walk in with<br>a clearer story.',
+    subhead: 'Turn your private log into a focused summary for your next appointment.',
+    badge: '90-day clinician summary',
+    ipadScale: 1.27,
   },
   {
     file: '05-evidence-guide.png',
-    eyebrow: 'EVIDENCE GUIDE',
-    headline: 'Know what the evidence says',
-    subhead: 'Evidence-graded guidance in plain language, with clear limits.',
-    accent: '#79ddb1',
-    accentSoft: '#264b42',
-    badge: 'Sources and certainty included',
+    number: '05',
+    eyebrow: 'EVIDENCE WITHOUT THE HYPE',
+    headline: 'Know what helps—<br>and how sure we are.',
+    subhead: 'Plain-language guidance with evidence grades, sources, and clear limits.',
+    badge: 'Grades · sources · limits',
+    ipadScale: 1.02,
   },
 ];
 
 function marketingMarkup(asset, device, sourceData) {
   const isPhone = device.kind === 'iphone';
+  const imageScale = isPhone ? (asset.phoneScale || 1) : (asset.ipadScale || 1);
   const dimensions = isPhone
     ? {
-        brandTop: 112, contentTop: 278, deviceTop: 670, deviceWidth: 906,
-        headlineSize: 92, subheadSize: 37, eyebrowSize: 27, copyWidth: 1040,
-        frameRadius: 112, framePadding: 22, badgeSize: 28,
+        edge: 86, brandTop: 76, contentTop: 196, nightTop: 612,
+        deviceTop: 664, deviceWidth: 950, headlineSize: 94, subheadSize: 32,
+        eyebrowSize: 23, copyWidth: 1070, frameRadius: 102, framePadding: 18,
+        badgeSize: 25, numberSize: 270,
       }
     : {
-        brandTop: 104, contentTop: 254, deviceTop: 642, deviceWidth: 1560,
-        headlineSize: 96, subheadSize: 38, eyebrowSize: 28, copyWidth: 1580,
-        frameRadius: 92, framePadding: 24, badgeSize: 29,
+        edge: 118, brandTop: 82, contentTop: 212, nightTop: 604,
+        deviceTop: 652, deviceWidth: 1660, headlineSize: 98, subheadSize: 35,
+        eyebrowSize: 24, copyWidth: 1620, frameRadius: 92, framePadding: 21,
+        badgeSize: 28, numberSize: 330,
       };
   return `<!doctype html>
   <html><head><meta charset="utf-8"><style>
+    @font-face {
+      font-family: "Bricolage";
+      src: url("data:font/woff2;base64,${BRICOLAGE_DATA}") format("woff2");
+      font-style: normal;
+      font-weight: 200 800;
+      font-display: block;
+    }
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
     body {
-      color: #f7fbff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #0e1618;
+      font-family: "Bricolage", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at 85% 10%, ${asset.accent}36 0, transparent 31%),
-        radial-gradient(circle at 8% 72%, ${asset.accentSoft}b8 0, transparent 38%),
-        linear-gradient(154deg, #122537 0%, #09131f 55%, #07101a 100%);
+        radial-gradient(circle at 88% 4%, #e8a5522b 0, transparent 24%),
+        linear-gradient(145deg, #faf6f0 0%, #f2ece3 58%, #ece3d7 100%);
     }
     .canvas { position: relative; width: 100%; height: 100%; isolation: isolate; }
     .grain {
-      position: absolute; inset: 0; opacity: .12; pointer-events: none; z-index: -1;
+      position: absolute; inset: 0; opacity: .055; pointer-events: none; z-index: 8;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E");
     }
-    .orb { position: absolute; border-radius: 999px; filter: blur(1px); z-index: -1; }
-    .orb.one { width: 390px; height: 390px; right: -118px; top: 470px; background: ${asset.accent}13; border: 1px solid ${asset.accent}26; }
-    .orb.two { width: 220px; height: 220px; left: -96px; top: 128px; background: ${asset.accentSoft}70; }
+    .night {
+      position: absolute; z-index: -1; left: -8%; right: -8%; top: ${dimensions.nightTop}px; bottom: -12%;
+      overflow: hidden; border-radius: 50% 50% 0 0 / ${isPhone ? 5 : 7}% ${isPhone ? 5 : 7}% 0 0;
+      background:
+        radial-gradient(circle at 78% 18%, #6fb79a22 0, transparent 27%),
+        radial-gradient(circle at 12% 48%, #e8a55219 0, transparent 31%),
+        linear-gradient(155deg, #142326 0%, #0b1416 55%, #080d0e 100%);
+      box-shadow: 0 -2px 0 #26383e, 0 -24px 70px #0e16181c;
+    }
+    .night::after {
+      content: ""; position: absolute; inset: 0; opacity: .18;
+      background-image:
+        linear-gradient(#ffffff08 1px, transparent 1px),
+        linear-gradient(90deg, #ffffff08 1px, transparent 1px);
+      background-size: ${isPhone ? 86 : 112}px ${isPhone ? 86 : 112}px;
+      mask-image: linear-gradient(to bottom, #0008, transparent 72%);
+    }
+    .rings {
+      position: absolute; z-index: -1; width: ${isPhone ? 610 : 760}px; height: ${isPhone ? 610 : 760}px;
+      right: ${isPhone ? -226 : -180}px; top: ${isPhone ? 106 : 88}px; border-radius: 50%;
+      border: 2px solid #17313520; box-shadow: inset 0 0 0 ${isPhone ? 64 : 82}px #ffffff00;
+    }
+    .rings::before, .rings::after { content: ""; position: absolute; border-radius: 50%; border: 2px solid #17313517; }
+    .rings::before { inset: ${isPhone ? 76 : 94}px; }
+    .rings::after { inset: ${isPhone ? 154 : 190}px; border-color: #e8a55240; }
+    .rings i {
+      position: absolute; width: ${isPhone ? 18 : 22}px; height: ${isPhone ? 18 : 22}px;
+      left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 50%;
+      background: #e8a552; box-shadow: 0 0 0 12px #e8a5521e;
+    }
+    .ghost {
+      position: absolute; z-index: -1; right: ${isPhone ? 34 : 84}px; top: ${isPhone ? 105 : 92}px;
+      color: #102629; opacity: .045; font-size: ${dimensions.numberSize}px; line-height: .8;
+      font-weight: 780; letter-spacing: -.09em;
+    }
     .brand {
-      position: absolute; top: ${dimensions.brandTop}px; left: 50%; transform: translateX(-50%);
-      display: inline-flex; align-items: center; gap: 17px; white-space: nowrap;
-      font-size: ${isPhone ? 29 : 30}px; font-weight: 750; letter-spacing: .01em;
+      position: absolute; z-index: 3; top: ${dimensions.brandTop}px; left: ${dimensions.edge}px;
+      display: inline-flex; align-items: center; gap: ${isPhone ? 15 : 17}px; white-space: nowrap;
+      color: #132b2e; font-size: ${isPhone ? 28 : 30}px; font-weight: 720; letter-spacing: -.02em;
     }
     .mark {
-      width: ${isPhone ? 56 : 58}px; height: ${isPhone ? 56 : 58}px; border-radius: 17px;
-      display: grid; place-items: center; color: #08151f; font-weight: 900; font-size: 32px;
-      background: linear-gradient(145deg, ${asset.accent}, #dffcf7);
-      box-shadow: 0 13px 36px ${asset.accent}35;
+      position: relative; width: ${isPhone ? 54 : 58}px; height: ${isPhone ? 54 : 58}px; border-radius: 17px;
+      display: grid; place-items: center; background: #132b2e; box-shadow: 0 10px 28px #10242624;
+    }
+    .mark::before, .mark::after { content: ""; position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; }
+    .mark::before {
+      width: ${isPhone ? 22 : 24}px; height: ${isPhone ? 22 : 24}px; transform: translate(-50%, -50%) rotate(45deg);
+      border: 2px solid #f6f0e8; border-radius: 5px;
+    }
+    .mark::after {
+      width: 8px; height: ${isPhone ? 28 : 30}px; transform: translate(-50%, -50%) rotate(32deg);
+      border-radius: 999px 999px 3px 3px; background: linear-gradient(to bottom, #e8a552 0 48%, #f6f0e8 48% 100%);
     }
     .copy {
-      position: absolute; top: ${dimensions.contentTop}px; left: 50%; transform: translateX(-50%);
-      width: ${dimensions.copyWidth}px; text-align: center;
+      position: absolute; z-index: 2; top: ${dimensions.contentTop}px; left: ${dimensions.edge}px;
+      width: ${dimensions.copyWidth}px; text-align: left;
     }
-    .eyebrow { color: ${asset.accent}; font-size: ${dimensions.eyebrowSize}px; font-weight: 800; letter-spacing: .17em; }
+    .eyebrow {
+      color: #955d18; font-family: "Bricolage", sans-serif;
+      font-size: ${dimensions.eyebrowSize}px; font-weight: 800; letter-spacing: .14em;
+    }
     h1 {
-      margin: ${isPhone ? 20 : 18}px 0 ${isPhone ? 18 : 16}px; font-size: ${dimensions.headlineSize}px;
-      line-height: .98; letter-spacing: -.055em; font-weight: 780;
+      margin: ${isPhone ? 17 : 16}px 0 ${isPhone ? 16 : 14}px; color: #102426;
+      font-size: ${dimensions.headlineSize}px; line-height: .91; letter-spacing: -.06em; font-weight: 760;
     }
     .subhead {
-      margin: 0 auto; max-width: ${isPhone ? 1010 : 1470}px; color: #c9d4df;
-      font-size: ${dimensions.subheadSize}px; line-height: 1.34; letter-spacing: -.018em;
+      margin: 0; max-width: ${isPhone ? 1030 : 1490}px; color: #48595b;
+      font-size: ${dimensions.subheadSize}px; line-height: 1.28; letter-spacing: -.022em; font-weight: 450;
     }
     .device {
       position: absolute; top: ${dimensions.deviceTop}px; left: 50%; transform: translateX(-50%);
       width: ${dimensions.deviceWidth}px; padding: ${dimensions.framePadding}px;
       border-radius: ${dimensions.frameRadius}px;
-      background: linear-gradient(145deg, #3b4a56 0%, #111a22 34%, #05090d 70%, #37434c 100%);
-      box-shadow: 0 55px 120px #0009, 0 0 0 2px #ffffff22, inset 0 0 0 2px #ffffff1c;
+      background: linear-gradient(142deg, #48575a 0%, #172124 20%, #040708 69%, #344144 100%);
+      box-shadow: 0 56px 120px #000a, 0 0 0 2px #ffffff24, 0 0 0 8px #08101266, inset 0 0 0 2px #ffffff16;
     }
     .screen {
       position: relative; width: 100%; aspect-ratio: ${device.sourceWidth} / ${device.sourceHeight};
       overflow: hidden; border-radius: ${dimensions.frameRadius - dimensions.framePadding - 7}px;
-      background: #08111b;
+      background: #080d0e;
     }
-    .screen img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .screen img {
+      display: block; width: 100%; height: 100%; object-fit: cover;
+      transform: scale(${imageScale}); transform-origin: 50% 0;
+    }
     .speaker {
-      position: absolute; z-index: 3; top: ${isPhone ? 36 : 33}px; left: 50%; transform: translateX(-50%);
-      width: ${isPhone ? 164 : 124}px; height: ${isPhone ? 35 : 12}px; border-radius: 999px;
-      background: #020406; box-shadow: 0 1px 0 #ffffff12;
+      position: absolute; z-index: 3; top: ${isPhone ? 34 : 31}px; left: 50%; transform: translateX(-50%);
+      width: ${isPhone ? 158 : 16}px; height: ${isPhone ? 34 : 16}px; border-radius: 999px;
+      background: #020405; box-shadow: 0 1px 0 #ffffff12;
     }
     .badge {
-      position: absolute; right: ${isPhone ? 76 : 112}px; top: ${dimensions.deviceTop + (isPhone ? 94 : 84)}px;
-      z-index: 4; display: flex; align-items: center; gap: 12px; padding: ${isPhone ? '15px 21px' : '17px 24px'};
-      color: #effffb; background: #07121de8; border: 1px solid ${asset.accent}7a;
-      border-radius: 999px; font-size: ${dimensions.badgeSize}px; font-weight: 650;
-      box-shadow: 0 16px 36px #0007; backdrop-filter: blur(14px);
+      position: absolute; right: ${isPhone ? 72 : 122}px; top: ${dimensions.deviceTop - (isPhone ? 39 : 43)}px;
+      z-index: 4; display: flex; align-items: center; gap: ${isPhone ? 14 : 16}px;
+      padding: ${isPhone ? '13px 20px 13px 13px' : '15px 23px 15px 15px'};
+      color: #f8f3eb; background: #122729f2; border: 1px solid #e8a5527d;
+      border-radius: 999px; font-size: ${dimensions.badgeSize}px; font-weight: 630; letter-spacing: -.015em;
+      box-shadow: 0 16px 38px #0007;
     }
-    .badge i { width: 11px; height: 11px; border-radius: 50%; background: ${asset.accent}; box-shadow: 0 0 0 6px ${asset.accent}22; }
+    .badge b {
+      display: grid; place-items: center; min-width: ${isPhone ? 45 : 50}px; height: ${isPhone ? 45 : 50}px;
+      padding: 0 8px; border-radius: 999px; color: #102426; background: #e8a552;
+      font-family: "Bricolage", sans-serif; font-size: ${isPhone ? 18 : 20}px; letter-spacing: .03em;
+    }
   </style></head><body><main class="canvas">
-    <div class="grain"></div><div class="orb one"></div><div class="orb two"></div>
-    <div class="brand"><span class="mark">M</span><span>MenoCompass</span></div>
+    <div class="grain"></div><div class="night"></div><div class="rings"><i></i></div><div class="ghost">${asset.number}</div>
+    <div class="brand"><span class="mark"></span><span>MenoCompass</span></div>
     <section class="copy"><div class="eyebrow">${asset.eyebrow}</div><h1>${asset.headline}</h1><p class="subhead">${asset.subhead}</p></section>
     <div class="device"><div class="speaker"></div><div class="screen"><img src="data:image/png;base64,${sourceData}" alt=""></div></div>
-    <div class="badge"><i></i>${asset.badge}</div>
+    <div class="badge"><b>${asset.number}</b><span>${asset.badge}</span></div>
   </main></body></html>`;
 }
 
 async function composeStorefront(browser, device, rawDir, outputDir) {
   fs.mkdirSync(outputDir, { recursive: true });
   const context = await browser.newContext({ viewport: device.output, deviceScaleFactor: 1 });
-  const page = await context.newPage();
   for (const asset of STOREFRONT) {
+    const page = await context.newPage();
     const sourceData = fs.readFileSync(path.join(rawDir, asset.file)).toString('base64');
     await page.setContent(marketingMarkup(asset, device, sourceData), { waitUntil: 'load' });
-    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(async () => {
+      await document.fonts.load('800 96px "Bricolage"');
+      await document.fonts.ready;
+      if (!document.fonts.check('800 96px "Bricolage"')) {
+        throw new Error('Storefront font failed to load.');
+      }
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    const sourceImage = await page.$eval('.screen img', async (img) => {
+      await img.decode();
+      return { complete: img.complete, width: img.naturalWidth, height: img.naturalHeight };
+    });
+    if (!sourceImage.complete || sourceImage.width !== device.sourceWidth || sourceImage.height !== device.sourceHeight) {
+      throw new Error(`Raw source failed to decode for ${asset.file}: ${sourceImage.width}x${sourceImage.height}.`);
+    }
+    const brandVisible = await page.$eval('.brand', (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    });
+    if (!brandVisible) throw new Error(`Storefront brand lockup is not visible for ${asset.file}.`);
     await page.screenshot({ path: path.join(outputDir, asset.file), fullPage: false });
+    await page.close();
   }
   await context.close();
 }
 
+const CRC_TABLE = Array.from({ length: 256 }, (_, value) => {
+  let crc = value;
+  for (let bit = 0; bit < 8; bit += 1) crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+  return crc >>> 0;
+});
+
+function crc32(data) {
+  let crc = 0xffffffff;
+  for (const byte of data) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngMetadata(file) {
+  const data = fs.readFileSync(file);
+  if (data.length < 33 || data.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+    throw new Error(`${file} is not a valid PNG.`);
+  }
+  if (data.subarray(12, 16).toString('ascii') !== 'IHDR') {
+    throw new Error(`${file} has no PNG IHDR chunk.`);
+  }
+  let hasTransparencyChunk = false;
+  let hasImageData = false;
+  let hasEnd = false;
+  let headerCount = 0;
+  let imageDataEnded = false;
+  const imageDataChunks = [];
+  let offset = 8;
+  let chunkIndex = 0;
+  while (offset + 12 <= data.length) {
+    const length = data.readUInt32BE(offset);
+    const type = data.subarray(offset + 4, offset + 8).toString('ascii');
+    if (!/^[A-Za-z]{4}$/.test(type)) throw new Error(`${file} has an invalid PNG chunk type.`);
+    if (offset + 12 + length > data.length) throw new Error(`${file} has a malformed PNG chunk.`);
+    if (chunkIndex === 0 && (type !== 'IHDR' || length !== 13)) throw new Error(`${file} has an invalid first PNG chunk.`);
+    const chunkEnd = offset + 8 + length;
+    const expectedCrc = data.readUInt32BE(chunkEnd);
+    const actualCrc = crc32(data.subarray(offset + 4, chunkEnd));
+    if (actualCrc !== expectedCrc) throw new Error(`${file} has a corrupt ${type} PNG chunk.`);
+    if (type === 'IHDR') headerCount += 1;
+    if (type === 'IDAT') {
+      if (imageDataEnded) throw new Error(`${file} has non-contiguous PNG image data.`);
+      hasImageData = true;
+      imageDataChunks.push(data.subarray(offset + 8, chunkEnd));
+    } else if (hasImageData) {
+      imageDataEnded = true;
+    }
+    if (type === 'tRNS') hasTransparencyChunk = true;
+    if ((type.charCodeAt(0) & 0x20) === 0 && !['IHDR', 'PLTE', 'IDAT', 'IEND'].includes(type)) {
+      throw new Error(`${file} contains unsupported critical PNG chunk ${type}.`);
+    }
+    offset += length + 12;
+    chunkIndex += 1;
+    if (type === 'IEND') {
+      if (length !== 0 || offset !== data.length) throw new Error(`${file} has an invalid PNG ending.`);
+      hasEnd = true;
+      break;
+    }
+  }
+  if (headerCount !== 1 || !hasImageData || !hasEnd) throw new Error(`${file} is an incomplete PNG.`);
+  const width = data.readUInt32BE(16);
+  const height = data.readUInt32BE(20);
+  const decodedLength = height * (1 + width * 3);
+  let decoded;
+  try {
+    decoded = zlib.inflateSync(Buffer.concat(imageDataChunks), { maxOutputLength: decodedLength });
+  } catch (error) {
+    throw new Error(`${file} has invalid compressed PNG image data.`, { cause: error });
+  }
+  if (decoded.length !== decodedLength) throw new Error(`${file} has incomplete PNG scanlines.`);
+  const scanlineLength = 1 + width * 3;
+  for (let row = 0; row < height; row += 1) {
+    if (decoded[row * scanlineLength] > 4) throw new Error(`${file} has an invalid PNG scanline filter.`);
+  }
+  return {
+    data,
+    width,
+    height,
+    bitDepth: data[24],
+    colorType: data[25],
+    compressionMethod: data[26],
+    filterMethod: data[27],
+    interlaceMethod: data[28],
+    hasTransparencyChunk,
+  };
+}
+
+function validatePngSet(directory, device, rawDir = null) {
+  const expected = STOREFRONT.map((asset) => asset.file).sort();
+  const entries = fs.readdirSync(directory, { withFileTypes: true });
+  const actual = entries.map((entry) => entry.name).sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${directory} must contain exactly: ${expected.join(', ')}`);
+  }
+  if (entries.some((entry) => !entry.isFile() || entry.isSymbolicLink())) {
+    throw new Error(`${directory} must contain regular PNG files only.`);
+  }
+  for (const file of expected) {
+    const target = path.join(directory, file);
+    const png = pngMetadata(target);
+    if (png.width !== device.output.width || png.height !== device.output.height) {
+      throw new Error(`${target} is ${png.width}x${png.height}; expected ${device.output.width}x${device.output.height}.`);
+    }
+    if (
+      png.bitDepth !== 8 || png.colorType !== 2 || png.compressionMethod !== 0
+      || png.filterMethod !== 0 || png.interlaceMethod !== 0 || png.hasTransparencyChunk
+    ) {
+      throw new Error(`${target} must be an 8-bit RGB PNG without transparency.`);
+    }
+    if (rawDir && png.data.equals(fs.readFileSync(path.join(rawDir, file)))) {
+      throw new Error(`${target} is identical to its raw capture; storefront composition is missing.`);
+    }
+  }
+}
+
+function renameWithRetry(source, destination) {
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      fs.renameSync(source, destination);
+      return;
+    } catch (error) {
+      const retryable = ['EBUSY', 'EACCES', 'EPERM', 'UNKNOWN'].includes(error.code);
+      if (!retryable || attempt === 5) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, attempt * 150);
+    }
+  }
+}
+
+function promoteDirectoryTransaction(transactionRoot, planSpecs, verify) {
+  const plans = planSpecs.map((plan) => ({
+    ...plan,
+    backup: path.join(transactionRoot, 'backup', plan.id),
+    rejected: path.join(transactionRoot, 'rejected', plan.id),
+    backedUp: false,
+    installed: false,
+  }));
+  try {
+    for (const plan of plans) {
+      if (fs.existsSync(plan.target)) {
+        renameWithRetry(plan.target, plan.backup);
+        plan.backedUp = true;
+      }
+      renameWithRetry(plan.staged, plan.target);
+      plan.installed = true;
+    }
+    verify();
+  } catch (originalError) {
+    const rollbackErrors = [];
+    for (const plan of [...plans].reverse()) {
+      if (plan.installed && fs.existsSync(plan.target)) {
+        try {
+          renameWithRetry(plan.target, plan.rejected);
+        } catch (error) {
+          rollbackErrors.push(error);
+        }
+      }
+      if (plan.backedUp && fs.existsSync(plan.backup)) {
+        try {
+          renameWithRetry(plan.backup, plan.target);
+        } catch (error) {
+          rollbackErrors.push(error);
+        }
+      }
+    }
+    if (rollbackErrors.length) {
+      const aggregate = new AggregateError(
+        [originalError, ...rollbackErrors],
+        `Screenshot promotion and rollback failed; recovery data is preserved at ${transactionRoot}.`,
+      );
+      aggregate.preserveTransactionRoot = true;
+      throw aggregate;
+    }
+    throw originalError;
+  }
+}
+
+function removeTransactionRoot(transactionRoot) {
+  const resolved = path.resolve(transactionRoot);
+  if (
+    path.dirname(resolved) !== path.resolve(OUTPUT)
+    || !path.basename(resolved).startsWith('.store-transaction-')
+  ) {
+    throw new Error(`Refusing to remove unexpected transaction path: ${resolved}`);
+  }
+  fs.rmSync(resolved, { recursive: true, force: true, maxRetries: 5, retryDelay: 150 });
+}
+
+const composeOnly = process.argv.includes('--compose-only');
+
 (async () => {
-  if (!fs.existsSync(path.join(DIST, 'index.html'))) throw new Error('Run npm run build before generating screenshots.');
-  const server = createServer();
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  const baseUrl = `http://127.0.0.1:${address.port}`;
-  const browser = await chromium.launch({ headless: true });
+  if (!composeOnly && !fs.existsSync(path.join(DIST, 'index.html'))) {
+    throw new Error('Run npm run build before generating screenshots.');
+  }
+  let server = null;
+  let browser = null;
+  let transactionRoot = null;
+  let preserveTransactionRoot = false;
   try {
     const iphone = {
       kind: 'iphone', viewport: { width: 414, height: 896 }, deviceScaleFactor: 3,
@@ -307,15 +656,68 @@ async function composeStorefront(browser, device, rawDir, outputDir) {
     };
     const iphoneRaw = path.join(RAW_OUTPUT, 'iphone-6.5');
     const ipadRaw = path.join(RAW_OUTPUT, 'ipad-12.9');
-    await openDemoPage(browser, baseUrl, iphone, iphoneRaw);
-    await openDemoPage(browser, baseUrl, ipad, ipadRaw);
-    await composeStorefront(browser, iphone, iphoneRaw, path.join(OUTPUT, 'iphone-6.5'));
-    await composeStorefront(browser, ipad, ipadRaw, path.join(OUTPUT, 'ipad-12.9'));
-  } finally {
+    const finalIphone = path.join(OUTPUT, 'iphone-6.5');
+    const finalIpad = path.join(OUTPUT, 'ipad-12.9');
+    transactionRoot = fs.mkdtempSync(path.join(OUTPUT, '.store-transaction-'));
+    const stagedIphoneRaw = path.join(transactionRoot, 'staged', 'raw', 'iphone-6.5');
+    const stagedIpadRaw = path.join(transactionRoot, 'staged', 'raw', 'ipad-12.9');
+    const stagedIphone = path.join(transactionRoot, 'staged', 'final', 'iphone-6.5');
+    const stagedIpad = path.join(transactionRoot, 'staged', 'final', 'ipad-12.9');
+    let sourceIphoneRaw = iphoneRaw;
+    let sourceIpadRaw = ipadRaw;
+
+    if (!composeOnly) {
+      server = createServer();
+      await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const address = server.address();
+      const baseUrl = `http://127.0.0.1:${address.port}`;
+      browser = await chromium.launch({ headless: true });
+      await openDemoPage(browser, baseUrl, iphone, stagedIphoneRaw);
+      await openDemoPage(browser, baseUrl, ipad, stagedIpadRaw);
+      validatePngSet(stagedIphoneRaw, iphone);
+      validatePngSet(stagedIpadRaw, ipad);
+      sourceIphoneRaw = stagedIphoneRaw;
+      sourceIpadRaw = stagedIpadRaw;
+    } else {
+      browser = await chromium.launch({ headless: true });
+      validatePngSet(iphoneRaw, iphone);
+      validatePngSet(ipadRaw, ipad);
+    }
+    await composeStorefront(browser, iphone, sourceIphoneRaw, stagedIphone);
+    await composeStorefront(browser, ipad, sourceIpadRaw, stagedIpad);
+    validatePngSet(stagedIphone, iphone, sourceIphoneRaw);
+    validatePngSet(stagedIpad, ipad, sourceIpadRaw);
+
     await browser.close();
-    await new Promise((resolve) => server.close(resolve));
+    browser = null;
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+      server = null;
+    }
+
+    const plans = [
+      ...(composeOnly ? [] : [
+        { id: 'raw-iphone-6.5', staged: stagedIphoneRaw, target: iphoneRaw },
+        { id: 'raw-ipad-12.9', staged: stagedIpadRaw, target: ipadRaw },
+      ]),
+      { id: 'final-iphone-6.5', staged: stagedIphone, target: finalIphone },
+      { id: 'final-ipad-12.9', staged: stagedIpad, target: finalIpad },
+    ];
+    promoteDirectoryTransaction(transactionRoot, plans, () => {
+      validatePngSet(iphoneRaw, iphone);
+      validatePngSet(ipadRaw, ipad);
+      validatePngSet(finalIphone, iphone, iphoneRaw);
+      validatePngSet(finalIpad, ipad, ipadRaw);
+    });
+  } catch (error) {
+    preserveTransactionRoot = Boolean(error.preserveTransactionRoot);
+    throw error;
+  } finally {
+    if (browser) await browser.close();
+    if (server) await new Promise((resolve) => server.close(resolve));
+    if (transactionRoot && !preserveTransactionRoot) removeTransactionRoot(transactionRoot);
   }
-  console.log('Generated polished App Store creatives in mobile/store-assets.');
+  console.log(`${composeOnly ? 'Composed' : 'Generated'} validated App Store creatives in mobile/store-assets.`);
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

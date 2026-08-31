@@ -3,6 +3,7 @@ dist/
 test-results/
 shot-*.png
 mobile/store-assets/raw/
+mobile/store-assets/.store-transaction-*/
 
 # Dependencies and local Vercel state
 node_modules/

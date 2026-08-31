@@ -9,6 +9,7 @@
     "test:e2e": "node test.js",
     "test:install": "playwright install chromium",
     "screenshots:store": "node mobile/store-assets/generate-screenshots.js",
+    "screenshots:store:compose": "node mobile/store-assets/generate-screenshots.js --compose-only",
     "demo:product": "node mobile/store-assets/generate-product-demo.js",
     "mobile:sync": "npm --prefix mobile run sync:web",
     "mobile:typecheck": "npm --prefix mobile run typecheck",
