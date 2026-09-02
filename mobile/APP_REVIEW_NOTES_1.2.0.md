@@ -37,7 +37,7 @@ Attach evidence where App Store Connect permits it, without including real healt
 - Screenshot of Profile showing Manage Apple subscription and Account & data.
 - Screenshot of Profile showing the in-context reminder, App Lock, and read-only Apple Health controls.
 - Screenshot of both privacy-safe Home Screen widgets and their opened destinations.
-- Completed `RELEASE_QA_1.2.0.md` or an exported signed copy.
+- Completed `RELEASE_QA_1.2.0.md` or an exported copy.
 
 ## Pre-submission verification
 

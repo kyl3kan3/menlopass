@@ -1,6 +1,6 @@
 # MenoCompass 1.2.0 release QA record
 
-Use this as the signed evidence record for the exact production/TestFlight candidate submitted to App Review. A written plan is not a passing result: record the device, build, observed outcome, evidence location, and tester initials for every required row.
+Use this as the evidence checklist for the exact production/TestFlight candidate submitted to App Review. A written plan is not a passing result: record the device, build, observed outcome, and evidence location for every required row. No internal signatures or initials are required.
 
 ## Candidate identity
 
@@ -15,7 +15,6 @@ Use this as the signed evidence record for the exact production/TestFlight candi
 | TestFlight group | `[group]` |
 | Build created (UTC) | `[YYYY-MM-DD HH:MM]` |
 | QA started/completed (UTC) | `[timestamps]` |
-| Release owner | `[name]` |
 
 The Git commit must be clean, pushed, and identical to the EAS build source. Do not sign this record for an uncommitted working tree.
 
@@ -24,14 +23,14 @@ The Git commit must be clean, pushed, and identical to the EAS build source. Do 
 - **PASS:** observed on the recorded build and device, with evidence.
 - **FAIL:** observed behavior does not meet the expected result.
 - **BLOCKED:** test could not be completed; this is not release approval.
-- **N/A:** the capability does not exist by product design and the rationale is signed below.
-- **WAIVED:** a known checklist exception accepted by both Product and Release owners below. A blank signature is not a waiver.
+- **N/A:** the capability does not exist by product design and the rationale is recorded below.
+- **WAIVED:** a known checklist exception explicitly recorded in the scope-decision section.
 
 ## Device matrix
 
 Use physical devices for ATT and purchase testing. Simulator results may supplement, but not replace, the required rows.
 
-| Class | Exact model | OS | Install state / Apple sandbox account | Physical? | Tester/date | Evidence |
+| Class | Exact model | OS | Install state / Apple sandbox account | Physical? | Date | Evidence |
 |---|---|---|---|---|---|---|
 | Small iPhone | `[for example, iPhone SE]` | `[version]` | Fresh install / `[account alias]` | Yes |  |  |
 | Pro Max iPhone | `[model]` | `[version]` | Fresh install / `[account alias]` | Yes |  |  |
@@ -39,7 +38,7 @@ Use physical devices for ATT and purchase testing. Simulator results may supplem
 
 ## Build and store artifact gates
 
-| Test | Expected result | Result | Device/evidence | Initials/date |
+| Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
 | Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit and runtime `1.2.0-native-1` (isolated from the 1.1.0 native runtime) |  |  |  |
 | Production configuration | Required AppsFlyer, Meta, TikTok, RevenueCat, and Sentry production values are present without logging secrets |  |  |  |
@@ -57,7 +56,7 @@ Use physical devices for ATT and purchase testing. Simulator results may supplem
 
 Repeat the first two paths with separate fresh installs because iOS does not show the ATT prompt again after a decision.
 
-| Test | Expected result | Result | Device/evidence | Initials/date |
+| Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
 | Fresh install — Allow | ATT appears before the automatic paywall; allowing proceeds normally |  |  |  |
 | Fresh install — Ask App Not to Track | Denial proceeds normally and does not remove subscription/app features |  |  |  |
@@ -71,7 +70,7 @@ Repeat the first two paths with separate fresh installs because iOS does not sho
 
 Never use a personal production Apple ID for these tests. Record sandbox account aliases, not passwords.
 
-| Test | Expected result | Result | Device/evidence | Initials/date |
+| Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
 | Fresh non-subscriber launch | Health content never mounts before entitlement is active |  |  |  |
 | Monthly purchase | Apple sheet shows immediate charge and no trial; success unlocks app immediately |  |  |  |
@@ -91,7 +90,7 @@ Never use a personal production Apple ID for these tests. Record sandbox account
 
 Run on at least the small iPhone, Pro Max, and iPad.
 
-| Test | Expected result | Result | Device/evidence | Initials/date |
+| Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
 | Onboarding | Completes without clipped controls, keyboard obstruction, or unsafe-area overlap |  |  |  |
 | Today | Confirm a daily check-in and relaunch; confirmed data persists |  |  |  |
@@ -111,7 +110,7 @@ Run on at least the small iPhone, Pro Max, and iPad.
 
 Run the iOS 26 rows from a build produced with Xcode 26. Repeat the fallback row on an earlier iOS version or with Reduce Transparency enabled. Diagnostics must use synthetic failures and contain no real health or free-text data.
 
-| Test | Expected result | Result | Device/evidence | Initials/date |
+| Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
 | Liquid Glass primary navigation | On iOS 26, Today, Journey, Care, and Guide render in the native floating glass bar; selection follows WebView navigation and every tab reaches the correct route |  |  |  |
 | Glass accessibility fallback | Earlier iOS versions and Reduce Transparency use an opaque, high-contrast native fallback with the same labels, symbols, states, and 44-point-or-larger targets |  |  |  |
@@ -126,7 +125,7 @@ Run the iOS 26 rows from a build produced with Xcode 26. Repeat the fallback row
 
 Use test-only records. Verify that no notification, widget, shortcut, diagnostic, or attribution payload contains health values or free text.
 
-| Test | Expected result | Result | Device/evidence | Initials/date |
+| Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
 | Encrypted persistence migration | A legacy plaintext native record migrates to the encrypted device-bound file, relaunches intact, and the plaintext file/WebView local-storage copy is removed |  |  |  |
 | App Lock | Enabling requires enrolled Face ID/Touch ID and authentication; backgrounding hides the record; successful biometric or passcode unlock restores it; cancel/failure keeps it hidden |  |  |  |
@@ -140,28 +139,25 @@ Use test-only records. Verify that no notification, widget, shortcut, diagnostic
 
 ## Explicit 1.2.0 scope decisions
 
-These proposed waivers document features intentionally absent from this release. They become valid only after both signatures are present.
+These entries record features intentionally absent from this release. Set the status when the release scope is finalized; no signature is required.
 
 ### Additional languages — proposed WAIVED
 
 Version 1.2.0 is intentionally an English-only binary and English-only App Store listing. Non-English translations and localized screenshot sets are deferred. This does **not** waive declaring English in the final `CFBundleLocalizations`, removing unsupported localization claims, or keeping all English copy consistent.
 
-- Product owner approval: `[name / signature / UTC date]`
-- Release owner approval: `[name / signature / UTC date]`
 - Final status: `[WAIVED or NOT APPROVED]`
 
 ### Authentication QA — N/A by design
 
 MenoCompass has no account, login, logout, sync, or remote health database. Account-authentication tests and a demo account are not applicable. Local data deletion, subscription restoration, and device backup/restore tests above remain required.
 
-- Product owner confirmation: `[name / signature / UTC date]`
-- Release owner confirmation: `[name / signature / UTC date]`
+- Status: `[CONFIRMED N/A or NOT CONFIRMED]`
 
 ## OTA smoke test
 
-If EAS Update/OTA is enabled for this binary, record the runtime version, channel, update ID, pre-update behavior, post-update behavior, rollback behavior, and tester evidence here. If OTA is not enabled, mark **N/A** and link the approved release-scope decision; do not record an untested OTA path as PASS.
+If EAS Update/OTA is enabled for this binary, record the runtime version, channel, update ID, pre-update behavior, post-update behavior, rollback behavior, and evidence here. If OTA is not enabled, mark **N/A** and link the release-scope decision; do not record an untested OTA path as PASS.
 
-| Runtime/channel/update | Pre-update | Post-update | Rollback | Result/evidence | Initials/date |
+| Runtime/channel/update | Pre-update | Post-update | Rollback | Result/evidence | Date |
 |---|---|---|---|---|---|
 |  |  |  |  |  |  |
 
@@ -170,13 +166,11 @@ The production OTA published on 2026-09-02 (update `01a06467-aac9-775f-b87d-9dd5
 ## Final release decision
 
 - Outstanding FAIL/BLOCKED rows: `[none or list]`
-- Approved waivers: `[list]`
-- App Store Connect privacy answers rechecked by: `[name/date]`
-- App Store Connect IAP/paywall configuration rechecked by: `[name/date]`
-- App Review notes pasted by: `[name/date]`
-- Sentry and EAS Observe production dashboards rechecked by: `[name/date]`
-- Apple export-compliance questionnaire/attestation completed by Account Holder, Admin, or App Manager: `[name/date]`
-- Automatic public release acknowledged (`store.config.json` currently sets `automaticRelease: true`): `[name/date]`
-- Release owner decision: `[APPROVE / REJECT]`
-- Release owner signature and UTC date: `[signature/date]`
-- Product owner signature and UTC date: `[signature/date]`
+- Recorded scope exceptions: `[list]`
+- [ ] App Store Connect privacy answers rechecked
+- [ ] App Store Connect IAP/paywall configuration rechecked
+- [ ] App Review notes pasted
+- [ ] Sentry and EAS Observe production dashboards rechecked
+- [ ] Apple export-compliance questionnaire completed in App Store Connect
+- [ ] Automatic public release acknowledged (`store.config.json` currently sets `automaticRelease: true`)
+- Release decision: `[APPROVE / REJECT]`
