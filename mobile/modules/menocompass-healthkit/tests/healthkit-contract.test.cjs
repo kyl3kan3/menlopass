@@ -22,8 +22,9 @@ test('HealthKit reads are explicitly user initiated and aggregate-only', () => {
   assert.doesNotMatch(swiftSource, /sourceRevision|device|metadata/);
 });
 
-test('HealthKit plugin adds read usage copy and entitlement without write usage copy', () => {
+test('HealthKit plugin adds required purpose strings and keeps the module read-only', () => {
   assert.match(pluginSource, /NSHealthShareUsageDescription/);
+  assert.match(pluginSource, /NSHealthUpdateUsageDescription/);
+  assert.match(pluginSource, /never writes or updates Apple Health data/);
   assert.match(pluginSource, /com\.apple\.developer\.healthkit/);
-  assert.doesNotMatch(pluginSource, /NSHealthUpdateUsageDescription/);
 });

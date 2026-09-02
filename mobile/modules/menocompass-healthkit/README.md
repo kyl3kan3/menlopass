@@ -21,6 +21,8 @@ plugins.push([
   {
     healthSharePermission:
       'MenoCompass reads your steps, sleep, and body weight only when you choose to sync, so you can view those summaries alongside your menopause records. MenoCompass never writes to Apple Health.',
+    healthUpdatePermission:
+      'MenoCompass requests Apple Health access only to read steps, sleep, and body weight when you choose to sync. MenoCompass never writes or updates Apple Health data.',
   },
 ]);
 ```
@@ -43,8 +45,10 @@ that every type was granted; `null` summary values must be presented as
 
 ## Required release validation
 
-The config plugin adds `NSHealthShareUsageDescription` and the HealthKit
-entitlement. A fresh native build is required. On a physical iPhone, verify the
-permission sheet, partial/denied permission behavior, values with and without
-Health data, and the unavailable path. Simulator/type checks do not replace
-that device validation.
+The config plugin adds `NSHealthShareUsageDescription`, the App Store-required
+`NSHealthUpdateUsageDescription`, and the HealthKit entitlement. The update
+description truthfully states that the app never writes Health data; the native
+module still requests an empty write-type set. A fresh native build is required.
+On a physical iPhone, verify the permission sheet, partial/denied permission
+behavior, values with and without Health data, and the unavailable path.
+Simulator/type checks do not replace that device validation.
