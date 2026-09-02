@@ -59,6 +59,8 @@ test('app and widget extension declare the App Group UserDefaults privacy reason
   assert.match(widgetPrivacyPluginSource, /PBXResourcesBuildPhase/);
   assert.match(widgetPrivacyPluginSource, /targetUuid/);
   assert.match(widgetPrivacyPluginSource, /addResourceFileToGroup/);
+  assert.match(widgetPrivacyPluginSource, /filepath: MANIFEST_NAME/);
+  assert.doesNotMatch(widgetPrivacyPluginSource, /filepath: relativePath/);
 });
 
 test('quick entry links accept only allow-listed MenoCompass routes', () => {

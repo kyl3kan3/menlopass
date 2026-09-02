@@ -50,10 +50,16 @@ function withWidgetPrivacyManifest(config) {
       );
     }
 
-    const relativePath = `${TARGET_NAME}/${MANIFEST_NAME}`;
-    if (!project.hasFile(relativePath)) {
+    const targetGroup = project.pbxGroupByName(TARGET_NAME);
+    const hasManifest = targetGroup?.children?.some(
+      child => child.comment === MANIFEST_NAME,
+    );
+    if (!hasManifest) {
       currentConfig.modResults = IOSConfig.XcodeUtils.addResourceFileToGroup({
-        filepath: relativePath,
+        // The PBX group already has path ExpoWidgetsTarget. Passing the
+        // directory again produces ExpoWidgetsTarget/ExpoWidgetsTarget/... at
+        // archive time, so the file reference must be group-relative.
+        filepath: MANIFEST_NAME,
         groupName: TARGET_NAME,
         isBuildFile: true,
         project,
