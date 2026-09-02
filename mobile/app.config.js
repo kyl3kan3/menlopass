@@ -143,6 +143,9 @@ module.exports = ({ config }) => {
       ),
       infoPlist: {
         ...config.ios?.infoPlist,
+        // MenoCompass uses only standard/exempt encryption provided by Apple
+        // frameworks (for example HTTPS, Keychain, AES-GCM, and HMAC-SHA256).
+        ITSAppUsesNonExemptEncryption: false,
         // The current binary is English-only. This declaration does not add an
         // i18n layer or translated resources; add locales only when those exist.
         CFBundleLocalizations: ['en'],

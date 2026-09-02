@@ -12,4 +12,4 @@ Use this factual inventory when the Account Holder, Admin, or App Manager comple
 
 ## Submission handling
 
-`ITSAppUsesNonExemptEncryption` is intentionally not hard-coded for this release. Complete Apple’s current questionnaire after build processing, retain the resulting determination or documentation with the release evidence, and only then select the build for review. If Apple provides an export-compliance code, add it to the next binary as directed.
+The release declares `ITSAppUsesNonExemptEncryption = NO` because the binary uses only standard/exempt encryption. This prevents App Store Connect from asking the same export-compliance question for every upload. Retain this inventory with the release evidence and revisit the declaration if a future version adds proprietary encryption, VPN functionality, secure messaging, or encryption beyond the uses listed above.
