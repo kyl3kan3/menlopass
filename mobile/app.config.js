@@ -4,10 +4,22 @@ const tiktokAppId = process.env.TIKTOK_APP_ID?.trim() || '6798018790';
 const tiktokBusinessAppId =
   process.env.TIKTOK_BUSINESS_APP_ID?.trim() || '7679768878880178197';
 const tiktokAppSecret = process.env.TIKTOK_APP_SECRET?.trim();
+const sentryOrganization = process.env.SENTRY_ORG?.trim();
+const sentryProject = process.env.SENTRY_PROJECT?.trim();
 const { menocompassWidgetsPlugin } = require('./widgets/app-config');
 
 const APP_GROUP_DEFAULTS_API = 'NSPrivacyAccessedAPICategoryUserDefaults';
 const APP_GROUP_DEFAULTS_REASON = '1C8F.1';
+const DIAGNOSTIC_API_REASONS = {
+  NSPrivacyAccessedAPICategoryUserDefaults: ['CA92.1'],
+  NSPrivacyAccessedAPICategorySystemBootTime: ['35F9.1'],
+  NSPrivacyAccessedAPICategoryFileTimestamp: ['C617.1'],
+};
+const DIAGNOSTIC_DATA_TYPES = [
+  'NSPrivacyCollectedDataTypeCrashData',
+  'NSPrivacyCollectedDataTypePerformanceData',
+  'NSPrivacyCollectedDataTypeOtherDiagnosticData',
+];
 
 function withoutPlugin(plugins, pluginName) {
   return plugins.filter(plugin => {
@@ -16,29 +28,52 @@ function withoutPlugin(plugins, pluginName) {
   });
 }
 
-function withAppGroupDefaultsPrivacyReason(privacyManifests = {}) {
+function withAppPrivacyDeclarations(privacyManifests = {}) {
   const accessedApiTypes = Array.isArray(privacyManifests.NSPrivacyAccessedAPITypes)
     ? privacyManifests.NSPrivacyAccessedAPITypes
     : [];
-  const existing = accessedApiTypes.find(
-    entry => entry.NSPrivacyAccessedAPIType === APP_GROUP_DEFAULTS_API,
-  );
-  const reasons = Array.isArray(existing?.NSPrivacyAccessedAPITypeReasons)
-    ? existing.NSPrivacyAccessedAPITypeReasons
+  const collectedDataTypes = Array.isArray(privacyManifests.NSPrivacyCollectedDataTypes)
+    ? privacyManifests.NSPrivacyCollectedDataTypes
     : [];
+  const requiredApiReasons = {
+    ...DIAGNOSTIC_API_REASONS,
+    [APP_GROUP_DEFAULTS_API]: [
+      ...DIAGNOSTIC_API_REASONS[APP_GROUP_DEFAULTS_API],
+      APP_GROUP_DEFAULTS_REASON,
+    ],
+  };
+  const requiredApiNames = new Set(Object.keys(requiredApiReasons));
+  const requiredDataNames = new Set(DIAGNOSTIC_DATA_TYPES);
 
   return {
     ...privacyManifests,
     NSPrivacyAccessedAPITypes: [
-      ...accessedApiTypes.filter(
-        entry => entry.NSPrivacyAccessedAPIType !== APP_GROUP_DEFAULTS_API,
+      ...accessedApiTypes.filter(entry => !requiredApiNames.has(entry.NSPrivacyAccessedAPIType)),
+      ...Object.entries(requiredApiReasons).map(([apiType, requiredReasons]) => {
+        const existing = accessedApiTypes.find(
+          entry => entry.NSPrivacyAccessedAPIType === apiType,
+        );
+        const reasons = Array.isArray(existing?.NSPrivacyAccessedAPITypeReasons)
+          ? existing.NSPrivacyAccessedAPITypeReasons
+          : [];
+        return {
+          NSPrivacyAccessedAPIType: apiType,
+          NSPrivacyAccessedAPITypeReasons: [...new Set([...reasons, ...requiredReasons])],
+        };
+      }),
+    ],
+    NSPrivacyCollectedDataTypes: [
+      ...collectedDataTypes.filter(
+        entry => !requiredDataNames.has(entry.NSPrivacyCollectedDataType),
       ),
-      {
-        NSPrivacyAccessedAPIType: APP_GROUP_DEFAULTS_API,
-        NSPrivacyAccessedAPITypeReasons: [
-          ...new Set([...reasons, APP_GROUP_DEFAULTS_REASON]),
+      ...DIAGNOSTIC_DATA_TYPES.map(dataType => ({
+        NSPrivacyCollectedDataType: dataType,
+        NSPrivacyCollectedDataTypeLinked: false,
+        NSPrivacyCollectedDataTypeTracking: false,
+        NSPrivacyCollectedDataTypePurposes: [
+          'NSPrivacyCollectedDataTypePurposeAppFunctionality',
         ],
-      },
+      })),
     ],
   };
 }
@@ -56,6 +91,10 @@ module.exports = ({ config }) => {
       !metaClientToken && 'EXPO_PUBLIC_META_CLIENT_TOKEN',
       !tiktokAppSecret && 'TIKTOK_APP_SECRET',
       !process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim() && 'EXPO_PUBLIC_REVENUECAT_IOS_API_KEY',
+      !process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() && 'EXPO_PUBLIC_SENTRY_DSN',
+      !process.env.SENTRY_AUTH_TOKEN?.trim() && 'SENTRY_AUTH_TOKEN',
+      !sentryOrganization && 'SENTRY_ORG',
+      !sentryProject && 'SENTRY_PROJECT',
     ].filter(Boolean);
     if (missing.length) {
       throw new Error(`Missing production mobile configuration: ${missing.join(', ')}`);
@@ -74,6 +113,8 @@ module.exports = ({ config }) => {
   plugins = withoutPlugin(plugins, './widgets/withWidgetPrivacyManifest.js');
   plugins = withoutPlugin(plugins, 'react-native-appsflyer');
   plugins = withoutPlugin(plugins, 'react-native-fbsdk-next');
+  plugins = withoutPlugin(plugins, '@sentry/react-native');
+  plugins = withoutPlugin(plugins, '@sentry/react-native/expo');
   plugins = withoutPlugin(plugins, './plugins/withTikTokPrivacyManifestFix');
 
   plugins.push([
@@ -134,13 +175,22 @@ module.exports = ({ config }) => {
     ]);
   }
 
+  plugins.push([
+    '@sentry/react-native/expo',
+    {
+      url: 'https://sentry.io/',
+      ...(sentryOrganization ? { organization: sentryOrganization } : {}),
+      ...(sentryProject ? { project: sentryProject } : {}),
+    },
+  ]);
+
   plugins.push('./plugins/withTikTokPrivacyManifestFix');
 
   return {
     ...config,
     ios: {
       ...config.ios,
-      privacyManifests: withAppGroupDefaultsPrivacyReason(
+      privacyManifests: withAppPrivacyDeclarations(
         config.ios?.privacyManifests,
       ),
       infoPlist: {

@@ -64,8 +64,11 @@ async function injectState(context,state){
 
     console.log('\n== Native and release contracts ==');
     const nativeApp=fs.readFileSync(path.join(__dirname,'mobile','App.native.tsx'),'utf8');
+    const nativeGlassTabs=fs.readFileSync(path.join(__dirname,'mobile','NativeGlassTabs.native.tsx'),'utf8');
     const review=fs.readFileSync(path.join(__dirname,'mobile','reviewPrompt.native.ts'),'utf8');
     const telemetry=fs.readFileSync(path.join(__dirname,'mobile','telemetry.native.ts'),'utf8');
+    const sentry=fs.readFileSync(path.join(__dirname,'mobile','sentry.native.ts'),'utf8');
+    const metro=fs.readFileSync(path.join(__dirname,'mobile','metro.config.js'),'utf8');
     const expoApp=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','app.json'),'utf8')).expo;
     const dynamicAppConfig=fs.readFileSync(path.join(__dirname,'mobile','app.config.js'),'utf8');
     const widgetPrivacyManifest=fs.readFileSync(path.join(__dirname,'mobile','widgets','PrivacyInfo.xcprivacy'),'utf8');
@@ -73,10 +76,10 @@ async function injectState(context,state){
     const mobilePackage=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','package.json'),'utf8'));
     const tiktokModuleConfig=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','expo-module.config.json'),'utf8'));
     const tiktokSwift=fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','ios','MenoCompassTikTokBusinessModule.swift'),'utf8');
-    const reviewNotes=fs.readFileSync(path.join(__dirname,'mobile','APP_REVIEW_NOTES_1.1.0.md'),'utf8');
-    const exportCompliance=fs.readFileSync(path.join(__dirname,'mobile','EXPORT_COMPLIANCE_1.1.0.md'),'utf8');
+    const reviewNotes=fs.readFileSync(path.join(__dirname,'mobile','APP_REVIEW_NOTES_1.2.0.md'),'utf8');
+    const exportCompliance=fs.readFileSync(path.join(__dirname,'mobile','EXPORT_COMPLIANCE_1.2.0.md'),'utf8');
     const reviewNotesPayload=reviewNotes.split('## Paste into the Notes field')[1]?.split('## Submission attachments')[0]?.trim()||'';
-    const releaseQa=fs.readFileSync(path.join(__dirname,'mobile','RELEASE_QA_1.1.0.md'),'utf8');
+    const releaseQa=fs.readFileSync(path.join(__dirname,'mobile','RELEASE_QA_1.2.0.md'),'utf8');
     const screenshotGenerator=fs.readFileSync(path.join(__dirname,'mobile','store-assets','generate-screenshots.js'),'utf8');
     const store=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','store.config.json'),'utf8'));
     const storeDescription=store.apple.info['en-US'].description;
@@ -97,10 +100,47 @@ async function injectState(context,state){
       &&telemetry.indexOf('await resolveTrackingPermission()')<telemetry.indexOf('initializeTikTok(permission)'));
     check('EAS Update is configured for versioned production releases',
       !!mobilePackage.dependencies['expo-updates']
-      &&expoApp.runtimeVersion==='1.1.0-native-2'
+      &&expoApp.version==='1.2.0'
+      &&expoApp.runtimeVersion==='1.2.0-native-1'
       &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
       &&eas.build.production.channel==='production'
-      &&eas.build.production.uploadSourceMaps===true);
+      &&eas.build.production.uploadSourceMaps===true
+      &&mobilePackage.scripts['ota:production:ios']?.includes('env:exec production'));
+    check('native Liquid Glass tabs use runtime and accessibility fallbacks',
+      !!mobilePackage.dependencies['expo-glass-effect']
+      &&!!mobilePackage.dependencies['expo-symbols']
+      &&nativeGlassTabs.includes('isLiquidGlassAvailable()')
+      &&nativeGlassTabs.includes('isGlassEffectAPIAvailable()')
+      &&nativeGlassTabs.includes('isReduceTransparencyEnabled()')
+      &&nativeGlassTabs.includes('fallbackSurface')
+      &&nativeApp.includes('<NativeGlassTabs')
+      &&nativeApp.includes("message?.type === 'navigation-state'"));
+    check('Expo Observe remains the performance and product-event layer',
+      !!mobilePackage.dependencies['expo-observe']
+      &&nativeApp.includes('ObserveRoot.wrap')
+      &&nativeApp.includes('markInteractive')
+      &&telemetry.includes('Observe.configure')
+      &&telemetry.includes('Observe.logEvent'));
+    check('Sentry crash diagnostics are privacy-restricted and source-map ready',
+      !!mobilePackage.dependencies['@sentry/react-native']
+      &&dynamicAppConfig.includes("'@sentry/react-native/expo'")
+      &&metro.includes('getSentryExpoConfig')
+      &&nativeApp.includes('Sentry.wrap')
+      &&sentry.includes('sendDefaultPii: false')
+      &&sentry.includes('enableAutoPerformanceTracing: false')
+      &&sentry.includes('delete event.message')
+      &&sentry.includes('delete event.logentry')
+      &&sentry.includes('delete exception.value')
+      &&sentry.includes('attachScreenshot: false')
+      &&sentry.includes('attachViewHierarchy: false')
+      &&sentry.includes('enableCaptureFailedRequests: false')
+      &&telemetry.includes('captureDiagnosticError(error)'));
+    check('diagnostic privacy declarations cover Sentry and Observe',
+      dynamicAppConfig.includes('NSPrivacyCollectedDataTypeCrashData')
+      &&dynamicAppConfig.includes('NSPrivacyCollectedDataTypePerformanceData')
+      &&dynamicAppConfig.includes('NSPrivacyCollectedDataTypeOtherDiagnosticData')
+      &&dynamicAppConfig.includes("NSPrivacyAccessedAPICategorySystemBootTime: ['35F9.1']")
+      &&privacyCopy.includes('Sentry for crash diagnostics'));
     const splashPlugin=expoApp.plugins.find(plugin=>Array.isArray(plugin)&&plugin[0]==='expo-splash-screen');
     check('branded native launch screen is explicitly configured',
       !!mobilePackage.dependencies['expo-splash-screen']

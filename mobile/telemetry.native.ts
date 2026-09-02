@@ -16,6 +16,11 @@ import {
   initializeTikTokBusiness,
   type TrackingPermission,
 } from './modules/menocompass-tiktok-business';
+import {
+  captureDiagnosticError,
+  recordDiagnosticBreadcrumb,
+  setDiagnosticRoute,
+} from './sentry.native';
 
 const appleAppId = process.env.EXPO_PUBLIC_APPLE_APP_ID?.trim() || '6798018790';
 const appsFlyerDevKey = process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY?.trim();
@@ -79,6 +84,7 @@ function recordInitializationFailure(
       errorType: error instanceof Error ? error.name : 'UnknownError',
     },
   });
+  captureDiagnosticError(error, `${service}.initialization`);
   if (__DEV__) console.warn(`${service} telemetry setup failed`, error);
 }
 
@@ -244,6 +250,7 @@ export function setTelemetrySubscriptionState(active: boolean) {
 export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveAttributes) {
   const definition = eventDefinitions[event];
   Observe.logEvent(definition.observe, attributes ? { attributes } : undefined);
+  recordDiagnosticBreadcrumb(definition.observe);
 
   if (appsFlyerReady && definition.appsFlyer) {
     void AppsFlyer.logEvent({
@@ -265,4 +272,10 @@ export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveA
 
 export function reportTelemetryError(error: unknown) {
   Observe.reportError(error);
+  captureDiagnosticError(error);
+}
+
+export function setTelemetryRoute(route: string) {
+  Observe.setGlobalAttributes({ route });
+  setDiagnosticRoute(route);
 }

@@ -7,7 +7,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
@@ -15,9 +15,15 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import {
   initializeTelemetry,
   reportTelemetryError,
+  setTelemetryRoute,
   setTelemetrySubscriptionState,
   trackTelemetryEvent,
 } from './telemetry.native';
+import {
+  NativeGlassTabs,
+  type MenoCompassPrimaryRoute,
+} from './NativeGlassTabs.native';
+import { Sentry } from './sentry.native';
 import {
   registerSuccessfulMoment,
   requestReviewForMilestone,
@@ -64,6 +70,35 @@ const supportedNativeExports = {
 type NativeExportMime = keyof typeof supportedNativeExports;
 type NativeShareKind = 'backup' | 'file' | 'report';
 type MenoCompassNativeRoute = MenoCompassQuickRoute | 'care';
+type MenoCompassWebRoute =
+  | MenoCompassPrimaryRoute
+  | 'checkin'
+  | 'profile'
+  | 'appointment-report'
+  | 'today-details';
+
+const primaryRoutes = new Set<MenoCompassPrimaryRoute>([
+  'today',
+  'journey',
+  'care',
+  'guide',
+]);
+const webRoutes = new Set<MenoCompassWebRoute>([
+  ...primaryRoutes,
+  'checkin',
+  'profile',
+  'appointment-report',
+  'today-details',
+]);
+
+function isPrimaryRoute(route: unknown): route is MenoCompassPrimaryRoute {
+  return typeof route === 'string'
+    && primaryRoutes.has(route as MenoCompassPrimaryRoute);
+}
+
+function isWebRoute(route: unknown): route is MenoCompassWebRoute {
+  return typeof route === 'string' && webRoutes.has(route as MenoCompassWebRoute);
+}
 
 function notificationRoute(
   response: Notifications.NotificationResponse | null,
@@ -422,6 +457,12 @@ function App() {
   const [unlockIssue, setUnlockIssue] = useState<string>();
   const [appIsActive, setAppIsActive] = useState(AppState.currentState === 'active');
   const [pendingNativeRoute, setPendingNativeRoute] = useState<MenoCompassNativeRoute | null>(null);
+  const [nativeNavigation, setNativeNavigation] = useState<{
+    route: MenoCompassWebRoute;
+    onboarded: boolean;
+    sheetOpen: boolean;
+  }>({ route: 'today', onboarded: false, sheetOpen: false });
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const autoPaywallAttemptedRef = useRef(false);
   const appLaunchTrackedRef = useRef(false);
   const reviewRequestInFlightRef = useRef(false);
@@ -436,6 +477,20 @@ function App() {
     webViewRef.current?.injectJavaScript(`
       window.__MENO_PRO_ACTIVE__ = ${active ? 'true' : 'false'};
       window.dispatchEvent(new Event('menocompass-pro-changed'));
+      true;
+    `);
+  };
+
+  const openNativePrimaryRoute = (route: MenoCompassPrimaryRoute) => {
+    setNativeNavigation(current => ({ ...current, route, sheetOpen: false }));
+    setTelemetryRoute(route);
+    webViewRef.current?.injectJavaScript(`
+      (function openMenoCompassPrimaryRoute() {
+        var route = ${JSON.stringify(route)};
+        var hash = '#' + route;
+        if (window.location.hash === hash) window.scrollTo(0, 0);
+        else window.location.hash = route;
+      })();
       true;
     `);
   };
@@ -588,6 +643,20 @@ function App() {
     });
     return () => subscription.remove();
   }, [appLockEnabled]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const showSubscription = Keyboard.addListener('keyboardWillShow', () => {
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardWillHide', () => {
+      setKeyboardVisible(false);
+    });
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!appIsActive || !privacyReady || !appLocked || automaticUnlockAttemptedRef.current) return;
@@ -864,6 +933,15 @@ function App() {
   const handleWebMessage = (event: WebViewMessageEvent) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
+      if (message?.type === 'navigation-state' && isWebRoute(message.route)) {
+        setNativeNavigation({
+          route: message.route,
+          onboarded: message.onboarded === true,
+          sheetOpen: message.sheetOpen === true,
+        });
+        setTelemetryRoute(message.route);
+        return;
+      }
       if (message?.type === 'persist-state' && typeof message.state === 'string') {
         void writePersistedState(message.state)
           .then(canonical => {
@@ -1102,7 +1180,7 @@ function App() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <StatusBar style="light" />
       <WebView
         ref={webViewRef}
@@ -1110,6 +1188,7 @@ function App() {
         source={{ html }}
         injectedJavaScriptBeforeContentLoaded={`
           window.__MENO_NATIVE__ = true;
+          window.__MENO_NATIVE_TABS__ = ${Platform.OS === 'ios' ? 'true' : 'false'};
           window.__MENO_PRO_ACTIVE__ = ${proActive ? 'true' : 'false'};
           window.__MENO_PERSISTED_STATE__ = ${JSON.stringify(persistedState || '')};
           (function prepareNativeViewport() {
@@ -1123,6 +1202,9 @@ function App() {
               }
               viewport.content = 'width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover';
               document.documentElement.classList.add('native-app');
+              if (window.__MENO_NATIVE_TABS__ === true) {
+                document.documentElement.classList.add('native-ios-tabs');
+              }
             };
             apply();
             document.addEventListener('DOMContentLoaded', apply, { once: true });
@@ -1140,6 +1222,10 @@ function App() {
           setWebContentReady(true);
           syncProStatusToWeb(proActive);
           refreshNativePrivacyStatus();
+          webViewRef.current?.injectJavaScript(`
+            window.dispatchEvent(new Event('menocompass-native-navigation-request'));
+            true;
+          `);
         }}
         onMessage={handleWebMessage}
         onShouldStartLoadWithRequest={({ url }) => {
@@ -1149,6 +1235,20 @@ function App() {
         }}
         style={styles.webview}
       />
+      {Platform.OS === 'ios'
+        && webContentReady
+        && experienceReady
+        && nativeNavigation.onboarded
+        && !nativeNavigation.sheetOpen
+        && !keyboardVisible
+        && isPrimaryRoute(nativeNavigation.route)
+        ? (
+          <NativeGlassTabs
+            activeRoute={nativeNavigation.route}
+            onSelect={openNativePrimaryRoute}
+          />
+        )
+        : null}
     </SafeAreaView>
   );
 }
@@ -1157,7 +1257,7 @@ function AppWithSafeArea() {
   return <SafeAreaProvider><App /></SafeAreaProvider>;
 }
 
-export default ObserveRoot.wrap(AppWithSafeArea);
+export default Sentry.wrap(ObserveRoot.wrap(AppWithSafeArea));
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0E1618' },

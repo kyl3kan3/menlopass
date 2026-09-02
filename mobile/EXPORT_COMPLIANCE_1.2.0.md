@@ -1,4 +1,4 @@
-# Encryption export-compliance inventory — MenoCompass 1.1.0
+# Encryption export-compliance inventory — MenoCompass 1.2.0
 
 Use this factual inventory when the Account Holder, Admin, or App Manager completes Apple’s export-compliance questionnaire for the exact production build. It is not a legal classification.
 

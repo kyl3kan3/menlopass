@@ -108,7 +108,7 @@ let appointmentQuestionEditId = null;
 let afterVisitPlanEditId = null;
 let nativePrivacyState = {loaded:false,appLock:null,reminders:null,deviceEncrypted:false,encryptedBackups:false};
 let nativeHealthState = {loaded:false,status:null,busy:false};
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 /* ---------- tiny helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -664,6 +664,7 @@ function renderSheet(moveFocus,returnState){
         ||document.querySelector('#app button,#app input,#app select,#tabs button');
       if(restored) restored.focus();
     },0);
+    syncNativeNavigationState();
     return;
   }
   const previous=host.contains(document.activeElement) ? focusDescriptor(document.activeElement) : null;
@@ -679,6 +680,7 @@ function renderSheet(moveFocus,returnState){
       ${body}
     </div></div>`;
   document.body.style.overflow='hidden';
+  syncNativeNavigationState();
   const s = host.querySelector('.sheet'); if(s) s.scrollTop=returnState?returnState.scrollTop:0;
   runSheetHooks(id);
   if(s) setTimeout(()=>{
@@ -2181,7 +2183,20 @@ function applyTheme(){
 }
 const TAB_TITLES = {today:['Today','What matters now'], journey:['Journey','Symptoms and changes'], care:['Care','Treatment and appointments'], guide:['Guide','Evidence and tools']};
 const ROUTE_ALIASES = {trends:'journey',meds:'care',report:'appointment-report',settings:'profile',you:'profile',learn:'guide'};
+let lastNativeNavigationState='';
 function normalizeRoute(route){ return ROUTE_ALIASES[route]||route; }
+function syncNativeNavigationState(){
+  if(window.__MENO_NATIVE_TABS__!==true) return;
+  const state={
+    route:curTab,
+    primary:Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab),
+    sheetOpen:sheetStack.length>0,
+    onboarded:DB.profile.onboarded===true
+  };
+  const serialized=JSON.stringify(state);
+  if(serialized===lastNativeNavigationState) return;
+  if(postNativeEvent('navigation-state',state)) lastNativeNavigationState=serialized;
+}
 function setRoute(route,replace){
   route=normalizeRoute(route);
   curTab=route;
@@ -2218,10 +2233,11 @@ function render(preserveScroll){
     $('#app').innerHTML = viewOnboard();
     $('#tabs').style.display='none';
     $('#topbar').style.display='none';
+    syncNativeNavigationState();
     return;
   }
   const primary=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab);
-  $('#tabs').style.display=primary?'':'none';
+  $('#tabs').style.display=primary&&window.__MENO_NATIVE_TABS__!==true?'':'none';
   $('#topbar').style.display='none';
   const map = {today:viewHome, journey:viewJourney, care:viewCare, guide:viewGuide, checkin:viewCheckin, profile:viewYou, 'appointment-report':viewAppointmentReport, 'today-details':viewToday};
   const view=map[curTab]||viewHome;
@@ -2240,6 +2256,7 @@ function render(preserveScroll){
     else b.removeAttribute('aria-label');
   });
   window.scrollTo(0,preserveScroll?scrollY:0);
+  syncNativeNavigationState();
 }
 
 function nativeProLocked(area){
@@ -2835,6 +2852,10 @@ function boot(){
   window.addEventListener('menocompass-native-backup-import',handleNativeBackupImport);
   window.addEventListener('menocompass-native-share-result',handleNativeShareResult);
   window.addEventListener('menocompass-healthkit-result',handleHealthKitResult);
+  window.addEventListener('menocompass-native-navigation-request',()=>{
+    lastNativeNavigationState='';
+    syncNativeNavigationState();
+  });
   const prefilled=prefillTodayFromYesterday();
   if(prefilled||window.__MENO_NATIVE__===true) save(true);
   document.body.insertAdjacentHTML('afterbegin',

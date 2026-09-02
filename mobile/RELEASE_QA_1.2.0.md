@@ -1,4 +1,4 @@
-# MenoCompass 1.1.0 release QA record
+# MenoCompass 1.2.0 release QA record
 
 Use this as the signed evidence record for the exact production/TestFlight candidate submitted to App Review. A written plan is not a passing result: record the device, build, observed outcome, evidence location, and tester initials for every required row.
 
@@ -6,7 +6,7 @@ Use this as the signed evidence record for the exact production/TestFlight candi
 
 | Field | Value |
 |---|---|
-| Marketing version | 1.1.0 |
+| Marketing version | 1.2.0 |
 | Git commit | `[full immutable commit SHA]` |
 | GitHub Actions run | `[URL]` |
 | EAS project | `@kyl3kan3/menlopass` |
@@ -41,16 +41,16 @@ Use physical devices for ATT and purchase testing. Simulator results may supplem
 
 | Test | Expected result | Result | Device/evidence | Initials/date |
 |---|---|---|---|---|
-| Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit and runtime `1.1.0-native-2` (isolated from pre-native build 14) |  |  |  |
-| Production configuration | Required AppsFlyer, Meta, TikTok, and RevenueCat production values are present without logging secrets |  |  |  |
+| Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit and runtime `1.2.0-native-1` (isolated from the 1.1.0 native runtime) |  |  |  |
+| Production configuration | Required AppsFlyer, Meta, TikTok, RevenueCat, and Sentry production values are present without logging secrets |  |  |  |
 | Final Info.plist and entitlements | Bundle ID is `com.kyl3kan3.menlopass`; ATT, Face ID, and Health read purpose text; HealthKit entitlement; widget extension/app group; and required privacy manifests are present |  |  |  |
 | Encryption export compliance | Complete Apple's questionnaire for the exact binary based on its CryptoKit AES-GCM, HMAC-SHA256/PBKDF2 backup protection, Keychain, and HTTPS use; attach any declaration Apple requires before review |  |  |  |
 | English bundle declaration | Final archive declares English in `CFBundleLocalizations` |  |  |  |
 | App icon | Final archive contains every required opaque iOS icon slot and the icon renders correctly on light/dark/tinted home screens |  |  |  |
 | Launch screen | Production build shows the approved branded launch screen without the Expo placeholder |  |  |  |
 | Store screenshots | Five iPhone images are 1242×2688 and five iPad images are 2048×2732, with no alpha and no copy contradictions |  |  |  |
-| Public legal URLs | Privacy, Support, and Terms return 200 and describe the 1.1.0 Profile/Care/Journey navigation |  |  |  |
-| App Review notes | `APP_REVIEW_NOTES_1.1.0.md` placeholders are replaced and its Notes section is in App Store Connect |  |  |  |
+| Public legal URLs | Privacy, Support, and Terms return 200 and describe the 1.2.0 Profile/Care/Journey navigation and diagnostics |  |  |  |
+| App Review notes | `APP_REVIEW_NOTES_1.2.0.md` placeholders are replaced and its Notes section is in App Store Connect |  |  |  |
 | Privacy/age/content-rights answers | App Store Connect answers match the submitted binary and licensed content |  |  |  |
 
 ## Install, ATT, and attribution
@@ -107,6 +107,21 @@ Run on at least the small iPhone, Pro Max, and iPad.
 | Relaunch/rotation/backgrounding | iPhone portrait and iPad portrait/landscape recover without clipping, blank screens, or stale state |  |  |  |
 | Privacy/Terms links | Links open from the pre-purchase gate and resolve successfully |  |  |  |
 
+## Native Liquid Glass and diagnostics
+
+Run the iOS 26 rows from a build produced with Xcode 26. Repeat the fallback row on an earlier iOS version or with Reduce Transparency enabled. Diagnostics must use synthetic failures and contain no real health or free-text data.
+
+| Test | Expected result | Result | Device/evidence | Initials/date |
+|---|---|---|---|---|
+| Liquid Glass primary navigation | On iOS 26, Today, Journey, Care, and Guide render in the native floating glass bar; selection follows WebView navigation and every tab reaches the correct route |  |  |  |
+| Glass accessibility fallback | Earlier iOS versions and Reduce Transparency use an opaque, high-contrast native fallback with the same labels, symbols, states, and 44-point-or-larger targets |  |  |  |
+| Navigation visibility | Native tabs are hidden during onboarding, subscription/App Lock gates, secondary routes, open sheets, and keyboard entry; content and home indicator remain unobstructed on iPhone and iPad |  |  |  |
+| Sentry handled JavaScript error | A synthetic production/TestFlight failure appears in Sentry with release/update tags and symbolicated frames; message, exception value, request, user, extras, screenshots, view hierarchy, performance traces, and health/free-text values are absent |  |  |  |
+| Sentry native crash | A synthetic native crash appears for the exact build with correct release/source maps and contains no health or free-text data |  |  |  |
+| Sentry server-side privacy | Sentry data scrubbing and IP-address storage settings are enabled and verified for the production project |  |  |  |
+| Expo Observe startup | The exact TestFlight build appears in EAS Observe with startup/interactive measurements and safe route/product events; payloads contain no health values or free text |  |  |  |
+| OTA source maps | A preview OTA for runtime `1.2.0-native-1` uploads matching Sentry source maps and reports the correct update ID/group tags |  |  |  |
+
 ## Native privacy and iOS integrations
 
 Use test-only records. Verify that no notification, widget, shortcut, diagnostic, or attribution payload contains health values or free text.
@@ -123,21 +138,13 @@ Use test-only records. Verify that no notification, widget, shortcut, diagnostic
 | Widgets | Small/medium widgets show only today-complete and 7-day count, update after a saved check-in, and open Check-in/Journey from cold and foreground states |  |  |  |
 | App Shortcuts | Both published MenoCompass App Shortcuts appear in Shortcuts/Search and open the correct Check-in/Journey route from cold and foreground states |  |  |  |
 
-## Explicit 1.1.0 scope waivers
+## Explicit 1.2.0 scope decisions
 
 These proposed waivers document features intentionally absent from this release. They become valid only after both signatures are present.
 
-### Native Liquid Glass navigation — proposed WAIVED
-
-Version 1.1.0 uses the existing branded WebView navigation rather than a native Liquid Glass navigation component. This release does not claim native Liquid Glass behavior. Safe-area, contrast, tap-target, reduced-motion, and iPad/Pro layouts remain required and are not waived.
-
-- Product owner approval: `[name / signature / UTC date]`
-- Release owner approval: `[name / signature / UTC date]`
-- Final status: `[WAIVED or NOT APPROVED]`
-
 ### Additional languages — proposed WAIVED
 
-Version 1.1.0 is intentionally an English-only binary and English-only App Store listing. Non-English translations and localized screenshot sets are deferred. This does **not** waive declaring English in the final `CFBundleLocalizations`, removing unsupported localization claims, or keeping all English copy consistent.
+Version 1.2.0 is intentionally an English-only binary and English-only App Store listing. Non-English translations and localized screenshot sets are deferred. This does **not** waive declaring English in the final `CFBundleLocalizations`, removing unsupported localization claims, or keeping all English copy consistent.
 
 - Product owner approval: `[name / signature / UTC date]`
 - Release owner approval: `[name / signature / UTC date]`
@@ -158,6 +165,8 @@ If EAS Update/OTA is enabled for this binary, record the runtime version, channe
 |---|---|---|---|---|---|
 |  |  |  |  |  |  |
 
+The production OTA published on 2026-09-02 (update `01a06467-aac9-775f-b87d-9dd58bc844b4`, group `42dd2664-0976-48bf-9631-4fbb39e5ab23`) proves the 1.1.0/build-25 pipeline only. It does not satisfy the 1.2.0 runtime row above.
+
 ## Final release decision
 
 - Outstanding FAIL/BLOCKED rows: `[none or list]`
@@ -165,6 +174,9 @@ If EAS Update/OTA is enabled for this binary, record the runtime version, channe
 - App Store Connect privacy answers rechecked by: `[name/date]`
 - App Store Connect IAP/paywall configuration rechecked by: `[name/date]`
 - App Review notes pasted by: `[name/date]`
+- Sentry and EAS Observe production dashboards rechecked by: `[name/date]`
+- Apple export-compliance questionnaire/attestation completed by Account Holder, Admin, or App Manager: `[name/date]`
+- Automatic public release acknowledged (`store.config.json` currently sets `automaticRelease: true`): `[name/date]`
 - Release owner decision: `[APPROVE / REJECT]`
 - Release owner signature and UTC date: `[signature/date]`
 - Product owner signature and UTC date: `[signature/date]`

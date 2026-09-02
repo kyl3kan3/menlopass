@@ -3,6 +3,8 @@
 The native app now uses:
 
 - Expo Observe for app performance and explicitly defined product events.
+- Sentry for native/JavaScript crash diagnostics with health data, PII, screenshots,
+  view hierarchy, request capture, replay, and performance tracing excluded.
 - AppsFlyer for install attribution and deep links.
 - Meta App Events for Facebook and Instagram campaign measurement.
 - TikTok App Events SDK for TikTok install, launch, and retention measurement.
@@ -23,8 +25,12 @@ Set these values in the EAS `production` environment before creating a productio
 - `EXPO_PUBLIC_META_CLIENT_TOKEN`
 - `TIKTOK_APP_SECRET` (an EAS sensitive variable; never commit a real value)
 - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
+- `EXPO_PUBLIC_SENTRY_DSN`
+- `SENTRY_ORG`
+- `SENTRY_PROJECT`
+- `SENTRY_AUTH_TOKEN` (EAS Sensitive visibility so OTA source-map uploads can use it)
 
-The TikTok App ID defaults to Apple app ID `6798018790`, and the TikTok Business App ID defaults to `7679768878880178197`. Override them with `TIKTOK_APP_ID` and `TIKTOK_BUSINESS_APP_ID` only if TikTok issues replacements. Use `mobile/.env.example` for local development. Production configuration intentionally fails early if the AppsFlyer, Meta, or TikTok secret values are absent.
+The TikTok App ID defaults to Apple app ID `6798018790`, and the TikTok Business App ID defaults to `7679768878880178197`. Override them with `TIKTOK_APP_ID` and `TIKTOK_BUSINESS_APP_ID` only if TikTok issues replacements. Use `mobile/.env.example` for local development. Production configuration intentionally fails early if required attribution, subscription, or Sentry values are absent.
 
 `TIKTOK_APP_SECRET` is a client-SDK credential. EAS protects it in source control and build logs, but the native SDK requires the value in the signed application, where a determined user can recover it. Keep it app-scoped, restrict it in TikTok where supported, and rotate it if it has ever been treated as a server-side secret.
 
@@ -43,6 +49,7 @@ The SDK is exposed through an explicit Expo native module and is not an app-dele
 5. In RevenueCat, enable its AppsFlyer and Meta integrations for server-to-server subscription attribution. Keep automatic Meta and TikTok purchase logging disabled in the app so revenue is not counted twice.
 6. Update App Store Connect privacy answers before submitting the new build. The native app now collects limited performance, product-usage, and attribution identifiers; it does not send health-journal content.
 7. Publish the revised privacy policy from `privacy.html` before the new build is reviewed.
+8. In Sentry, create/select the React Native project, enable server-side data scrubbing, disable IP-address storage, and add its DSN, organization slug, project slug, and source-map token to both the EAS preview and production environments.
 
 ## Device verification
 
@@ -55,3 +62,5 @@ A development or production build is required because these SDKs contain native 
 5. Confirm `InstallApp` and `LaunchApp` arrive in TikTok Events Manager. Use TikTok's token-based test events mode for pre-release testing.
 6. Confirm RevenueCat receives the AppsFlyer identifier and, only after authorization, the Meta anonymous identifier.
 7. Complete a sandbox purchase and confirm only one subscription/revenue event reaches each configured destination.
+8. Trigger synthetic JavaScript and native failures. Confirm Sentry receives symbolicated frames and release/update tags without messages, exception values, health data, free text, screenshots, view hierarchy, requests, users, extras, or performance traces.
+9. Confirm EAS Observe receives startup/interactive measurements and privacy-safe route/product events for the exact build.

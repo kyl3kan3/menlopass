@@ -2,8 +2,8 @@
   "expo": {
     "name": "MenoCompass",
     "slug": "menlopass",
-    "version": "1.1.0",
-    "runtimeVersion": "1.1.0-native-2",
+    "version": "1.2.0",
+    "runtimeVersion": "1.2.0-native-1",
     "updates": {
       "url": "https://u.expo.dev/e7a9bddc-4193-41a0-81f6-b7c74b59aece"
     },
@@ -33,6 +33,7 @@
     },
     "plugins": [
       "expo-asset",
+      "expo-font",
       [
         "expo-splash-screen",
         {

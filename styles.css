@@ -72,6 +72,7 @@ html[data-theme="dark"] {
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 html.native-app,html.native-app body{touch-action:manipulation}
+html.native-ios-tabs nav.tabs{display:none!important}
 body{
   margin:0; font-family:var(--ff); background:var(--bg); color:var(--text);
   font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
