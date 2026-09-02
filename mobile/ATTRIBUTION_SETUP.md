@@ -10,7 +10,7 @@ The native app now uses:
 - RevenueCat as the source of subscription lifecycle and revenue events. The client does not duplicate purchase revenue events in AppsFlyer, Meta, or TikTok.
 - RevenueCat's random anonymous App User ID as the optional AppsFlyer customer ID. MenoCompass has no login identity, and no name, email address, phone number, or health value is used as a customer ID.
 
-On iOS, RevenueCat is configured first so its anonymous App User ID is available to the attribution SDKs. AppsFlyer and Meta then initialize, the ATT decision resolves, and only after that may the automatic hard paywall open. This ordering ensures first-time install, activation, and paywall-view signals are available without sending health-journal content or duplicating subscription revenue events.
+On iOS, RevenueCat is configured first so its anonymous App User ID is available to the attribution SDKs. The ATT decision then resolves before AppsFlyer, Meta, or TikTok initializes, and only after telemetry settles may the automatic hard paywall open. This ordering ensures first-time install, activation, and paywall-view signals are available without sending health-journal content or duplicating subscription revenue events.
 
 Health entries, medications, labs, notes, reports, and other free-form user content must never be added to these events.
 
@@ -21,16 +21,18 @@ Set these values in the EAS `production` environment before creating a productio
 - `EXPO_PUBLIC_APPSFLYER_DEV_KEY`
 - `EXPO_PUBLIC_META_APP_ID`
 - `EXPO_PUBLIC_META_CLIENT_TOKEN`
-- `TIKTOK_APP_SECRET` (an EAS secret; never use an `EXPO_PUBLIC_` name)
+- `TIKTOK_APP_SECRET` (an EAS sensitive variable; never commit a real value)
 - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
 
 The TikTok App ID defaults to Apple app ID `6798018790`, and the TikTok Business App ID defaults to `7679768878880178197`. Override them with `TIKTOK_APP_ID` and `TIKTOK_BUSINESS_APP_ID` only if TikTok issues replacements. Use `mobile/.env.example` for local development. Production configuration intentionally fails early if the AppsFlyer, Meta, or TikTok secret values are absent.
+
+`TIKTOK_APP_SECRET` is a client-SDK credential. EAS protects it in source control and build logs, but the native SDK requires the value in the signed application, where a determined user can recover it. Keep it app-scoped, restrict it in TikTok where supported, and rotate it if it has ever been treated as a server-side secret.
 
 The TikTok SDK is linked through CocoaPods by the local Expo module in `mobile/modules/menocompass-tiktok-business`. Its podspec pins `TikTokBusinessSDK` 1.7.2 and applies `-ObjC` and `-lc++` to the app target. EAS Build runs CocoaPods after Expo prebuild; do not add or maintain a generated `ios/Podfile` in this repository.
 
 TikTokBusinessSDK 1.7.2 also ships an empty collected-data placeholder in its bundled privacy manifest. The local Expo config plugin `plugins/withTikTokPrivacyManifestFix.js` removes only that invalid placeholder during the iOS build, preserves TikTok's declared UserDefaults required-reason API, and fails the build if the upstream manifest shape changes. After every SDK upgrade, inspect the archived app's `TikTokBusinessSDK_Privacy.bundle/PrivacyInfo.xcprivacy` before submission.
 
-The SDK delays its first flush for 60 seconds so the existing ATT prompt can resolve. It auto-logs install, launch, and two-day retention only. TikTok automatic StoreKit purchase tracking and enhanced UIKit data collection are disabled. TikTok SKAdNetwork updates are also disabled because AppsFlyer is the app's single conversion-value writer.
+The SDK is exposed through an explicit Expo native module and is not an app-delegate subscriber. JavaScript invokes it only after ATT resolves, and the native bridge independently rejects initialization while iOS still reports `.notDetermined`. It auto-logs install, launch, and two-day retention only. TikTok automatic StoreKit purchase tracking and enhanced UIKit data collection are disabled. TikTok SKAdNetwork updates are also disabled because AppsFlyer is the app's single conversion-value writer.
 
 ## Dashboard configuration
 

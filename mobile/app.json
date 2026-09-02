@@ -2,7 +2,13 @@
   "expo": {
     "name": "MenoCompass",
     "slug": "menlopass",
-    "version": "1.0.1",
+    "version": "1.1.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e7a9bddc-4193-41a0-81f6-b7c74b59aece"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

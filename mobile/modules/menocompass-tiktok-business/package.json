@@ -1,6 +1,10 @@
 {
   "name": "menocompass-tiktok-business",
   "version": "1.0.0",
-  "description": "MenoCompass iOS lifecycle integration for the TikTok Business SDK",
+  "description": "MenoCompass ATT-gated iOS bridge for the TikTok Business SDK",
+  "main": "index.ts",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs"
+  },
   "private": true
 }

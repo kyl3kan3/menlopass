@@ -27,10 +27,10 @@ const SCENES = [
     start: 5.8,
     end: 11.6,
     file: '02-trends.png',
-    eyebrow: '30- & 90-DAY TRENDS',
-    headline: 'Make trends useful',
-    subhead: 'Review changes over time without mistaking correlation for cause.',
-    accent: '#70c9ff',
+    eyebrow: 'YOUR JOURNEY',
+    headline: 'See the whole story',
+    subhead: 'Follow confirmed days, treatment changes, and weekly patterns together.',
+    accent: '#8dcdb6',
   },
   {
     start: 11.6,
@@ -238,6 +238,7 @@ async function renderPoster(browser, html) {
     const source = await renderSourceVideo(browser, html);
     const appPreview = path.join(OUTPUT, 'menocompass-app-preview-iphone.mp4');
     const socialDemo = path.join(OUTPUT, 'menocompass-product-demo-vertical.mp4');
+    const socialDemoTemp = path.join(OUTPUT, 'menocompass-product-demo-vertical.rendering.mp4');
     const contactSheet = path.join(OUTPUT, 'menocompass-demo-contact-sheet.jpg');
 
     await runFfmpeg([
@@ -252,12 +253,15 @@ async function renderPoster(browser, html) {
       '-shortest', '-movflags', '+faststart', appPreview,
     ]);
 
+    fs.rmSync(socialDemoTemp, { force: true });
     await runFfmpeg([
       '-i', appPreview,
       '-vf', 'pad=1080:1920:(ow-iw)/2:0:color=0x07121d,format=yuv420p',
       '-c:v', 'libx264', '-profile:v', 'high', '-crf', '18', '-preset', 'medium',
-      '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', socialDemo,
+      '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', socialDemoTemp,
     ]);
+    fs.rmSync(socialDemo, { force: true });
+    fs.renameSync(socialDemoTemp, socialDemo);
 
     await runFfmpeg([
       '-i', appPreview,
@@ -266,6 +270,7 @@ async function renderPoster(browser, html) {
     ]);
   } finally {
     await browser.close();
+    fs.rmSync(path.join(OUTPUT, 'menocompass-product-demo-vertical.rendering.mp4'), { force: true });
     fs.rmSync(TEMP, { recursive: true, force: true });
   }
   console.log('Generated product demo assets in mobile/store-assets/product-demo.');

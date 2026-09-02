@@ -9,957 +9,365 @@ const MIME = {'.html':'text/html','.js':'application/javascript','.png':'image/p
 
 const server = http.createServer((req,res)=>{
   let pathname;
-  try { pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname); }
+  try { pathname=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname); }
   catch { res.writeHead(400); res.end('bad request'); return; }
   if(pathname==='/') pathname='/index.html';
-  const f = path.resolve(DIST, pathname.replace(/^\/+/, ''));
-  const insideDist = f.startsWith(DIST + path.sep);
-  if(!insideDist || !fs.existsSync(f) || !fs.statSync(f).isFile()){
-    res.writeHead(404, {'Content-Type':'text/plain; charset=utf-8'});
-    res.end('not found');
-    return;
+  const file=path.resolve(DIST,pathname.replace(/^\/+/,''));
+  if(!file.startsWith(DIST+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){
+    res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'}); res.end('not found'); return;
   }
-  const headers = {
-    'Content-Type': MIME[path.extname(f)]||'application/octet-stream',
-    'Cache-Control': 'no-store'
-  };
-  if(path.basename(f)==='sw.js') headers['Service-Worker-Allowed']='/';
-  res.writeHead(200, headers);
-  res.end(fs.readFileSync(f));
+  const headers={'Content-Type':MIME[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store'};
+  if(path.basename(file)==='sw.js') headers['Service-Worker-Allowed']='/';
+  res.writeHead(200,headers); res.end(fs.readFileSync(file));
 });
 
-const errors = [];
-const fails = [];
-function check(name, cond, extra){
-  if(cond) console.log('  PASS  ' + name);
-  else { console.log('  FAIL  ' + name + (extra? ' :: '+extra : '')); fails.push(name); }
+const failures=[];
+const runtimeErrors=[];
+function check(name,condition,extra){
+  if(condition) console.log('  PASS  '+name);
+  else { console.log('  FAIL  '+name+(extra?' :: '+extra:'')); failures.push(name); }
 }
-
-function monitorPage(page, label, baseUrl){
-  page.on('console', message=>{
-    if(message.type()==='error') errors.push(`CONSOLE(${label}): ${message.text()}`);
-  });
-  page.on('pageerror', error=>errors.push(`PAGEERROR(${label}): ${error.message}`));
-  page.on('requestfailed', request=>{
-    if(request.url().startsWith(baseUrl)){
-      errors.push(`REQUESTFAILED(${label}): ${request.url()} :: ${request.failure()?.errorText||'unknown'}`);
-    }
-  });
-  page.on('response', response=>{
-    if(response.url().startsWith(baseUrl) && response.status()>=400){
-      errors.push(`HTTP ${response.status()}(${label}): ${response.url()}`);
-    }
-  });
+function monitor(page,label,baseUrl){
+  page.on('console',msg=>{ if(msg.type()==='error') runtimeErrors.push(`CONSOLE(${label}): ${msg.text()}`); });
+  page.on('pageerror',err=>runtimeErrors.push(`PAGEERROR(${label}): ${err.message}`));
+  page.on('requestfailed',req=>{ if(req.url().startsWith(baseUrl)) runtimeErrors.push(`REQUESTFAILED(${label}): ${req.url()} :: ${req.failure()?.errorText||'unknown'}`); });
+  page.on('response',res=>{ if(res.url().startsWith(baseUrl)&&res.status()>=400) runtimeErrors.push(`HTTP ${res.status()}(${label}): ${res.url()}`); });
 }
-
-async function goLearn(page){
-  await page.click('[data-act="tab"][data-v="settings"]');
-  await page.click('[data-act="tab"][data-v="learn"]');
+function isoOffset(offset){
+  const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+offset);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-async function goTodayDetails(page){
-  await page.click('[data-act="tab"][data-v="settings"]');
-  await page.click('[data-act="tab"][data-v="today-details"]');
+function profile(overrides={}){
+  return Object.assign({name:'Test',birthYear:1974,region:'us',units:'imperial',lastPeriod:'',surgeryDate:'',uterus:'intact',ovaries:'kept',bone:'unknown',proteinGpk:1.2,weightGoal:null,waistGoal:null,theme:'dark',stage:null,stageAnswers:null,onboarded:true,onboardingStep:3,onboardingDeferred:false,intent:'understand',pinnedSymptoms:['hf','ns','fog','energy','joint','anx']},overrides);
 }
-
-// synthetic 45 days of data
-function seed(){
-  const entries = {};
-  const today = new Date();
-  for(let i=44;i>=0;i--){
-    const d = new Date(today); d.setDate(d.getDate()-i);
-    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const trend = i/44;
-    const alc = (i%5===0)?2:0;
-    entries[key] = {
-      hf: Math.max(0, Math.round(6*trend + (i%3) + (((i+1)%5===0)?3:0))),
-      ns: (i%4===0)?3:1,
-      inBedH: 8, sleepH: 6.1 + (i%3)*0.4,
-      sym: {sleepq:(i%4===0)?3:1, mood: i>30?3:1, anx:2, fog:1, joint:2, dry: i<20?3:1, uri:1, energy:2, head:0, palp:0, itch:1, libido:2},
-      wt: 76 - (44-i)*0.03,
-      waist: 92 - (44-i)*0.02,
-      act: {res: (i%4===0), aero: (i%2===0)?30:0, pf:(i%3===0)},
-      nut: {prot:(i%3!==0), alc: alc, caf:2, cal:(i%2===0)},
-      bleed: i===40 ? 'moderate' : 'none',
-      notes: i===3 ? 'Bad night, woke twice.' : ''
-    };
+function confirmed(payload){
+  const copy=JSON.parse(JSON.stringify(payload));
+  return Object.assign({},payload,{confirmed:true,draftDirty:false,confirmedData:copy});
+}
+function seededState(dayCount=16){
+  const entries={};
+  for(let i=dayCount-1;i>=0;i--){
+    const payload={hf:1+(i%4),ns:i%3,sym:{fog:i%2,energy:1+(i%3),joint:1,anx:i%2},act:{res:i%4===0,aero:i%2?20:0},nut:{alc:i%5===0?1:0},sleepH:6.5+(i%2)*.5,inBedH:8,notes:i===2?'A useful note.':''};
+    entries[isoOffset(-i)]=confirmed(payload);
   }
-  return {
-    v:4,
-    profile:{name:'Test', birthYear:1974, region:'us', units:'imperial', lastPeriod:'', surgeryDate:'', uterus:'intact', ovaries:'kept',
-             bone:'unknown', proteinGpk:1.2, weightGoal:null, waistGoal:null, theme:'auto', stage:null, onboarded:true},
-    entries,
-    medications:[
-      {id:'estradot',name:'Estradot 50µg',form:'patch',days:[1,4],due:'08:00',notes:''},
-      {id:'utrogestan',name:'Utrogestan 100mg',form:'tablet',days:[0,1,2,3,4,5,6],due:'22:00',notes:''}
-    ],
-    labs:[{id:'lab-estradiol',name:'Estradiol',date:'2026-07-28',value:'312',unit:'pmol/L'}],
-    screening:{}, scores:[{date:'2026-07-20',type:'phq9',score:11,band:'moderate'}], trigger:null,
-    meta:{created:'2026-06-01'}
-  };
+  return {v:5,profile:profile(),entries,medications:[{id:'estradiol',name:'Estradiol patch',form:'patch',days:[0,1,2,3,4,5,6],due:'08:00',notes:'',started:isoOffset(-10),ended:'',changes:[{date:isoOffset(-3),label:'Changed from 25 mcg to 50 mcg'}]}],labs:[{id:'lab-1',name:'Estradiol',date:isoOffset(-5),value:'312',unit:'pmol/L'}],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-dayCount),lastOpen:isoOffset(0)}};
+}
+async function injectState(context,state){
+  await context.addInitScript(value=>localStorage.setItem('menocompass.v1',JSON.stringify(value)),state);
 }
 
 (async()=>{
   let browser;
   try {
-  if(!fs.existsSync(path.join(DIST, 'index.html'))){
-    throw new Error('dist/index.html is missing. Run "npm run build" first.');
-  }
-  check(
-    'root index mirror matches dist',
-    fs.readFileSync(path.join(__dirname, 'index.html')).equals(fs.readFileSync(path.join(DIST, 'index.html')))
-  );
+    check('root index mirror matches dist',fs.readFileSync(path.join(__dirname,'index.html')).equals(fs.readFileSync(path.join(DIST,'index.html'))));
+    check('selected design reference is present',fs.existsSync(path.join(__dirname,'design-reference','daily-compass-selected.png')));
 
-  console.log('\n== 0. Native hard-paywall contract ==');
-  const nativeAppSource = fs.readFileSync(path.join(__dirname, 'mobile', 'App.native.tsx'), 'utf8');
-  const reviewSource = fs.readFileSync(path.join(__dirname, 'mobile', 'reviewPrompt.native.ts'), 'utf8');
-  const storeDescription = JSON.parse(
-    fs.readFileSync(path.join(__dirname, 'mobile', 'store.config.json'), 'utf8')
-  ).apple.info['en-US'].description;
-  const gateReturnIndex = nativeAppSource.indexOf("if (Platform.OS === 'ios' && !proActive)");
-  const webViewIndex = nativeAppSource.lastIndexOf('<WebView');
-  check('inactive iOS entitlement is gated before WebView content', gateReturnIndex >= 0 && gateReturnIndex < webViewIndex);
-  check('RevenueCat paywall cannot show a close button', nativeAppSource.includes('displayCloseButton: false'));
-  check('zero-price App Store offers fail closed', nativeAppSource.includes('introPrice?.price === 0'));
-  check('App Store copy discloses no free tier or trial', storeDescription.includes('There is no free tier or free trial.') && !storeDescription.includes('FREE FEATURES'));
-  check('review milestones are exactly openings 2, 5, and 20', reviewSource.includes('appReviewMilestones = [2, 5, 20] as const'));
-  check('review attempts persist separately from health data', reviewSource.includes("menocompass-review-state.json") && reviewSource.includes('requestedAtLaunches'));
-  check('reviews wait for entitlement, onboarding, main content, and ATT',
-    /!proActive[\s\S]*!experienceReady[\s\S]*!webContentReady[\s\S]*!telemetrySettled[\s\S]*trackingPromptedThisSession/.test(nativeAppSource));
-  check('iOS attribution initializes before the automatic hard paywall',
-    /Platform\.OS !== 'ios' \|\| !revenueCatReady \|\| !subscriptionChecked/.test(nativeAppSource)
-      && /!subscriptionChecked[\s\S]*!revenueCatReady[\s\S]*!telemetrySettled[\s\S]*autoPaywallAttemptedRef\.current/.test(nativeAppSource));
-  check('verified subscription tier survives attribution initialization',
-    /initializeTelemetry\(\)[\s\S]*setTelemetrySubscriptionState\(proActive\)[\s\S]*setTelemetrySettled\(true\)/.test(nativeAppSource));
+    console.log('\n== Native and release contracts ==');
+    const nativeApp=fs.readFileSync(path.join(__dirname,'mobile','App.native.tsx'),'utf8');
+    const review=fs.readFileSync(path.join(__dirname,'mobile','reviewPrompt.native.ts'),'utf8');
+    const telemetry=fs.readFileSync(path.join(__dirname,'mobile','telemetry.native.ts'),'utf8');
+    const expoApp=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','app.json'),'utf8')).expo;
+    const eas=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','eas.json'),'utf8'));
+    const mobilePackage=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','package.json'),'utf8'));
+    const tiktokModuleConfig=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','expo-module.config.json'),'utf8'));
+    const tiktokSwift=fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','ios','MenoCompassTikTokBusinessModule.swift'),'utf8');
+    const reviewNotes=fs.readFileSync(path.join(__dirname,'mobile','APP_REVIEW_NOTES_1.1.0.md'),'utf8');
+    const reviewNotesPayload=reviewNotes.split('## Paste into the Notes field')[1]?.split('## Submission attachments')[0]?.trim()||'';
+    const releaseQa=fs.readFileSync(path.join(__dirname,'mobile','RELEASE_QA_1.1.0.md'),'utf8');
+    const screenshotGenerator=fs.readFileSync(path.join(__dirname,'mobile','store-assets','generate-screenshots.js'),'utf8');
+    const store=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','store.config.json'),'utf8'));
+    const storeDescription=store.apple.info['en-US'].description;
+    const supportCopy=fs.readFileSync(path.join(__dirname,'support.html'),'utf8');
+    const privacyCopy=fs.readFileSync(path.join(__dirname,'privacy.html'),'utf8');
+    check('inactive iOS entitlement is gated before WebView',nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")>=0&&nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")<nativeApp.lastIndexOf('<WebView'));
+    check('RevenueCat paywall cannot show a close button',nativeApp.includes('displayCloseButton: false'));
+    check('zero-price App Store offers fail closed',nativeApp.includes('introPrice?.price === 0'));
+    check('native persistence refreshes the active snapshot',nativeApp.includes('setPersistedState(canonical)')&&nativeApp.includes('setExperienceReady(persistedStateIsOnboarded(canonical))'));
+    check('store copy discloses no free tier or trial',storeDescription.includes('There is no free tier or free trial.'));
+    check('store copy matches Journey and report ranges',storeDescription.includes('ONE COHERENT JOURNEY')&&storeDescription.includes('30-, 90-, or 180-day report')&&!storeDescription.includes('7, 30, and 90 days'));
+    check('support and privacy use the new navigation',supportCopy.includes('Add treatments and lab results in Care')&&supportCopy.includes('open Profile')&&privacyCopy.includes('From Profile under <strong>Account &amp; data</strong>')&&!supportCopy.includes('from Meds')&&!supportCopy.includes('open Settings'));
+    check('review prompts follow successful check-ins at milestones 2, 5, and 20',review.includes('appReviewMilestones = [2, 5, 20] as const')&&review.includes('registerSuccessfulMoment')&&!review.includes('registerAppOpening'));
+    check('TikTok is initialized only through the ATT-gated native bridge',
+      tiktokModuleConfig.apple.modules?.includes('MenoCompassTikTokBusinessModule')
+      &&!tiktokModuleConfig.apple.appDelegateSubscribers
+      &&tiktokSwift.includes('ATTrackingManager.trackingAuthorizationStatus != .notDetermined')
+      &&telemetry.indexOf('await resolveTrackingPermission()')<telemetry.indexOf('initializeTikTok(permission)'));
+    check('EAS Update is configured for versioned production releases',
+      !!mobilePackage.dependencies['expo-updates']
+      &&expoApp.runtimeVersion?.policy==='appVersion'
+      &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
+      &&eas.build.production.channel==='production'
+      &&eas.build.production.uploadSourceMaps===true);
+    check('versioned App Review notes cover the gated reviewer path and fit the Notes field',
+      Buffer.byteLength(reviewNotesPayload,'utf8')<=4000
+      &&reviewNotesPayload.length>0
+      &&reviewNotes.includes('Restore Purchases')
+      &&reviewNotes.includes('has no account')
+      &&reviewNotes.includes('Manage Apple subscription')
+      &&reviewNotes.includes('TikTok is not initialized until'));
+    check('release QA record covers native devices, ATT, purchases, restore, and OTA',
+      releaseQa.includes('Small iPhone')
+      &&releaseQa.includes('Pro Max iPhone')
+      &&releaseQa.includes('| iPad |')
+      &&releaseQa.includes('Restore on fresh install')
+      &&releaseQa.includes('OTA smoke test'));
+    check('store screenshot timing matches the 30-second in-app promise',screenshotGenerator.includes('about 30 seconds')&&!screenshotGenerator.includes('about 20 seconds'));
+    const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'manifest.webmanifest'),'utf8'));
+    const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
+    check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
+    const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
+    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v8'));
 
-  fs.mkdirSync(TEST_RESULTS, {recursive:true});
-  await new Promise((resolve,reject)=>{
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  const address = server.address();
-  const baseUrl = `http://127.0.0.1:${address.port}`;
-  browser = await chromium.launch({headless:true});
-  const ctx = await browser.newContext({viewport:{width:390,height:844}, deviceScaleFactor:2});
-  const page = await ctx.newPage();
-  monitorPage(page, 'main', baseUrl);
+    fs.mkdirSync(TEST_RESULTS,{recursive:true});
+    await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
+    const baseUrl=`http://127.0.0.1:${server.address().port}`;
+    browser=await chromium.launch({headless:true});
 
-  console.log('\n== 1. First run / onboarding ==');
-  await page.goto(`${baseUrl}/index.html`);
-  await page.waitForTimeout(400);
-  check('onboarding shown', await page.getByText('Welcome to MenoCompass').isVisible());
-  check('tabs hidden on onboarding', !(await page.locator('nav.tabs').isVisible()));
-  check('first onboarding action is visible without scrolling', await page.locator('[data-act="ob-next"]').evaluate(el=>{
-    const r=el.getBoundingClientRect(); return r.top>=0 && r.bottom<=window.innerHeight;
-  }));
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-onboarding-step1.png'), fullPage:true});
-  await page.click('[data-act="ob-next"]');
-  await page.waitForTimeout(250);
-  check('onboarding advances to optional basics', await page.getByText('Make it yours').isVisible());
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-onboarding-step2.png'), fullPage:true});
-  await page.fill('#ob-n','Tia');
-  await page.fill('#ob-y','1974');
-  await page.selectOption('#ob-u','imperial');
-  await page.waitForTimeout(400);
-  await page.reload(); await page.waitForTimeout(400);
-  check('unfinished onboarding name survives a reload', (await page.inputValue('#ob-n'))==='Tia');
-  check('unfinished onboarding birth year survives a reload', (await page.inputValue('#ob-y'))==='1974');
-  check('onboarding explains that progress saves automatically', /progress saves as you go/i.test(await page.locator('#app').innerText()));
-  await page.click('[data-act="ob-done"]');
-  await page.waitForTimeout(600);
-  check('staging quiz auto-opens', await page.locator('.sheet').isVisible());
-  check('birth year prevents duplicate age question', /uterus|hysterectomy/i.test(await page.locator('.stage-focus-target').innerText()));
-  check('adaptive staging avoids a shifting total', !/Question \d+ of \d+/.test(await page.locator('.sheet').innerText()));
-  check('staging focus lands on the active question', await page.evaluate(()=>document.activeElement?.classList.contains('stage-focus-target')));
-  await page.locator('.sheet .row').first().click(); await page.waitForTimeout(250);
-  check('focus follows each staging answer', await page.evaluate(()=>document.activeElement?.classList.contains('stage-focus-target')));
-
-  console.log('\n== 2. Staging quiz — surgical combinations ==');
-
-  async function runQuiz(answers){
-    // close anything already open, then reopen the quiz from the You tab
-    while(await page.locator('.sheet').count()){
-      await page.locator('[data-act="close"]').first().click();
-      await page.waitForTimeout(180);
-    }
-    await page.evaluate(()=>{ stageAns={}; stageStep=0; stageEditing=false; DB.profile.stage=null; DB.profile.birthYear=null; save(true); });
-    await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-    await page.click('[data-act="sheet"][data-s="learn:stage"]'); await page.waitForTimeout(300);
-    const restart = page.locator('[data-act="stage-restart"]');
-    if(await restart.count()){ await restart.first().click(); await page.waitForTimeout(250); }
-    for(const a of answers){
-      const row = page.locator('.sheet .row', {hasText:a});
-      if(!(await row.count())) return {error:'no option matching: '+a, seen:await page.locator('.sheet').innerText()};
-      await row.first().click();
-      await page.waitForTimeout(140);
-    }
-    const resultDetails = page.locator('.sheet details');
-    for(let i=0;i<await resultDetails.count();i++){
-      await resultDetails.nth(i).locator('summary').click();
-    }
-    if(await resultDetails.count()) await page.waitForTimeout(100);
-    const txt = await page.locator('.sheet').innerText();
-    const label = (await page.locator('.sheet .callout .ctitle').first().innerText().catch(()=>''));
-    return {txt, label};
-  }
-  async function closeQuiz(){
-    const c = page.locator('[data-act="close"]');
-    if(await c.count()) { await c.first().click(); await page.waitForTimeout(200); }
-  }
-
-  // --- A. hysterectomy, both ovaries kept: must NOT be called menopause,
-  //        and must not ask about periods ---
-  let r = await runQuiz(['45–54','Yes — I have had a hysterectomy','No — both ovaries are still there','1–5 years ago','Occasionally']);
-  check('A: hysterectomy+ovaries-kept path completes', !r.error, r.error||'');
-  check('A: completion actions appear before optional detail', await page.evaluate(()=>{
-    const done=document.querySelector('.stage-result-actions'), detail=document.querySelector('.sheet details');
-    return !!done && !!detail && Boolean(done.compareDocumentPosition(detail)&Node.DOCUMENT_POSITION_FOLLOWING);
-  }));
-  check('A: explicitly says this is not menopause', /this is not menopause/i.test(r.txt||''));
-  check('A: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
-  check('A: explains ovaries carry on working', /carry on producing hormones/i.test(r.txt||''));
-  check('A: flags the cervix / cervical screening question', /cervical screening/i.test(r.txt||''));
-  check('A: says no progestogen needed', /not need a progestogen/i.test(r.txt||''));
-  check('A: flags unexpected bleeding after hysterectomy', /bleeding after a hysterectomy is unexpected/i.test(r.txt||''));
-  check('A: cites the 3-month staging rule', /3 months after surgery/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- B. hysterectomy AND both ovaries removed: surgical menopause,
-  //        oestrogen-only, still no period questions ---
-  r = await runQuiz(['45–54','Yes — I have had a hysterectomy','Both were removed','1–5 years ago','Often, and they bother me']);
-  check('B: both-removed path completes', !r.error, r.error||'');
-  check('B: identified as surgical menopause', /surgical menopause/i.test(r.txt||''));
-  check('B: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
-  check('B: recommends therapy until ~52', /around 52/.test(r.txt||''));
-  check('B: oestrogen-only, no progestogen', /progestogen is not needed/i.test(r.txt||''));
-  check('B: testosterone-after-oophorectomy note', /testosterone/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- C. ovaries removed but uterus KEPT: surgical menopause that still
-  //        needs endometrial protection ---
-  r = await runQuiz(['45–54','No — my uterus is still there','Both were removed','1–5 years ago','No']);
-  check('C: ovaries-removed-uterus-kept completes', !r.error, r.error||'');
-  check('C: identified as surgical menopause', /surgical menopause/i.test(r.txt||''));
-  check('C: says a progestogen IS needed', /you also need a progestogen/i.test(r.txt||''));
-  check('C: cites the endometrial cancer figure', /48 extra endometrial/i.test(r.txt||''));
-  check('C: skipped the contraception and cycle questions', !/describes your periods/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- D. fresh surgery: 3-month warning ---
-  r = await runQuiz(['45–54','Yes — I have had a hysterectomy','Both were removed','Less than 3 months ago','Often, and they bother me']);
-  check('D: post-op window warning fires', /less than 3 months post-op/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- E. ablation: uterus present, bleeding unreadable ---
-  r = await runQuiz(['45–54','I have had an endometrial ablation','No — both ovaries are still there','1–5 years ago','Occasionally']);
-  check('E: ablation path completes', !r.error, r.error||'');
-  check('E: says ablation does not cause menopause', /does not cause menopause/i.test(r.txt||''));
-  check('E: still needs a progestogen', /still need a progestogen/i.test(r.txt||''));
-  check('E: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- F. unsure what was removed ---
-  r = await runQuiz(['45–54',"I'm not sure what was removed","I'm not sure",'1–5 years ago','Occasionally']);
-  check('F: unsure path completes', !r.error, r.error||'');
-  check('F: routes to getting the surgical record', /surgical record|surgical notes/i.test(r.txt||''));
-  check('F: lays out the three combinations', /Uterus removed, ovaries kept/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- G. contraception masking periods ---
-  r = await runQuiz(['45–54','No — my uterus is still there','No — both ovaries are still there','Yes','Occasionally']);
-  check('G: contraception path completes', !r.error, r.error||'');
-  check('G: identified as masked by contraception', /masked by contraception/i.test(r.txt||''));
-  check('G: never asked about period pattern', !/describes your periods/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- H. one ovary removed, uterus intact: ordinary staging still applies ---
-  r = await runQuiz(['45–54','No — my uterus is still there','One was removed','1–5 years ago','No','Cycle length varies by a week or more between periods','Occasionally']);
-  check('H: one-ovary path completes', !r.error, r.error||'');
-  check('H: still stages normally', /Early menopausal transition/i.test(r.txt||''));
-  check('H: adds the single-ovary note', /one ovary/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- I. under 40 with a hysterectomy: POI path with the missing-criterion note ---
-  r = await runQuiz(['Under 40','Yes — I have had a hysterectomy','No — both ovaries are still there','1–5 years ago','Often, and they bother me']);
-  check('I: under-40 routes to assessment', /premature menopause/i.test(r.txt||''));
-  check('I: notes the missing bleeding criterion', /extra wrinkle/i.test(r.txt||''));
-  await closeQuiz();
-
-  // --- J. ordinary path, and the back button re-routes on a changed answer ---
-  r = await runQuiz(['45–54','No — my uterus is still there','No — both ovaries are still there','No','I have skipped periods — gaps of 60 days or more','Often, and they bother me']);
-  check('J: ordinary staging completes', /Late menopausal transition/i.test(r.txt||''), r.label||'');
-  check('J: FSH caveat shown', /not routinely use FSH/i.test(r.txt||''));
-  await closeQuiz();
-
-  console.log('\n== 2b. Profile reflects the split fields ==');
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(300);
-  check('profile has a separate uterus field', (await page.locator('#ut').count())===1);
-  check('profile has a separate ovaries field', (await page.locator('#ov').count())===1);
-  await page.selectOption('#ut','intact'); await page.waitForTimeout(200);
-  await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
-  check('last-period field shown when periods are possible', (await page.locator('#lp').count())===1);
-  await page.selectOption('#ut','hyst'); await page.waitForTimeout(350);
-  check('last-period field replaced by surgery date after hysterectomy', (await page.locator('#lp').count())===0 && (await page.locator('#sd').count())===1);
-  await goTodayDetails(page); await page.waitForTimeout(300);
-  check('Today relabels the bleeding row after hysterectomy', /Any vaginal bleeding or spotting/.test(await page.locator('#app').innerText()));
-  check('Today explains why bleeding matters after hysterectomy', /unexpected/i.test(await page.locator('#app').innerText()));
-
-  console.log('\n== 2c. Treatment module personalises endometrial protection ==');
-  await goLearn(page); await page.waitForTimeout(250);
-  await page.locator('.row', {hasText:'Treatment options'}).click(); await page.waitForTimeout(350);
-  check('no-uterus: progestogen section marked not applicable', /does not apply to you/i.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-  await page.selectOption('#ut','ablation'); await page.waitForTimeout(300);
-  await goLearn(page); await page.waitForTimeout(250);
-  await page.locator('.row', {hasText:'Treatment options'}).click(); await page.waitForTimeout(350);
-  check('ablation: progestogen still required', /still need a progestogen/i.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-
-  console.log('\n== 2d. Insights respect surgical history ==');
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-  await page.selectOption('#ut','hyst'); await page.waitForTimeout(200);
-  await page.selectOption('#ov','both'); await page.waitForTimeout(300);
-  await page.evaluate(()=>{
-    const iso = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const t=new Date();
-    for(let i=0;i<12;i++){ const d=new Date(t); d.setDate(d.getDate()-i);
-      const k=iso(d); DB.entries[k]=DB.entries[k]||{sym:{},act:{},nut:{}}; DB.entries[k].hf=3; }
-    DB.profile.lastPeriod = (()=>{const d=new Date(t); d.setDate(d.getDate()-900); return iso(d);})();
-    save(true); render();
-  });
-  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
-  let ins = await page.locator('#app').innerText();
-  check('surgical menopause: no months-since-period counter', !/months since your last logged period/i.test(ins));
-  check('surgical menopause: explains why that count does not apply', /does not apply/i.test(ins));
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-  await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
-  await page.evaluate(()=>{
-    const iso = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const k = iso(new Date());
-    DB.entries[k].bleed='light'; save(true); render();
-  });
-  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
-  ins = await page.locator('#app').innerText();
-  check('post-hysterectomy bleeding gets its own alert', /you have had a hysterectomy/i.test(ins));
-  check('post-hysterectomy alert does not use the 12-month framing', !/Bleeding after 12\+ months/i.test(ins));
-  // restore an ordinary profile for the rest of the suite
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-  await page.selectOption('#ut','intact'); await page.waitForTimeout(200);
-  await page.selectOption('#ov','kept'); await page.waitForTimeout(300);
-  await page.evaluate(()=>{ DB.profile.lastPeriod=''; DB.entries={}; save(true); render(); });
-
-  const prefill = await page.evaluate(()=>{
-    const yesterday=addDays(todayISO(),-1);
-    DB.entries={}; DB.entries[yesterday]={hf:2,ns:1,sym:{fog:3,energy:1,joint:0,anx:2},act:{},nut:{}};
-    const copied=prefillTodayFromYesterday(), today=DB.entries[todayISO()];
-    DB.entries={}; save(true); render();
-    return {copied,source:today&&today.prefilledFrom,hf:today&&today.hf,fog:today&&today.sym.fog};
-  });
-  check('Today truthfully prefills the compact check-in from yesterday', prefill.copied && prefill.source && prefill.hf===2 && prefill.fog===3, JSON.stringify(prefill));
-
-  console.log('\n== 3. Today check-in interactions ==');
-  await page.evaluate(()=>{
-    curTab='today'; curDate=todayISO();
-    DB.entries[curDate]={sym:{},act:{},nut:{}};
-    save(true); render();
-  });
-  check('unanswered Today tile prompts for a level', /Choose level/.test(await page.locator('.tw-tile').filter({hasText:'Brain fog'}).innerText()));
-  await page.locator('[data-act="set"][data-k="hf"][data-v="2"]').click();
-  await page.waitForTimeout(150);
-  const compactTap = await page.evaluate(()=>({
-    value:DB.entries[todayISO()].hf,
-    pressed:document.querySelector('[data-act="set"][data-k="hf"][data-v="2"]')?.getAttribute('aria-pressed'),
-    text:document.querySelector('.tw-tile')?.textContent
-  }));
-  check('Today offers direct, non-cycling choices', compactTap.value===2 && compactTap.pressed==='true', JSON.stringify(compactTap));
-  check('Today shows the selected choice in plain language', /2 flashes/.test(compactTap.text||''), JSON.stringify(compactTap));
-  await page.evaluate(()=>{ DB.entries[todayISO()].hf=0; save(true); render(); });
-  await goTodayDetails(page); await page.waitForTimeout(300);
-  check('detailed daily log opens', (await page.locator('.today-view').count())===1);
-  await page.click('[data-act="hf"][data-n="1"]');
-  await page.click('[data-act="hf"][data-n="1"]');
-  await page.click('[data-act="hf"][data-n="1"]');
-  await page.waitForTimeout(200);
-  check('hot flash stepper increments', (await page.locator('.stepper .val').innerText())==='3');
-  await page.click('[data-act="hf"][data-n="-1"]');
-  await page.waitForTimeout(150);
-  check('stepper decrements', (await page.locator('.stepper .val').innerText())==='2');
-  await page.locator('[data-act="set"][data-k="ns"][data-v="2"]').click();
-  await page.waitForTimeout(200);
-  check('night sweat scale sets', (await page.locator('[data-act="set"][data-k="ns"][data-v="2"]').getAttribute('aria-pressed'))==='true');
-  await page.fill('#inbed','8');
-  await page.fill('#slept','6');
-  await page.waitForTimeout(250);
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(150);
-  await goTodayDetails(page); await page.waitForTimeout(250);
-  check('sleep efficiency computed & persisted', (await page.locator('#app').innerText()).includes('75%'));
-  await page.locator('[data-act="set"][data-k="sym.mood"][data-v="3"]').click();
-  await page.locator('[data-act="set"][data-k="sym.anx"][data-v="2"]').click();
-  await page.locator('[data-act="set"][data-k="sym.fog"][data-v="2"]').click();
-  await page.locator('[data-act="set"][data-k="sym.joint"][data-v="1"]').click();
-  await page.waitForTimeout(200);
-  check('burden score withheld on a partial day', !(await page.locator('#app').innerText()).includes("burden score"));
-  for(const k of ['dry','uri','energy','head']){
-    await page.locator(`[data-act="set"][data-k="sym.${k}"][data-v="1"]`).click();
-    await page.waitForTimeout(120);
-  }
-  await page.waitForTimeout(200);
-  check('burden score appears once 8 symptoms filled', (await page.locator('#app').innerText()).includes("burden score"));
-  check('burden score published without a severity band', !/mild range|moderate range|severe range/.test(await page.locator('#app').innerText()));
-  await page.fill('#wt','168');
-  await page.fill('#wa','36');
-  await page.waitForTimeout(200);
-  await page.locator('[data-act="toggle"][data-k="act.res"]').click();
-  await page.fill('#aero','35');
-  await page.fill('#alc','1');
-  await page.fill('#notes','test note');
-  await page.waitForTimeout(300);
-  // reload to confirm persistence
-  await page.reload(); await page.waitForTimeout(500);
-  await goTodayDetails(page); await page.waitForTimeout(250);
-  const todayTxt = await page.locator('#app').innerText();
-  check('data persisted across reload (weight)', (await page.inputValue('#wt'))==='168');
-  check('data persisted across reload (notes)', (await page.inputValue('#notes'))==='test note');
-  check('strength chip persisted', (await page.locator('[data-act="toggle"][data-k="act.res"]').getAttribute('aria-pressed'))==='true');
-
-  console.log('\n== 4. Past-day editing ==');
-  const dayBtns = page.locator('.dayscroll button');
-  await dayBtns.nth(10).click(); await page.waitForTimeout(250);
-  check('editing-past-day notice', (await page.locator('#app').innerText()).includes('editing a past day'));
-  await page.click('[data-act="hf"][data-n="1"]'); await page.waitForTimeout(150);
-  await dayBtns.nth(13).click(); await page.waitForTimeout(250);
-  check('back to today', !(await page.locator('#app').innerText()).includes('editing a past day'));
-
-  console.log('\n== 5. Seeded 45 days -> trends & insights ==');
-  await page.addInitScript(d=>{ try{ localStorage.setItem('menocompass.v1', JSON.stringify(d)); }catch(e){} }, seed());
-  await page.goto(`${baseUrl}/index.html`); await page.waitForTimeout(500);
-  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
-  const tr = await page.locator('#app').innerText();
-  check('tiles render', /flashes\/day/i.test(tr));
-  check('charts render', (await page.locator('svg.chart').count())>=4, 'count='+(await page.locator('svg.chart').count()));
-  check('insights render', (await page.locator('.callout').count())>=3);
-  check('strength insight present', /Strength training/.test(tr));
-  check('alcohol pattern insight honest wording', /not proof of cause/.test(tr) || /personal pattern/.test(tr));
-  check('vaginal symptom insight fires', /progressive/.test(tr));
-  for(const n of [7,30,90]){
-    await page.locator(`[data-act="range"][data-v="${n}"]`).click(); await page.waitForTimeout(300);
-    check('range '+n+' renders', (await page.locator('svg.chart').count())>=1);
-  }
-  await page.locator('[data-act="range"][data-v="30"]').click(); await page.waitForTimeout(250);
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-trends.png'), fullPage:false});
-
-  console.log('\n== 5b. Native Pro access ==');
-  await page.evaluate(()=>{
-    window.__MENO_NATIVE__=true;
-    window.__MENO_PRO_ACTIVE__=false;
-    window.__nativeMessages=[];
-    window.ReactNativeWebView={postMessage:message=>window.__nativeMessages.push(JSON.parse(message))};
-    curTab='today'; render();
-  });
-  const nativePersist = await page.evaluate(()=>{
-    DB.profile.name='Native persistence check';
-    save(true);
-    const message=window.__nativeMessages.find(item=>item.type==='persist-state');
-    const state=message&&JSON.parse(message.state);
-    DB.profile.name='Test'; save(true);
-    return {message,stateName:state&&state.profile&&state.profile.name};
-  });
-  check('native bridge receives the complete saved app state', nativePersist.message&&nativePersist.stateName==='Native persistence check', JSON.stringify(nativePersist));
-  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(150);
-  const lockedPro = await page.evaluate(()=>({tab:curTab,messages:window.__nativeMessages,locked:document.querySelector('[data-v="trends"]').classList.contains('pro-locked')}));
-  check('native trends are marked as Pro', lockedPro.locked);
-  check('locked native trends stay on Today', lockedPro.tab==='today', JSON.stringify(lockedPro));
-  check('locked native trends request the paywall', lockedPro.messages.some(x=>x.type==='open-pro-paywall'&&x.feature==='trends'), JSON.stringify(lockedPro));
-  await page.evaluate(()=>openSheet('report')); await page.waitForTimeout(100);
-  const lockedReport = await page.evaluate(()=>({messages:window.__nativeMessages,sheets:[...sheetStack]}));
-  check('direct locked report requests the paywall', lockedReport.messages.some(x=>x.type==='open-pro-paywall'&&x.feature==='report'), JSON.stringify(lockedReport));
-  check('direct locked report does not open behind the paywall', !lockedReport.sheets.includes('report'), JSON.stringify(lockedReport));
-  await page.evaluate(()=>{ window.__MENO_PRO_ACTIVE__=true; window.dispatchEvent(new Event('menocompass-pro-changed')); });
-  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(150);
-  check('active Pro customer can open trends', await page.evaluate(()=>curTab==='trends'));
-  await page.evaluate(()=>{ window.__MENO_NATIVE__=false; window.__MENO_PRO_ACTIVE__=false; delete window.ReactNativeWebView; curTab='trends'; render(); });
-
-  console.log('\n== 5c. Home visual language across primary screens ==');
-  for(const [tab,title] of [['trends','Trends'],['meds','Medications'],['report','Doctor report'],['settings','Settings']]){
-    await page.click(`[data-act="tab"][data-v="${tab}"]`); await page.waitForTimeout(120);
-    check(tab+' uses the Home page header system', (await page.locator('.tw-screen .tw-heading h1').first().innerText())===title);
-  }
-  await goLearn(page); await page.waitForTimeout(150);
-  check('evidence guide uses the Home page header system', (await page.locator('.tw-screen .tw-heading h1').first().innerText())==='Evidence guide');
-  await goTodayDetails(page); await page.waitForTimeout(150);
-  check('detailed daily log uses the Home page header system', (await page.locator('.tw-screen .tw-heading h1').first().innerText())==='Detailed daily log');
-
-  console.log('\n== 6. Learn library: every module opens ==');
-  await goLearn(page); await page.waitForTimeout(300);
-  const modules = await page.locator('.rows .row').count();
-  check('all 15 modules listed', modules===15, 'got '+modules);
-  for(let i=0;i<modules;i++){
-    await page.locator('.rows .row').nth(i).click();
-    await page.waitForTimeout(220);
-    const vis = await page.locator('.sheet').isVisible();
-    const len = (await page.locator('.sheet').innerText()).length;
-    check('module '+i+' opens with content', vis && len>120, 'len='+len);
-    // open first two accordions if present
-    const accs = page.locator('.sheet details.acc');
-    const na = await accs.count();
-    for(let j=0;j<Math.min(na,3);j++){ await accs.nth(j).locator('summary').click(); await page.waitForTimeout(60); }
-    await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-  }
-
-  console.log('\n== 7. Symptom library sub-sheets ==');
-  await page.locator('.rows .row', {hasText:'Symptom library'}).click(); await page.waitForTimeout(250);
-  const symCount = await page.locator('.sheet .rows .row').count();
-  check('9 symptom cards', symCount===9, 'got '+symCount);
-  for(let i=0;i<symCount;i++){
-    await page.locator('.sheet .rows .row').nth(i).click(); await page.waitForTimeout(180);
-    check('symptom '+i+' content', (await page.locator('.sheet').innerText()).length>300);
-    await page.click('[data-act="close"]'); await page.waitForTimeout(120);
-  }
-  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-
-  console.log('\n== 8. Tools ==');
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(300);
-  const toolNames = ['Protein calculator','PHQ-9 mood check','GAD-7 anxiety check','Sleep window calculator','Paced breathing','Progressive muscle relaxation','28-day trigger test','Waist reference'];
-  for(const t of toolNames){
-    await page.locator('.row', {hasText:t}).first().click(); await page.waitForTimeout(250);
-    check('tool opens: '+t, (await page.locator('.sheet').innerText()).length>150);
-    await page.click('[data-act="close"]'); await page.waitForTimeout(120);
-  }
-
-  console.log('\n== 9. Protein calculator math ==');
-  await page.locator('.row', {hasText:'Protein calculator'}).first().click(); await page.waitForTimeout(250);
-  await page.fill('#ptw','150');
-  await page.waitForTimeout(200);
-  const pOut = await page.locator('#prot-out').innerText();
-  // 150 lb = 68.04 kg * 1.2 = 81.6 -> 82
-  check('protein grams correct for 150lb @1.2', /82/.test(pOut), pOut.replace(/\n/g,' '));
-  await page.selectOption('#ptg','1.6'); await page.waitForTimeout(250);
-  const pOut2 = await page.locator('#prot-out').innerText();
-  check('protein grams correct @1.6', /109/.test(pOut2), pOut2.replace(/\n/g,' '));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 10. PHQ-9 scoring + safety branch ==');
-  await page.locator('.row', {hasText:'PHQ-9'}).first().click(); await page.waitForTimeout(250);
-  for(let i=0;i<9;i++){
-    await page.locator(`[data-act="q-a"][data-i="${i}"][data-v="2"]`).click();
-    await page.waitForTimeout(70);
-  }
-  await page.waitForTimeout(200);
-  const phq = await page.locator('.sheet').innerText();
-  check('PHQ-9 total = 18', /Score: 18 of 27/.test(phq), (phq.match(/Score: \d+ of \d+/)||[''])[0]);
-  check('PHQ-9 band severe range label', /moderately severe/.test(phq));
-  check('item 9 safety callout fires', /988/.test(phq));
-  check('measurement caveat present', /also score points/.test(phq));
-  await page.click('[data-act="q-save"]'); await page.waitForTimeout(300);
-  check('score saved to history', /your history/i.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 11. Sleep window calculator ==');
-  await page.locator('.row', {hasText:'Sleep window'}).first().click(); await page.waitForTimeout(300);
-  const sw = await page.locator('.sheet').innerText();
-  check('uses logged sleep average', /actual sleep/i.test(sw), sw.slice(0,240).replace(/\n/g,' '));
-  check('bedtime computed', /Earliest bedtime/.test(sw));
-  await page.fill('#swk','05:30'); await page.waitForTimeout(250);
-  check('bedtime recomputes on wake change', /Earliest bedtime: 2[0-3]:/.test(await page.locator('#sw-out').innerText()), await page.locator('#sw-out').innerText());
-  check('contraindication warning', /bipolar/i.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 12. Breathing + PMR animations ==');
-  await page.locator('.row', {hasText:'Paced breathing'}).first().click(); await page.waitForTimeout(250);
-  check('breathing warns it is not for hot flashes', /NOT recommended for hot flashes/.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="breath-start"]'); await page.waitForTimeout(700);
-  check('breath cycle starts', /Breathe/.test(await page.locator('#breath-word').innerText()));
-  await page.click('[data-act="breath-stop"]'); await page.waitForTimeout(200);
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-  await page.locator('.row', {hasText:'Progressive muscle'}).first().click(); await page.waitForTimeout(250);
-  await page.click('[data-act="pmr-start"]'); await page.waitForTimeout(400);
-  check('PMR first step shows', (await page.locator('#pmr-title').innerText())==='Settle');
-  await page.click('[data-act="pmr-stop"]'); await page.waitForTimeout(150);
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 13. Trigger test lifecycle ==');
-  await page.locator('.row', {hasText:'28-day trigger'}).first().click(); await page.waitForTimeout(250);
-  check('trigger tool leads with the honest caveat', /no clinical trials/.test(await page.locator('.sheet').innerText()));
-  await page.selectOption('#trig','Alcohol');
-  await page.click('[data-act="trig-start"]'); await page.waitForTimeout(300);
-  const tg = await page.locator('.sheet').innerText();
-  check('trigger test running', /Test running/.test(tg));
-  check('baseline computed from prior 14 days', /before/i.test(tg));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-  await goTodayDetails(page); await page.waitForTimeout(300);
-  check('trigger banner on Today', /Trigger test day/.test(await page.locator('#app').innerText()));
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(200);
-  await page.locator('.row', {hasText:'28-day trigger'}).first().click(); await page.waitForTimeout(250);
-  await page.click('[data-act="trig-stop"]'); await page.waitForTimeout(250);
-  check('trigger test can end early', /Test ended early/.test(await page.locator('.sheet').innerText()));
-  await page.evaluate(()=>{
-    DB.trigger={active:true, status:'running', item:'Alcohol', start:addDays(todayISO(),-28)};
-    save(true);
-    renderSheet();
-  });
-  await page.waitForTimeout(250);
-  const completedTrigger = await page.evaluate(()=>DB.trigger);
-  check('28-day trigger test auto-completes',
-    completedTrigger.active===false && completedTrigger.status==='completed');
-  check('completed trigger result is retained',
-    /Test complete/.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 13b. Medication and lab workflow ==');
-  await page.evaluate(()=>{ medFormOpen=false; labFormOpen=false; curTab='meds'; sheetStack=[]; renderSheet(); render(); }); await page.waitForTimeout(250);
-  await page.click('[data-act="med-add"]');
-  await page.fill('#med-name','Test gel 1mg'); await page.selectOption('#med-form','gel'); await page.fill('#med-due','09:30');
-  await page.click('[data-act="med-save"]'); await page.waitForTimeout(250);
-  check('medication form saves a scheduled medication', /Test gel 1mg/.test(await page.locator('#app').innerText()));
-  await page.click('[data-act="lab-add"]'); await page.fill('#lab-name','FSH'); await page.fill('#lab-value','42'); await page.fill('#lab-unit','IU/L');
-  await page.click('[data-act="lab-save"]'); await page.waitForTimeout(250);
-  check('lab form saves a dated result', /FSH/.test(await page.locator('#app').innerText()) && /42 IU\/L/.test(await page.locator('#app').innerText()));
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(200);
-  const medicationButton=page.locator('[data-act="med-taken"]').last(); await medicationButton.click(); await page.waitForTimeout(200);
-  check('medication adherence is stored on the selected date', await page.evaluate(()=>Object.values((DB.entries[todayISO()]&&DB.entries[todayISO()].med)||{}).some(x=>x.taken===true)));
-
-  console.log('\n== 14. Screening tracker ==');
-  const screeningRules = await page.evaluate(()=>{
-    const originalProfile=Object.assign({},DB.profile);
-    DB.profile.region='us';
-    const cervical25=screeningStatus('cervical',25);
-    const cervical25Intervals=screeningIntervals(SCREENING_RULES.cervical,25);
-    DB.profile.region='uk';
-    const uk45={mammo:screeningStatus('mammo',45),colon:screeningStatus('colon',45)};
-    DB.profile=originalProfile;
-    return {cervical25,cervical25Intervals,uk45};
-  });
-  check('US cervical reminders start at age 21', screeningRules.cervical25.eligible&&screeningRules.cervical25.due,
-    JSON.stringify(screeningRules));
-  check('ages 21–29 only receive the 3-year cervical interval',
-    JSON.stringify(screeningRules.cervical25Intervals)==='[3]',JSON.stringify(screeningRules));
-  check('US-timed reminders are suppressed outside the US',
-    !screeningRules.uk45.mammo.due&&!screeningRules.uk45.colon.due,JSON.stringify(screeningRules));
-  await goLearn(page); await page.waitForTimeout(250);
-  await page.locator('.row', {hasText:'Preventive care'}).click(); await page.waitForTimeout(250);
-  await page.locator('.sheet details.acc summary').first().click(); await page.waitForTimeout(150);
-  await page.fill('#sc-dxa','2025-03-14'); await page.waitForTimeout(250);
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-  await page.locator('.row', {hasText:'Preventive care'}).click(); await page.waitForTimeout(250);
-  check('screening date persisted', /mar/i.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 15. Clinician report ==');
-  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(300);
-  await page.click('[data-act="sheet"][data-s="report"]'); await page.waitForTimeout(400);
-  const rep = await page.locator('.sheet').innerText();
-  check('report has symptom summary', /symptom summary/i.test(rep));
-  check('report shows flashes per day', /hot flashes \/ day/i.test(rep));
-  check('report shows burden', /symptom burden/i.test(rep));
-  check('report lists bleeding events', /bleeding logged/i.test(rep));
-  check('report includes notes digest', /recent notes/i.test(rep));
-  check('report includes questionnaire scores', /questionnaire scores/i.test(rep));
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-report.png')});
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 16. Export / import round trip ==');
-  await page.click('[data-act="sheet"][data-s="data"]'); await page.waitForTimeout(300);
-  const csv = await page.evaluate(()=>toCSV());
-  check('CSV has header', csv.split('\n')[0].includes('hot_flashes'));
-  check('CSV has ~45 data rows', csv.split('\n').filter(l=>/^\d{4}-/.test(l)).length>=44, csv.split('\n').filter(l=>/^\d{4}-/.test(l)).length);
-  check('CSV includes questionnaire block', /questionnaire_date/.test(csv));
-  const backup = await page.evaluate(()=>JSON.stringify(DB));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-  await page.evaluate(()=>{ DB.entries={}; save(true); render(); });
-  await page.waitForTimeout(300);
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-  await page.click('[data-act="sheet"][data-s="data"]'); await page.waitForTimeout(300);
-  await page.fill('#restore', backup);
-  await page.click('[data-act="import-json"]'); await page.waitForTimeout(500);
-  const restored = await page.evaluate(()=>Object.keys(DB.entries).length);
-  check('import restored entries', restored>=45, 'got '+restored);
-  // bad import
-  await page.click('[data-act="sheet"][data-s="data"]'); await page.waitForTimeout(300);
-  await page.fill('#restore','not json');
-  await page.click('[data-act="import-json"]'); await page.waitForTimeout(350);
-  check('bad import rejected gracefully', /not look like a valid backup/.test(await page.locator('body').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(200);
-
-  console.log('\n== 17. Units switch ==');
-  await page.selectOption('#un','metric'); await page.waitForTimeout(400);
-  check('metric labels appear', /kg/.test(await page.locator('#app').innerText()));
-  await goTodayDetails(page); await page.waitForTimeout(300);
-  const wtMetric = await page.inputValue('#wt');
-  check('weight converted to kg', Math.abs(parseFloat(wtMetric)-76)<2.5, wtMetric);
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(200);
-  await page.selectOption('#un','imperial'); await page.waitForTimeout(400);
-  await goTodayDetails(page); await page.waitForTimeout(300);
-  const wtImp = await page.inputValue('#wt');
-  check('weight round-trips to lb', Math.abs(parseFloat(wtImp) - parseFloat(wtMetric)*2.20462) < 0.6, wtImp+' vs '+wtMetric);
-
-  console.log('\n== 18. Bone-status gating ==');
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-  await page.selectOption('#bn','osteoporosis'); await page.waitForTimeout(300);
-  await goLearn(page); await page.waitForTimeout(250);
-  await page.locator('.row', {hasText:'Movement & strength'}).click(); await page.waitForTimeout(300);
-  check('osteoporosis warning gates impact advice', /Skip the high-impact/.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(200);
-  await page.selectOption('#bn','unknown'); await page.waitForTimeout(300);
-  await goLearn(page); await page.waitForTimeout(200);
-  await page.locator('.row', {hasText:'Movement & strength'}).click(); await page.waitForTimeout(300);
-  check('unknown bone status warning', /have not recorded your bone status/.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 19. Postmenopausal bleeding red flag ==');
-  await page.evaluate(()=>{
-    const iso = d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const t=new Date();
-    DB.profile.lastPeriod = (()=>{const d=new Date(t); d.setDate(d.getDate()-500); return iso(d);})();
-    const k = iso(t);
-    DB.entries[k] = DB.entries[k]||{sym:{},act:{},nut:{}};
-    DB.entries[k].bleed='light';
-    save(true);
-  });
-  await page.evaluate(()=>render());
-  await page.click('[data-act="tab"][data-v="trends"]'); await page.waitForTimeout(500);
-  const rf = await page.locator('#app').innerText();
-  check('bleeding red flag insight fires', /Bleeding after 12\+ months/.test(rf));
-  check('red flag cites the 90% figure', /90%/.test(rf));
-  await page.locator('.callout.alert button').first().click(); await page.waitForTimeout(400);
-  check('red flag sheet opens from insight', /need care promptly|Red flags/i.test(await page.locator('.sheet').innerText()));
-  await page.click('[data-act="close"]'); await page.waitForTimeout(150);
-
-  console.log('\n== 20. Theme, dark mode, a11y basics ==');
-  await page.click('[data-act="tab"][data-v="settings"]'); await page.waitForTimeout(250);
-  await page.selectOption('#th','dark'); await page.waitForTimeout(400);
-  check('dark theme applied', (await page.getAttribute('html','data-theme'))==='dark');
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-dark.png')});
-  await page.selectOption('#th','light'); await page.waitForTimeout(300);
-  check('light theme applied', (await page.getAttribute('html','data-theme'))==='light');
-  const noLabel = await page.evaluate(()=>{
-    const bad=[];
-    document.querySelectorAll('input,select,textarea').forEach(el=>{
-      const id=el.id;
-      if(!id || !document.querySelector('label[for="'+id+'"]')) bad.push(el.outerHTML.slice(0,60));
+    console.log('\n== Onboarding and four-part shell ==');
+    const onboardingContext=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2});
+    await onboardingContext.addInitScript(()=>{
+      window.__MENO_NATIVE__=true;
+      window.__MENO_PRO_ACTIVE__=true;
+      window.__nativeMessages=[];
+      window.ReactNativeWebView={postMessage:payload=>window.__nativeMessages.push(JSON.parse(payload))};
     });
-    return bad;
-  });
-  check('all form controls have labels', noLabel.length===0, JSON.stringify(noLabel).slice(0,300));
-  const fontLoaded = await page.evaluate(async()=>{
-    await document.fonts.ready;
-    return document.fonts.check('700 29px "Bricolage Grotesque"');
-  });
-  check('Bricolage Grotesque loads locally', fontLoaded);
-  check('primary navigation is labelled', (await page.locator('nav[aria-label="Primary"]').count())===1);
-  check('navigation icons are decorative', await page.locator('nav.tabs svg:not([aria-hidden="true"])').count()===0);
-  const tapTargets = await page.evaluate(()=>{
-    let small=0;
-    document.querySelectorAll('button').forEach(b=>{ const r=b.getBoundingClientRect(); if(r.width>0 && (r.height<40)) small++; });
-    return small;
-  });
-  check('no undersized tap targets', tapTargets===0, 'small='+tapTargets);
+    const page=await onboardingContext.newPage(); monitor(page,'onboarding',baseUrl);
+    await page.goto(baseUrl+'/index.html');
+    check('onboarding opens with the new promise',await page.getByRole('heading',{name:'Make sense of what’s changing.'}).isVisible());
+    check('onboarding keeps health entries local',await page.getByText('Your health entries stay on this device.').isVisible());
+    check('bottom navigation is hidden during setup',!(await page.locator('nav.tabs').isVisible()));
+    await page.getByRole('button',{name:'Set up my compass'}).click();
+    check('intent step is shown',await page.getByRole('heading',{name:'What would help most?'}).isVisible());
+    await page.getByRole('button',{name:'See whether treatment helps'}).click();
+    await page.getByRole('button',{name:'Continue'}).click();
+    check('clinical context step is shown',await page.getByRole('heading',{name:'A few details change what guidance applies.'}).isVisible());
+    await page.getByLabel('First name (optional)').fill('Maya');
+    await page.getByLabel('Birth year').fill('1976');
+    await page.getByLabel('Region').selectOption('us');
+    await page.getByRole('button',{name:'Continue'}).click();
+    check('focused symptom step is shown',await page.getByRole('heading',{name:'What should we watch?'}).isVisible());
+    check('six focused symptoms are selected by default',await page.locator('.jc-pin-grid [aria-pressed="true"]').count()===6);
+    await page.getByRole('button',{name:'Start my journey'}).click();
+    check('setup finishes on the option #1 Today prompt',await page.getByRole('heading',{name:'How are you today?'}).isVisible());
+    const onboardingEvents=await page.evaluate(()=>window.__nativeMessages.filter(message=>message.type!=='persist-state'));
+    check('native bridge records onboarding steps and completion',
+      onboardingEvents.some(message=>message.type==='onboarding-step'&&message.step===1)
+      &&onboardingEvents.some(message=>message.type==='onboarding-finished'&&message.skipped===false),
+      JSON.stringify(onboardingEvents));
+    const tabs=await page.locator('nav.tabs button').allTextContents();
+    check('shell has exactly Today, Journey, Care, Guide',JSON.stringify(tabs)===JSON.stringify(['Today','Journey','Care','Guide']),JSON.stringify(tabs));
+    check('Tools, Safety, and Profile are global actions',await page.getByRole('button',{name:'Open tools'}).isVisible()&&await page.getByRole('button',{name:'Safety guidance'}).isVisible()&&await page.getByRole('button',{name:'Open Profile'}).isVisible());
 
-  console.log('\n== 21. PWA plumbing ==');
-  const shellAssets = [
-    '/',
-    '/index.html',
-    '/manifest.webmanifest',
-    '/sw.js',
-    '/get-app.html',
-    '/privacy.html',
-    '/support.html',
-    '/terms.html',
-    '/assets/fonts/bricolage-grotesque-latin.woff2',
-    '/icons/apple-touch-icon.png',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png',
-    '/icons/maskable-512.png'
-  ];
-  for(const asset of shellAssets){
-    const response = await ctx.request.get(baseUrl+asset);
-    check(`asset ${asset} returns 200`, response.status()===200, `status=${response.status()}`);
-  }
-  const getAppResponse = await ctx.request.get(baseUrl+'/get-app.html');
-  const getAppHtml = await getAppResponse.text();
-  check('install page uses the MenoCompass OneLink', /https:\/\/menocompass\.onelink\.me\/4X6t\/qlc92l25/.test(getAppHtml));
-  check('install page does not load advertising pixels', !/(connect\.facebook\.net|analytics\.tiktok\.com|websdk\.appsflyer\.com)/.test(getAppHtml));
-  check('install page discloses hard-paywall pricing', /\$5\.99\/month[\s\S]*\$29\.99\/year[\s\S]*No free trial or free tier/.test(getAppHtml));
-  const manifestResponse = await ctx.request.get(`${baseUrl}/manifest.webmanifest`);
-  const man = await manifestResponse.json();
-  check('manifest name', !!man.name);
-  check('manifest standalone', man.display==='standalone');
-  check('manifest has 3 icons', man.icons.length===3);
-  check('manifest maskable icon', man.icons.some(i=>i.purpose==='maskable'));
-  for(const icon of man.icons){
-    const iconUrl = new URL(icon.src, `${baseUrl}/manifest.webmanifest`).href;
-    const response = await ctx.request.get(iconUrl);
-    check(`manifest icon ${icon.src} loads`, response.status()===200, `status=${response.status()}`);
-  }
-  const swReg = await page.evaluate(async()=>{
-    const r = await navigator.serviceWorker.getRegistration();
-    return !!r;
-  });
-  check('service worker registered', swReg);
-  const offline = await page.evaluate(async()=>{
-    const names = await caches.keys();
-    const cache = await caches.open('meno-compass-v5');
-    const keys = await cache.keys();
-    return {names, paths:keys.map(request=>new URL(request.url).pathname)};
-  });
-  check('v5 shell cache exists', offline.names.includes('meno-compass-v5'), JSON.stringify(offline.names));
-  check('stale v4 shell cache removed', !offline.names.includes('meno-compass-v4'), JSON.stringify(offline.names));
-  check('stale v3 shell cache removed', !offline.names.includes('meno-compass-v3'), JSON.stringify(offline.names));
-  check('stale v2 shell cache removed', !offline.names.includes('meno-compass-v2'), JSON.stringify(offline.names));
-  check('stale v1 shell cache removed', !offline.names.includes('meno-compass-v1'), JSON.stringify(offline.names));
-  const expectedCached = [
-    '/', '/index.html', '/manifest.webmanifest', '/assets/fonts/bricolage-grotesque-latin.woff2', '/icons/apple-touch-icon.png',
-    '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png'
-  ];
-  check('all shell assets precached', expectedCached.every(asset=>offline.paths.includes(asset)), JSON.stringify(offline.paths));
-  // offline reload
-  await ctx.setOffline(true);
-  await page.reload({waitUntil:'domcontentloaded'}).catch(()=>{});
-  await page.waitForTimeout(600);
-  check('app loads offline', (await page.locator('nav.tabs').count())>0);
-  await ctx.setOffline(false);
+    console.log('\n== Prominent tool access ==');
+    const todayTools=page.getByRole('region',{name:'Quick tools'});
+    const todayToolLabels=await todayTools.locator('.dc-tool b').allTextContents();
+    check('Today surfaces Quick tools with three direct actions and the full library',
+      await todayTools.isVisible()
+      &&await todayTools.locator('.dc-tool').count()===3
+      &&JSON.stringify(todayToolLabels)===JSON.stringify(['Breathe','Release tension','Mood check'])
+      &&await todayTools.getByRole('button',{name:'Breathe — open Paced breathing'}).isVisible()
+      &&await todayTools.getByRole('button',{name:'Release tension — open Progressive muscle relaxation'}).isVisible()
+      &&await todayTools.getByRole('button',{name:'Mood check — open PHQ-9 mood check'}).isVisible()
+      &&await todayTools.getByRole('button',{name:'See all 8 tools',exact:true}).isVisible(),
+      JSON.stringify(todayToolLabels));
+    const todayUrl=page.url();
+    const breatheTrigger=todayTools.getByRole('button',{name:'Breathe — open Paced breathing'});
+    await breatheTrigger.click();
+    check('Today opens Paced breathing directly',
+      await page.getByRole('dialog').getByRole('heading',{name:'Paced breathing',exact:true}).isVisible()
+      &&await page.getByRole('dialog').getByText('6 breaths per minute',{exact:true}).isVisible());
+    await page.getByRole('button',{name:'Close Paced breathing'}).click();
+    await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Breathe — open Paced breathing');
+    check('closing a direct tool preserves Today and restores its trigger',
+      page.url()===todayUrl
+      &&await page.getByRole('dialog').count()===0
+      &&await breatheTrigger.evaluate(el=>document.activeElement===el)
+      &&await page.evaluate(()=>breathTimer===null));
+    await todayTools.getByRole('button',{name:'See all 8 tools',exact:true}).click();
+    const toolsDialog=page.getByRole('dialog');
+    const toolGroupShape=await toolsDialog.locator('.jc-tools-library > section').evaluateAll(groups=>groups.map(group=>({
+      name:group.querySelector('h3')?.textContent?.trim()||'',
+      count:group.querySelectorAll('.jc-tool-row').length
+    })));
+    check('All tools shows exactly eight tools in three useful groups',
+      await toolsDialog.getByRole('heading',{name:'Tools',exact:true}).isVisible()
+      &&await toolsDialog.locator('.jc-tool-row').count()===8
+      &&JSON.stringify(toolGroupShape)===JSON.stringify([
+        {name:'Quick relief',count:2},
+        {name:'Check in',count:2},
+        {name:'Plan & learn',count:4}
+      ]),
+      JSON.stringify(toolGroupShape));
+    const waistRow=toolsDialog.getByRole('button',{name:/Waist reference/});
+    await waistRow.scrollIntoViewIfNeeded();
+    const libraryScrollTop=await toolsDialog.evaluate(el=>el.scrollTop);
+    await waistRow.click();
+    check('a nested tool clearly returns to the library',
+      await page.getByRole('dialog').getByRole('heading',{name:'Waist reference',exact:true}).isVisible()
+      &&await page.getByRole('button',{name:'Back to Tools'}).isVisible());
+    await page.getByRole('button',{name:'Back to Tools'}).click();
+    await page.waitForFunction(()=>document.activeElement?.dataset?.s==='tool:waist');
+    check('returning from a nested tool restores library position and focus',
+      await toolsDialog.evaluate((el,prior)=>el.scrollTop>=prior-2,libraryScrollTop)
+      &&await toolsDialog.getByRole('button',{name:/Waist reference/}).evaluate(el=>document.activeElement===el));
+    await toolsDialog.getByRole('button',{name:'Close Tools'}).click();
+    await page.screenshot({path:path.join(TEST_RESULTS,'journey-shell-today.png')});
 
-  console.log('\n== 22. Storage-blocked fallback ==');
-  const ctx2 = await browser.newContext({viewport:{width:390,height:844}});
-  const p2 = await ctx2.newPage();
-  monitorPage(p2, 'nostorage', baseUrl);
-  await p2.addInitScript(()=>{
-    Object.defineProperty(window,'localStorage',{get(){ throw new Error('blocked'); }});
-  });
-  await p2.goto(`${baseUrl}/index.html`);
-  await p2.waitForTimeout(500);
-  check('app still boots with storage blocked', await p2.getByText('Welcome to MenoCompass').isVisible());
-  await p2.click('[data-act="ob-skip"]'); await p2.waitForTimeout(400);
-  check('deferred setup remains visible on Today', await p2.getByText('Finish your setup').isVisible());
-  await p2.click('[data-act="finish-setup"]'); await p2.waitForTimeout(300);
-  check('setup reminder returns to editable profile', (await p2.locator('#pn').count())===1 && await p2.evaluate(()=>document.activeElement?.id==='pn'));
-  await p2.click('[data-act="tab"][data-v="today"]'); await p2.waitForTimeout(250);
-  await p2.locator('[data-act="set"][data-k="hf"][data-v="1"]').click(); await p2.waitForTimeout(250);
-  check('in-memory logging works', await p2.evaluate(()=>DB.entries[todayISO()]?.hf===1));
-  await p2.click('[data-act="tab"][data-v="settings"]'); await p2.waitForTimeout(300);
-  check('ephemeral warning shown to user', /cannot save to disk/.test(await p2.locator('#app').innerText()));
-  await ctx2.close();
+    console.log('\n== Draft, confirmation, and atomic update ==');
+    check('Today starts with one clear Check in action',await page.locator('.dc-checkin').count()===1&&await page.getByRole('button',{name:/Check in/}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
+    await page.getByRole('button',{name:/Check in/}).click();
+    check('check-in is focused and hides bottom navigation',await page.getByRole('heading',{name:'Today’s check-in'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
+    check('check-in explains the confirmation boundary',await page.getByText('Nothing counts in your patterns until you confirm.').isVisible());
+    check('focused check-in has six symptom controls',await page.locator('.jc-check-row').count()===6);
+    await page.getByRole('button',{name:'One more hot flash'}).click();
+    await page.getByRole('button',{name:'One more hot flash'}).click();
+    await page.getByRole('button',{name:'Night sweats: Moderate'}).click();
+    await page.locator('.jc-back').click();
+    check('unfinished work returns as a draft',await page.getByRole('button',{name:'Finish check-in'}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
+    await page.getByRole('button',{name:'Journey',exact:true}).click();
+    check('drafts do not count as confirmed',await page.getByText('0 confirmed days').isVisible()&&await page.getByText('Comparisons unlock after 14.').isVisible());
+    await page.getByRole('button',{name:'Finish check-in'}).click();
+    await page.getByRole('button',{name:'Confirm today’s log'}).click();
+    check('confirming a check-in emits a native success moment',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='checkin-confirmed')));
+    check('confirmation has an explicit completion state',await page.getByRole('heading',{name:'Today is confirmed.'}).isVisible()&&await page.getByText('1 confirmed day').isVisible());
+    await page.getByRole('button',{name:'Back to Journey'}).click();
+    check('Journey uses the confirmed snapshot',await page.getByText(/Hot flashes: 2 flashes/).isVisible());
+    await page.getByRole('button',{name:'Edit today'}).click();
+    await page.getByRole('button',{name:'One more hot flash'}).click();
+    await page.locator('.jc-back').click();
+    const journeyDraftText=await page.locator('#app').innerText();
+    check('editing preserves the prior confirmed snapshot',journeyDraftText.includes('Draft saved — confirmed version stays in patterns')&&journeyDraftText.includes('Hot flashes: 2 flashes')&&journeyDraftText.includes('1 confirmed day'));
+    await page.getByRole('button',{name:'Finish check-in'}).click();
+    await page.getByRole('button',{name:'Confirm today’s log'}).click();
+    await page.getByRole('button',{name:'Back to Journey'}).click();
+    const journeyUpdatedText=await page.locator('#app').innerText();
+    check('reconfirmation updates in place without adding a day',journeyUpdatedText.includes('Hot flashes: 3 flashes')&&journeyUpdatedText.includes('1 confirmed day'));
 
-  console.log('\n== 23. Empty-state trends ==');
-  const ctx3 = await browser.newContext({viewport:{width:390,height:844}});
-  const p3 = await ctx3.newPage();
-  monitorPage(p3, 'empty', baseUrl);
-  await p3.goto(`${baseUrl}/index.html`); await p3.waitForTimeout(400);
-  await p3.click('[data-act="ob-skip"]'); await p3.waitForTimeout(400);
-  await p3.click('[data-act="tab"][data-v="trends"]'); await p3.waitForTimeout(300);
-  check('empty trends state', /Nothing to chart yet/.test(await p3.locator('#app').innerText()));
-  await goLearn(p3); await p3.waitForTimeout(250);
-  check('learn works with no data', (await p3.locator('.rows .row').count())===15);
-  await p3.click('[data-act="tab"][data-v="settings"]'); await p3.waitForTimeout(200);
-  await p3.click('[data-act="sheet"][data-s="report"]'); await p3.waitForTimeout(200);
-  check('modal moves focus inside and makes background inert', await p3.evaluate(()=>
-    !!document.activeElement.closest('.sheet') && document.getElementById('app').hasAttribute('inert')
-  ));
-  check('empty report does not turn missing night sweats into zero',
-    (await p3.locator('.kv',{hasText:'Night sweats'}).locator('b').innerText())==='not tracked');
-  check('empty report does not turn missing strength into zero',
-    (await p3.locator('.kv',{hasText:'Strength sessions'}).locator('b').innerText())==='not tracked');
-  check('empty report does not turn missing alcohol into zero',
-    (await p3.locator('.kv',{hasText:'Alcohol (28 d)'}).locator('b').innerText())==='not tracked');
-  await p3.click('[data-act="close"]'); await p3.waitForTimeout(150);
-  check('closing modal restores its trigger and background access', await p3.evaluate(()=>
-    document.activeElement?.dataset?.s==='report' && !document.getElementById('app').hasAttribute('inert')
-  ));
-  await ctx3.close();
-
-  console.log('\n== 23b. Migration of v1 single-field surgical history ==');
-  const ctx4 = await browser.newContext({viewport:{width:390,height:844}});
-  const p4 = await ctx4.newPage();
-  monitorPage(p4, 'migrate', baseUrl);
-  await p4.addInitScript(()=>{
-    localStorage.setItem('menocompass.v1', JSON.stringify({
-      v:1, profile:{name:'Legacy', birthYear:1970, units:'metric', region:'us', uterus:'oophor', onboarded:true},
-      entries:{}, screening:{}, scores:[]
-    }));
-  });
-  await p4.goto(`${baseUrl}/index.html`); await p4.waitForTimeout(500);
-  const mig = await p4.evaluate(()=>({u:DB.profile.uterus, o:DB.profile.ovaries, surg:surgicalMenopause(), per:periodsPossible()}));
-  check('legacy "oophor" maps to uterus intact + both ovaries removed', mig.u==='intact' && mig.o==='both', JSON.stringify(mig));
-  check('legacy record recognised as surgical menopause', mig.surg===true);
-  check('legacy record knows periods are not possible', mig.per===false);
-  const mig2 = await p4.evaluate(()=>{
-    localStorage.setItem('menocompass.v1', JSON.stringify({v:1, profile:{uterus:'both', onboarded:true}, entries:{}, screening:{}, scores:[]}));
-    load(); return {u:DB.profile.uterus, o:DB.profile.ovaries};
-  });
-  check('legacy "both" maps to hysterectomy + both ovaries removed', mig2.u==='hyst' && mig2.o==='both', JSON.stringify(mig2));
-
-  console.log('\n== 23c. Backup sanitisation and CSV formula defence ==');
-  const sanitised = await p4.evaluate(()=>{
-    const date=todayISO();
-    let unsupportedRejected=false;
-    try{ validateBackup({v:999,profile:{},entries:{}}); }catch(e){ unsupportedRejected=true; }
-    const cross=validateBackup({
-      v:2,profile:{birthYear:1970,onboarded:true,lastPeriod:'1960-01-01',surgeryDate:'1960-01-01'},
-      entries:{'1960-01-01':{hf:2}},screening:{},scores:[],
-      trigger:{active:true,status:'running',item:'Alcohol',start:date,ended:date}
+    console.log('\n== Care, treatment events, report, Guide, and Profile ==');
+    await page.getByRole('button',{name:'Care',exact:true}).click();
+    check('Care uses the selected hierarchy',await page.getByRole('heading',{name:'Care'}).isVisible()&&await page.getByText('Today’s care').isVisible()&&await page.getByText('Appointments',{exact:true}).isVisible());
+    await page.getByRole('button',{name:'Add treatment or change'}).click();
+    await page.getByLabel('Medication and dose').fill('Estradiol patch');
+    await page.getByLabel('What changed (optional)').fill('Started 25 mcg');
+    await page.getByRole('button',{name:'Save medication'}).click();
+    check('a dated treatment can be added',await page.locator('.jc-treatment').filter({hasText:'Estradiol patch'}).isVisible());
+    await page.getByRole('button',{name:'Record change'}).click();
+    await page.getByLabel('What changed?').fill('Changed from 25 mcg to 50 mcg');
+    await page.getByRole('button',{name:'Save change'}).click();
+    await page.getByRole('button',{name:'Journey',exact:true}).click();
+    check('real treatment changes appear in Journey',await page.getByRole('heading',{name:'Estradiol patch changed'}).isVisible()&&await page.getByText('Early signal — not proof.').isVisible());
+    await page.getByRole('button',{name:'Care',exact:true}).click();
+    await page.getByRole('button',{name:'Prepare appointment report'}).click();
+    check('report is a dedicated route',await page.getByRole('heading',{name:'Appointment report'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
+    check('report states confirmed provenance',await page.getByText(/Based on 1 confirmed day/).isVisible());
+    await page.getByRole('button',{name:'30 days'}).click();
+    check('range controls materially update the report',await page.getByText('Appointment report · 30 days').isVisible());
+    await page.getByRole('button',{name:'Back to Care'}).click();
+    await page.getByRole('button',{name:'Guide',exact:true}).click();
+    check('Guide starts with search and a recommendation',await page.getByRole('searchbox',{name:'Search Guide'}).isVisible()&&await page.getByText('For you').isVisible());
+    const guideToolkit=page.getByRole('region',{name:'Tools for right now'});
+    const guideToolLabels=await guideToolkit.locator('.jc-tool-card b').allTextContents();
+    const guideToolkitPlacement=await guideToolkit.evaluate(el=>{
+      const recommendation=document.querySelector('.jc-for-you');
+      const results=document.querySelector('#guide-results');
+      const before=node=>!!node&&!!(el.compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING);
+      return {top:el.getBoundingClientRect().top,viewport:window.innerHeight,beforeRecommendation:before(recommendation),beforeResults:before(results)};
     });
-    DB=validateBackup({
-      v:2,
-      profile:{name:'"><img id="xss-probe" src=x onerror="window.pwned=1">',birthYear:'not-a-year',region:'bad',onboarded:true},
-      entries:{[date]:{hf:9999,notes:'=1+1',sym:{mood:99},unknown:'drop me'}},
-      screening:{notARealScreen:{last:date}},
-      scores:[{date,type:'phq9',score:27,band:'minimal'}],
-      unknownRoot:{secret:true}
+    check('Guide places four direct tools high on the page before education groups',
+      await guideToolkit.isVisible()
+      &&await guideToolkit.locator('.jc-tool-card').count()===4
+      &&JSON.stringify(guideToolLabels)===JSON.stringify(['Breathe','Release tension','Plan sleep','Test a trigger'])
+      &&await guideToolkit.getByRole('button',{name:'Breathe — open Paced breathing'}).isVisible()
+      &&await guideToolkit.getByRole('button',{name:'Release tension — open Progressive muscle relaxation'}).isVisible()
+      &&await guideToolkit.getByRole('button',{name:'Plan sleep — open Sleep window calculator'}).isVisible()
+      &&await guideToolkit.getByRole('button',{name:'Test a trigger — open 28-day trigger test'}).isVisible()
+      &&await guideToolkit.getByRole('button',{name:'See all 8 tools',exact:true}).isVisible()
+      &&guideToolkitPlacement.top<guideToolkitPlacement.viewport
+      &&guideToolkitPlacement.beforeRecommendation
+      &&guideToolkitPlacement.beforeResults,
+      JSON.stringify({labels:guideToolLabels,placement:guideToolkitPlacement}));
+    const guideSleepTrigger=guideToolkit.getByRole('button',{name:'Plan sleep — open Sleep window calculator'});
+    await guideSleepTrigger.click();
+    check('Guide opens a featured tool directly',
+      await page.getByRole('dialog').getByRole('heading',{name:'Sleep window calculator',exact:true}).isVisible());
+    await page.getByRole('button',{name:'Close Sleep window calculator'}).click();
+    await page.getByRole('searchbox',{name:'Search Guide'}).fill('sleep');
+    check('Guide search filters visible modules',await page.getByRole('button',{name:/^Sleep /}).isVisible()&&!(await page.getByRole('button',{name:/^Treatment options /}).isVisible()));
+    await page.getByRole('button',{name:'Open Profile'}).click();
+    check('Profile is global, not a fifth tab',await page.getByRole('heading',{name:'Profile'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
+    check('selected daily pulse appearance is coherent',await page.getByText('Guided daily pulse',{exact:true}).isVisible()&&await page.evaluate(()=>{DB.profile.theme='light';applyTheme();return document.documentElement.getAttribute('data-theme')==='dark'&&document.querySelector('meta[name="theme-color"]').content==='#071416';}));
+    check('Profile exposes reset and deletion controls',await page.getByRole('button',{name:'Reset onboarding'}).isVisible()&&await page.getByRole('button',{name:'Delete app profile & data'}).isVisible());
+    await page.getByRole('button',{name:'Manage Apple subscription'}).click();
+    check('native Profile exposes Apple subscription management',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='open-subscription-management')));
+    await page.getByRole('button',{name:'Safety guidance'}).click();
+    check('Safety remains globally reachable',await page.getByRole('dialog').isVisible()&&await page.getByRole('heading',{name:'Red flags'}).isVisible());
+    await page.getByRole('button',{name:/Close Red flags/}).click();
+
+    console.log('\n== Reset onboarding and local-data deletion ==');
+    const resetContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(resetContext,seededState(3));
+    const resetPage=await resetContext.newPage(); monitor(resetPage,'reset-controls',baseUrl); await resetPage.goto(baseUrl+'/index.html#profile');
+    await resetPage.getByRole('button',{name:'Reset onboarding'}).click();
+    check('reset explains that health history is preserved',await resetPage.getByRole('dialog').getByText(/Only onboarding progress is reset/).isVisible());
+    await resetPage.getByRole('dialog').getByRole('button',{name:'Reset onboarding',exact:true}).click();
+    const resetState=await resetPage.evaluate(()=>({onboarded:DB.profile.onboarded,step:DB.profile.onboardingStep,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length,name:DB.profile.name}));
+    check('reset restarts setup without erasing personal history',!resetState.onboarded&&resetState.step===0&&resetState.entries===3&&resetState.medications===1&&resetState.labs===1&&resetState.name==='Test',JSON.stringify(resetState));
+    check('reset returns to the first onboarding screen',await resetPage.getByRole('heading',{name:'Make sense of what’s changing.'}).isVisible());
+
+    const deleteContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(deleteContext,seededState(3));
+    const deletePage=await deleteContext.newPage(); monitor(deletePage,'delete-controls',baseUrl); await deletePage.goto(baseUrl+'/index.html#profile');
+    await deletePage.getByRole('button',{name:'Delete app profile & data'}).click();
+    check('delete confirmation separates Apple subscriptions',await deletePage.getByRole('dialog').getByText('Apple subscriptions are separate').isVisible());
+    await deletePage.getByRole('dialog').getByRole('button',{name:'Cancel'}).click();
+    check('cancel leaves local data intact',(await deletePage.evaluate(()=>Object.keys(DB.entries).length))===3);
+    await deletePage.getByRole('button',{name:'Delete app profile & data'}).click();
+    await deletePage.getByRole('dialog').getByRole('button',{name:'Delete everything permanently'}).click();
+    const deletedState=await deletePage.evaluate(()=>({onboarded:DB.profile.onboarded,name:DB.profile.name,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length}));
+    check('delete clears the complete local profile and returns to setup',!deletedState.onboarded&&deletedState.name===''&&deletedState.entries===0&&deletedState.medications===0&&deletedState.labs===0&&await deletePage.getByRole('heading',{name:'Make sense of what’s changing.'}).isVisible(),JSON.stringify(deletedState));
+
+    console.log('\n== Confirmed-data core contracts ==');
+    const seededContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(seededContext,seededState(16));
+    const seededPage=await seededContext.newPage(); monitor(seededPage,'seeded',baseUrl); await seededPage.goto(baseUrl+'/index.html#journey');
+    check('14+ confirmed days unlock weekly pattern language',await seededPage.getByText('16 confirmed days').isVisible()&&await seededPage.getByText('Comparisons are ready — keep confirming changes.').isVisible());
+    check('seeded dated treatment change is on the timeline',await seededPage.getByRole('heading',{name:'Estradiol patch changed'}).isVisible());
+    const atomic=await seededPage.evaluate(()=>{
+      const t=todayISO(),before=confirmedEntry(t).hf,day=entry(t); day.hf=99; markEntryDraft(t); save(true);
+      const report=reportSheet(30).body;
+      return {before,confirmed:confirmedEntry(t).hf,draft:day.hf,count:entryDates().length,reportHas99:report.includes('>99<')};
     });
-    curTab='you'; render();
-    const csv=toCSV();
-    return {
-      schema:DB.v,
-      unsupportedRejected,
-      preBirthDatesCleared:!cross.profile.lastPeriod&&!cross.profile.surgeryDate&&!cross.entries['1960-01-01'],
-      endedTriggerCanonical:cross.trigger&&!cross.trigger.active&&cross.trigger.status==='stopped'&&cross.trigger.ended===date,
-      probe:!!document.querySelector('#xss-probe'),
-      pwned:!!window.pwned,
-      shown:document.querySelector('#app').textContent.includes('<img id="xss-probe"'),
-      birthYear:DB.profile.birthYear,
-      region:DB.profile.region,
-      hf:DB.entries[date].hf,
-      mood:DB.entries[date].sym.mood,
-      unknownEntry:Object.prototype.hasOwnProperty.call(DB.entries[date],'unknown'),
-      unknownRoot:Object.prototype.hasOwnProperty.call(DB,'unknownRoot'),
-      unknownScreen:Object.prototype.hasOwnProperty.call(DB.screening,'notARealScreen'),
-      scoreBand:DB.scores[0].band,
-      csvFormulaNeutralised:csv.includes('"\'=1+1"')
-    };
-  });
-  check('restored data migrates to schema v4', sanitised.schema===4, JSON.stringify(sanitised));
-  check('unsupported backup schema is rejected', sanitised.unsupportedRejected, JSON.stringify(sanitised));
-  check('dates before birth are discarded', sanitised.preBirthDatesCleared, JSON.stringify(sanitised));
-  check('ended running trigger is canonicalised inactive', sanitised.endedTriggerCanonical, JSON.stringify(sanitised));
-  check('backup HTML is rendered only as text', sanitised.shown && !sanitised.probe && !sanitised.pwned, JSON.stringify(sanitised));
-  check('invalid profile values use safe defaults', sanitised.birthYear===null && sanitised.region==='us', JSON.stringify(sanitised));
-  check('invalid and unknown entry fields are discarded', sanitised.hf==null && sanitised.mood==null && !sanitised.unknownEntry, JSON.stringify(sanitised));
-  check('unknown root and screening fields are discarded', !sanitised.unknownRoot && !sanitised.unknownScreen, JSON.stringify(sanitised));
-  check('questionnaire band is derived from its score', sanitised.scoreBand==='severe', JSON.stringify(sanitised));
-  check('CSV user text cannot become a spreadsheet formula', sanitised.csvFormulaNeutralised, JSON.stringify(sanitised));
-  await ctx4.close();
+    check('poison drafts stay out of snapshots and reports',atomic.before===atomic.confirmed&&atomic.draft===99&&atomic.count===16&&!atomic.reportHas99,JSON.stringify(atomic));
 
-  console.log('\n== 24. Screenshots ==');
-  await page.click('[data-act="tab"][data-v="today"]'); await page.waitForTimeout(400);
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-today.png')});
-  await goLearn(page); await page.waitForTimeout(300);
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-learn.png')});
-  await page.locator('.row',{hasText:'Treatment options'}).click(); await page.waitForTimeout(400);
-  await page.locator('.sheet details.acc').nth(3).locator('summary').click(); await page.waitForTimeout(300);
-  await page.screenshot({path:path.join(TEST_RESULTS, 'shot-treatment.png')});
+    const prefillContext=await browser.newContext();
+    const yesterday=isoOffset(-1);
+    await injectState(prefillContext,{v:5,profile:profile(),entries:{[yesterday]:confirmed({hf:7,ns:2,sym:{fog:3,energy:2,joint:1,anx:2},act:{},nut:{}})},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:yesterday}});
+    const prefillPage=await prefillContext.newPage(); monitor(prefillPage,'prefill',baseUrl); await prefillPage.goto(baseUrl+'/index.html');
+    const prefill=await prefillPage.evaluate(()=>{const t=todayISO(),e=DB.entries[t];return {hf:e&&e.hf,prefilled:e&&e.prefilledFrom,confirmed:!!confirmedEntry(t),count:entryDates().length};});
+    check('prefill preserves actual counts but remains unconfirmed',prefill.hf===7&&!!prefill.prefilled&&!prefill.confirmed&&prefill.count===1,JSON.stringify(prefill));
 
-  console.log('\n===== SUMMARY =====');
-  console.log('failures: ' + fails.length);
-  if(fails.length) fails.forEach(f=>console.log('  - '+f));
-  console.log('console/page/network errors: ' + errors.length);
-  errors.slice(0,12).forEach(e=>console.log('  ! '+e));
-  process.exitCode = fails.length || errors.length ? 1 : 0;
-  } catch(error) {
-    console.error('\nFATAL: '+(error && error.stack ? error.stack : error));
-    console.error('If Chromium is missing, run "npm run test:install" once.');
-    process.exitCode = 1;
+    const migrationContext=await browser.newContext();
+    await injectState(migrationContext,{v:4,profile:{name:'Legacy',birthYear:1970,region:'us',units:'metric',onboarded:true},entries:{[isoOffset(-2)]:{hf:4,sym:{fog:2},act:{},nut:{}}},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-3)}});
+    const migrationPage=await migrationContext.newPage(); monitor(migrationPage,'migration',baseUrl); await migrationPage.goto(baseUrl+'/index.html');
+    const migration=await migrationPage.evaluate(()=>({version:DB.v,count:entryDates().length,snapshot:!!confirmedEntry(Object.keys(DB.entries)[0]),pins:DB.profile.pinnedSymptoms.length}));
+    check('v4 logs migrate to v5 confirmed snapshots',migration.version===5&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
+
+    console.log('\n== Responsive and runtime quality ==');
+    const desktopContext=await browser.newContext({viewport:{width:1280,height:900}}); await injectState(desktopContext,seededState(16));
+    const desktopPage=await desktopContext.newPage(); monitor(desktopPage,'desktop',baseUrl); await desktopPage.goto(baseUrl+'/index.html#journey');
+    const desktopLayout=await desktopPage.locator('#app').evaluate(el=>({width:el.getBoundingClientRect().width,left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right}));
+    check('desktop layout remains a centered app surface',desktopLayout.width<=442&&Math.abs(desktopLayout.left-(1280-desktopLayout.right))<2,JSON.stringify(desktopLayout));
+    check('one primary destination is current',await desktopPage.locator('nav.tabs [aria-current="page"]').count()===1);
+    await seededPage.screenshot({path:path.join(TEST_RESULTS,'journey-selected-flow.png')});
+    await desktopPage.screenshot({path:path.join(TEST_RESULTS,'journey-desktop.png')});
+
+    await onboardingContext.close(); await resetContext.close(); await deleteContext.close(); await seededContext.close(); await prefillContext.close(); await migrationContext.close(); await desktopContext.close();
+    check('no page, console, request, or HTTP errors',runtimeErrors.length===0,runtimeErrors.join(' | '));
+  } catch(error){
+    failures.push('unhandled test exception');
+    console.error(error&&error.stack||error);
   } finally {
     if(browser) await browser.close().catch(()=>{});
-    if(server.listening) await new Promise(resolve=>server.close(resolve));
+    await new Promise(resolve=>server.close(()=>resolve()));
   }
+  if(runtimeErrors.length) runtimeErrors.forEach(error=>console.log('  ERROR '+error));
+  console.log(`\n${failures.length?'FAILED: '+failures.length+' check(s)':'ALL CHECKS PASSED'}`);
+  if(failures.length) process.exitCode=1;
 })();

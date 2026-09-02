@@ -1,14 +1,55 @@
 <!DOCTYPE html>
+<!-- Third-party icon notice:
+Lucide Icons — ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+The life-buoy icon is derived from Feather Icons and is also available under
+the MIT License:
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+-->
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <title>Meno Compass — menopause tracker &amp; guide</title>
 <meta name="description" content="A private daily tracker and evidence-based reference for perimenopause and menopause: symptoms, sleep, weight, movement, diet, skin, mood and sexual health. No account, no server.">
-<meta name="theme-color" content="#F1F4F3">
+<meta name="theme-color" content="#071416">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Meno Compass">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MenoCompass">
 <meta name="color-scheme" content="light dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -290,8 +331,7 @@ details.acc>div>*:last-child{margin-bottom:0}
 
 /* ---------- tables ---------- */
 .tw{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 0 12px;
-  background:linear-gradient(to right,transparent 92%,var(--surface-3));
-  background-attachment:local; border-radius:var(--r-sm);}
+  background:var(--surface-2); border-radius:var(--r-sm);}
 table{border-collapse:collapse; width:100%; font-size:.82rem; min-width:340px}
 th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top}
 th{font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); font-weight:750; white-space:nowrap}
@@ -1088,13 +1128,347 @@ nav.tabs button[aria-current="page"]::after{content:"";position:absolute;bottom:
 .wk{display:flex;gap:5px;margin-top:12px}.wk i{width:8px;height:8px;border-radius:50%;background:var(--border)}.wk i.t{background:var(--ok)}.wk i.s{background:var(--alert)}
 .tw-chips{display:flex;gap:8px}.tw-chips span{height:32px;padding:0 14px;display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;color:var(--text-2);font-size:13px;font-weight:600}.tw-chips .on{border-color:var(--accent);color:var(--accent)}
 .tw-pagewrap{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
-.tw-doc{padding:15px;border:1px solid #E3DDD2;border-radius:3px;background:#FFFDF9;color:#1B2A28;font-size:10px;line-height:1.45}.tw-doc h2{margin:0 0 2px;font-size:14px;color:#1B2A28}.tw-doc p{margin:0 0 9px;color:#6E675C}.tw-doc-rule{height:74px;margin:8px 0;background:repeating-linear-gradient(to bottom,transparent 0 17px,#E3DDD2 18px)}
+.tw-doc{padding:15px;border:1px solid #E3DDD2;border-radius:3px;background:#FFFDF9;color:#1B2A28;font-size:10px;line-height:1.45}.tw-doc h2{margin:0 0 2px;font-size:14px;color:#1B2A28}.tw-doc p{margin:0 0 9px;color:#6E675C}.tw-doc-rule{height:74px;margin:8px 0;border-top:1px solid #E3DDD2;border-bottom:1px solid #E3DDD2;background:#FFFDF9}
 .tw-observed{padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}.tw-observed>span{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}.tw-observed p{margin:4px 0 6px;font-size:16px;line-height:1.5}.tw-observed small{color:var(--text-2)}
 @media (min-width:600px){
   :root{--maxw:720px}
   .tw-screen{padding:24px 28px 20px}
   .tw-grid{grid-template-columns:repeat(3,1fr)}
   nav.tabs .inner{max-width:720px}
+}
+
+/* ============================================================
+   Journey Compass — retained base layer
+   ============================================================ */
+:root,html[data-theme="dark"]{
+  --jc-bg:#071416;
+  --jc-bg-deep:#02090a;
+  --jc-surface:#102124;
+  --jc-surface-2:#14282b;
+  --jc-line:#294147;
+  --jc-text:#f2f4ef;
+  --jc-muted:#92a8a5;
+  --jc-mint:#8dcdb6;
+  --jc-amber:#ffb44d;
+  --jc-danger:#eb7868;
+  --bg:var(--jc-bg);
+  --surface:var(--jc-surface);
+  --surface-2:var(--jc-surface-2);
+  --surface-3:#1a3033;
+  --border:var(--jc-line);
+  --border-strong:#3a565b;
+  --text:var(--jc-text);
+  --text-2:var(--jc-muted);
+  --text-3:#708784;
+  --accent:var(--jc-amber);
+  --accent-text:var(--jc-amber);
+  --ok:var(--jc-mint);
+  --alert:var(--jc-danger);
+  --button-bg:var(--jc-amber);
+  --button-label:#142023;
+  --maxw:440px;
+  --nav-h:82px;
+}
+html{background:var(--jc-bg-deep)}
+body{min-height:100dvh;margin:0;background:var(--jc-bg-deep);color:var(--jc-text)}
+#app{width:min(100%,440px);min-height:100dvh;margin:0 auto;padding:0;background:var(--jc-bg)}
+.jc-screen{box-sizing:border-box;width:100%;min-height:100dvh;padding:calc(16px + env(safe-area-inset-top)) 24px calc(104px + env(safe-area-inset-bottom));background:var(--jc-bg);color:var(--jc-text)}
+.jc-chrome{margin-bottom:22px}
+.jc-chrome-main{display:flex;align-items:center;justify-content:space-between;min-height:50px}
+.jc-wordmark{font:700 15px/1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:.08em;color:var(--jc-text)}
+.jc-wordmark span{color:var(--jc-mint)}
+.jc-global-actions{display:flex;gap:10px}
+.jc-global-actions button{width:42px;height:42px;display:grid;place-items:center;padding:0;border:1px solid var(--jc-line);border-radius:50%;background:transparent;color:var(--jc-muted)}
+.jc-global-actions svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.jc-back{min-height:40px;margin:10px 0 -10px;padding:0 4px 0 0;display:inline-flex;align-items:center;gap:3px;border:0;background:transparent;color:var(--jc-muted);font:600 14px/1 system-ui,sans-serif}
+.jc-back svg{width:18px;transform:rotate(180deg)}
+.jc-page-head{margin:0 0 18px}
+.jc-page-head .jc-eyebrow{display:block;margin-bottom:8px;color:var(--jc-muted);font:650 11px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}
+.jc-page-head h1{margin:0;font:700 clamp(32px,9vw,40px)/1.03 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.035em;color:var(--jc-text);text-wrap:balance}
+.jc-page-head p{max-width:36ch;margin:8px 0 0;color:var(--jc-muted);font-size:15px;line-height:1.48;text-wrap:pretty}
+.jc-greeting{margin:-12px 0 22px;color:var(--jc-text);font-size:15px}
+.jc-primary,.jc-secondary{width:100%;min-height:56px;padding:14px 18px;border-radius:14px;font:750 15px/1.2 system-ui,sans-serif}
+.jc-primary{display:flex;align-items:center;justify-content:center;gap:10px}.jc-primary svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.jc-primary{border:1px solid var(--jc-amber);background:var(--jc-amber);color:#132024;box-shadow:none}
+.jc-secondary{border:1px solid var(--jc-line);background:transparent;color:var(--jc-text)}
+.jc-primary:active,.jc-secondary:active,.jc-global-actions button:active{transform:scale(.985)}
+.jc-text-action{display:block;margin:14px auto 0;padding:8px;border:0;background:transparent;color:var(--jc-amber);font-weight:700}
+.jc-status-strip{display:flex;align-items:flex-start;gap:12px;margin:26px 0 0;padding:18px 0;border-top:1px solid var(--jc-line);border-bottom:1px solid var(--jc-line)}
+.jc-status-strip>span{width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--jc-line);border-radius:50%;color:var(--jc-amber);font-weight:800}
+.jc-status-strip.confirmed>span{border-color:var(--jc-mint);background:var(--jc-mint);color:#102023}
+.jc-status-strip>div{display:flex;flex-direction:column;gap:4px}.jc-status-strip strong{font-size:15px}.jc-status-strip small{color:var(--jc-muted);font-size:12px;line-height:1.4}
+.jc-section{margin-top:30px}
+.jc-section-head{min-height:30px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}
+.jc-section-head>span{color:var(--jc-muted);font:700 11px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.1em;text-transform:uppercase}
+.jc-section-head button{padding:5px 0;border:0;background:transparent;color:var(--jc-amber);font-size:12px;font-weight:700}
+.jc-open-list{border-top:1px solid var(--jc-line);border-bottom:1px solid var(--jc-line)}
+.jc-open-list .tw-medrow{min-height:68px}.jc-open-list .tw-medrow>svg{stroke:var(--jc-mint)}
+.jc-empty-line{margin:0;padding:18px 0;color:var(--jc-muted);font-size:14px;line-height:1.5}
+.tw-empty-med.quiet{color:var(--jc-muted);font-weight:500}
+.jc-context{margin-top:30px;padding:20px;border:1px solid var(--jc-line);border-radius:15px;background:var(--jc-surface)}
+.jc-context>span,.jc-proof{display:block;color:var(--jc-mint);font:750 10px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.11em;text-transform:uppercase}
+.jc-context h2{margin:6px 0 5px;font:650 21px/1.15 "Bricolage Grotesque",system-ui,sans-serif;color:var(--jc-text)}
+.jc-context p{margin:0;color:var(--jc-muted);font-size:14px;line-height:1.55}
+.jc-sufficiency{margin-top:18px;padding:15px 18px;border:1px solid rgba(141,205,182,.5);border-radius:15px;background:rgba(141,205,182,.1)}
+.jc-sufficiency>div:first-child{display:flex;flex-direction:column;gap:4px}.jc-sufficiency strong{color:var(--jc-mint);font-size:18px}.jc-sufficiency span{color:var(--jc-muted);font-size:13px}
+.jc-progress{height:4px;margin-top:16px;overflow:hidden;border-radius:4px;background:rgba(141,205,182,.18)}
+.jc-progress i{display:block;height:100%;border-radius:4px;background:var(--jc-mint)}
+.jc-open-row{width:100%;min-height:70px;margin-top:24px;padding:12px 0;display:grid;grid-template-columns:32px 1fr 18px;align-items:center;gap:10px;border:0;border-top:1px solid var(--jc-line);border-bottom:1px solid var(--jc-line);background:transparent;color:var(--jc-text);text-align:left}
+.jc-open-row>span:first-child,.jc-open-row>svg{color:var(--jc-mint)}
+.jc-open-row svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75}.jc-open-row>span:nth-child(2){display:flex;flex-direction:column;gap:3px}.jc-open-row b{font-size:15px}.jc-open-row small{color:var(--jc-muted);font-size:12px;line-height:1.35}
+.jc-timeline{position:relative;margin:26px 0 4px}
+.jc-timeline::before{content:"";position:absolute;left:8px;top:10px;bottom:20px;width:1px;background:var(--jc-line)}
+.jc-timeline-event{position:relative;display:grid;grid-template-columns:18px 1fr;gap:18px;padding:0 0 23px;text-align:left}
+.jc-node{position:relative;z-index:1;width:15px;height:15px;margin-top:2px;border:2px solid var(--jc-amber);border-radius:50%;background:var(--jc-bg)}
+.jc-timeline-event.confirmed .jc-node,.jc-timeline-event.pattern .jc-node{border-color:var(--jc-mint);background:var(--jc-mint);box-shadow:inset 0 0 0 3px var(--jc-bg)}
+.jc-timeline-event.draft .jc-node{background:var(--jc-amber);box-shadow:inset 0 0 0 3px var(--jc-bg)}
+.jc-timeline-event.treatment .jc-node{border-radius:4px;border-color:var(--jc-mint);transform:rotate(45deg)}
+.jc-event-meta{color:var(--jc-muted);font:650 10px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.09em;text-transform:uppercase}
+.jc-event-copy h2{margin:5px 0 5px;font:650 18px/1.18 "Bricolage Grotesque",system-ui,sans-serif;color:var(--jc-text)}
+.jc-event-copy p{margin:0;color:var(--jc-muted);font-size:13px;line-height:1.45}
+.jc-proof{display:inline-block;margin-top:8px;padding:5px 8px;border-radius:7px;background:rgba(141,205,182,.1);color:var(--jc-mint)}
+.jc-inline-action{margin:14px 0 0;padding:4px 0;display:inline-flex;align-items:center;gap:3px;border:0;background:transparent;color:var(--jc-amber);font-size:13px;font-weight:750;text-align:left}
+.jc-inline-action svg{width:15px;height:15px;fill:none;stroke:currentColor}
+.jc-care .tw-form-card{margin:0 0 24px;padding:18px;border-color:var(--jc-line);border-radius:15px;background:var(--jc-surface)}
+.jc-inline-form h3{margin:0 0 4px;font-family:"Bricolage Grotesque",system-ui,sans-serif}
+.jc-appointment .jc-secondary{margin-top:16px}
+.jc-treatment-list{border-top:1px solid var(--jc-line)}
+.jc-treatment{padding:17px 0;border-bottom:1px solid var(--jc-line)}
+.jc-treatment>div:first-child{display:flex;align-items:center;gap:12px}.jc-treatment>div:first-child>svg{width:20px;fill:none;stroke:var(--jc-mint)}
+.jc-treatment span{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}.jc-treatment b{font-size:15px}.jc-treatment small{color:var(--jc-muted);font-size:12px}
+.jc-treatment-actions{display:flex;gap:16px;margin:11px 0 0 32px}.jc-treatment-actions button{padding:3px 0;border:0;background:transparent;color:var(--jc-amber);font-size:12px;font-weight:700}.jc-treatment-actions button:last-child{color:var(--jc-muted)}
+.jc-data-list{border-top:1px solid var(--jc-line)}.jc-data-list>div{min-height:62px;display:grid;grid-template-columns:1fr auto 28px;align-items:center;gap:10px;border-bottom:1px solid var(--jc-line)}
+.jc-data-list span{display:flex;flex-direction:column}.jc-data-list small{color:var(--jc-muted);font-size:12px}.jc-data-list strong{color:var(--jc-mint);font-size:13px}.jc-data-list button{border:0;background:transparent;color:var(--jc-muted);font-size:20px}
+.jc-search{position:relative;display:block;margin:-3px 0 24px}.jc-search input{box-sizing:border-box;width:100%;min-height:52px;padding:0 16px;border:1px solid var(--jc-line);border-radius:14px;background:var(--jc-surface);color:var(--jc-text);font-size:14px}.jc-search input::placeholder{color:var(--jc-muted)}
+.jc-for-you{margin:0 0 28px}.jc-for-you .jc-inline-action{margin-top:12px}
+.jc-guide-group{margin:0 0 30px}.jc-guide-group h2{margin:0 0 7px;color:var(--jc-muted);font:700 11px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.1em;text-transform:uppercase}
+.jc-guide-row{width:100%;min-height:72px;padding:13px 0;display:grid;grid-template-columns:32px 1fr 18px;align-items:center;gap:11px;border:0;border-bottom:1px solid var(--jc-line);background:transparent;color:var(--jc-text);text-align:left}
+.jc-guide-row .ico{color:var(--jc-mint)}.jc-guide-row .ico svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.75}.jc-guide-row .txt{display:flex;flex-direction:column;gap:3px}.jc-guide-row .txt b{font-size:15px}.jc-guide-row .txt span{color:var(--jc-muted);font-size:12px;line-height:1.35}.jc-guide-row .chev{color:var(--jc-muted)}
+.jc-no-results{padding:28px 0;color:var(--jc-muted);text-align:center}
+.jc-draft-badge{display:inline-flex;margin:-6px 0 18px;padding:7px 10px;border:1px solid var(--jc-line);border-radius:999px;color:var(--jc-amber);font-size:11px;font-weight:750}.jc-draft-badge.confirmed{color:var(--jc-mint)}
+.jc-check-list{border-top:1px solid var(--jc-line)}
+.jc-check-row{padding:18px 0;border-bottom:1px solid var(--jc-line)}
+.jc-check-label{display:flex;align-items:center;gap:10px;margin-bottom:15px}.jc-check-label>svg{width:21px;height:21px;fill:none;stroke:var(--jc-mint);stroke-width:1.75}.jc-check-label>span{display:flex;flex:1;flex-direction:column;gap:2px}.jc-check-label b{font-size:16px}.jc-check-label small{color:var(--jc-muted);font-size:11px}
+.jc-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.jc-scale button{min-width:0;height:43px;padding:0;display:flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--jc-line);border-radius:10px;background:transparent;color:var(--jc-muted);font-size:11px}.jc-scale button i{width:7px;height:7px;border:1px solid var(--jc-amber);border-radius:50%}.jc-scale button[aria-pressed="true"]{border-color:var(--jc-amber);background:rgba(255,180,77,.1);color:var(--jc-text)}.jc-scale button[aria-pressed="true"] i{background:var(--jc-amber)}
+.jc-count{display:flex;align-items:center;gap:8px}.jc-count button{min-width:44px;height:42px;border:1px solid var(--jc-line);border-radius:10px;background:transparent;color:var(--jc-text);font-size:20px}.jc-count button:last-child{min-width:58px;color:var(--jc-amber);font-size:11px;font-weight:700}.jc-count strong{min-width:36px;text-align:center;font-size:20px}
+.jc-add-symptom{margin:16px 0}.jc-note{display:block;margin:28px 0 18px}.jc-note>span{display:block;margin-bottom:8px;color:var(--jc-muted);font-size:12px}.jc-note textarea{min-height:92px;border-color:var(--jc-line);border-radius:13px;background:var(--jc-surface);color:var(--jc-text)}
+.jc-confirm{position:sticky;bottom:18px;margin-top:12px;box-shadow:0 12px 32px var(--jc-bg)}
+.jc-complete .jc-sufficiency{margin-bottom:24px}.jc-complete .jc-secondary{margin-top:12px}
+.jc-range{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}.jc-range button{min-height:42px;border:1px solid var(--jc-line);border-radius:11px;background:transparent;color:var(--jc-muted);font-size:12px;font-weight:700}.jc-range button[aria-pressed="true"]{border-color:var(--jc-amber);color:var(--jc-amber)}
+.jc-report-provenance{padding:11px 0 15px;border-bottom:1px solid var(--jc-line);color:var(--jc-muted);font-size:12px;line-height:1.45}.jc-report-route .report-page{margin-top:16px}.jc-report-route>.jc-secondary{margin-top:14px}.tw-doc-rule{background:none;border-top:1px solid #e3ddd2;border-bottom:1px solid #e3ddd2}
+.jc-onboard{padding-bottom:30px}.jc-onboard-top{min-height:46px;display:flex;align-items:center;justify-content:space-between}.jc-onboard-top>span{color:var(--jc-muted);font:700 10px/1 ui-monospace,monospace;letter-spacing:.08em}.jc-onboard-progress{height:3px;margin:5px 0 38px;background:var(--jc-line)}.jc-onboard-progress i{display:block;height:100%;background:var(--jc-mint)}
+.jc-onboard .jc-back{margin:-20px 0 24px}.jc-trust-line{display:flex;align-items:center;gap:12px;margin:30px 0 25px;padding:17px 0;border-top:1px solid var(--jc-line);border-bottom:1px solid var(--jc-line)}.jc-trust-line>svg{width:25px;height:25px;fill:none;stroke:var(--jc-mint)}.jc-trust-line span{display:flex;flex-direction:column;gap:3px}.jc-trust-line b{font-size:14px}.jc-trust-line small{color:var(--jc-muted);font-size:11px}.jc-onboard-list{margin:0 0 27px}.jc-onboard-list p{position:relative;margin:0;padding:10px 0 10px 24px;border-bottom:1px solid var(--jc-line);color:var(--jc-muted);font-size:14px}.jc-onboard-list p::before{content:"✓";position:absolute;left:0;color:var(--jc-mint)}
+.jc-disclosure{margin-top:22px;border-top:1px solid var(--jc-line);color:var(--jc-muted)}.jc-disclosure summary{padding:16px 0;color:var(--jc-muted);font-size:12px}.jc-disclosure p{font-size:12px;line-height:1.55}
+.jc-choice-list{margin:4px 0 26px;border-top:1px solid var(--jc-line)}.jc-choice-list button{width:100%;min-height:62px;padding:0;display:flex;align-items:center;justify-content:space-between;border:0;border-bottom:1px solid var(--jc-line);background:transparent;color:var(--jc-text);font-size:15px;text-align:left}.jc-choice-list button[aria-pressed="true"]{color:var(--jc-mint)}.jc-choice-list svg{width:18px;fill:none;stroke:currentColor}
+.jc-form-stack{margin-bottom:24px}.jc-form-stack input,.jc-form-stack select,.jc-profile input,.jc-profile select,.jc-details input,.jc-details select,.jc-details textarea{border-color:var(--jc-line);background:var(--jc-surface);color:var(--jc-text)}
+.jc-pin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.jc-pin-grid button{min-height:66px;padding:10px;display:flex;align-items:center;gap:9px;border:1px solid var(--jc-line);border-radius:12px;background:transparent;color:var(--jc-muted);font-size:12px;text-align:left}.jc-pin-grid button svg{width:18px;height:18px;fill:none;stroke:currentColor}.jc-pin-grid button[aria-pressed="true"]{border-color:var(--jc-mint);background:rgba(141,205,182,.08);color:var(--jc-text)}.jc-pin-grid button[aria-pressed="true"] svg{stroke:var(--jc-mint)}.jc-pin-grid.compact{grid-template-columns:repeat(2,1fr)}.jc-pin-grid.compact button{min-height:54px}.jc-footnote{color:var(--jc-muted);font-size:11px;line-height:1.5}
+.jc-profile .card,.jc-details .card{border-color:var(--jc-line);border-radius:14px;background:var(--jc-surface);box-shadow:none}.jc-profile .section-label,.jc-details .section-label{color:var(--jc-muted)}.jc-profile .rows,.jc-details .rows{border-color:var(--jc-line)}.jc-profile-tracking .jc-pin-grid{margin-bottom:0}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+[hidden]{display:none!important}
+nav.tabs{width:100%;height:calc(var(--nav-h) + env(safe-area-inset-bottom));border-top:1px solid var(--jc-line);background:var(--jc-surface);box-shadow:none}
+nav.tabs .inner{width:min(100%,440px);max-width:440px;margin:0 auto}
+nav.tabs button{height:var(--nav-h);padding:11px 4px 18px;color:#718784;font-size:10px;font-weight:700}
+nav.tabs button svg{width:21px;height:21px;fill:none;stroke:currentColor}
+nav.tabs button[aria-current="page"]{color:var(--jc-amber)}
+nav.tabs button[aria-current="page"]::after{bottom:10px;background:var(--jc-amber)}
+.sheet{border-color:var(--jc-line);background:var(--jc-bg);color:var(--jc-text)}.sheet-bar{background:var(--jc-bg);border-color:var(--jc-line)}
+@media (max-width:359px){.jc-screen{padding-left:17px;padding-right:17px}.jc-page-head h1{font-size:31px}.jc-scale{gap:4px}.jc-scale button{height:39px}.jc-pin-grid{grid-template-columns:1fr}}
+@media (min-width:700px){body{padding:24px 0}.jc-screen,#app{min-height:calc(100dvh - 48px)}#app{overflow:hidden;border:1px solid var(--jc-line);border-radius:24px}nav.tabs{left:50%;width:440px;transform:translateX(-50%);border-right:1px solid var(--jc-line);border-left:1px solid var(--jc-line)}}
+@media (prefers-reduced-motion:reduce){.jc-primary,.jc-secondary,.jc-global-actions button{transition:none!important}.view{animation:none!important}}
+@media print{.jc-chrome,nav.tabs,.jc-range,.jc-primary,.jc-secondary,.jc-inline-action,.jc-text-action{display:none!important}.jc-screen,#app{width:auto;max-width:none;min-height:0;padding:0;background:#fff}.jc-page-head{margin-bottom:12px}.jc-page-head h1,.jc-page-head p{color:#111}.jc-report-provenance{color:#333}}
+
+/* ============================================================
+   Guided Daily Pulse — selected concept #1
+   ============================================================ */
+:root,html[data-theme="dark"]{
+  --jc-bg:#071416;
+  --jc-bg-deep:#030a0c;
+  --jc-surface:#0d1d20;
+  --jc-surface-2:#122529;
+  --jc-line:#2b3c40;
+  --jc-text:#f4f5f1;
+  --jc-muted:#94a2a4;
+  --jc-mint:#8dc8b4;
+  --jc-amber:#ffb347;
+  --jc-danger:#ef7f70;
+  --bg:var(--jc-bg);
+  --surface:var(--jc-surface);
+  --surface-2:var(--jc-surface-2);
+  --surface-3:#173034;
+  --border:var(--jc-line);
+  --border-strong:#40565a;
+  --text:var(--jc-text);
+  --text-2:var(--jc-muted);
+  --text-3:#718487;
+  --accent:var(--jc-amber);
+  --accent-text:var(--jc-amber);
+  --ok:var(--jc-mint);
+  --alert:var(--jc-danger);
+  --button-bg:var(--jc-amber);
+  --button-label:#102023;
+  --nav-h:70px;
+}
+.jc-screen{padding:calc(14px + env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom))}
+.jc-chrome{margin-bottom:26px}
+.jc-chrome-main{min-height:44px}
+.jc-wordmark{color:var(--jc-mint);font-size:15px;letter-spacing:.105em}
+.jc-wordmark span{color:var(--jc-text)}
+.jc-global-actions{gap:12px}
+.jc-global-actions button{width:44px;height:44px;border-color:#65777a;color:#afbdbe}
+.jc-global-actions button:last-child{border-color:#9cabad;color:#c4cdce}
+.jc-page-head{margin:0 0 24px}
+.jc-page-head h1{font-size:34px;line-height:1.04}
+.jc-page-head p{margin-top:9px;font-size:14px;line-height:1.55}
+.jc-page-head .jc-eyebrow{color:var(--jc-amber);font-size:12px;letter-spacing:.13em}
+.jc-primary{min-height:60px;border-radius:12px;font-size:18px;color:#122124}
+.jc-secondary{min-height:52px;border-radius:11px}
+.btn.primary{background:var(--jc-amber);border-color:var(--jc-amber);color:#122124}
+.btn.danger{background:transparent;color:var(--jc-danger);border-color:var(--jc-danger)}
+
+.dc-date{margin:0 2px 13px;color:var(--jc-amber);font:750 12px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.14em}
+.dc-week{display:grid;grid-template-columns:repeat(7,1fr);margin:0 -3px 16px;padding:0 0 12px;border-bottom:1px solid var(--jc-line)}
+.dc-week-day{min-width:0;display:flex;flex-direction:column;align-items:center;color:var(--jc-muted)}
+.dc-week-day span{font-size:10px;line-height:1;letter-spacing:.05em}
+.dc-week-day strong{width:34px;height:34px;margin-top:7px;display:grid;place-items:center;border-radius:50%;color:#c9d0d0;font-size:16px;font-weight:500}
+.dc-week-day i{width:5px;height:5px;margin-top:5px;border-radius:50%;background:var(--jc-amber)}
+.dc-week-day.active span{color:var(--jc-amber);font-weight:750}
+.dc-week-day.active strong{background:var(--jc-amber);color:#122124;font-weight:650}
+.dc-hero{margin:0 2px 14px}
+.dc-hero h1{margin:0;color:var(--jc-text);font:700 30px/1.05 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.03em}
+.dc-hero p{margin:9px 0 0;color:var(--jc-muted);font-size:14px;line-height:1.45}
+.dc-checkin{font-size:19px;letter-spacing:-.01em}
+.dc-checkin>span{margin-left:4px}
+.dc-progress{display:grid;grid-template-columns:minmax(92px,1fr) minmax(0,2.05fr);align-items:center;gap:11px;margin:15px 0 14px}
+.dc-progress>div{height:5px;overflow:hidden;border-radius:5px;background:#244044}
+.dc-progress i{display:block;height:100%;border-radius:5px;background:var(--jc-mint)}
+.dc-progress p{margin:0;color:var(--jc-muted);font-size:11px;line-height:1.35}
+.dc-progress strong{color:var(--jc-mint);font-size:12px}
+.dc-tools{margin:0 0 5px;padding:3px 2px 17px;border-bottom:1px solid var(--jc-line)}
+.dc-tools-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dc-tools-head h2{margin:0;color:var(--jc-mint);font:750 11px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.14em;text-transform:uppercase}
+.dc-tools-head button{min-height:44px;padding:0 4px;border:0;background:transparent;color:var(--jc-amber);font-size:11px;font-weight:750}
+.dc-tool-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dc-tool{min-width:0;min-height:68px;padding:2px;display:flex;align-items:center;justify-content:flex-start;flex-direction:column;gap:7px;border:0;background:transparent;color:var(--jc-text);text-align:center}
+.dc-tool>span{width:39px;height:39px;display:grid;place-items:center;border:1px solid var(--jc-line);border-radius:50%;color:var(--jc-mint)}
+.dc-tool svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.dc-tool b{font-size:11px;line-height:1.2;text-wrap:balance}
+.dc-feature{display:grid;grid-template-columns:64px minmax(0,1fr);gap:15px;padding:13px 2px;border-top:1px solid var(--jc-line)}
+.dc-recap{padding-top:24px;padding-bottom:24px}
+.dc-task{padding-top:18px;padding-bottom:18px}
+.dc-feature-copy>span{display:block;margin:0 0 8px;color:var(--jc-mint);font:750 11px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.14em;text-transform:uppercase}
+.dc-feature-copy h2{margin:0;color:var(--jc-text);font:650 20px/1.2 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.015em}
+.dc-feature-copy p{margin:6px 0 0;color:var(--jc-muted);font-size:14px;line-height:1.42}
+.dc-orb{width:60px;height:60px;margin-top:14px;display:grid;place-items:center;border:1.5px solid var(--jc-mint);border-radius:50%;color:var(--jc-mint)}
+.dc-orb.amber{border-color:var(--jc-amber);color:var(--jc-amber)}
+.dc-orb svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.dc-text-link{margin:8px 0 0;padding:3px 0;display:inline-flex;align-items:center;gap:3px;border:0;background:transparent;color:var(--jc-amber);font-size:13px;font-weight:750}
+.dc-text-link svg{width:15px;height:15px;fill:none;stroke:currentColor}
+.dc-outline-action{width:100%;min-height:38px;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--jc-amber);border-radius:9px;background:transparent;color:var(--jc-amber);font-size:13px;font-weight:750}
+.dc-outline-action svg{width:17px;height:17px;fill:none;stroke:currentColor}
+.dc-privacy{display:grid;grid-template-columns:40px 1fr;align-items:center;gap:12px;padding:12px 9px 2px;border-top:1px solid var(--jc-line);color:var(--jc-mint)}
+.dc-privacy>svg{width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:1.5}
+.dc-privacy p{display:flex;flex-direction:column;gap:2px;margin:0;font-size:12px}
+.dc-privacy span{color:var(--jc-muted)}
+
+/* The same open, divider-led rhythm carries through every destination. */
+.jc-context,.jc-sufficiency{border-right:0;border-left:0;border-radius:0;background:transparent}
+.jc-context{padding:20px 0;border-color:var(--jc-line)}
+.jc-context h2{font-size:23px}
+.jc-context>span,.jc-proof{color:var(--jc-mint);letter-spacing:.14em}
+.jc-sufficiency{padding:17px 0;border-color:rgba(141,200,180,.45)}
+.jc-sufficiency strong{color:var(--jc-mint)}
+.jc-section{margin-top:28px}
+.jc-section-head>span,.jc-guide-group h2{color:var(--jc-mint);letter-spacing:.13em}
+.jc-open-list,.jc-treatment-list,.jc-data-list,.jc-check-list{border-color:var(--jc-line)}
+.jc-open-row{border-color:var(--jc-line)}
+.jc-timeline{margin-top:30px}
+.jc-timeline::before{display:none}
+.jc-timeline-event{grid-template-columns:60px minmax(0,1fr);gap:16px;padding:22px 0;border-top:1px solid var(--jc-line)}
+.jc-node,.jc-timeline-event.confirmed .jc-node,.jc-timeline-event.pattern .jc-node,.jc-timeline-event.draft .jc-node,.jc-timeline-event.treatment .jc-node{width:58px;height:58px;margin:0;display:grid;place-items:center;border:1.5px solid var(--jc-mint);border-radius:50%;background:transparent;box-shadow:none;transform:none;color:var(--jc-mint)}
+.jc-timeline-event.treatment .jc-node,.jc-timeline-event.draft .jc-node{border-color:var(--jc-amber);color:var(--jc-amber)}
+.jc-node svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.jc-event-meta{color:var(--jc-mint);letter-spacing:.11em}
+.jc-event-copy h2{font-size:20px}
+.jc-event-copy p{font-size:14px;line-height:1.5}
+.jc-search{margin-bottom:27px}
+.jc-search input{min-height:50px;border-radius:10px;background:transparent}
+.jc-for-you{border-top:1px solid var(--jc-line);border-bottom:1px solid var(--jc-line)}
+.jc-guide-group{margin-bottom:27px}
+.jc-guide-row{min-height:70px}
+.jc-guide-row .ico{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--jc-line);border-radius:50%}
+.jc-guide-row .ico svg{width:19px;height:19px}
+.jc-toolkit{margin:0 0 27px;padding:18px 0 20px;border-top:1px solid var(--jc-line);border-bottom:1px solid var(--jc-line)}
+.jc-toolkit-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.jc-toolkit-head h2{display:block;margin:0;color:var(--jc-mint);font:750 11px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.14em;text-transform:uppercase}
+.jc-toolkit-head p{margin:6px 0 0;color:var(--jc-muted);font-size:12px;line-height:1.4}
+.jc-toolkit-head>button{min-height:44px;flex:0 0 auto;padding:0 4px;border:0;background:transparent;color:var(--jc-amber);font-size:12px;font-weight:750}
+.jc-toolkit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.jc-tool-card{min-width:0;min-height:116px;padding:12px 10px;display:flex;align-items:flex-start;flex-direction:column;gap:10px;border:1px solid var(--jc-line);border-radius:10px;background:transparent;color:var(--jc-text);text-align:left}
+.jc-tool-card-icon{width:37px;height:37px;display:grid;place-items:center;border:1px solid var(--jc-mint);border-radius:50%;color:var(--jc-mint)}
+.jc-tool-card svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.jc-tool-card>span:last-child{display:flex;min-width:0;flex-direction:column;gap:4px}
+.jc-tool-card b{font-size:12px;line-height:1.2;text-wrap:balance}
+.jc-tool-card small{color:var(--jc-muted);font-size:11px;line-height:1.35}
+.jc-tools-intro{margin:-3px 0 20px;padding:0 0 18px;border-bottom:1px solid var(--jc-line)}
+.jc-tools-intro strong{font:650 18px/1.2 "Bricolage Grotesque",system-ui,sans-serif}
+.jc-tools-intro p{margin:6px 0 0;color:var(--jc-muted);font-size:13px;line-height:1.5}
+.jc-tools-library section{margin-bottom:24px}
+.jc-tools-library h3{margin:0;color:var(--jc-mint);font:750 11px/1.2 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.13em;text-transform:uppercase}
+.jc-tool-row{width:100%;min-height:76px;padding:12px 0;display:grid;grid-template-columns:42px minmax(0,1fr) 18px;align-items:center;gap:11px;border:0;border-bottom:1px solid var(--jc-line);background:transparent;color:var(--jc-text);text-align:left}
+.jc-tool-row-icon{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--jc-line);border-radius:50%;color:var(--jc-mint)}
+.jc-tool-row-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.jc-tool-row>span:nth-child(2){display:flex;min-width:0;flex-direction:column;gap:3px}
+.jc-tool-row b{font-size:14px}
+.jc-tool-row small{color:var(--jc-muted);font-size:11px;line-height:1.35}
+.jc-tool-row .chev{color:var(--jc-muted)}
+.jc-tool-row .chev svg{width:16px;height:16px;fill:none;stroke:currentColor}
+.jc-check-row{padding:20px 0}
+.jc-check-label>svg{width:36px;height:36px;padding:8px;border:1px solid var(--jc-line);border-radius:50%}
+.jc-scale button,.jc-count button{border-radius:9px;background:transparent}
+.jc-note textarea{background:transparent}
+.jc-care .tw-form-card{border-right:0;border-left:0;border-radius:0;background:transparent}
+
+.jc-profile .card,.jc-details .card{margin-bottom:18px;padding:18px 0;border-right:0;border-left:0;border-radius:0;background:transparent}
+.jc-profile .section-label,.jc-details .section-label{margin-top:28px;color:var(--jc-mint);letter-spacing:.13em}
+.jc-profile input,.jc-profile select,.jc-details input,.jc-details select,.jc-details textarea,.jc-form-stack input,.jc-form-stack select{border-radius:9px;background:transparent}
+.jc-setting-note strong{display:block;margin-top:5px;color:var(--jc-text)}
+.jc-account-actions{display:grid;gap:9px;margin:16px 0 13px}
+.jc-account-actions .btn{width:100%;min-height:48px;display:flex;align-items:center;justify-content:flex-start;gap:10px;text-align:left}
+.jc-account-actions .btn svg{width:19px;height:19px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.jc-confirm-sheet{text-align:center}
+.jc-confirm-sheet .jc-confirm-icon{width:66px;height:66px;margin:2px auto 18px;display:grid;place-items:center;border:1px solid var(--jc-mint);border-radius:50%;color:var(--jc-mint)}
+.jc-confirm-sheet.danger .jc-confirm-icon{border-color:var(--jc-danger);color:var(--jc-danger)}
+.jc-confirm-sheet .jc-confirm-icon svg{width:29px;height:29px;fill:none;stroke:currentColor}
+.jc-confirm-sheet h3{margin:0 0 9px;font:650 24px/1.15 "Bricolage Grotesque",system-ui,sans-serif}
+.jc-confirm-sheet>p{margin:0 0 20px;color:var(--jc-muted);font-size:14px;line-height:1.55}
+.jc-confirm-sheet .btn+.btn{margin-top:9px}
+
+.jc-onboard-progress{background:var(--jc-line)}
+.jc-onboard-progress i{background:var(--jc-amber)}
+.jc-trust-line>svg,.jc-onboard-list p::before{stroke:var(--jc-mint);color:var(--jc-mint)}
+.jc-choice-list button[aria-pressed="true"]{color:var(--jc-amber)}
+.jc-pin-grid button{border-radius:9px}
+.jc-pin-grid button[aria-pressed="true"]{border-color:var(--jc-amber);background:transparent}
+.jc-pin-grid button[aria-pressed="true"] svg{stroke:var(--jc-amber)}
+
+nav.tabs{background:#0b1a1d}
+nav.tabs button{padding-bottom:18px;color:#839395;font-size:10px}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--jc-amber)}
+nav.tabs button[aria-current="page"]::after{width:5px;height:5px;bottom:5px;border-radius:50%}
+.sheet{background:var(--jc-bg)}
+
+@media (max-width:359px){
+  .jc-screen{padding-right:17px;padding-left:17px}
+  .jc-wordmark{font-size:13px}
+  .jc-global-actions{gap:8px}
+  .dc-week-day strong{width:35px;height:35px}
+  .dc-feature{grid-template-columns:55px minmax(0,1fr);gap:12px}
+  .dc-orb{width:52px;height:52px}
+  .dc-progress{grid-template-columns:78px minmax(0,1fr)}
+}
+@media (min-width:700px){
+  .jc-screen{padding-right:24px;padding-left:24px}
 }
 
 </style>
@@ -2424,16 +2798,20 @@ const Store = (() => {
   };
 })();
 
-function postNativeEvent(type){
+function postNativeEvent(type, attributes){
   if(window.__MENO_NATIVE__!==true || !window.ReactNativeWebView) return false;
   try{
-    window.ReactNativeWebView.postMessage(JSON.stringify({type}));
+    const message=Object.assign({type},attributes&&typeof attributes==='object'?attributes:{});
+    window.ReactNativeWebView.postMessage(JSON.stringify(message));
     return true;
   }catch(e){ return false; }
 }
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 4;
+const SCHEMA_V = 5;
+const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
+const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'];
+const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -2442,7 +2820,8 @@ function blankDB(){
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
       theme:'dark', stage:null, stageAnswers:null, onboarded:false,
-      onboardingStep:0, onboardingDeferred:false
+      onboardingStep:0, onboardingDeferred:false, intent:'',
+      pinnedSymptoms:[...DEFAULT_PINNED_SYMPTOMS]
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
@@ -2486,8 +2865,13 @@ function migrate(d){
   p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
   p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
   p.onboarded=rawProfile.onboarded===true;
-  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,1)||0;
+  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,3)||0;
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
+  p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
+  const pinned=Array.isArray(rawProfile.pinnedSymptoms)
+    ? [...new Set(rawProfile.pinnedSymptoms.filter(k=>PINNABLE_SYMPTOMS.includes(k)))].slice(0,6)
+    : [];
+  p.pinnedSymptoms=pinned.length>=3?pinned:[...DEFAULT_PINNED_SYMPTOMS];
   const stageAnswers=safeStageAnswers(rawProfile.stageAnswers);
   if(stageAnswers && typeof completeStageAnswers==='function' && completeStageAnswers(stageAnswers)
       && typeof stageResult==='function'){
@@ -2497,7 +2881,7 @@ function migrate(d){
 
   if(plainRecord(d.entries)){
     Object.keys(d.entries).filter(date=>pastOrTodayISO(date)&&(!birthDate||date>=birthDate)).sort().slice(-10000).forEach(date=>{
-      const clean=safeEntry(d.entries[date]);
+      const clean=safeEntry(d.entries[date], d.v<5);
       if(clean) out.entries[date]=clean;
     });
   }
@@ -2517,11 +2901,23 @@ function migrate(d){
       .sort((a,b)=>a.date.localeCompare(b.date)).slice(-500);
   }
   if(Array.isArray(d.medications)){
-    out.medications=d.medications.map(safeMedication).filter(Boolean).slice(0,50);
-    d.medications.forEach(raw=>{
-      if(!plainRecord(raw)||raw.taken!==true) return;
-      const med=safeMedication(raw); if(!med) return;
-      const day=out.entries[todayISO()]||(out.entries[todayISO()]={sym:{},act:{},nut:{}});
+    d.medications.slice(0,50).forEach(raw=>{
+      const base=safeMedication(raw); if(!base) return;
+      let startedFallback='';
+      if(d.v<5 && !base.started){
+        startedFallback=Object.keys(out.entries).sort().find(date=>{
+          const rec=out.entries[date]&&out.entries[date].med&&out.entries[date].med[base.id];
+          return rec&&rec.taken===true;
+        })||'';
+        /* A legacy top-level `taken` flag means the medication was used today.
+           Without that or dated adherence, inventing a start date would make
+           the treatment timeline look more precise than the source record. */
+        if(!startedFallback && plainRecord(raw) && raw.taken===true) startedFallback=todayISO();
+      }
+      const med=safeMedication(raw,startedFallback); if(!med) return;
+      out.medications.push(med);
+      if(raw.taken!==true) return;
+      const day=out.entries[todayISO()]||(out.entries[todayISO()]={sym:{},act:{},nut:{},confirmed:false,draftDirty:false});
       day.med=day.med||{}; day.med[med.id]={taken:true,at:safeText(raw.takenAt,20)};
     });
   }
@@ -2556,7 +2952,7 @@ function safeStageAnswers(raw){
   });
   return Object.keys(out).length?out:null;
 }
-function safeEntry(raw){
+function safeEntryPayload(raw){
   if(!plainRecord(raw)) return null;
   const out={sym:{},act:{},nut:{}};
   const integer=(k,min,max)=>{ const n=safeInteger(raw[k],min,max); if(n!=null) out[k]=n; };
@@ -2582,6 +2978,11 @@ function safeEntry(raw){
     ['alc','caf'].forEach(k=>{ const n=safeInteger(raw.nut[k],0,50); if(n!=null) out.nut[k]=n; });
   }
   const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
+  return out;
+}
+function safeEntry(raw,legacyConfirmed){
+  const out=safeEntryPayload(raw);
+  if(!out) return null;
   const prefilled=safePastDate(raw.prefilledFrom); if(prefilled) out.prefilledFrom=prefilled;
   if(plainRecord(raw.med)){
     out.med={};
@@ -2592,21 +2993,45 @@ function safeEntry(raw){
     });
     if(!Object.keys(out.med).length) delete out.med;
   }
+  let snapshot=safeEntryPayload(raw.confirmedData);
+  if(!hasEntryContent(snapshot)) snapshot=null;
+  /* v1-v4 had no explicit completion state. Preserve meaningful historical
+     logs as an atomic snapshot while keeping medication-only records out of
+     health trends. `raw.confirmed` supports early schema-v5 drafts that used
+     the boolean before confirmed snapshots were introduced. */
+  if(!snapshot&&(legacyConfirmed===true||raw.confirmed===true)&&hasEntryContent(out)){
+    snapshot=safeEntryPayload(out);
+  }
+  if(snapshot) out.confirmedData=snapshot;
+  out.confirmed=!!snapshot;
+  out.draftDirty=!!snapshot&&raw.draftDirty===true;
   return out;
 }
-function safeMedication(raw){
+function safeMedication(raw,startedFallback){
   if(!plainRecord(raw)) return null;
   const name=safeText(raw.name,80).trim();
   if(!name) return null;
   const rawId=safeText(raw.id,40), id=/^[A-Za-z0-9_-]{1,40}$/.test(rawId)?rawId:'med-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30);
   const days=Array.isArray(raw.days)?[...new Set(raw.days.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6))].sort():[];
+  const started=safePastDate(raw.started)||safePastDate(startedFallback);
+  let ended=safePastDate(raw.ended);
+  if(started&&ended&&ended<started) ended='';
+  const changes=(Array.isArray(raw.changes)?raw.changes:[]).map(change=>{
+    if(!plainRecord(change)) return null;
+    const date=safePastDate(change.date), label=safeText(change.label,120).trim();
+    if(!date||!label) return null;
+    return {date,label};
+  }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)).slice(-100);
   return {
     id,
     name,
     form:safeEnum(raw.form,['patch','tablet','capsule','gel','spray','cream','other'],raw.icon==='patch'?'patch':'tablet'),
     days:days.length?days:[0,1,2,3,4,5,6],
     due:safeText(raw.due,20),
-    notes:safeText(raw.notes||raw.detail,120)
+    notes:safeText(raw.notes||raw.detail,120),
+    started,
+    ended,
+    changes
   };
 }
 function safeLab(raw){
@@ -2617,11 +3042,20 @@ function safeLab(raw){
 }
 function prefillTodayFromYesterday(){
   const t=todayISO(), y=addDays(t,-1);
-  if(DB.entries[t] || !DB.entries[y]) return false;
-  const prev=DB.entries[y], next={sym:{},act:{},nut:{},prefilledFrom:y};
-  if(prev.hf!=null) next.hf=Math.min(3,prev.hf);
-  if(prev.ns!=null) next.ns=Math.min(3,prev.ns);
-  ['fog','energy','joint','anx'].forEach(k=>{ if(prev.sym&&prev.sym[k]!=null) next.sym[k]=Math.min(3,prev.sym[k]); });
+  const prev=confirmedEntry(y);
+  if(!prev) return false;
+  const current=DB.entries[t];
+  if(current&&(isConfirmedEntry(t)||hasEntryContent(current)||current.prefilledFrom)) return false;
+  const next=current||{sym:{},act:{},nut:{},confirmed:false,draftDirty:false};
+  next.sym=next.sym||{}; next.act=next.act||{}; next.nut=next.nut||{};
+  let copied=false;
+  if(prev.hf!=null){ next.hf=prev.hf; copied=true; }
+  if(prev.ns!=null){ next.ns=prev.ns; copied=true; }
+  ['fog','energy','joint','anx'].forEach(k=>{ if(prev.sym&&prev.sym[k]!=null){ next.sym[k]=prev.sym[k]; copied=true; } });
+  if(!copied) return false;
+  next.prefilledFrom=y;
+  next.confirmed=false;
+  next.draftDirty=false;
   DB.entries[t]=next;
   return true;
 }
@@ -2776,27 +3210,56 @@ const SYMS = [
 const SCALE4 = ['None','Mild','Moderate','Severe','Very severe'];
 
 function entry(d){
-  if(!DB.entries[d]) DB.entries[d] = {sym:{}, act:{}, nut:{}};
+  if(!DB.entries[d]) DB.entries[d] = {sym:{}, act:{}, nut:{}, confirmed:false, draftDirty:false};
   const e = DB.entries[d];
   e.sym = e.sym||{}; e.act = e.act||{}; e.nut = e.nut||{};
+  const hasSnapshot=plainRecord(e.confirmedData)&&hasEntryContent(e.confirmedData);
+  e.confirmed=!!hasSnapshot;
+  e.draftDirty=!!hasSnapshot&&e.draftDirty===true;
   return e;
 }
-function hasData(d){
-  const e = DB.entries[d]; if(!e) return false;
+function hasEntryContent(e){
+  if(!plainRecord(e)) return false;
   if(e.hf!=null||e.ns!=null||e.wt!=null||e.waist!=null||e.bleed||e.notes) return true;
   if(Object.keys(e.sym||{}).length) return true;
   if(e.sleepH!=null||e.inBedH!=null) return true;
   if(Object.keys(e.act||{}).length||Object.keys(e.nut||{}).length) return true;
   return false;
 }
-function entryDates(){ return Object.keys(DB.entries).filter(hasData).sort(); }
+function isConfirmedEntry(d){
+  const e=DB.entries[d];
+  return !!(e&&plainRecord(e.confirmedData)&&hasEntryContent(e.confirmedData));
+}
+function confirmedEntry(d){ return isConfirmedEntry(d)?DB.entries[d].confirmedData:null; }
+function markEntryDraft(d){
+  const e=DB.entries[d];
+  if(!e||!isConfirmedEntry(d)) return false;
+  e.confirmed=true;
+  e.draftDirty=true;
+  return true;
+}
+function confirmEntry(d){
+  const e=entry(d);
+  const snapshot=safeEntryPayload(e);
+  if(!hasEntryContent(snapshot)) return false;
+  /* Build and validate the complete snapshot before swapping it in, so a
+     failed confirmation cannot partly overwrite the last trusted record. */
+  e.confirmedData=snapshot;
+  e.confirmed=true;
+  e.draftDirty=false;
+  delete e.prefilledFrom;
+  return true;
+}
+function hasData(d){ return isConfirmedEntry(d); }
+function confirmedEntryDates(){ return Object.keys(DB.entries).filter(isConfirmedEntry).sort(); }
+function entryDates(){ return confirmedEntryDates(); }
 function rangeDates(n){
   const out=[]; const t=todayISO();
   for(let i=n-1;i>=0;i--) out.push(addDays(t,-i));
   return out;
 }
 function series(days, fn){
-  return days.map(d=>{ const e=DB.entries[d]; return {d, v: e? fn(e) : null}; });
+  return days.map(d=>{ const e=confirmedEntry(d); return {d, v:e?fn(e):null}; });
 }
 function movingAvg(arr, w){
   return arr.map((p,i)=>{
@@ -2899,7 +3362,7 @@ function insights(){
   const nLogged = dates.length;
 
   /* --- red flag: postmenopausal bleeding --- */
-  const bleeds = dates.filter(d=>{ const b=DB.entries[d].bleed; return b && b!=='none'; });
+  const bleeds = dates.filter(d=>{ const e=confirmedEntry(d), b=e&&e.bleed; return b && b!=='none'; });
   /* Check EVERY logged bleed against the gap before it, not just the most
      recent one — an event that followed 12+ months of amenorrhoea still needs
      evaluation even if there has been bleeding since. */
@@ -2962,7 +3425,7 @@ function insights(){
   }
 
   /* --- mood streak --- */
-  const moodVals = d14.map(d=>DB.entries[d]&&DB.entries[d].sym?DB.entries[d].sym.mood:null).filter(v=>v!=null);
+  const moodVals = series(d14,e=>e.sym?e.sym.mood:null).map(p=>p.v).filter(v=>v!=null);
   if(moodVals.length>=7){
     const high = moodVals.filter(v=>v>=3).length;
     if(high >= Math.ceil(moodVals.length*0.6)){
@@ -2988,7 +3451,7 @@ function insights(){
   /* --- alcohol association (personal pattern, honestly labelled) --- */
   const pairs = [];
   d30.forEach(d=>{
-    const e=DB.entries[d], nx=DB.entries[addDays(d,1)];
+    const e=confirmedEntry(d), nx=confirmedEntry(addDays(d,1));
     if(e && nx && e.nut && e.nut.alc!=null && nx.hf!=null) pairs.push({alc:e.nut.alc, hf:nx.hf, sq: nx.sym?nx.sym.sleepq:null});
   });
   if(pairs.length>=10){
@@ -3004,7 +3467,7 @@ function insights(){
   }
 
   /* --- sleep vs night sweats --- */
-  const nsPairs = d30.map(d=>DB.entries[d]).filter(e=>e&&e.ns!=null&&e.sym&&e.sym.sleepq!=null);
+  const nsPairs = d30.map(confirmedEntry).filter(e=>e&&e.ns!=null&&e.sym&&e.sym.sleepq!=null);
   if(nsPairs.length>=10){
     const hi = nsPairs.filter(e=>e.ns>=2), lo = nsPairs.filter(e=>e.ns<=1);
     if(hi.length>=4 && lo.length>=4){
@@ -3018,8 +3481,8 @@ function insights(){
   }
 
   /* --- resistance training --- */
-  const res7 = d7.filter(d=>DB.entries[d]&&DB.entries[d].act&&DB.entries[d].act.res).length;
-  const res28 = rangeDates(28).filter(d=>DB.entries[d]&&DB.entries[d].act&&DB.entries[d].act.res).length;
+  const res7 = d7.filter(d=>{ const e=confirmedEntry(d); return e&&e.act&&e.act.res; }).length;
+  const res28 = rangeDates(28).filter(d=>{ const e=confirmedEntry(d); return e&&e.act&&e.act.res; }).length;
   if(nLogged>=7){
     if(res28===0){
       out.push({t:'warn', h:'No strength sessions logged in four weeks',
@@ -3033,7 +3496,7 @@ function insights(){
     }
   }
   /* --- aerobic minutes --- */
-  const aero7 = sum(d7.map(d=>{const e=DB.entries[d]; return e&&e.act?e.act.aero:null;}));
+  const aero7 = sum(d7.map(d=>{const e=confirmedEntry(d); return e&&e.act?e.act.aero:null;}));
   if(nLogged>=5 && aero7!=null){
     out.push({t: aero7>=150?'ok':'info', h:aero7+' minutes of aerobic activity this week',
       b: aero7>=150 ? 'At or above the 150-minute guideline. Aerobic work is what moved waist circumference most in the trials (−2.30 cm), while resistance work moved lean mass.'
@@ -3076,7 +3539,7 @@ function insights(){
   }
 
   /* --- protein --- */
-  const prot28 = rangeDates(28).map(d=>DB.entries[d]).filter(e=>e&&e.nut&&e.nut.prot!=null);
+  const prot28 = rangeDates(28).map(confirmedEntry).filter(e=>e&&e.nut&&e.nut.prot!=null);
   if(prot28.length>=7){
     const met = prot28.filter(e=>e.nut.prot).length;
     const pct = Math.round(met/prot28.length*100);
@@ -3086,7 +3549,7 @@ function insights(){
       cta:{l:'Protein calculator', go:'tool:protein'}});
   }
   /* --- alcohol --- */
-  const alc28 = rangeDates(28).map(d=>DB.entries[d]).filter(e=>e&&e.nut&&e.nut.alc!=null);
+  const alc28 = rangeDates(28).map(confirmedEntry).filter(e=>e&&e.nut&&e.nut.alc!=null);
   if(alc28.length>=10){
     const total = sum(alc28.map(e=>e.nut.alc));
     const perDay = total/alc28.length;
@@ -3096,20 +3559,20 @@ function insights(){
     }
   }
   /* --- pelvic floor --- */
-  const dryDays = rangeDates(28).map(d=>DB.entries[d]).filter(e=>e&&e.sym&&(e.sym.dry>=2||e.sym.uri>=2));
+  const dryDays = rangeDates(28).map(confirmedEntry).filter(e=>e&&e.sym&&(e.sym.dry>=2||e.sym.uri>=2));
   if(dryDays.length>=5){
     out.push({t:'warn', h:'Vaginal or bladder symptoms are showing up regularly',
       b:'Logged at moderate or worse on '+dryDays.length+' days in the last four weeks. Unlike hot flashes, these are <b>progressive</b> — they get worse rather than better if left alone, and they respond well to treatment. Low-dose vaginal oestrogen is a Strong Recommendation in the 2025 guideline, needs no progestogen, and does not raise endometrial cancer risk.',
       cta:{l:'Read the options', go:'learn:sex'}});
   }
-  const pf28 = rangeDates(28).filter(d=>DB.entries[d]&&DB.entries[d].act&&DB.entries[d].act.pf).length;
+  const pf28 = rangeDates(28).filter(d=>{ const e=confirmedEntry(d); return e&&e.act&&e.act.pf; }).length;
   if(dryDays.length>=3 && pf28<8){
     out.push({t:'info', h:'Pelvic floor training is the best-evidenced thing you can do yourself',
       b:'Cochrane review of 31 trials: stress incontinence cured in 56% versus 6% of controls; cured or improved in 74% versus 11%. The catch is technique — many women contract incorrectly on the first attempt, which is why being taught beats guessing.',
       cta:{l:'How to do it', go:'learn:exercise'}});
   }
   /* --- OSA screen prompt --- */
-  const sleepObs = rangeDates(21).map(d=>DB.entries[d]).filter(e=>
+  const sleepObs = rangeDates(21).map(confirmedEntry).filter(e=>
     e && e.sym && e.sym.sleepq!=null && e.ns!=null
   );
   const badSleep = sleepObs.filter(e=>e.sym.sleepq>=3);
@@ -3163,7 +3626,7 @@ function insights(){
    ============================================================ */
 
 const IC = {
-  /* Exact icon assets from the selected Twilight reference. */
+  /* Shared interface icons. Primary-route icons are assigned from PULSE_IC below. */
   today:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
   trends:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
   meds:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>',
@@ -3171,23 +3634,54 @@ const IC = {
   settings:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
   learn:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
   you:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
-  chev:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>'
+  chev:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>'
 };
+/* Lucide v1.38.0 (ISC) icons used by the selected Guided Daily Pulse shell.
+   The full license is retained in assets/icons/LUCIDE_LICENSE.txt. */
+const PULSE_IC = {
+  safety:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m4.93 4.93 4.24 4.24m5.66 0 4.24-4.24m-4.24 9.9 4.24 4.24m-9.9-4.24-4.24 4.24"></path><circle cx="12" cy="12" r="4"></circle></svg>',
+  profile:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"></path><circle cx="12" cy="11" r="4"></circle><circle cx="12" cy="12" r="10"></circle></svg>',
+  today:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>',
+  journey:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5q2.5 2 5 0t5 0 5 0 5 0M2 12q2.5 2 5 0t5 0 5 0 5 0M2 19q2.5 2 5 0t5 0 5 0 5 0"></path></svg>',
+  care:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"></path></svg>',
+  guide:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v16"></path><path d="M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"></path></svg>',
+  check:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m16 9-5.5 5.5L8 12"></path></svg>',
+  recap:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5h4M20 3v4"></path><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>',
+  task:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 10.01h.01M10 14.01h.01M14 10.01h.01M14 14.01h.01M18 6v12M6 6v12"></path><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>',
+  privacy:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg>',
+  reset:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>',
+  trash:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 11v6M14 11v6M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+  backup:'<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 12a9 3 0 0 0 5 2.69M21 9.3V5M3 5v14a9 3 0 0 0 6.47 2.88M12 12v4h4M13 20a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5c-1.33 0-2.54.54-3.41 1.41L12 16"></path></svg>',
+  wind:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.8 19.6A2 2 0 1 0 14 16H2M17.5 8a2.5 2.5 0 1 1 2 4H2M9.8 4.4A2 2 0 1 1 11 8H2"></path></svg>',
+  moon:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5h4M20 3v4"></path><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>',
+  brain:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 18V5M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5M17.997 5.125a4 4 0 0 1 2.526 5.77M18 18a4 4 0 0 0 2-7.464M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517M6 18a4 4 0 0 1-2-7.464M6.003 5.125a4 4 0 0 0-2.526 5.77"></path></svg>',
+  heartPulse:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"></path></svg>',
+  person:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"></circle><path d="m9 20 3-6 3 6M6 8l6 2 6-2M12 10v4"></path></svg>',
+  flask:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"></path></svg>',
+  ruler:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2"></path></svg>',
+  calculator:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2"></rect><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"></path></svg>',
+  grid:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>'
+};
+IC.today=PULSE_IC.today;
+IC.journey=PULSE_IC.journey;
+IC.care=PULSE_IC.care;
+IC.guide=PULSE_IC.guide;
 
 const TWILIGHT_IC = {
-  flame:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2c2 3 5 5 5 9a5 5 0 0 1-10 0c0-4 3-6 5-9z"></path></svg>',
-  moon:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15 12A7 7 0 1 1 8 3a6 6 0 0 0 7 9z"></path></svg>',
-  cloud:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 13a4 4 0 1 1 1-7.9A5 5 0 0 1 15.9 7 3.5 3.5 0 0 1 15 13z"></path></svg>',
-  bolt:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 2 4 11h5l-1 7 8-10h-5z"></path></svg>',
-  heart:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 17s-6-3.8-6-8a3.5 3.5 0 0 1 6-2.4A3.5 3.5 0 0 1 16 9c0 4.2-6 8-6 8z"></path></svg>',
-  horizon:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 12c2-6 10-6 12 0M4 12h12"></path></svg>',
-  cycle:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3"></rect><path d="M13 17v-4h4"></path></svg>',
-  pill:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>',
-  lab:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 2h4M10 2v6l4 8a2 2 0 0 1-2 3H8a2 2 0 0 1-2-3l4-8"></path></svg>',
-  calendar:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
-  trend:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
-  document:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
-  sun:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>'
+  /* Legacy key names now point to licensed Lucide assets for visual consistency. */
+  flame:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"></path></svg>',
+  moon:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>',
+  cloud:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>',
+  bolt:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5.5 0 0 1-.472-.667z"></path></svg>',
+  heart:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"></path></svg>',
+  horizon:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v8M4.93 10.93l1.41 1.41M2 18h2M20 18h2M19.07 10.93l-1.41 1.41M22 22H2M8 6l4-4 4 4M16 18a4 4 0 0 0-8 0"></path></svg>',
+  cycle:PULSE_IC.reset,
+  pill:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg>',
+  lab:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"></path></svg>',
+  calendar:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3M16 2v3"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"></path></svg>',
+  trend:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6M22 7l-8.5 8.5-5-5L2 17"></path></svg>',
+  document:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2zM14 2v5a1 1 0 0 0 1 1h5M10 9H8M16 13H8M16 17H8"></path></svg>',
+  sun:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>'
 };
 const SYM_IC = {
   mood:TWILIGHT_IC.heart,
@@ -3208,11 +3702,30 @@ const SYM_DISPLAY = {
   palp:'Palpitations', itch:'Skin', libido:'Low libido'
 };
 
+const TOOL_CATALOG = [
+  {id:'breath', name:'Paced breathing', short:'Breathe', description:'Settle into a slow, steady breathing rhythm.', group:'Quick relief', icon:PULSE_IC.wind},
+  {id:'pmr', name:'Progressive muscle relaxation', short:'Release tension', description:'Work through tension one area at a time.', group:'Quick relief', icon:PULSE_IC.person},
+  {id:'phq9', name:'PHQ-9 mood check', short:'Mood check', description:'A standard nine-question mood screen.', group:'Check in', icon:PULSE_IC.heartPulse},
+  {id:'gad7', name:'GAD-7 anxiety check', short:'Anxiety check', description:'A standard seven-question anxiety screen.', group:'Check in', icon:PULSE_IC.brain},
+  {id:'sleepwin', name:'Sleep window calculator', short:'Plan sleep', description:'Estimate a steadier time-in-bed window.', group:'Plan & learn', icon:PULSE_IC.moon},
+  {id:'protein', name:'Protein calculator', short:'Protein target', description:'Turn your weight and goal into a daily target.', group:'Plan & learn', icon:PULSE_IC.calculator},
+  {id:'trigger', name:'28-day trigger test', short:'Test a trigger', description:'Run one structured personal experiment.', group:'Plan & learn', icon:PULSE_IC.flask},
+  {id:'waist', name:'Waist reference', short:'Waist guide', description:'Put a measurement into clinical context.', group:'Plan & learn', icon:PULSE_IC.ruler}
+];
+const TODAY_TOOL_IDS = ['breath','pmr','phq9'];
+const GUIDE_TOOL_IDS = ['breath','pmr','sleepwin','trigger'];
+
 let curDate = todayISO();
 let curTab = 'today';
+let returnTab = 'today';
 let sheetStack = [];
+let sheetReturnStack = [];
 let lastSheetTrigger = null;
-const APP_VERSION = '1.0.1';
+let checkinComplete = false;
+let guideQuery = '';
+let reportRange = 90;
+let treatmentChangeTarget = null;
+const APP_VERSION = '1.1.0';
 
 /* ---------- tiny helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -3285,8 +3798,8 @@ function viewToday(){
   const b = burden(e);
 
   return `
-  <div class="view tw-screen tw-secondary today-view">
-    ${twilightHeader('Detailed daily log','Sleep, body, movement and lifestyle — saved automatically.')}
+  <div class="view jc-screen jc-details today-view">
+    ${jcChrome('Check-in')}${jcHeading('More detail','Sleep, body, movement, and lifestyle stay in today’s draft.',fmtLong(curDate))}
     <div class="dayscroll" role="group" aria-label="Choose a day">${days}</div>
     <p class="tiny muted" style="margin:6px 0 14px">${curDate===t?'Tap only what changed.':esc(fmtLong(curDate))+' · editing a past day'}</p>
 
@@ -3390,7 +3903,9 @@ function viewToday(){
       <button class="btn ghost" data-act="sheet" data-s="redflags">Red flags</button>
       <button class="btn ghost" data-act="sheet" data-s="tools">Tools</button>
     </div>
-    <p class="xtiny center">Everything saves automatically on this device. Nothing leaves it.</p>
+    <button class="jc-primary" data-act="confirm-log">Confirm this log</button>
+    <button class="jc-text-action" data-act="back-checkin">Back to focused check-in</button>
+    <p class="xtiny center">Drafts save on this device. Only confirmation updates your patterns.</p>
   </div>`;
 }
 
@@ -3420,8 +3935,8 @@ function viewTrends(){
   const hfAvg = avg(hf.map(p=>p.v));
   const hfTot = sum(hf.map(p=>p.v));
   const slAvg = avg(series(days,e=>e.sleepH).map(p=>p.v));
-  const res = days.filter(d=>DB.entries[d]&&DB.entries[d].act&&DB.entries[d].act.res).length;
-  const aero = sum(days.map(d=>{const e=DB.entries[d];return e&&e.act?e.act.aero:null;}));
+  const res = days.filter(d=>{const e=confirmedRecord(d);return e&&e.act&&e.act.res;}).length;
+  const aero = sum(days.map(d=>{const e=confirmedRecord(d);return e&&e.act?e.act.aero:null;}));
   const logged = days.filter(hasData).length;
 
   const ins = insights();
@@ -3516,9 +4031,19 @@ function viewYou(){
   const age = p.birthYear? (new Date().getFullYear()-p.birthYear) : null;
   const pt = proteinTarget();
   const dates = entryDates();
-  return `<div class="view tw-screen tw-secondary">${twilightHeader('Settings','Your profile, tools, preferences and private data.')}
-    <button class="btn ghost block settings-learn" data-act="tab" data-v="learn">Evidence guide</button>
-    <button class="btn ghost block settings-learn" data-act="tab" data-v="today-details">Detailed daily log</button>
+  return `<div class="view jc-screen jc-profile">${jcChrome('Back')}${jcHeading('Profile','Your context, tracking preferences, and private data.')}
+    <div class="section-label">Account &amp; data</div>
+    <div class="card jc-account-card">
+      <p class="tiny">${dates.length} ${dates.length===1?'day':'days'} recorded${dates.length?', from '+fmtDay(dates[0]):''}. ${Store.ephemeral?'<b>This preview cannot save to disk</b> — your entries will disappear when you close the page. Installed as an app, it saves normally.':'Stored on this device only.'}</p>
+      <div class="jc-account-actions">
+        <button class="btn ghost" data-act="sheet" data-s="data">${PULSE_IC.backup}<span>Export or restore data</span></button>
+        ${window.__MENO_NATIVE__===true?`<button class="btn ghost" data-act="manage-subscription">${PULSE_IC.calendar}<span>Manage Apple subscription</span></button>`:''}
+        <button class="btn ghost" data-act="reset-onboarding">${PULSE_IC.reset}<span>Reset onboarding</span></button>
+        <button class="btn danger" data-act="delete-local-data">${PULSE_IC.trash}<span>Delete app profile &amp; data</span></button>
+      </div>
+      <p class="xtiny">MenoCompass does not create an online account. Reset onboarding keeps your logs and treatments. Delete permanently erases this app profile and all health data stored on this device. An Apple subscription, if active, is managed separately in App Store settings.</p>
+    </div>
+
     <div class="card">
       <div class="card-head"><h3>${p.name?esc(p.name):'Your profile'}</h3>
         ${age?'<span class="badge">'+age+'</span>':''}</div>
@@ -3579,18 +4104,11 @@ function viewYou(){
       </div>
     </div>
 
-    <div class="section-label">Tools</div>
-    <div class="rows">
-      ${[['protein',TWILIGHT_IC.horizon,'Protein calculator','Grams a day and per meal, from your weight'],
-         ['phq9',TWILIGHT_IC.heart,'PHQ-9 mood check','Nine questions, tracked over time'],
-         ['gad7',TWILIGHT_IC.heart,'GAD-7 anxiety check','Seven questions, tracked over time'],
-         ['sleepwin',TWILIGHT_IC.moon,'Sleep window calculator','Sets your CBT-I schedule from your own logs'],
-         ['breath',TWILIGHT_IC.cloud,'Paced breathing','Six breaths a minute, for stress and anxiety'],
-         ['pmr',TWILIGHT_IC.document,'Progressive muscle relaxation','A guided ten-minute sequence'],
-         ['trigger',TWILIGHT_IC.lab,'28-day trigger test','Removal, then reintroduction'],
-         ['waist',TWILIGHT_IC.horizon,'Waist reference','Thresholds and how to measure consistently']
-        ].map(([id,i,n,s])=>h('button',{class:'row','data-act':'sheet','data-s':'tool:'+id},
-          '<span class="ico">'+i+'</span><span class="txt"><b>'+n+'</b><span>'+s+'</span></span><span class="chev">'+IC.chev+'</span>')).join('')}
+    <div class="section-label">Tracking preferences</div>
+    <div class="card jc-profile-tracking">
+      <div class="field"><label class="fl" for="profile-intent">What would help most?</label><select id="profile-intent" data-act="prof" data-k="intent">${[['understand','Understand symptoms'],['treatment','See whether treatment helps'],['appointment','Prepare for an appointment'],['record','Keep a private record']].map(([v,l])=>`<option value="${v}"${p.intent===v?' selected':''}>${l}</option>`).join('')}</select></div>
+      <p class="tiny">Focused check-in symptoms · choose 3–6</p>
+      <div class="jc-pin-grid compact">${[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.filter(s=>s.k!=='sleepq').map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])].map(([k,label])=>`<button data-act="profile-symptom" data-v="${k}" aria-pressed="${(p.pinnedSymptoms||[]).includes(k)?'true':'false'}">${symptomIcon(k)}<span>${esc(label)}</span></button>`).join('')}</div>
     </div>
 
     <div class="section-label">Settings</div>
@@ -3607,21 +4125,7 @@ function viewYou(){
           <option value="other"${p.region==='other'?' selected':''}>Elsewhere</option>
         </select>
         <p class="xtiny">Guidance genuinely differs — on drug labelling, SSRIs for hot flashes, testosterone access, and calcium and vitamin D targets.</p></div>
-      <div class="field" style="margin-bottom:0"><label class="fl" for="th">Appearance</label>
-        <select id="th" data-act="theme">
-          <option value="auto"${p.theme==='auto'?' selected':''}>Match my device</option>
-          <option value="light"${p.theme==='light'?' selected':''}>Light</option>
-          <option value="dark"${p.theme==='dark'?' selected':''}>Dark</option>
-        </select></div>
-    </div>
-
-    <div class="section-label">Your data</div>
-    <div class="card">
-      <p class="tiny">${dates.length} ${dates.length===1?'day':'days'} recorded${dates.length?', from '+fmtDay(dates[0]):''}. ${Store.ephemeral?'<b>This preview cannot save to disk</b> — your entries will disappear when you close the page. Installed as an app, it saves normally.':'Stored on this device only.'}</p>
-      <div class="btn-row split">
-        <button class="btn ghost sm" data-act="sheet" data-s="data">Export / import</button>
-        <button class="btn ghost sm" data-act="sheet" data-s="report">Clinician report</button>
-      </div>
+      <div class="jc-setting-note" style="margin-bottom:0"><span class="fl">Appearance</span><strong>Guided daily pulse</strong><p class="xtiny">A calm, high-contrast theme built around one clear next step.</p></div>
     </div>
 
     <div class="card flat">
@@ -3630,7 +4134,7 @@ function viewYou(){
       <h4 style="margin-top:14px">Medical disclaimer</h4>
       <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
     </div>
-    <p class="xtiny center" style="margin-bottom:20px">Meno Compass ${APP_VERSION} · content reviewed July 2026</p>
+    <p class="xtiny center" style="margin-bottom:20px">MenoCompass ${APP_VERSION} · content reviewed July 2026</p>
   </div>`;
 }
 
@@ -3655,23 +4159,38 @@ function findFocusTarget(desc,root){
   )||null;
 }
 function openSheet(id){
+  if(id==='report'){
+    if(requestNativePro('appointment-report')) return;
+    returnTab=curTab; setRoute('appointment-report'); sheetStack=[]; renderSheet(); render(); return;
+  }
   if(requestNativePro(id)) return;
   if(id==='learn:stage' && !DB.profile.stage && !stageEditing) resetStageDraft();
   if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
+  else {
+    const parentSheet=$('.sheet');
+    sheetReturnStack.push({
+      trigger:focusDescriptor(document.activeElement),
+      scrollTop:parentSheet?parentSheet.scrollTop:0,
+      parentTitle:($('#sheet-title')&&$('#sheet-title').textContent)||'previous screen'
+    });
+  }
   sheetStack.push(id); renderSheet(true);
 }
 function closeSheet(){
+  const returnState=sheetStack.length>1?sheetReturnStack.pop():null;
   const closing=sheetStack.pop();
   if(closing==='learn:stage'){
     stageAns={}; stageStep=0; stageEditing=false;
     render(true);
     if(DB.profile.onboarded) postNativeEvent('onboarding-finished');
   }
-  renderSheet(true);
+  runSheetHooks(sheetStack[sheetStack.length-1]||'');
+  renderSheet(true,returnState);
 }
-function renderSheet(moveFocus){
+function renderSheet(moveFocus,returnState){
   const host = $('#sheet-host');
   if(!sheetStack.length){
+    runSheetHooks(''); sheetReturnStack=[];
     host.innerHTML=''; document.body.style.overflow=''; setBackgroundInert(false);
     const target=lastSheetTrigger; lastSheetTrigger=null;
     setTimeout(()=>{
@@ -3685,18 +4204,23 @@ function renderSheet(moveFocus){
   const previous=host.contains(document.activeElement) ? focusDescriptor(document.activeElement) : null;
   const id = sheetStack[sheetStack.length-1];
   const {title, body} = sheetContent(id);
+  const parentState=sheetReturnStack[sheetReturnStack.length-1];
+  const nested=sheetStack.length>1;
+  const dismissLabel=nested?'Back to '+(parentState&&parentState.parentTitle||'previous screen'):'Close '+title;
   setBackgroundInert(true);
   host.innerHTML = `<div class="sheet-bg" data-act="bg">
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
-      <div class="sheet-bar"><h2 id="sheet-title">${esc(title)}</h2><button class="close-btn" data-act="close" aria-label="Close ${esc(title)}">Close</button></div>
+      <div class="sheet-bar"><h2 id="sheet-title">${esc(title)}</h2><button class="close-btn" data-act="close" aria-label="${esc(dismissLabel)}">${nested?'Back':'Close'}</button></div>
       ${body}
     </div></div>`;
   document.body.style.overflow='hidden';
-  const s = host.querySelector('.sheet'); if(s) s.scrollTop=0;
+  const s = host.querySelector('.sheet'); if(s) s.scrollTop=returnState?returnState.scrollTop:0;
   runSheetHooks(id);
   if(s) setTimeout(()=>{
     let target=null;
-    if(id==='learn:stage'){
+    if(returnState){
+      target=findFocusTarget(returnState.trigger,s);
+    } else if(id==='learn:stage'){
       target=s.querySelector('.stage-focus-target');
     } else if(!moveFocus && previous){
       target=findFocusTarget(previous,s);
@@ -3722,16 +4246,36 @@ function keepFocusInSheet(ev){
   else if(!sheet.contains(document.activeElement)){ ev.preventDefault(); first.focus(); }
 }
 
+function toolInfo(id){ return TOOL_CATALOG.find(tool=>tool.id===id); }
+function quickToolsMarkup(surface){
+  const toolCount=TOOL_CATALOG.length;
+  const tools=(surface==='guide'?GUIDE_TOOL_IDS:TODAY_TOOL_IDS).map(toolInfo).filter(Boolean);
+  if(surface==='guide'){
+    return `<section class="jc-toolkit" aria-labelledby="guide-toolkit-title">
+      <div class="jc-toolkit-head"><div><h2 id="guide-toolkit-title">Tools for right now</h2><p>Focused tools for relief, check-ins, and planning.</p></div><button data-act="sheet" data-s="tools" aria-label="See all ${toolCount} tools">See all ${toolCount}</button></div>
+      <div class="jc-toolkit-grid">${tools.map(tool=>`<button class="jc-tool-card" data-act="sheet" data-s="tool:${tool.id}" aria-label="${esc(tool.short)} — open ${esc(tool.name)}"><span class="jc-tool-card-icon">${tool.icon}</span><span><b>${esc(tool.short)}</b><small>${esc(tool.description)}</small></span></button>`).join('')}</div>
+    </section>`;
+  }
+  return `<section class="dc-tools" aria-labelledby="today-tools-title">
+    <div class="dc-tools-head"><h2 id="today-tools-title">Quick tools</h2><button data-act="sheet" data-s="tools" aria-label="See all ${toolCount} tools">See all ${toolCount}</button></div>
+    <div class="dc-tool-grid">${tools.map(tool=>`<button class="dc-tool" data-act="sheet" data-s="tool:${tool.id}" aria-label="${esc(tool.short)} — open ${esc(tool.name)}"><span>${tool.icon}</span><b>${esc(tool.short)}</b></button>`).join('')}</div>
+  </section>`;
+}
+function toolsLibraryBody(){
+  const groups=['Quick relief','Check in','Plan & learn'];
+  return `<div class="jc-tools-intro"><strong>Use what helps right now.</strong><p>${TOOL_CATALOG.length} focused tools for relief, self-checks, and planning. Results stay on this device.</p></div>
+    <div class="jc-tools-library">${groups.map(group=>`<section><h3>${esc(group)}</h3>${TOOL_CATALOG.filter(tool=>tool.group===group).map(tool=>`<button class="jc-tool-row" data-act="sheet" data-s="tool:${tool.id}"><span class="jc-tool-row-icon">${tool.icon}</span><span><b>${esc(tool.name)}</b><small>${esc(tool.description)}</small></span><span class="chev">${IC.chev}</span></button>`).join('')}</section>`).join('')}</div>`;
+}
+
 function sheetContent(id){
   if(id.startsWith('learn:')) return learnSheet(id.slice(6));
   if(id.startsWith('tool:'))  return toolSheet(id.slice(5));
   if(id==='redflags') return learnSheet('redflags');
   if(id==='screening') return learnSheet('screening');
-  if(id==='tools') return {title:'Tools', body:`<div class="rows">
-    ${[['protein','Protein calculator'],['phq9','PHQ-9 mood check'],['gad7','GAD-7 anxiety check'],['sleepwin','Sleep window calculator'],['breath','Paced breathing'],['pmr','Progressive muscle relaxation'],['trigger','28-day trigger test'],['waist','Waist reference']]
-      .map(([t,n])=>h('button',{class:'row','data-act':'sheet','data-s':'tool:'+t},'<span class="txt"><b>'+n+'</b></span><span class="chev">'+IC.chev+'</span>')).join('')}
-  </div>`};
+  if(id==='tools') return {title:'Tools', body:toolsLibraryBody()};
   if(id==='data') return dataSheet();
+  if(id==='reset-onboarding-confirm') return resetOnboardingSheet();
+  if(id==='delete-local-data-confirm') return deleteLocalDataSheet();
   if(id==='report') return reportSheet();
   return {title:'', body:''};
 }
@@ -4028,68 +4572,96 @@ function dataSheet(){
   <textarea id="restore" maxlength="5000000" aria-describedby="restore-help" placeholder='{"v":2,"profile":...}'></textarea>
   <p class="xtiny" id="restore-help">Restore accepts a Meno Compass JSON file up to 5 MB. Unknown fields and invalid values are discarded.</p>
   <button class="btn block" data-act="import-json" style="margin-top:8px">Restore from this backup</button>
-  <div class="section-label">Delete</div>
-  <button class="btn block danger" data-act="wipe">Erase everything on this device</button>
-  <p class="xtiny">Immediate and unrecoverable. Export first.</p>`};
+  <div class="section-label">Account &amp; data controls</div>
+  <button class="btn block ghost" data-act="reset-onboarding">Reset onboarding</button>
+  <button class="btn block danger" data-act="delete-local-data" style="margin-top:8px">Delete app profile &amp; data</button>
+  <p class="xtiny">Reset keeps your health history. Delete is permanent, so export first if you may want a backup.</p>`};
+}
+
+function resetOnboardingSheet(){
+  const count=entryDates().length;
+  return {title:'Reset onboarding?', body:`
+    <div class="jc-confirm-sheet">
+      <span class="jc-confirm-icon">${PULSE_IC.reset}</span>
+      <h3>Start the setup walkthrough again</h3>
+      <p>Your ${count} confirmed ${count===1?'day':'days'}, drafts, treatments, labs, reports, and profile answers will stay on this device. Only onboarding progress is reset.</p>
+      <button class="btn block primary" data-act="confirm-reset-onboarding">Reset onboarding</button>
+      <button class="btn block ghost" data-act="close">Keep current setup</button>
+    </div>`};
+}
+
+function deleteLocalDataSheet(){
+  return {title:'Delete app profile & data?', body:`
+    <div class="jc-confirm-sheet danger">
+      <span class="jc-confirm-icon">${PULSE_IC.trash}</span>
+      <h3>This permanently erases this app’s data on this device</h3>
+      <p>MenoCompass has no online account. This deletes your local profile, symptom logs, treatment history, labs, reports, and settings. It cannot be undone unless you exported a backup.</p>
+      <div class="callout warn"><span class="ctitle">Apple subscriptions are separate</span>Deleting app data does not cancel an Apple subscription. Manage subscriptions in your App Store settings.</div>
+      <button class="btn block danger" data-act="confirm-delete-local-data">Delete everything permanently</button>
+      <button class="btn block ghost" data-act="close">Cancel</button>
+    </div>`};
 }
 
 /* ---------- clinician report ---------- */
-function reportSheet(){
-  const d = rangeDates(90).filter(hasData);
+function reportSheet(days){
+  days=[30,90,180].includes(+days)?+days:90;
+  const summaryDays=Math.min(30,days), activityDays=Math.min(28,days);
+  const d = rangeDates(days).filter(hasData);
   const p = DB.profile;
   const age = p.birthYear? new Date().getFullYear()-p.birthYear : null;
-  const hf = series(rangeDates(30), e=>e.hf), bd = series(rangeDates(30), burden);
-  const wt = series(rangeDates(90), e=>e.wt).filter(x=>x.v!=null);
-  const wa = series(rangeDates(90), e=>e.waist).filter(x=>x.v!=null);
+  const hf = series(rangeDates(summaryDays), e=>e.hf), bd = series(rangeDates(summaryDays), burden);
+  const wt = series(rangeDates(days), e=>e.wt).filter(x=>x.v!=null);
+  const wa = series(rangeDates(days), e=>e.waist).filter(x=>x.v!=null);
   const topSym = SYMS.filter(s=>s.k!=='sleepq').map(s=>({
-    n:s.n, v:avg(rangeDates(30).map(dd=>{const e=DB.entries[dd];return e&&e.sym?e.sym[s.k]:null;}))
+    n:s.n, v:avg(rangeDates(summaryDays).map(dd=>{const e=confirmedRecord(dd);return e&&e.sym?e.sym[s.k]:null;}))
   })).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,6);
   const questionnaires = DB.scores.slice(-6).reverse();
   const medications = Array.isArray(DB.medications)?DB.medications:[];
   const labs = Array.isArray(DB.labs)?DB.labs.slice(0,8):[];
-  const bleeds = entryDates().filter(x=>DB.entries[x].bleed && DB.entries[x].bleed!=='none');
+  const bleeds = entryDates().filter(x=>{const e=confirmedRecord(x);return e&&e.bleed&&e.bleed!=='none';});
   const hfValues=hf.map(x=>x.v).filter(v=>v!=null);
-  const nsValues=rangeDates(30).map(x=>DB.entries[x]&&DB.entries[x].ns).filter(v=>v!=null);
-  const strengthValues=rangeDates(28).map(x=>DB.entries[x]&&DB.entries[x].act?DB.entries[x].act.res:null).filter(v=>typeof v==='boolean');
+  const nsValues=rangeDates(summaryDays).map(x=>{const e=confirmedRecord(x);return e&&e.ns;}).filter(v=>v!=null);
+  const moderateNights=nsValues.filter(v=>v>=2).length;
+  const strengthValues=rangeDates(activityDays).map(x=>{const e=confirmedRecord(x);return e&&e.act?e.act.res:null;}).filter(v=>typeof v==='boolean');
   const strengthCount=strengthValues.filter(Boolean).length;
-  const alcoholValues=rangeDates(28).map(x=>{const e=DB.entries[x];return e&&e.nut?e.nut.alc:null;}).filter(v=>v!=null);
+  const alcoholValues=rangeDates(activityDays).map(x=>{const e=confirmedRecord(x);return e&&e.nut?e.nut.alc:null;}).filter(v=>v!=null);
   const strengthSummary=!strengthValues.length?'not tracked'
-    : strengthValues.length===28?r1(strengthCount/4)+' / week'
+    : strengthValues.length===activityDays?r1(strengthCount/(activityDays/7))+' / week'
     : strengthCount+' session'+(strengthCount===1?'':'s')+' across '+strengthValues.length+' logged activity day'+(strengthValues.length===1?'':'s');
   const alcoholSummary=!alcoholValues.length?'not tracked'
-    : alcoholValues.length===28?r1(sum(alcoholValues)/4)+' drinks / week'
+    : alcoholValues.length===activityDays?r1(sum(alcoholValues)/(activityDays/7))+' drinks / week'
     : sum(alcoholValues)+' drinks across '+alcoholValues.length+' logged day'+(alcoholValues.length===1?'':'s');
   return {title:'Report for your clinician', body:`
   <p class="tiny muted">A one-page summary of what you have tracked. Print it, or read from it.</p>
   <div class="report-page">
-  <div class="report-brand"><b>MenoCompass</b><span>Clinician summary · 90 days</span></div>
+  <div class="report-brand"><b>MenoCompass</b><span>Appointment report · ${days} days</span></div>
   <div class="card">
-    <h3 style="margin-bottom:2px">Symptom summary</h3>
+    <h3 style="margin-bottom:2px">What changed · symptom summary</h3>
     <p class="xtiny">${p.name?esc(p.name)+' · ':''}${age?age+' years · ':''}Prepared ${fmtLong(todayISO())}</p>
     <hr class="sep">
-    <div class="kv"><span>Days tracked (last 90)</span><b>${d.length}</b></div>
+    <div class="kv"><span>Confirmed days (last ${days})</span><b>${d.length}</b></div>
     ${p.stage?`<div class="kv"><span>Self-assessed stage</span><b>${esc(p.stage)}</b></div>`:''}
     ${periodsPossible()&&pastOrTodayISO(p.lastPeriod)?`<div class="kv"><span>Last period</span><b>${fmtDay(p.lastPeriod)} (${Math.floor(daysBetween(p.lastPeriod,todayISO())/30)} months)</b></div>`:''}
     ${!periodsPossible()&&pastOrTodayISO(p.surgeryDate)?`<div class="kv"><span>${surgicalMenopause()?'Surgical menopause date':'Surgery date'}</span><b>${fmtDay(p.surgeryDate)} (${Math.floor(daysBetween(p.surgeryDate,todayISO())/30)} months)</b></div>`:''}
-    <div class="kv"><span>Hot flashes / day (30 d)</span><b>${hfValues.length?r1(avg(hfValues)):'not tracked'}</b></div>
+    <div class="kv"><span>Hot flashes / day (${summaryDays} d)</span><b>${hfValues.length?r1(avg(hfValues)):'not tracked'}</b></div>
     <div class="kv"><span>Worst single day</span><b>${hfValues.length?Math.max(...hfValues):'not tracked'}</b></div>
-    <div class="kv"><span>Night sweats, moderate+ (30 d)</span><b>${nsValues.length?nsValues.filter(v=>v>=2).length+' nights':'not tracked'}</b></div>
-    <div class="kv"><span>Sleep (30 d average)</span><b>${avg(series(rangeDates(30),e=>e.sleepH).map(x=>x.v))!=null?r1(avg(series(rangeDates(30),e=>e.sleepH).map(x=>x.v)))+' h':'not tracked'}</b></div>
-    <div class="kv"><span>Symptom burden (30 d avg)</span><b>${avg(bd.map(x=>x.v))!=null?r1(avg(bd.map(x=>x.v)))+' / 44':'not tracked'}</b></div>
+    <div class="kv"><span>Night sweats, moderate+ (${summaryDays} d)</span><b>${nsValues.length?moderateNights+' '+(moderateNights===1?'night':'nights'):'not tracked'}</b></div>
+    <div class="kv"><span>Sleep (${summaryDays} d average)</span><b>${avg(series(rangeDates(summaryDays),e=>e.sleepH).map(x=>x.v))!=null?r1(avg(series(rangeDates(summaryDays),e=>e.sleepH).map(x=>x.v)))+' h':'not tracked'}</b></div>
+    <div class="kv"><span>Symptom burden (${summaryDays} d avg)</span><b>${avg(bd.map(x=>x.v))!=null?r1(avg(bd.map(x=>x.v)))+' / 44':'not tracked'}</b></div>
     ${wt.length?`<div class="kv"><span>Weight</span><b>${r1(U.wOut(wt[wt.length-1].v))} ${U.wLabel()} (${wt.length>1?(wt[wt.length-1].v>wt[0].v?'+':'')+r1(U.wOut(wt[wt.length-1].v-wt[0].v))+' over '+daysBetween(wt[0].d,wt[wt.length-1].d)+' d':'single reading'})</b></div>`:''}
     ${wa.length?`<div class="kv"><span>Waist</span><b>${r1(U.lOut(wa[wa.length-1].v))} ${U.lLabel()}${wa.length>1?' ('+(wa[wa.length-1].v>wa[0].v?'+':'')+r1(U.lOut(wa[wa.length-1].v-wa[0].v))+')':''}</b></div>`:''}
     <div class="kv"><span>Strength sessions (28 d)</span><b>${strengthSummary}</b></div>
     <div class="kv"><span>Alcohol (28 d)</span><b>${alcoholSummary}</b></div>
   </div>
-  ${topSym.length?`<div class="card"><h4>Most prominent symptoms (30-day average, 0–4)</h4>
+  ${topSym.length?`<div class="card"><h4>Worth discussing · prominent symptoms (${summaryDays}-day average, 0–4)</h4>
     ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
-  ${medications.length?`<div class="card"><h4>Current medications</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.due?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
+  ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.due?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
   ${labs.length?`<div class="card"><h4>Recent lab results</h4>${labs.map(x=>`<div class="kv"><span>${esc(x.name)} · ${fmtDay(x.date)}</span><b>${esc(x.value+(x.unit?' '+x.unit:''))}</b></div>`).join('')}</div>`:''}
   ${questionnaires.length?`<div class="card"><h4>Questionnaire scores</h4>
     ${questionnaires.map(s=>`<div class="kv"><span>${s.type.toUpperCase()} · ${fmtDay(s.date)}</span><b>${s.score}${s.band?' — '+esc(s.band):''}</b></div>`).join('')}
     <p class="xtiny">Note: several menopause symptoms — broken sleep, fatigue, poor concentration, low libido — also score points on depression scales, which can inflate totals.</p></div>`:''}
   ${bleeds.length?`<div class="card"><h4>Bleeding logged</h4>
-    ${bleeds.slice(-8).reverse().map(x=>`<div class="kv"><span>${fmtDay(x)}</span><b>${esc(DB.entries[x].bleed)}</b></div>`).join('')}</div>`:''}
+    ${bleeds.slice(-8).reverse().map(x=>`<div class="kv"><span>${fmtDay(x)}</span><b>${esc(confirmedRecord(x).bleed)}</b></div>`).join('')}</div>`:''}
   ${notesDigest()}
   </div>
   <div class="btn-row split">
@@ -4099,9 +4671,9 @@ function reportSheet(){
   <p class="xtiny">Self-reported data from a consumer tracking app. Not a clinical record. The burden score is an unvalidated 0–44 sum of 11 self-rated symptoms on the 0–4 structure used by the Menopause Rating Scale; it has no established cut-off and is included only to show change over time.</p>`};
 }
 function notesDigest(){
-  const ns = entryDates().filter(d=>DB.entries[d].notes).slice(-6).reverse();
+  const ns = entryDates().filter(d=>{const e=confirmedRecord(d);return e&&e.notes;}).slice(-6).reverse();
   if(!ns.length) return '';
-  return `<div class="card"><h4>Recent notes</h4>${ns.map(d=>`<p class="tiny"><b>${fmtDay(d)}:</b> ${esc(DB.entries[d].notes)}</p>`).join('')}</div>`;
+  return `<div class="card"><h4>Recent notes</h4>${ns.map(d=>`<p class="tiny"><b>${fmtDay(d)}:</b> ${esc(confirmedRecord(d).notes)}</p>`).join('')}</div>`;
 }
 
 /* ============================================================
@@ -4115,7 +4687,7 @@ function proteinTarget(){
 }
 function latestWeight(){
   const ds = entryDates().slice().reverse();
-  for(const d of ds){ if(DB.entries[d].wt!=null) return DB.entries[d].wt; }
+  for(const d of ds){ const e=confirmedRecord(d); if(e&&e.wt!=null) return e.wt; }
   return null;
 }
 
@@ -4148,7 +4720,7 @@ function proteinTool(){
     <select id="ptg" data-act="prot-calc">
       ${[1.0,1.2,1.4,1.6].map(v=>`<option value="${v}"${gpk===v?' selected':''}>${v.toFixed(1)} g/kg</option>`).join('')}
     </select></div>
-  <div id="prot-out">${proteinOut(pt?pt.kg:null, gpk)}</div>
+  <div id="prot-out" aria-live="polite">${proteinOut(pt?pt.kg:null, gpk)}</div>
   <div class="callout info"><span class="ctitle">The per-meal threshold</span>
   After about 60 the muscle-building response is blunted — reaching it takes roughly <b>30 g of protein and 2.8 g of leucine in one sitting</b>, where a younger woman responds to any amount. Spreading intake evenly (30/30/30) produced more 24-hour muscle protein synthesis than skewing it (10/20/60). During weight loss, even distribution meant 26% versus 34% of loss coming from lean tissue.</div>
   <h4>Roughly 30 g of protein looks like</h4>
@@ -4200,7 +4772,7 @@ function questionTool(kind){
       ? 'For context: elevated depressive symptoms are found in 45–68% of perimenopausal women versus 28–31% before. Women are 2–4× more likely to have a major depressive episode during the transition and early postmenopause. Prior depression is the strongest predictor.'
       : 'GAD-7 is the standard anxiety measure. The bands shown are its usual published ones, but we could not find validation specific to menopausal women — so read your trend over time rather than the label.'}
     ${score>=10?'<p style="margin:8px 0 0"><b>A score in this range warrants a conversation with a clinician.</b> Take these numbers with you.</p>':''}</div>`:''}
-  ${risk?`<div class="callout alert"><span class="ctitle">Please reach out today</span>
+  ${risk?`<div class="callout alert" role="alert"><span class="ctitle">Please reach out today</span>
     You answered yes to thoughts of being better off dead or of hurting yourself. If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer"><b>988</b></a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer"><b>116 123</b></a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>. You do not have to explain yourself perfectly.</div>`:''}
   <div class="btn-row split">
     <button class="btn ghost" data-act="q-reset" data-k="${kind}">Clear</button>
@@ -4212,9 +4784,9 @@ function questionTool(kind){
 
 function sleepWinTool(){
   const ds = rangeDates(14);
-  const sleeps = ds.map(d=>{const e=DB.entries[d];return e&&e.sleepH!=null?e.sleepH:null;}).filter(v=>v!=null);
-  const beds = ds.map(d=>{const e=DB.entries[d];return e&&e.inBedH!=null?e.inBedH:null;}).filter(v=>v!=null);
-  const paired=ds.map(d=>DB.entries[d]).filter(e=>
+  const sleeps = ds.map(d=>{const e=confirmedRecord(d);return e&&e.sleepH!=null?e.sleepH:null;}).filter(v=>v!=null);
+  const beds = ds.map(d=>{const e=confirmedRecord(d);return e&&e.inBedH!=null?e.inBedH:null;}).filter(v=>v!=null);
+  const paired=ds.map(confirmedRecord).filter(e=>
     e && e.sleepH!=null && e.inBedH!=null && e.inBedH>0 && e.sleepH<=e.inBedH
   );
   const aSleep = avg(sleeps), aBed = avg(beds);
@@ -4235,7 +4807,7 @@ function sleepWinTool(){
         <h4>Your starting window: ${r1(win)} hours</h4>
         <div class="field"><label class="fl" for="swk">Wake time you will keep every single day</label>
           <input id="swk" type="time" value="06:30" data-act="sw-calc" style="width:auto"></div>
-        <div id="sw-out">${swOut('06:30', win)}</div>
+        <div id="sw-out" aria-live="polite">${swOut('06:30', win)}</div>
       </div>`}
   <h4>The rules while you do this</h4>
   <ul class="tick">
@@ -4267,7 +4839,7 @@ function breathTool(){
   <p style="margin-bottom:0"><b>It is rated Level I NOT recommended for hot flashes.</b> Larger trials found paced respiration no better than shallow breathing or usual care. Use it for anxiety, where it earns its place. Do not let anyone tell you it stops flashes.</p></div>
   <div class="card center">
     <div id="breath-ring" style="width:170px;height:170px;margin:8px auto 14px;border-radius:50%;border:3px solid var(--accent);display:grid;place-items:center;transition:transform 4s ease-in-out;background:var(--accent-soft)">
-      <div><div id="breath-word" style="font-size:1.15rem;font-weight:700">Ready</div>
+      <div><div id="breath-word" aria-live="polite" style="font-size:1.15rem;font-weight:700">Ready</div>
       <div id="breath-count" class="tiny muted">6 breaths per minute</div></div>
     </div>
     <div class="btn-row split"><button class="btn primary" data-act="breath-start">Start</button>
@@ -4294,9 +4866,9 @@ const PMR_STEPS = [
 function pmrTool(){
   return `<p class="tiny">Systematic review of 46 publications across 16 countries and over 3,400 adults: supportive results for stress (24 studies), anxiety (21) and low mood (11), effect sizes small to very large. Sessions of <b>5–28 minutes</b> worked, and <b>length did not significantly affect outcomes</b> — so a short one counts.</p>
   <div class="card">
-    <div class="progress"><i id="pmr-bar" style="width:0%"></i></div>
-    <h3 id="pmr-title" style="margin:12px 0 4px">Ready when you are</h3>
-    <p id="pmr-text" class="tiny">Tense each muscle group for about 5 seconds, then release for about 15 and pay attention to the contrast. That contrast is the active ingredient.</p>
+    <div id="pmr-progress" class="progress" role="progressbar" aria-label="Relaxation progress" aria-valuemin="0" aria-valuemax="${PMR_STEPS.length}" aria-valuenow="0"><i id="pmr-bar" style="width:0%"></i></div>
+    <div aria-live="polite" aria-atomic="true"><h3 id="pmr-title" style="margin:12px 0 4px">Ready when you are</h3>
+    <p id="pmr-text" class="tiny">Tense each muscle group for about 5 seconds, then release for about 15 and pay attention to the contrast. That contrast is the active ingredient.</p></div>
     <div class="btn-row split"><button class="btn primary" data-act="pmr-start">Start</button>
       <button class="btn ghost" data-act="pmr-stop">Stop</button></div>
   </div>
@@ -4326,7 +4898,7 @@ function triggerTool(){
     const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
     return `<div class="callout ok"><span class="ctitle">Test running: ${esc(t.item)}</span>
     Day ${day} — <b>${phase} phase</b>, day ${dayIn} of 14. Keep logging as normal; the comparison happens automatically.</div>
-    <div class="progress"><i style="width:${Math.min(100, Math.round(day/28*100))}%"></i></div>
+    <div class="progress" role="progressbar" aria-label="Trigger test progress" aria-valuemin="0" aria-valuemax="28" aria-valuenow="${Math.min(28,day)}"><i style="width:${Math.min(100, Math.round(day/28*100))}%"></i></div>
     ${triggerPhaseTiles(before,remove,reintro)}
     ${day>=15?triggerComparison(remove,reintro,false):`<div class="callout info"><span class="ctitle">Reintroduction starts on day 15</span>
       A change during removal is only a clue. Bringing ${esc(t.item)} back for the second two weeks tests whether the pattern reverses.</div>`}
@@ -4365,8 +4937,8 @@ function triggerStats(t, which){
     const d=addDays(t.start,i);
     if(d<=todayISO()) ds.push(d);
   }
-  const hf=ds.map(d=>DB.entries[d]&&DB.entries[d].hf).filter(v=>v!=null);
-  const sleep=ds.map(d=>DB.entries[d]&&DB.entries[d].sleepH).filter(v=>v!=null);
+  const hf=ds.map(d=>{const e=confirmedRecord(d);return e&&e.hf;}).filter(v=>v!=null);
+  const sleep=ds.map(d=>{const e=confirmedRecord(d);return e&&e.sleepH;}).filter(v=>v!=null);
   return {hf:avg(hf), sleep:avg(sleep), hfN:hf.length, sleepN:sleep.length};
 }
 function triggerPhaseTiles(before,remove,reintro){
@@ -4403,7 +4975,7 @@ function triggerBanner(){
 }
 
 function waistTool(){
-  const wa = entryDates().slice().reverse().map(d=>DB.entries[d].waist).find(v=>v!=null);
+  const wa = entryDates().slice().reverse().map(d=>{const e=confirmedRecord(d);return e&&e.waist;}).find(v=>v!=null);
   return `<p class="tiny">The International Atherosclerosis Society consensus argues waist should be treated as a <b>vital sign</b>. Modelled together with BMI, waist stays predictive of mortality while BMI becomes unrelated or even inversely related. A 10% larger waist meant 1.48× higher mortality after BMI adjustment; in coronary artery disease, 2.05×.</p>
   ${wa!=null?`<div class="tiles" style="margin-bottom:14px"><div class="tile"><div class="k">Your latest</div><div class="v">${r1(U.lOut(wa))}<small> ${U.lLabel()}</small></div>
     <div class="d">${wa>=105?'class I threshold':wa>=90?'above 90 cm':wa>=80?'above 80 cm':'below 80 cm'}</div></div></div>`:''}
@@ -4453,11 +5025,12 @@ function pmrStart(){
   if(pmrTimer) clearInterval(pmrTimer);
   let i=0;
   const show=()=>{
-    const t=document.getElementById('pmr-title'), x=document.getElementById('pmr-text'), b=document.getElementById('pmr-bar');
+    const t=document.getElementById('pmr-title'), x=document.getElementById('pmr-text'), b=document.getElementById('pmr-bar'), p=document.getElementById('pmr-progress');
     if(!t){ clearInterval(pmrTimer); return; }
-    if(i>=PMR_STEPS.length){ t.textContent='Done'; x.textContent='Notice how your body feels now compared with when you started. That comparison is worth a moment.'; b.style.width='100%'; b.classList.add('ok'); clearInterval(pmrTimer); pmrTimer=null; return; }
+    if(i>=PMR_STEPS.length){ t.textContent='Done'; x.textContent='Notice how your body feels now compared with when you started. That comparison is worth a moment.'; b.style.width='100%'; b.classList.add('ok'); if(p) p.setAttribute('aria-valuenow',PMR_STEPS.length); clearInterval(pmrTimer); pmrTimer=null; return; }
     t.textContent=PMR_STEPS[i][0]; x.textContent=PMR_STEPS[i][1];
     b.style.width=Math.round((i+1)/PMR_STEPS.length*100)+'%';
+    if(p) p.setAttribute('aria-valuenow',i+1);
     i++;
   };
   show(); pmrTimer=setInterval(show, 45000);
@@ -4470,61 +5043,49 @@ function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
    ============================================================ */
 function viewOnboard(){
   const p=DB.profile;
-  if(p.onboardingStep!==1){
-    return `<div class="view tw-screen tw-secondary tw-onboard">
-      <div class="tw-status"><span>STEP 1 OF 2</span><span>MENOCOMPASS</span></div>
-      <div class="tw-onboard-hero">
-        <div class="onboard-mark">${TWILIGHT_IC.cycle}</div>
-        <div><h1>Welcome to MenoCompass</h1>
-        <p>A private tracker and a straight-talking reference for perimenopause and beyond.</p></div>
-      </div>
-      <div class="card onboard-intro-card">
-        <h2>Clearer patterns. Better appointments.</h2>
-        <ul class="tick compact">
-          <li><b>Log the day in about twenty seconds.</b></li>
-          <li><b>See symptom and treatment patterns over time.</b></li>
-          <li><b>Bring a focused summary to your clinician.</b></li>
-        </ul>
-        <div class="tw-save-note">${TWILIGHT_IC.cycle}<span><b>Your health entries stay on this device.</b><small>No account, health-data server, or sale of personal data.</small></span></div>
-        <button class="btn block primary" data-act="ob-next">Continue</button>
-        <button class="btn block ghost" data-act="ob-skip" style="margin-top:8px">Set up later</button>
-        <p class="xtiny center" style="margin:10px 0 0">Set up takes about a minute. If you defer it, Today will remind you where to continue.</p>
-      </div>
-      <details class="acc onboard-details"><summary>Privacy, evidence and medical limits</summary><div>
-        <p class="tiny"><b>Private by design.</b> Your health entries stay in this browser on this device and are not sent to the app maker. The native app sends only the limited performance and advertising-attribution data described in the Privacy Policy.</p>
-        <p class="tiny"><b>Evidence without the hype.</b> Claims are tagged, and the app says when major guidelines disagree or evidence is thin.</p>
-        <p class="tiny"><b>Not medical care.</b> MenoCompass does not diagnose, treat or prescribe, is not a medical device, and does not replace a clinician who knows your history. Content reviewed July 2026.</p>
-      </div></details>
-    </div>`;
-  }
-  return `<div class="view tw-screen tw-secondary tw-onboard">
-    <div class="tw-status"><span>STEP 2 OF 2</span><span>MENOCOMPASS</span></div>
-    <div class="tw-onboard-hero">
-      <div class="onboard-mark">${TWILIGHT_IC.cycle}</div>
-      <div><h1>Make it yours</h1>
-      <p>Everything here is optional and can be changed later in Settings.</p></div>
-    </div>
-    <button class="tw-quiet onboard-back" data-act="ob-back">Back</button>
-    <div class="card">
-      <h2>A few basics</h2>
-      <div class="grid2">
-        <div class="field"><label class="fl" for="ob-n">First name (optional)</label>
-          <input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
-        <div class="field"><label class="fl" for="ob-y">Birth year (optional)</label>
-          <input id="ob-y" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" placeholder="e.g. 1975" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
-      </div>
-      <div class="field"><label class="fl" for="ob-u">Units</label>
-        <select id="ob-u" data-act="prof" data-k="units"><option value="imperial"${p.units==='imperial'?' selected':''}>Pounds and inches</option><option value="metric"${p.units==='metric'?' selected':''}>Kilograms and centimetres</option></select></div>
-      <div class="field"><label class="fl" for="ob-r">Where you are</label>
-        <select id="ob-r" data-act="prof" data-k="region"><option value="us"${p.region==='us'?' selected':''}>United States</option><option value="uk"${p.region==='uk'?' selected':''}>United Kingdom</option><option value="other"${p.region==='other'?' selected':''}>Elsewhere</option></select>
-        <p class="xtiny">Guidance differs between the US and UK on several points, and the app will tell you where.</p></div>
-      <div class="tw-save-note">${TWILIGHT_IC.calendar}<span><b>Your progress saves as you go.</b><small>You can leave the app and continue here later.</small></span></div>
-      <button class="btn block primary" data-act="ob-done">Continue to your stage</button>
-      <button class="btn block ghost" data-act="ob-skip" style="margin-top:8px">Set up later</button>
-      <p class="xtiny center" style="margin:10px 0 0">If you defer setup, a reminder on Today will bring you back.</p>
-      <details class="acc onboard-details"><summary>How local storage works</summary><div><p class="tiny">This device is your only copy. Clearing this site's browser data deletes your entries, there is no automatic sync, and anyone who can use this browser profile may be able to open them. Export an unencrypted backup occasionally and store it somewhere private.</p></div></details>
-    </div>
+  const step=Math.max(0,Math.min(3,+p.onboardingStep||0));
+  const shell=(title,subtitle,body)=>`<div class="view tw-screen tw-onboard jc-onboard">
+    <div class="jc-onboard-top"><div class="jc-wordmark"><span>MENO</span>COMPASS</div><span>${step+1} / 4</span></div>
+    <div class="jc-onboard-progress" aria-label="Setup step ${step+1} of 4"><i style="width:${(step+1)*25}%"></i></div>
+    ${step?'<button class="jc-back" data-act="ob-back">'+IC.chev+' Back</button>':''}
+    <div class="jc-page-head"><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>
+    ${body}
   </div>`;
+  if(step===0){
+    return shell('Make sense of what’s changing.','Track symptoms and treatment changes, see patterns, and prepare for better appointments — privately on this device.',`
+      <div class="jc-trust-line">${TWILIGHT_IC.cycle}<span><b>Your health entries stay on this device.</b><small>No account or health-data server.</small></span></div>
+      <div class="jc-onboard-list"><p>Confirm a quick daily check-in.</p><p>See symptoms and treatment changes in one story.</p><p>Bring a focused summary to appointments.</p></div>
+      <button class="jc-primary" data-act="ob-next">Set up my compass</button>
+      <button class="jc-text-action" data-act="ob-skip">Set up later</button>
+      <details class="jc-disclosure"><summary>Privacy, evidence, and medical limits</summary><div><p>Your health entries remain in this browser on this device. MenoCompass provides education, not diagnosis or treatment, and does not replace a clinician who knows your history.</p><p>Content reviewed July 2026.</p></div></details>`);
+  }
+  if(step===1){
+    const intents=[
+      ['understand','Understand symptoms'],['treatment','See whether treatment helps'],
+      ['appointment','Prepare for an appointment'],['record','Keep a private record']
+    ];
+    return shell('What would help most?','This sets the emphasis of your Today and Guide screens.',`
+      <div class="jc-choice-list">${intents.map(([v,label])=>`<button data-act="ob-intent" data-v="${v}" aria-pressed="${p.intent===v?'true':'false'}"><span>${esc(label)}</span>${p.intent===v?PULSE_IC.check:IC.chev}</button>`).join('')}</div>
+      <button class="jc-primary" data-act="ob-next">Continue</button>
+      <p class="jc-footnote">You can change this later in Profile.</p>`);
+  }
+  if(step===2){
+    return shell('A few details change what guidance applies.','Everything is optional and can be changed later in Profile.',`
+      <div class="jc-form-stack">
+        <div class="field"><label class="fl" for="ob-n">First name (optional)</label><input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
+        <div class="grid2"><div class="field"><label class="fl" for="ob-y">Birth year</label><input id="ob-y" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" placeholder="e.g. 1975" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
+        <div class="field"><label class="fl" for="ob-r">Region</label><select id="ob-r" data-act="prof" data-k="region"><option value="us"${p.region==='us'?' selected':''}>United States</option><option value="uk"${p.region==='uk'?' selected':''}>United Kingdom</option><option value="other"${p.region==='other'?' selected':''}>Elsewhere</option></select></div></div>
+        <div class="field"><label class="fl" for="ob-ut">Uterus (womb)</label><select id="ob-ut" data-act="prof" data-k="uterus">${[['unknown','Prefer not to say'],['intact','Still there'],['hyst','Removed (hysterectomy)'],['ablation','Endometrial ablation']].map(([v,l])=>`<option value="${v}"${p.uterus===v?' selected':''}>${l}</option>`).join('')}</select></div>
+        <div class="field"><label class="fl" for="ob-ov">Ovaries</label><select id="ob-ov" data-act="prof" data-k="ovaries">${[['unknown','Prefer not to say / not sure'],['kept','Both still there'],['one','One removed'],['both','Both removed']].map(([v,l])=>`<option value="${v}"${p.ovaries===v?' selected':''}>${l}</option>`).join('')}</select><p class="jc-footnote">Asked separately because surgery can affect the uterus and ovaries differently.</p></div>
+      </div>
+      <button class="jc-primary" data-act="ob-next">Continue</button>`);
+  }
+  const pins=Array.isArray(p.pinnedSymptoms)&&p.pinnedSymptoms.length?p.pinnedSymptoms:['hf','ns','fog','energy','joint','anx'];
+  const choices=[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.filter(s=>s.k!=='sleepq').map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])];
+  return shell('What should we watch?','Choose 3–6 symptoms for your focused check-in.',`
+    <div class="jc-pin-grid">${choices.map(([k,label])=>`<button data-act="ob-symptom" data-v="${k}" aria-pressed="${pins.includes(k)?'true':'false'}">${SYM_IC[k]||(k==='hf'?TWILIGHT_IC.flame:k==='ns'?TWILIGHT_IC.moon:TWILIGHT_IC.cycle)}<span>${esc(label)}</span></button>`).join('')}</div>
+    <p class="jc-footnote"><span id="ob-pin-count">${pins.length}</span> selected · treatments can be added in Care.</p>
+    <button class="jc-primary" data-act="ob-done">Start my journey</button>`);
 }
 
 /* ============================================================
@@ -4549,14 +5110,15 @@ function medicationDetail(m){
   const schedule=days.length===7?'daily':days.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(' & ');
   return (m.form||'medication')+' · '+schedule;
 }
-function medicationIcon(m){ return m.form==='patch'?TWILIGHT_IC.cycle:TWILIGHT_IC.pill; }
+function medicationIcon(m){ return PULSE_IC.task; }
 function scheduledMeds(date){
   const dow=parseISO(date).getDay();
   return (Array.isArray(DB.medications)?DB.medications:[]).filter(m=>(m.days||[0,1,2,3,4,5,6]).includes(dow));
 }
-function todayMedicationRows(){
-  const meds=Array.isArray(DB.medications)?DB.medications:[], day=DB.entries[curDate]||{}, adherence=day.med||{};
-  if(!meds.length) return '<button class="tw-empty-med" data-act="tab" data-v="meds">Add your medications</button>';
+function todayMedicationRows(onlyScheduled){
+  const all=Array.isArray(DB.medications)?DB.medications:[], meds=onlyScheduled?scheduledMeds(curDate):all, day=DB.entries[curDate]||{}, adherence=day.med||{};
+  if(!all.length) return '<button class="tw-empty-med" data-act="tab" data-v="care">Add your treatments</button>';
+  if(!meds.length) return '<div class="tw-empty-med quiet">Nothing scheduled today.</div>';
   return meds.map(m=>{const rec=adherence[m.id]||{};return '<button class="tw-medrow" data-act="med-taken" data-id="'+esc(m.id)+'">'
     +medicationIcon(m)
     +'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+'</small></span>'
@@ -4593,6 +5155,7 @@ function medicationForm(){
     <label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Estradot 50µg">
     <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form"><option>patch</option><option>tablet</option><option>capsule</option><option>gel</option><option>spray</option><option>cream</option><option>other</option></select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time"></div></div>
     <label class="fl">Scheduled days</label><div class="tw-day-picks">${DAY_SHORT.map((d,i)=>h('button',{class:'chip','data-act':'med-day','data-v':i,'aria-pressed':medDaysDraft.includes(i)?'true':'false','aria-label':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]},d)).join('')}</div>
+    <div class="grid2"><div><label class="fl" for="med-started">Started or changed</label><input id="med-started" type="date" max="${todayISO()}" value="${todayISO()}"></div><div><label class="fl" for="med-change-label">What changed (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="Dose, form, or timing"></div></div>
     <label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions">
     <div class="btn-row split"><button class="btn primary" data-act="med-save">Save medication</button><button class="btn ghost" data-act="med-cancel">Cancel</button></div>
   </div>`;
@@ -4620,16 +5183,273 @@ function viewReport(){
 }
 
 /* ============================================================
+   JOURNEY COMPASS — SELECTED PRODUCT FLOW
+   ============================================================ */
+function jcChrome(backLabel){
+  return `<div class="jc-chrome">
+    <div class="jc-chrome-main">
+      <div class="jc-wordmark" aria-label="MenoCompass"><span>MENO</span>COMPASS</div>
+      <div class="jc-global-actions">
+        <button data-act="sheet" data-s="tools" aria-label="Open tools">${PULSE_IC.grid}</button>
+        <button data-act="sheet" data-s="redflags" aria-label="Safety guidance">${PULSE_IC.safety}</button>
+        <button data-act="open-profile" aria-label="Open Profile">${PULSE_IC.profile}</button>
+      </div>
+    </div>
+    ${backLabel?`<button class="jc-back" data-act="go-back">${IC.chev}<span>${esc(backLabel)}</span></button>`:''}
+  </div>`;
+}
+function jcHeading(title,subtitle,eyebrow){
+  return `<div class="jc-page-head">${eyebrow?`<span class="jc-eyebrow">${esc(eyebrow)}</span>`:''}<h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>`;
+}
+function confirmedRecord(date){
+  if(typeof confirmedEntry==='function') return confirmedEntry(date);
+  const raw=DB.entries[date];
+  return raw&&raw.confirmed===true?raw:null;
+}
+function draftHasContent(raw){
+  return typeof hasEntryContent==='function'?hasEntryContent(raw):!!raw;
+}
+function dayState(date){
+  const raw=DB.entries[date], confirmed=confirmedRecord(date);
+  if(confirmed && raw&&raw.draftDirty) return {key:'draft',label:'Draft saved — confirmed version stays in patterns',confirmed};
+  if(confirmed) return {key:'confirmed',label:(date===todayISO()?'Today':'Day')+' · confirmed',confirmed};
+  if(raw&&draftHasContent(raw)) return {key:'draft',label:'Draft saved — not included in patterns',confirmed:null};
+  return {key:'empty',label:(date===todayISO()?'Today':'Day')+' · not logged yet',confirmed:null};
+}
+function focusedKeys(){
+  const pins=DB.profile&&Array.isArray(DB.profile.pinnedSymptoms)?DB.profile.pinnedSymptoms:[];
+  return pins.length>=3?pins.slice(0,6):['hf','ns','fog','energy','joint','anx'];
+}
+function symptomName(key){
+  if(key==='hf') return 'Hot flashes';
+  if(key==='ns') return 'Night sweats';
+  const found=SYMS.find(s=>s.k===key);
+  return SYM_DISPLAY[key]||(found&&found.n)||key;
+}
+function symptomValue(record,key){
+  if(!record) return null;
+  if(key==='hf'||key==='ns') return record[key]==null?null:+record[key];
+  return record.sym&&record.sym[key]!=null?+record.sym[key]:null;
+}
+function symptomPath(key){ return key==='hf'||key==='ns'?key:'sym.'+key; }
+function symptomIcon(key){
+  return key==='hf'?TWILIGHT_IC.flame:key==='ns'?TWILIGHT_IC.moon:(SYM_IC[key]||TWILIGHT_IC.cycle);
+}
+function recordSummary(record){
+  if(!record) return 'No confirmed entries yet.';
+  const ranked=focusedKeys().map(k=>({k,v:symptomValue(record,k)})).filter(x=>x.v!=null&&x.v>0).sort((a,b)=>b.v-a.v);
+  if(!ranked.length) return 'Tracked symptoms were quiet on this confirmed day.';
+  const first=ranked[0], suffix=first.k==='hf'?(first.v+' '+(first.v===1?'flash':'flashes')):(['none','mild','moderate','severe','very severe'][Math.min(4,first.v)]||first.v);
+  const lead=first.k==='hf'?'Hot flashes: '+suffix:symptomName(first.k)+' was '+suffix;
+  return lead+(ranked[1]?' · '+symptomName(ranked[1].k)+' was also present.':'.');
+}
+function weeklyPatternText(){
+  const dates=entryDates();
+  if(dates.length<14) return null;
+  const recent=dates.slice(-7), prior=dates.slice(-14,-7);
+  const candidates=focusedKeys().map(k=>{
+    const a=avg(recent.map(d=>symptomValue(confirmedRecord(d),k)));
+    const b=avg(prior.map(d=>symptomValue(confirmedRecord(d),k)));
+    return {k,a,b,delta:a!=null&&b!=null?a-b:null};
+  }).filter(x=>x.delta!=null).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  if(!candidates.length) return 'Your confirmed days do not yet share enough of the same symptom fields for a weekly comparison.';
+  const top=candidates[0];
+  if(Math.abs(top.delta)<0.35) return 'Your most recent confirmed week looks broadly steady compared with the prior logged week.';
+  return symptomName(top.k)+' has been '+(top.delta<0?'lower':'higher')+' than in the prior confirmed week.';
+}
+function treatmentEvents(){
+  const out=[];
+  (Array.isArray(DB.medications)?DB.medications:[]).forEach(m=>{
+    if(pastOrTodayISO(m.started)) out.push({date:m.started,order:0,title:m.name+' started',body:m.notes||medicationDetail(m)});
+    (Array.isArray(m.changes)?m.changes:[]).forEach(change=>{
+      if(change&&pastOrTodayISO(change.date)) out.push({date:change.date,order:1,title:m.name+' changed',body:change.label||'Treatment details updated.'});
+    });
+    if(pastOrTodayISO(m.ended)) out.push({date:m.ended,order:2,title:m.name+' ended',body:'Marked as no longer active.'});
+  });
+  return out.sort((a,b)=>b.date.localeCompare(a.date)||(b.order||0)-(a.order||0));
+}
+function comparisonPanel(count){
+  const ready=count>=14;
+  return `<div class="jc-sufficiency"><div><strong>${count} confirmed ${count===1?'day':'days'}</strong><span>${ready?'Comparisons are ready — keep confirming changes.':'Comparisons unlock after 14.'}</span></div><div class="jc-progress" aria-label="${Math.min(count,14)} of 14 confirmed days"><i style="width:${Math.min(100,count/14*100)}%"></i></div></div>`;
+}
+function dcWeekStrip(anchor){
+  const days=Array.from({length:7},(_,i)=>addDays(anchor,i-6));
+  return `<div class="dc-week" aria-label="Seven-day calendar">${days.map(date=>{
+    const d=parseISO(date), active=date===anchor;
+    return `<time class="dc-week-day${active?' active':''}" datetime="${date}" aria-current="${active?'date':'false'}"><span>${d.toLocaleDateString(undefined,{weekday:'short'}).toUpperCase()}</span><strong>${d.getDate()}</strong>${active?'<i aria-hidden="true"></i>':''}</time>`;
+  }).join('')}</div>`;
+}
+function dcProgress(count){
+  const shown=Math.min(count,14), ready=count>=14;
+  const copy=ready?'patterns are ready to explore.':shown?'patterns are starting to form.':'Log 14 confirmed days to start finding patterns.';
+  return `<div class="dc-progress"><div role="progressbar" aria-label="Confirmed days toward pattern insights" aria-valuemin="0" aria-valuemax="14" aria-valuenow="${shown}"><i style="width:${Math.min(100,count/14*100)}%"></i></div><p>${shown?`<strong>${shown} of 14 days</strong> — `:''}${copy}</p></div>`;
+}
+function dcTodayTask(date){
+  const due=scheduledMeds(date), all=Array.isArray(DB.medications)?DB.medications:[];
+  if(due.length){
+    const m=due[0], rec=DB.entries[date]&&DB.entries[date].med&&DB.entries[date].med[m.id];
+    return `<section class="dc-feature dc-task"><div class="dc-orb amber">${PULSE_IC.task}</div><div class="dc-feature-copy"><span>Today’s task</span><h2>${esc(m.name)} · ${rec&&rec.taken?'complete':'due today'}</h2><p>${rec&&rec.taken?'Recorded for today. Tap again if you need to undo it.':'Keeps your treatment record on track.'}</p><button class="dc-outline-action" data-act="med-taken" data-id="${esc(m.id)}">${PULSE_IC.check}<span>${rec&&rec.taken?'Done today':'Mark as done'}</span></button></div></section>`;
+  }
+  return `<section class="dc-feature dc-task"><div class="dc-orb amber">${PULSE_IC.task}</div><div class="dc-feature-copy"><span>Today’s task</span><h2>${all.length?'Nothing is due today':'Add your treatment plan'}</h2><p>${all.length?'Your next scheduled treatment will appear here.':'Keep treatment changes on track.'}</p><button class="dc-text-link" data-act="tab" data-v="care">${all.length?'Open Care':'Add treatment'} ${IC.chev}</button></div></section>`;
+}
+function jcTimelineEvent(kind,meta,title,body,extra){
+  const icon={treatment:PULSE_IC.task,pattern:PULSE_IC.journey,confirmed:PULSE_IC.today,draft:PULSE_IC.check,waiting:PULSE_IC.recap}[kind]||PULSE_IC.check;
+  return `<article class="jc-timeline-event ${esc(kind)}"><div class="jc-node" aria-hidden="true">${icon}</div><div class="jc-event-copy"><span class="jc-event-meta">${esc(meta)}</span><h2>${esc(title)}</h2><p>${esc(body)}</p>${extra||''}</div></article>`;
+}
+function viewHome(){
+  const t=todayISO(), state=dayState(t), count=entryDates().length;
+  const dates=entryDates(), latestDate=dates.length?dates[dates.length-1]:null, latest=latestDate?confirmedRecord(latestDate):null;
+  const cta=state.key==='confirmed'?'Review today':state.key==='draft'?'Finish check-in':'Check in';
+  const pattern=weeklyPatternText();
+  const recapTitle=pattern||recordSummary(latest);
+  const recapBody=pattern?'Compared with your prior confirmed week.':latestDate?'From your latest confirmed day, '+fmtDay(latestDate)+'.':'Confirm a few quick check-ins and your first recap will appear here.';
+  const longDate=parseISO(t).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}).toUpperCase();
+  return `<div class="view jc-screen jc-home">
+    ${jcChrome()}
+    <p class="dc-date">${esc(longDate)}</p>
+    ${dcWeekStrip(t)}
+    <div class="dc-hero"><h1>How are you today?</h1><p>A 30-second check-in helps you understand what changed and what to do next.</p></div>
+    <button class="jc-primary dc-checkin" data-act="start-checkin">${PULSE_IC.check}<span>${esc(cta)}</span></button>
+    ${dcProgress(count)}
+    ${quickToolsMarkup('today')}
+    ${DB.trigger&&DB.trigger.active?triggerBanner():''}
+    ${DB.profile.onboardingDeferred?`<button class="jc-open-row jc-setup" data-act="finish-setup"><span>${TWILIGHT_IC.cycle}</span><span><b>Finish your context</b><small>Personalize guidance and the symptoms you watch.</small></span>${IC.chev}</button>`:''}
+    <section class="dc-feature dc-recap"><div class="dc-orb">${PULSE_IC.recap}</div><div class="dc-feature-copy"><span>Today’s recap</span><h2>${esc(recapTitle)}</h2><p>${esc(recapBody)}</p><button class="dc-text-link" data-act="tab" data-v="journey">See why ${IC.chev}</button></div></section>
+    ${dcTodayTask(t)}
+    <div class="dc-privacy">${PULSE_IC.privacy}<p><strong>Your data stays on this device.</strong><span>Private, local, and for your care.</span></p></div>
+  </div>`;
+}
+function viewJourney(){
+  const t=todayISO(), state=dayState(t), dates=entryDates(), count=dates.length, events=treatmentEvents();
+  const todayBody=state.key==='confirmed'?recordSummary(state.confirmed):state.key==='draft'?('Your draft is saved locally. The last confirmed version stays in patterns'+(state.confirmed?' — '+recordSummary(state.confirmed):'.')):'No confirmed entry yet. Log to keep your story complete.';
+  let timeline=jcTimelineEvent(state.key,'Today',state.label,todayBody);
+  if(events.length){
+    const event=events[0];
+    timeline+=jcTimelineEvent('treatment',fmtDay(event.date),event.title,event.body,'<span class="jc-proof">Early signal — not proof.</span>');
+  } else if(DB.medications.length){
+    timeline+=jcTimelineEvent('treatment','Treatment plan','Add a change date',DB.medications.length+' active treatment '+(DB.medications.length===1?'item is':'items are')+' on file. Record when something changes to place it in your story.');
+  }
+  const pattern=weeklyPatternText();
+  if(pattern){
+    timeline+=jcTimelineEvent('pattern','Recent confirmed weeks','Weekly pattern',pattern,'<button class="jc-inline-action" data-act="sheet" data-s="learn:symptoms">What this means '+IC.chev+'</button>');
+  } else if(dates.length&&dates[dates.length-1]!==t){
+    const last=dates[dates.length-1], record=confirmedRecord(last);
+    timeline+=jcTimelineEvent('confirmed',fmtDay(last),'Latest confirmed day',recordSummary(record));
+  } else {
+    timeline+=jcTimelineEvent('waiting','Weekly pattern','Waiting for confirmed days','Comparisons need 14 confirmed days. Drafts and treatment-only entries do not count.');
+  }
+  return `<div class="view jc-screen jc-journey">
+    ${jcChrome()}
+    ${jcHeading('Your journey','Symptoms and treatment changes, in one story.')}
+    <button class="jc-primary" data-act="start-checkin">${PULSE_IC.check}<span>${state.key==='confirmed'?'Edit today':state.key==='draft'?'Finish check-in':'Log today'}</span></button>
+    <div class="jc-timeline">${timeline}</div>
+    ${comparisonPanel(count)}
+  </div>`;
+}
+function treatmentChangeForm(m){
+  return `<div class="tw-form-card jc-inline-form"><h3>Record a change to ${esc(m.name)}</h3><label class="fl" for="change-date">Change date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"><label class="fl" for="change-label">What changed?</label><input id="change-label" type="text" maxlength="120" placeholder="Dose, form, timing, or reason"><div class="btn-row split"><button class="btn primary" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn ghost" data-act="med-change-cancel">Cancel</button></div></div>`;
+}
+function viewCare(){
+  const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[], due=scheduledMeds(todayISO()), count=entryDates().length;
+  const changeMed=treatmentChangeTarget?meds.find(m=>m.id===treatmentChangeTarget):null;
+  return `<div class="view jc-screen jc-care">
+    ${jcChrome()}
+    ${jcHeading('Care','Treatments, appointments, and follow-ups in one place.')}
+    ${!medFormOpen&&!changeMed?'<button class="jc-primary" data-act="med-add">Add treatment or change</button>':''}
+    ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}
+    <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'No treatments added yet. Add what you take so changes can appear in your journey.'}</p>`}</div></section>
+    <section class="jc-context jc-appointment"><span>Appointments</span><h2>${count<7?'Early summary':'Your report is taking shape'}</h2><p>Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
+    <section class="jc-section"><div class="jc-section-head"><span>Your treatment plan</span>${meds.length?'<button data-act="med-add">Add</button>':''}</div>
+      <div class="jc-treatment-list">${meds.length?meds.map((m,i)=>`<article class="jc-treatment"><div>${medicationIcon(m)}<span><b>${esc(m.name)}</b><small>${esc(medicationDetail(m))}${m.started?' · since '+esc(fmtDay(m.started)):''}</small></span></div><div class="jc-treatment-actions"><button data-act="med-change" data-id="${esc(m.id)}">Record change</button><button data-act="med-remove" data-i="${i}" aria-label="Remove ${esc(m.name)}">Remove</button></div></article>`).join(''):'<p class="jc-empty-line">No treatments added yet.</p>'}</div>
+    </section>
+    <section class="jc-section"><div class="jc-section-head"><span>Labs</span><button data-act="lab-add">Add result</button></div>${labFormOpen?labForm():`<div class="jc-data-list">${labs.length?labs.slice(0,6).map((x,i)=>`<div><span><b>${esc(x.name)}</b><small>${esc(fmtDay(x.date))}</small></span><strong>${esc(x.value+(x.unit?' '+x.unit:''))}</strong><button data-act="lab-remove" data-i="${i}" aria-label="Remove ${esc(x.name)} result">×</button></div>`).join(''):'<p class="jc-empty-line">No lab results yet.</p>'}</div>`}</section>
+    <button class="jc-open-row" data-act="sheet" data-s="learn:screening"><span>${TWILIGHT_IC.calendar}</span><span><b>Preventive care</b><small>Keep screening dates and regional guidance together.</small></span>${IC.chev}</button>
+  </div>`;
+}
+function guideRows(ids){
+  return ids.map(id=>LEARN_MODULES.find(m=>m.id===id)).filter(Boolean).map(m=>h('button',{class:'jc-guide-row','data-act':'sheet','data-s':'learn:'+m.id,'data-guide-text':(m.n+' '+m.s).toLowerCase()},'<span class="ico">'+m.i+'</span><span class="txt"><b>'+esc(m.n)+'</b><span>'+esc(m.s)+'</span></span><span class="chev">'+IC.chev+'</span>')).join('');
+}
+function guideGroup(title,ids){ return `<section class="jc-guide-group" data-guide-group><h2>${esc(title)}</h2>${guideRows(ids)}</section>`; }
+function viewGuide(){
+  const intent=DB.profile.intent||'understand';
+  const rec={understand:'stage',treatment:'treatment',appointment:'clinician',record:'symptoms'}[intent]||'stage';
+  const recommendation=LEARN_MODULES.find(m=>m.id===rec)||LEARN_MODULES[0];
+  return `<div class="view jc-screen jc-guide">
+    ${jcChrome()}
+    ${jcHeading('Guide','Evidence without the hype, matched to where you are.')}
+    <label class="jc-search"><span class="sr-only">Search Guide</span><input type="search" data-act="guide-search" value="${esc(guideQuery)}" placeholder="Search symptoms, treatments, and questions"></label>
+    ${quickToolsMarkup('guide')}
+    <section class="jc-context jc-for-you"><span>For you</span><h2>${esc(recommendation.n)}</h2><p>${esc(recommendation.s)}</p><button class="jc-inline-action" data-act="sheet" data-s="learn:${esc(recommendation.id)}">Open guide ${IC.chev}</button></section>
+    <div id="guide-results">
+      ${guideGroup('Understand',['stage','symptoms'])}
+      ${guideGroup('Treat',['treatment','supplements'])}
+      ${guideGroup('Feel better',['sleep','mind','exercise','sex','diet','weight','skin'])}
+      ${guideGroup('Prepare',['clinician','screening','sources'])}
+      <p class="jc-no-results" hidden>No matching guidance. Try a symptom or treatment name.</p>
+    </div>
+    <p class="jc-footnote">Education, not medical advice. Content reviewed July 2026.</p>
+  </div>`;
+}
+function filterGuideResults(){
+  const root=document.getElementById('guide-results'); if(!root) return;
+  const q=guideQuery.trim().toLowerCase(), rows=[...root.querySelectorAll('[data-guide-text]')];
+  rows.forEach(row=>{ row.hidden=!!q&&!row.dataset.guideText.includes(q); });
+  root.querySelectorAll('[data-guide-group]').forEach(group=>{ group.hidden=![...group.querySelectorAll('[data-guide-text]')].some(row=>!row.hidden); });
+  const empty=root.querySelector('.jc-no-results'); if(empty) empty.hidden=rows.some(row=>!row.hidden);
+}
+function jcSeverityControl(key,value){
+  const labels=['None','Mild','Moderate','Severe','Very severe'];
+  return `<div class="jc-check-row"><div class="jc-check-label">${symptomIcon(key)}<span><b>${esc(symptomName(key))}</b><small>${value==null?'Choose 0–4':labels[Math.min(4,value)]}</small></span></div><div class="jc-scale" role="group" aria-label="${esc(symptomName(key))}">${labels.map((label,i)=>`<button data-act="set" data-k="${esc(symptomPath(key))}" data-v="${i}" aria-label="${esc(symptomName(key)+': '+label)}" aria-pressed="${value===i?'true':'false'}"><i></i><span>${i}</span></button>`).join('')}</div></div>`;
+}
+function viewCheckin(){
+  const t=todayISO(), raw=entry(t), count=entryDates().length, backLabel=returnTab==='journey'?'Journey':'Today';
+  if(checkinComplete){
+    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}${jcHeading('Today is confirmed.','Your Journey and appointment report now use this version.',fmtLong(t))}${comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">Back to Journey</button><button class="jc-secondary" data-act="checkin-add-treatment">Add treatment change</button></div>`;
+  }
+  const state=dayState(t), keys=focusedKeys();
+  return `<div class="view jc-screen jc-checkin">
+    ${jcChrome(backLabel)}
+    ${jcHeading('Today’s check-in','Nothing counts in your patterns until you confirm.',fmtLong(t))}
+    <div class="jc-draft-badge ${state.key}">${state.key==='confirmed'?'Confirmed version on file':state.label}</div>
+    <section class="jc-check-list">
+      ${keys.map(key=>key==='hf'?`<div class="jc-check-row"><div class="jc-check-label">${TWILIGHT_IC.flame}<span><b>Hot flashes</b><small>Actual count today</small></span></div><div class="jc-count"><button data-act="hf" data-n="-1" aria-label="One fewer hot flash">−</button><strong>${raw.hf==null?'—':raw.hf}</strong><button data-act="hf" data-n="1" aria-label="One more hot flash">+</button><button data-act="set" data-k="hf" data-v="0">None</button></div></div>`:jcSeverityControl(key,symptomValue(raw,key))).join('')}
+    </section>
+    <button class="jc-inline-action jc-add-symptom" data-act="open-tracking">Add another symptom ${IC.chev}</button>
+    <section class="jc-section"><div class="jc-section-head"><span>Today’s treatment</span></div><div class="jc-open-list">${todayMedicationRows(true)}</div></section>
+    <label class="jc-note"><span>Anything worth remembering?</span><textarea maxlength="4000" data-act="num" data-k="notes" placeholder="What helped, what changed, or a question for your clinician…">${esc(raw.notes||'')}</textarea></label>
+    <button class="jc-secondary" data-act="more-details">Add more detail</button>
+    <button class="jc-primary jc-confirm" data-act="confirm-log">Confirm today’s log</button>
+  </div>`;
+}
+function viewAppointmentReport(){
+  const count=entryDates().length, report=reportSheet(reportRange);
+  return `<div class="view jc-screen jc-report-route">${jcChrome('Care')}${jcHeading('Appointment report',count<7?'Early summary — facts only until more days are confirmed.':'A focused summary for a more useful conversation.')}
+    <div class="jc-range" role="group" aria-label="Report range">${[30,90,180].map(n=>`<button data-act="report-range" data-v="${n}" aria-pressed="${reportRange===n?'true':'false'}">${n} days</button>`).join('')}</div>
+    <p class="jc-report-provenance">Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p>
+    ${report.body}
+    <button class="jc-secondary" data-act="go-care">Back to Care</button>
+  </div>`;
+}
+
+/* ============================================================
    RENDER + EVENTS
    ============================================================ */
 function applyTheme(){
-  const t = DB.profile.theme||'auto';
-  const dark = t!=='light';
-  document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+  document.documentElement.setAttribute('data-theme','dark');
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content', dark?'#0E1618':'#F1F4F3');
+  if(meta) meta.setAttribute('content','#071416');
 }
-const TAB_TITLES = {today:['Today','Daily check-in'], trends:['Trends','Patterns & insights'], meds:['Meds','Medication tracking'], report:['Report','Doctor summary'], settings:['Settings','Profile, tools & data']};
+const TAB_TITLES = {today:['Today','What matters now'], journey:['Journey','Symptoms and changes'], care:['Care','Treatment and appointments'], guide:['Guide','Evidence and tools']};
+const ROUTE_ALIASES = {trends:'journey',meds:'care',report:'appointment-report',settings:'profile',you:'profile',learn:'guide'};
+function normalizeRoute(route){ return ROUTE_ALIASES[route]||route; }
+function setRoute(route,replace){
+  route=normalizeRoute(route);
+  curTab=route;
+  if(location.protocol!=='file:'){
+    const hash='#'+route;
+    if(location.hash!==hash) history[replace?'replaceState':'pushState'](null,'',hash);
+  }
+}
 function topbarContent(){
   const name=safeText(DB.profile.name,80).trim();
   const hour=new Date().getHours();
@@ -4660,12 +5480,13 @@ function render(preserveScroll){
     $('#topbar').style.display='none';
     return;
   }
-  $('#tabs').style.display='';
-  $('#topbar').style.display='';
-  $('#topbar').innerHTML = topbarContent()
-    + (curTab==='today'? '<button class="urgent-btn" data-act="sheet" data-s="redflags" aria-label="Open urgent symptom guidance">Urgent</button>':'');
-  const map = {today:viewTodayCompact, trends:viewTrends, meds:viewMeds, report:viewReport, settings:viewYou, you:viewYou, learn:viewLearn, 'today-details':viewToday};
-  $('#app').innerHTML = map[curTab]();
+  const primary=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab);
+  $('#tabs').style.display=primary?'':'none';
+  $('#topbar').style.display='none';
+  const map = {today:viewHome, journey:viewJourney, care:viewCare, guide:viewGuide, checkin:viewCheckin, profile:viewYou, 'appointment-report':viewAppointmentReport, 'today-details':viewToday};
+  const view=map[curTab]||viewHome;
+  $('#app').innerHTML = view();
+  if(curTab==='guide'&&guideQuery) filterGuideResults();
   const strip = document.querySelector('.dayscroll');
   if(strip){
     const sel = strip.querySelector('[aria-pressed="true"]');
@@ -4684,20 +5505,21 @@ function render(preserveScroll){
 function nativeProLocked(area){
   return window.__MENO_NATIVE__===true
     && window.__MENO_PRO_ACTIVE__!==true
-    && (area==='trends'||area==='report');
+    && (normalizeRoute(area)==='journey'||normalizeRoute(area)==='appointment-report');
 }
 function requestNativePro(area){
   if(!nativeProLocked(area)) return false;
   try{
     if(window.ReactNativeWebView){
-      window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-pro-paywall',feature:area}));
+      const route=normalizeRoute(area), feature=route;
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-pro-paywall',feature}));
     }
   }catch(e){}
-  toast('MenoCompass Pro unlocks trends and clinician reports');
+  toast('MenoCompass Pro unlocks Journey patterns and appointment reports');
   return true;
 }
 window.addEventListener('menocompass-pro-changed',()=>{
-  if(nativeProLocked(curTab)) curTab='today';
+  if(nativeProLocked(curTab)) setRoute('today',true);
   render(true);
 });
 
@@ -4705,10 +5527,66 @@ function handleAction(el, ev){
   const a = el.dataset.act;
   const e = () => entry(curDate);
   switch(a){
-    case 'tab': if(requestNativePro(el.dataset.v)) return; curTab = el.dataset.v; sheetStack=[]; renderSheet(); render(); return;
+    case 'tab': {
+      const target=normalizeRoute(el.dataset.v);
+      if(requestNativePro(target)) return;
+      setRoute(target); sheetStack=[]; renderSheet(); render(); return;
+    }
+    case 'start-checkin':
+      returnTab=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab)?curTab:'today';
+      curDate=todayISO(); checkinComplete=false; setRoute('checkin'); render(); return;
+    case 'open-profile':
+      if(curTab!=='profile') returnTab=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab)?curTab:(returnTab||'today');
+      setRoute('profile'); render(); return;
+    case 'go-back': {
+      const target=curTab==='checkin'?(returnTab||'today'):curTab==='today-details'?'checkin':curTab==='appointment-report'?'care':(returnTab||'today');
+      setRoute(target); checkinComplete=false; render(); return;
+    }
+    case 'back-checkin': setRoute('checkin'); render(); return;
+    case 'more-details': returnTab='checkin'; setRoute('today-details'); render(); return;
+    case 'confirm-log': {
+      const ok=typeof confirmEntry==='function'?confirmEntry(curDate):draftHasContent(e());
+      if(!ok){ toast('Choose at least one symptom or add a note before confirming'); return; }
+      if(typeof confirmEntry!=='function'){ e().confirmed=true; e().draftDirty=false; }
+      save(true);
+      postNativeEvent('checkin-confirmed',{date:curDate});
+      if(curDate===todayISO()){ checkinComplete=true; setRoute('checkin',true); render(); }
+      else { setRoute('journey'); render(); toast('Confirmed day updated'); }
+      return;
+    }
+    case 'back-journey': checkinComplete=false; setRoute('journey'); render(); return;
+    case 'checkin-add-treatment': checkinComplete=false; medFormOpen=true; setRoute('care'); render(); return;
+    case 'open-tracking': returnTab='checkin'; setRoute('profile'); render(); return;
+    case 'open-report':
+      if(requestNativePro('appointment-report')) return;
+      postNativeEvent('report-opened',{rangeDays:reportRange});
+      returnTab='care'; setRoute('appointment-report'); render(); return;
+    case 'go-care': setRoute('care'); render(); return;
+    case 'report-range': reportRange=+el.dataset.v; render(true); return;
     case 'finish-setup':
-      curTab='settings'; render();
+      returnTab='today'; setRoute('profile'); render();
       setTimeout(()=>document.querySelector('#pn,[data-act="sheet"][data-s="learn:stage"]')?.focus(),0);
+      return;
+    case 'manage-subscription':
+      postNativeEvent('open-subscription-management'); return;
+    case 'reset-onboarding':
+      openSheet('reset-onboarding-confirm'); return;
+    case 'confirm-reset-onboarding':
+      DB.profile.onboarded=false;
+      DB.profile.onboardingStep=0;
+      DB.profile.onboardingDeferred=false;
+      setRoute('today',true);
+      sheetStack=[]; renderSheet(); save(true); render();
+      toast('Onboarding reset — your health history is still here');
+      return;
+    case 'delete-local-data':
+      openSheet('delete-local-data-confirm'); return;
+    case 'confirm-delete-local-data':
+      Store.clear();
+      DB=blankDB();
+      setRoute('today',true);
+      sheetStack=[]; renderSheet(); save(true); render();
+      toast('App profile and data deleted');
       return;
     case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
     case 'med-taken': {
@@ -4718,18 +5596,29 @@ function handleAction(el, ev){
       else records[m.id]={taken:true,at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
       save(true); render(true); return;
     }
-    case 'med-add': medFormOpen=true; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
+    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
     case 'med-cancel': medFormOpen=false; render(true); return;
     case 'med-day': {
       const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort(); render(true); return;
     }
     case 'med-save': {
-      const name=document.getElementById('med-name'), form=document.getElementById('med-form'), due=document.getElementById('med-due'), notes=document.getElementById('med-notes');
+      const name=document.getElementById('med-name'), form=document.getElementById('med-form'), due=document.getElementById('med-due'), notes=document.getElementById('med-notes'), started=document.getElementById('med-started'), changeLabel=document.getElementById('med-change-label');
       if(!name||!name.value.trim()){ toast('Enter the medication and dose'); name&&name.focus(); return; }
       if(!medDaysDraft.length){ toast('Choose at least one scheduled day'); return; }
       let id='med-'+Date.now().toString(36); while(DB.medications.some(m=>m.id===id)) id+='x';
-      DB.medications.push({id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim()});
+      const med={id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim(),started:started&&pastOrTodayISO(started.value)?started.value:'',changes:[]};
+      if(changeLabel&&changeLabel.value.trim()&&med.started) med.changes.push({date:med.started,label:changeLabel.value.trim()});
+      DB.medications.push(med);
       medFormOpen=false; save(true); render(); toast('Medication added'); return;
+    }
+    case 'med-change': treatmentChangeTarget=el.dataset.id; medFormOpen=false; render(true); return;
+    case 'med-change-cancel': treatmentChangeTarget=null; render(true); return;
+    case 'med-change-save': {
+      const med=DB.medications.find(m=>m.id===el.dataset.id), date=document.getElementById('change-date'), label=document.getElementById('change-label');
+      if(!med||!date||!pastOrTodayISO(date.value)||!label||!label.value.trim()){ toast('Add a valid date and describe what changed'); return; }
+      med.changes=Array.isArray(med.changes)?med.changes:[];
+      med.changes.push({date:date.value,label:label.value.trim()});
+      treatmentChangeTarget=null; save(true); render(); toast('Treatment change added to Journey'); return;
     }
     case 'med-remove': {
       const i=+el.dataset.i; if(!DB.medications[i]) return;
@@ -4753,20 +5642,22 @@ function handleAction(el, ev){
     case 'hf': {
       const cur = e().hf==null?0:e().hf;
       const nv = Math.max(0, cur + (+el.dataset.n));
-      e().hf = nv; save(); render(true); return;
+      e().hf = nv; if(typeof markEntryDraft==='function') markEntryDraft(curDate); save(); render(true); return;
     }
     case 'set': {
       const v = el.dataset.v;
       setPath(e(), el.dataset.k, v===''?null:(isNaN(v)?v:+v));
-      save(); render(true); return;
+      if(typeof markEntryDraft==='function') markEntryDraft(curDate); save(); render(true); return;
     }
     case 'toggle': {
       const cur = getPath(e(), el.dataset.k);
       setPath(e(), el.dataset.k, cur?null:true);
-      save(); render(true); return;
+      if(typeof markEntryDraft==='function') markEntryDraft(curDate); save(); render(true); return;
     }
     case 'theme': DB.profile.theme = el.value; save(true); render(true); return;
-    case 'sheet': openSheet(el.dataset.s); return;
+    case 'sheet':
+      if(el.dataset.s==='report'){ if(requestNativePro('appointment-report')) return; returnTab=curTab; setRoute('appointment-report'); render(); return; }
+      openSheet(el.dataset.s); return;
     case 'close': closeSheet(); return;
     case 'bg': if(ev.target===el) closeSheet(); return;
     case 'go': {
@@ -4831,44 +5722,54 @@ function handleAction(el, ev){
       }catch(x){ toast('That does not look like a valid backup'); }
       return;
     }
-    case 'wipe': {
-      if(el.dataset.confirm==='1'){
-        Store.clear(); DB=blankDB(); save(true); sheetStack=[]; renderSheet(); render(); toast('Everything erased'); return;
-      }
-      el.dataset.confirm='1'; el.textContent='Tap again to erase permanently'; return;
-    }
+    case 'wipe': openSheet('delete-local-data-confirm'); return;
     case 'print': window.print(); return;
-    case 'ob-next':
-      DB.profile.onboardingStep=1; save(true); render();
-      setTimeout(()=>document.getElementById('ob-n')?.focus(),0);
+    case 'ob-next': {
+      const step=+DB.profile.onboardingStep||0;
+      if(step===1&&!DB.profile.intent){ toast('Choose what would help most'); return; }
+      DB.profile.onboardingStep=Math.min(3,step+1); save(true); render();
+      postNativeEvent('onboarding-step',{step:DB.profile.onboardingStep});
+      setTimeout(()=>document.querySelector('#app input,#app select,#app [aria-pressed]')?.focus(),0);
       return;
+    }
     case 'ob-back':
-      DB.profile.onboardingStep=0; save(true); render();
-      setTimeout(()=>document.querySelector('[data-act="ob-next"]')?.focus(),0);
+      DB.profile.onboardingStep=Math.max(0,(+DB.profile.onboardingStep||0)-1); save(true); render();
+      setTimeout(()=>document.querySelector('#app button,#app input')?.focus(),0);
       return;
-    case 'ob-done': {
-      const n=document.getElementById('ob-n'), y=document.getElementById('ob-y'),
-            u=document.getElementById('ob-u'), r=document.getElementById('ob-r');
-      const year=readNumberInput(y);
-      if(!year.ok || (year.value!=null&&!Number.isInteger(year.value))){
-        if(year.ok) setFieldError(y,'Enter a whole birth year.');
-        y.reportValidity(); return;
+    case 'ob-intent': DB.profile.intent=el.dataset.v; save(true); render(); return;
+    case 'ob-symptom': {
+      const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:['hf','ns','fog','energy','joint','anx'];
+      if(current.includes(key)) DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
+      else if(current.length<6) DB.profile.pinnedSymptoms=[...current,key];
+      else { toast('Choose up to six symptoms'); return; }
+      save(true); render(); return;
+    }
+    case 'profile-symptom': {
+      const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:focusedKeys();
+      if(current.includes(key)){
+        if(current.length<=3){ toast('Keep at least three focused symptoms'); return; }
+        DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
+      } else {
+        if(current.length>=6){ toast('Choose up to six symptoms'); return; }
+        DB.profile.pinnedSymptoms=[...current,key];
       }
-      DB.profile.name = safeText(n.value.trim(),80);
-      DB.profile.birthYear = year.value;
-      DB.profile.units = u.value; DB.profile.region = r.value;
-      DB.profile.onboardingStep=1;
+      save(true); render(true); return;
+    }
+    case 'ob-done': {
+      const pins=Array.isArray(DB.profile.pinnedSymptoms)?DB.profile.pinnedSymptoms:[];
+      if(pins.length<3){ toast('Choose at least three symptoms'); return; }
+      DB.profile.onboardingStep=3;
       DB.profile.onboarded=true;
-      DB.profile.onboardingDeferred=true;
-      save(true); render();
-      setTimeout(()=>openSheet('learn:stage'), 350);
+      DB.profile.onboardingDeferred=false;
+      setRoute('today',true); save(true); render();
+      postNativeEvent('onboarding-finished',{skipped:false});
       return;
     }
     case 'ob-skip':
       DB.profile.onboarded=true;
       DB.profile.onboardingDeferred=true;
       save(true); render();
-      postNativeEvent('onboarding-finished');
+      postNativeEvent('onboarding-finished',{skipped:true});
       setTimeout(()=>document.querySelector('#app button,#tabs button')?.focus(),0);
       return;
   }
@@ -4913,6 +5814,9 @@ function readDateInput(el){
 
 function handleInput(el){
   const a = el.dataset.act;
+  if(a==='guide-search'){
+    guideQuery=el.value||''; filterGuideResults(); return;
+  }
   if(a==='num'){
     const k = el.dataset.k, conv = el.dataset.conv;
     const parsed=el.type==='number'?readNumberInput(el):{ok:true,value:el.value.trim()||null};
@@ -4928,6 +5832,7 @@ function handleInput(el){
     if(v!=null && conv==='w') v = U.wIn(v);
     if(v!=null && conv==='l') v = U.lIn(v);
     setPath(day, k, v);
+    if(typeof markEntryDraft==='function') markEntryDraft(curDate);
     save(); return;
   }
   if(a==='prof'){
@@ -4974,7 +5879,7 @@ function handleInput(el){
   }
   if(a==='sw-calc'){
     const ds=rangeDates(14);
-    const sleeps=ds.map(d=>{const x=DB.entries[d];return x&&x.sleepH!=null?x.sleepH:null;}).filter(v=>v!=null);
+    const sleeps=ds.map(d=>{const x=confirmedRecord(d);return x&&x.sleepH!=null?x.sleepH:null;}).filter(v=>v!=null);
     const aSleep=avg(sleeps); const win = aSleep!=null&&aSleep>0?Math.max(5,Math.round(aSleep*4)/4):null;
     document.getElementById('sw-out').innerHTML = swOut(el.value, win);
     return;
@@ -4995,7 +5900,7 @@ function toCSV(){
     'aerobic_min','protein_target_met','calcium_2plus','fibre_ok','alcohol_drinks','caffeine_cups','notes'];
   const rows = [cols.join(',')];
   entryDates().forEach(d=>{
-    const e=DB.entries[d], s=e.sym||{}, ac=e.act||{}, nu=e.nut||{};
+    const e=confirmedRecord(d), s=e.sym||{}, ac=e.act||{}, nu=e.nut||{};
     const eff = (e.sleepH!=null&&e.inBedH!=null&&e.inBedH>0)?Math.round(e.sleepH/e.inBedH*100):'';
     const r = [d, e.hf??'', e.ns??'', e.inBedH??'', e.sleepH??'', eff,
       ...SYMS.map(x=>s[x.k]??''), burden(e)??'',
@@ -5070,14 +5975,19 @@ function boot(){
       toast(ev.newValue?'Updated from another tab':'Data was cleared in another tab');
     }catch(e){ /* Ignore malformed writes from another script on the origin. */ }
   });
-  const hash = (location.hash||'').replace('#','');
-  if(TAB_TITLES[hash]) curTab = hash;
+  const validRoutes=['today','journey','care','guide','checkin','profile','appointment-report','today-details'];
+  const rawHash=(location.hash||'').replace('#',''), hash=normalizeRoute(rawHash);
+  if(validRoutes.includes(hash)) curTab = hash;
   render();
   if(hash==='redflags') openSheet('redflags');
   window.addEventListener('hashchange', ()=>{
-    const hh=(location.hash||'').replace('#','');
-    if(TAB_TITLES[hh]){ curTab=hh; sheetStack=[]; renderSheet(); render(); }
+    const hh=normalizeRoute((location.hash||'').replace('#',''));
+    if(validRoutes.includes(hh)){ curTab=hh; sheetStack=[]; renderSheet(); render(); }
     else if(hh==='redflags') openSheet('redflags');
+  });
+  window.addEventListener('popstate',()=>{
+    const route=normalizeRoute((location.hash||'#today').replace('#',''));
+    if(validRoutes.includes(route)){ curTab=route; sheetStack=[]; renderSheet(); render(); }
   });
   /* Native bundle: service workers are not used inside the WebView. */
 }

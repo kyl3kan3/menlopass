@@ -14,10 +14,10 @@ import {
   trackTelemetryEvent,
 } from './telemetry.native';
 import {
-  registerAppOpening,
+  registerSuccessfulMoment,
   requestReviewForMilestone,
 } from './reviewPrompt.native';
-import type { AppOpeningReviewState } from './reviewPrompt.native';
+import type { AppReviewProgress } from './reviewPrompt.native';
 
 const appAsset = require('./assets/menlopass.html');
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || 'appl_SJzoZsrDheugNgeVISkHmDeKoOk';
@@ -150,11 +150,12 @@ function App() {
   const [experienceReady, setExperienceReady] = useState(false);
   const [webContentReady, setWebContentReady] = useState(false);
   const [pendingReviewMilestone, setPendingReviewMilestone] = useState<
-    AppOpeningReviewState['dueMilestone']
+    AppReviewProgress['dueMilestone']
   >(null);
-  const [telemetrySettled, setTelemetrySettled] = useState(Platform.OS !== 'ios');
+  const [telemetrySettled, setTelemetrySettled] = useState(false);
   const [trackingPromptedThisSession, setTrackingPromptedThisSession] = useState(false);
   const autoPaywallAttemptedRef = useRef(false);
+  const appLaunchTrackedRef = useRef(false);
   const reviewRequestInFlightRef = useRef(false);
 
   const syncProStatusToWeb = (active: boolean) => {
@@ -178,17 +179,6 @@ function App() {
         setHtml(source);
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    let active = true;
-    registerAppOpening()
-      .then(({ dueMilestone }) => {
-        if (active) setPendingReviewMilestone(dueMilestone);
-      })
-      .catch(reportTelemetryError);
     return () => { active = false; };
   }, []);
 
@@ -244,7 +234,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'ios') void initializeTelemetry();
+    if (Platform.OS === 'ios') return;
+    initializeTelemetry()
+      .then(result => {
+        setTrackingPromptedThisSession(result.promptedForTracking);
+        setTelemetrySettled(true);
+      })
+      .catch(error => {
+        reportTelemetryError(error);
+        setTelemetrySettled(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -273,6 +272,13 @@ function App() {
       clearTimeout(timer);
     };
   }, [proActive, revenueCatReady, subscriptionChecked]);
+
+  useEffect(() => {
+    if (!html || !telemetrySettled || appLaunchTrackedRef.current) return;
+    appLaunchTrackedRef.current = true;
+    trackTelemetryEvent('app_launched');
+    if (!experienceReady) trackTelemetryEvent('onboarding_started');
+  }, [experienceReady, html, telemetrySettled]);
 
   useEffect(() => {
     if (
@@ -343,6 +349,7 @@ function App() {
       setSubscriptionChecked(true);
       setTelemetrySubscriptionState(active);
       if (result === PAYWALL_RESULT.PURCHASED) trackTelemetryEvent('subscription_activated');
+      if (result === PAYWALL_RESULT.CANCELLED) trackTelemetryEvent('paywall_dismissed');
     } catch (reason) {
       reportTelemetryError(reason);
       setSubscriptionIssue('MenoCompass could not reach the App Store. Check your connection and try again.');
@@ -382,11 +389,39 @@ function App() {
     try {
       const message = JSON.parse(event.nativeEvent.data);
       if (message?.type === 'persist-state' && typeof message.state === 'string') {
-        writePersistedState(message.state);
+        const canonical = writePersistedState(message.state);
+        if (canonical) {
+          setPersistedState(canonical);
+          setExperienceReady(persistedStateIsOnboarded(canonical));
+        }
         return;
       }
       if (message?.type === 'onboarding-finished') {
         setExperienceReady(true);
+        trackTelemetryEvent('onboarding_completed', { skipped: message.skipped === true });
+        return;
+      }
+      if (message?.type === 'onboarding-step' && Number.isInteger(message.step)) {
+        trackTelemetryEvent('onboarding_step_viewed', { step: message.step });
+        return;
+      }
+      if (message?.type === 'checkin-confirmed') {
+        trackTelemetryEvent('checkin_confirmed');
+        registerSuccessfulMoment()
+          .then(({ dueMilestone }) => setPendingReviewMilestone(dueMilestone))
+          .catch(reportTelemetryError);
+        return;
+      }
+      if (message?.type === 'report-opened') {
+        const rangeDays = [30, 90, 180].includes(Number(message.rangeDays))
+          ? Number(message.rangeDays)
+          : 90;
+        trackTelemetryEvent('report_opened', { rangeDays });
+        return;
+      }
+      if (message?.type === 'open-subscription-management') {
+        trackTelemetryEvent('subscription_management_opened');
+        Linking.openURL('https://apps.apple.com/account/subscriptions').catch(reportTelemetryError);
         return;
       }
       if (message?.type === 'open-pro-paywall') requestPaywall();

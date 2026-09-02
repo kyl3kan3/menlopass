@@ -56,18 +56,23 @@ function demoData() {
       bleed: i === 52 ? 'moderate' : 'none',
       notes: i === 4 ? 'Woke twice, felt foggy before lunch.' : '',
     };
+    entries[key].confirmedData = JSON.parse(JSON.stringify(entries[key]));
+    entries[key].confirmed = true;
+    entries[key].draftDirty = false;
   }
   return {
-    v: 4,
+    v: 5,
     profile: {
       name: 'Morgan', birthYear: 1979, region: 'us', units: 'imperial', lastPeriod: '', surgeryDate: '',
       uterus: 'intact', ovaries: 'kept', bone: 'unknown', proteinGpk: 1.2, weightGoal: null,
-      waistGoal: null, theme: 'dark', stage: null, onboarded: true,
+      waistGoal: null, theme: 'dark', stage: null, onboarded: true, onboardingStep: 3,
+      onboardingDeferred: false, intent: 'treatment',
+      pinnedSymptoms: ['hf', 'ns', 'fog', 'energy', 'joint', 'anx'],
     },
     entries,
     medications: [
-      { id: 'estradiol', name: 'Estradiol 0.05 mg', form: 'patch', days: [1, 4], due: '08:00', notes: '' },
-      { id: 'progesterone', name: 'Progesterone 100 mg', form: 'tablet', days: [0, 1, 2, 3, 4, 5, 6], due: '22:00', notes: '' },
+      { id: 'estradiol', name: 'Estradiol 0.05 mg', form: 'patch', days: [1, 4], due: '08:00', notes: '', started: '2026-07-10', changes: [{date:'2026-08-08',label:'Dose increased from 0.025 mg'}] },
+      { id: 'progesterone', name: 'Progesterone 100 mg', form: 'tablet', days: [0, 1, 2, 3, 4, 5, 6], due: '22:00', notes: '', started: '2026-07-10', changes: [] },
     ],
     labs: [
       { id: 'vitamin-d', name: 'Vitamin D', date: '2026-07-28', value: '38', unit: 'ng/mL' },
@@ -131,52 +136,54 @@ async function openDemoPage(browser, baseUrl, device, outputDir) {
   await page.waitForTimeout(300);
   fs.mkdirSync(outputDir, { recursive: true });
 
+  const goRoute = async (route) => {
+    await page.evaluate((nextRoute) => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      location.hash = `#${nextRoute}`;
+    }, route);
+    await page.waitForFunction((nextRoute) => {
+      const active = document.querySelector(`[data-act="tab"][data-v="${nextRoute}"]`);
+      return location.hash === `#${nextRoute}` && active?.getAttribute('aria-current') === 'page';
+    }, route);
+  };
+
   const capture = async (name, readySelector) => {
     if (readySelector) await page.waitForSelector(readySelector, { state: 'visible' });
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
+    await page.waitForFunction(() => window.scrollY === 0 && document.documentElement.scrollTop === 0);
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(250);
     await page.screenshot({ path: path.join(outputDir, name), fullPage: false });
   };
 
-  await page.click('[data-act="tab"][data-v="today"]');
-  await capture('01-today.png', '.tw-screen .tw-tile');
+  await goRoute('today');
+  await capture('01-today.png', '.jc-home .jc-primary');
 
-  await page.click('[data-act="tab"][data-v="trends"]');
-  await page.click('[data-act="range"][data-v="30"]');
-  if (device.kind === 'iphone') {
-    // Keep one complete insight above the fixed navigation instead of bisecting the next card.
-    await page.evaluate(() => {
-      const insightCards = [...document.querySelectorAll('#app > .view > .callout')];
-      insightCards.slice(1).forEach((card) => card.remove());
-      let trailing = insightCards[0]?.nextElementSibling;
-      while (trailing) {
-        const next = trailing.nextElementSibling;
-        trailing.remove();
-        trailing = next;
-      }
-    });
-  }
-  await capture('02-trends.png', '.tw-screen .tw-observed, .tw-screen .callout');
+  await goRoute('journey');
+  await capture('02-trends.png', '.jc-journey .jc-timeline');
 
-  await page.click('[data-act="tab"][data-v="meds"]');
-  await capture('03-medications.png', '.tw-screen .tw-med-list');
+  await goRoute('care');
+  await capture('03-medications.png', '.jc-care .jc-treatment-list');
 
-  await page.click('[data-act="tab"][data-v="report"]');
-  await page.click('[data-act="sheet"][data-s="report"]');
+  await page.click('[data-act="open-report"]');
   if (device.kind === 'iphone') {
     // End the portrait frame on complete report rows; the live report itself remains unchanged.
     await page.evaluate(() => {
-      const reportCards = [...document.querySelectorAll('.sheet .report-page > .card')];
+      const reportCards = [...document.querySelectorAll('.jc-report-route .report-page > .card')];
       const symptomRows = reportCards[1] ? [...reportCards[1].querySelectorAll('.kv')] : [];
       symptomRows.slice(4).forEach((row) => row.remove());
       reportCards.slice(2).forEach((card) => card.remove());
     });
   }
-  await capture('04-clinician-report.png', '.sheet .report-page');
-  await page.click('.sheet .close-btn');
+  await capture('04-clinician-report.png', '.jc-report-route .report-page');
+  await page.click('[data-act="go-care"]');
 
-  await page.click('[data-act="tab"][data-v="settings"]');
-  await page.click('[data-act="tab"][data-v="learn"]');
+  await goRoute('guide');
   await page.click('[data-act="sheet"][data-s="learn:symptoms"]');
   await page.click('.sheet [data-act="sheet"][data-s="learn:sym-vms"]');
   const evidenceHeading = page.getByRole('heading', { name: 'What has evidence', exact: true });
@@ -221,17 +228,17 @@ const STOREFRONT = [
     number: '01',
     eyebrow: 'PRIVATE MENOPAUSE TRACKING',
     headline: 'Clearer patterns.<br>Better appointments.',
-    subhead: 'Log symptoms, medications, and notes in about 20 seconds. Your health entries stay on your device.',
-    badge: 'Daily check-in · about 20 sec',
+    subhead: 'Log symptoms, medications, and notes in about 30 seconds. Your health entries stay on your device.',
+    badge: 'Daily check-in · about 30 sec',
     ipadScale: 1.27,
   },
   {
     file: '02-trends.png',
     number: '02',
-    eyebrow: 'PATTERNS OVER TIME',
-    headline: 'See what’s<br>changing.',
-    subhead: 'Compare 7, 30, and 90 days—and read the direction, not one noisy day.',
-    badge: '7 · 30 · 90 day views',
+    eyebrow: 'YOUR JOURNEY',
+    headline: 'See symptoms and<br>treatment together.',
+    subhead: 'Follow confirmed days, treatment changes, and weekly patterns in one story.',
+    badge: 'Confirmed days · weekly patterns',
     ipadScale: 1.09,
   },
   {

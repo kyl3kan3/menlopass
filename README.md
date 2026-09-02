@@ -1,7 +1,8 @@
-# Meno Compass
+# MenoCompass
 
-A private, offline-capable PWA and Expo app for women in perimenopause and beyond. Tracker first,
-with an evidence-graded reference library behind it.
+A private, offline-capable PWA and Expo app for women in perimenopause and beyond. The product is
+organized around one flow: confirm a focused daily check-in, follow symptoms and treatment changes
+in Journey, prepare care, and open evidence in Guide.
 
 - **No account, backend health database, or health-data transmission.** Entries live in the
   browser's local storage on the user's device. The native wrapper uses privacy-gated AppsFlyer,
@@ -19,7 +20,7 @@ with an evidence-graded reference library behind it.
 The editable sources are intentionally flat at the repository root:
 
 ```text
-styles.css                 design system (light + dark)
+styles.css                 Guided Daily Pulse design system and responsive shell
 assets/fonts/              local Bricolage Grotesque webfont + OFL license
 content-a.js               symptom library, treatment landscape, supplements
 content-b.js               staging, diet, exercise, weight, skin, sleep, mind,
@@ -68,11 +69,13 @@ CI artifact.
 
 The Expo SDK 57 package bundles the generated app and local font into the native binary. It uses
 an offline WebView, so symptom, medication, lab, and report data remain on the device and do not
-depend on the hosted site. The native shell initializes EAS Observe, AppsFlyer, Meta, and TikTok App
-Events without forwarding WebView content or health fields. Configure the SDK identifiers and private
-build secret listed in `mobile/.env.example`, then use a development build because these packages
-contain native code. Run `npm --prefix mobile start` for local Expo development. EAS configuration lives
-in `mobile/eas.json`; the linked project is `@kyl3kan3/menlopass`.
+depend on the hosted site. The native shell resolves ATT before initializing AppsFlyer, Meta, or
+TikTok, and sends only explicitly defined, health-data-free events to EAS Observe. Configure the SDK
+identifiers and client credentials listed in `mobile/.env.example`, then use a development build
+because these packages contain native code. Run `npm --prefix mobile start` for local Expo
+development. EAS configuration lives in `mobile/eas.json`; the linked project is
+`@kyl3kan3/menlopass`. EAS Update uses the app-version runtime policy with separate development,
+preview, and production channels; native module or permission changes still require a new binary.
 
 The iOS shell uses a hard RevenueCat paywall. It does not mount the health-record WebView until
 the `MenoCompass Pro` entitlement is active, and dismissing or losing the entitlement returns the
@@ -87,8 +90,7 @@ installation works from a file URL.
 
 ```bash
 npm run build
-cd dist
-python -m http.server 8080
+python -m http.server 8080 -d dist
 # open http://localhost:8080
 ```
 
@@ -147,16 +149,18 @@ Everything lives under the single localStorage key `menocompass.v1`:
 
 ```js
 {
-  v: 4,
+  v: 5,
   profile:  { name, birthYear, region, units,
               uterus:   'intact'|'hyst'|'ablation'|'unknown',
               ovaries:  'kept'|'one'|'both'|'unknown',
               lastPeriod, surgeryDate, bone,
-              proteinGpk, weightGoal, waistGoal, theme, stage, onboarded },
+               proteinGpk, weightGoal, waistGoal, theme, stage, onboarded,
+               intent, pinnedSymptoms, onboardingStep, onboardingDeferred },
   entries:  { "2026-07-29": { hf, ns, inBedH, sleepH, sym:{…}, wt, waist,
-                              bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf},
-                              med:{ medicationId:{taken,at} }, notes, prefilledFrom? } },
-  medications:[ {id,name,form,days,due,notes} ],
+                               bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf},
+                               med:{ medicationId:{taken,at} }, notes, prefilledFrom?,
+                               confirmedData:{…trusted health snapshot…}, draftDirty } },
+  medications:[ {id,name,form,days,due,notes,started,ended,changes:[{date,label}]} ],
   labs:      [ {id,name,date,value,unit} ],
   screening:{ dxa:{last}, mammo:{last,intervalYears}, … },
   scores:   [ {date, type:'phq9'|'gad7', score, band} ],
@@ -177,10 +181,16 @@ switching units never mutates stored data. If localStorage is blocked (private m
 iframe), the app falls back to in-memory storage and tells the user their entries won't survive
 a reload.
 
-Export/import is plain JSON round-trip; CSV export is one row per day plus a questionnaire block.
+Draft health fields stay resumable on the root entry. `confirmedData` is an atomic snapshot used by
+Journey, insights, CSV, and reports; editing a confirmed day never changes those surfaces until the
+user confirms again. Medication adherence can be saved without turning that record into a confirmed
+health day. Earlier meaningful records migrate into snapshots, while medication-only records remain
+excluded from symptom analytics.
+
+Export/import is plain JSON round-trip; CSV export is one row per confirmed day plus a questionnaire block.
 Both export formats are unencrypted and may contain sensitive health information. Restore accepts
 up to 5 MB and passes every field through a strict allowlist, type/range checks, and date validation;
-unknown fields and invalid values are discarded. Schemas v1–v3 are read from the existing
+unknown fields and invalid values are discarded. Schemas v1–v4 are read from the existing
 `menocompass.v1` storage key so earlier device-local records migrate in place.
 
 ## Editorial rules the content follows

@@ -76,6 +76,9 @@ module.exports = ({ config }) => {
       ...config.ios,
       infoPlist: {
         ...config.ios?.infoPlist,
+        // The current binary is English-only. This declaration does not add an
+        // i18n layer or translated resources; add locales only when those exist.
+        CFBundleLocalizations: ['en'],
         MenoCompassTikTokAppID: tiktokAppId,
         MenoCompassTikTokBusinessAppID: tiktokBusinessAppId,
         ...(tiktokAppSecret

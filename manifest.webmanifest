@@ -1,14 +1,14 @@
 {
-  "name": "Meno Compass — menopause tracker & guide",
-  "short_name": "Meno Compass",
+  "name": "MenoCompass — menopause tracker & guide",
+  "short_name": "MenoCompass",
   "description": "A private daily tracker and evidence-based reference for perimenopause, menopause and beyond. Symptoms, sleep, weight, movement, diet, skin, mood and sexual health.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0E1618",
-  "theme_color": "#0E1618",
+  "background_color": "#071416",
+  "theme_color": "#071416",
   "categories": ["health", "lifestyle", "medical"],
   "lang": "en",
   "prefer_related_applications": false,
@@ -19,7 +19,8 @@
   ],
   "shortcuts": [
     { "name": "Today's check-in", "url": "./index.html#today" },
-    { "name": "Trends", "url": "./index.html#trends" },
+    { "name": "Journey", "url": "./index.html#journey" },
+    { "name": "Care", "url": "./index.html#care" },
     { "name": "Red flags", "url": "./index.html#redflags" }
   ]
 }

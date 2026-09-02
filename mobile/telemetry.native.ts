@@ -1,4 +1,4 @@
-import { Observe } from 'expo-observe';
+import { Observe, type ObserveAttributes } from 'expo-observe';
 import {
   getTrackingPermissionsAsync,
   requestTrackingPermissionsAsync,
@@ -12,20 +12,31 @@ import {
 } from 'react-native-appsflyer';
 import { AppEventsLogger, Settings } from 'react-native-fbsdk-next';
 import Purchases from 'react-native-purchases';
+import {
+  initializeTikTokBusiness,
+  type TrackingPermission,
+} from './modules/menocompass-tiktok-business';
 
 const appleAppId = process.env.EXPO_PUBLIC_APPLE_APP_ID?.trim() || '6798018790';
 const appsFlyerDevKey = process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY?.trim();
 const metaAppId = process.env.EXPO_PUBLIC_META_APP_ID?.trim();
 const metaClientToken = process.env.EXPO_PUBLIC_META_CLIENT_TOKEN?.trim();
 
-type TrackingPermission = 'granted' | 'denied' | 'undetermined' | 'unavailable';
 export type TelemetryInitializationResult = {
   trackingPermission: TrackingPermission;
   promptedForTracking: boolean;
 };
 type TelemetryEvent =
+  | 'app_launched'
+  | 'onboarding_started'
+  | 'onboarding_step_viewed'
+  | 'onboarding_completed'
+  | 'checkin_confirmed'
+  | 'report_opened'
   | 'paywall_opened'
+  | 'paywall_dismissed'
   | 'subscription_activated'
+  | 'subscription_management_opened'
   | 'subscription_restore_started'
   | 'subscription_restore_completed'
   | 'subscription_restore_failed';
@@ -34,12 +45,20 @@ const eventDefinitions: Record<
   TelemetryEvent,
   { observe: string; appsFlyer?: string; meta?: string }
 > = {
+  app_launched: { observe: 'app.launched' },
+  onboarding_started: { observe: 'onboarding.started' },
+  onboarding_step_viewed: { observe: 'onboarding.step_viewed' },
+  onboarding_completed: { observe: 'onboarding.completed' },
+  checkin_confirmed: { observe: 'checkin.confirmed' },
+  report_opened: { observe: 'report.opened' },
   paywall_opened: {
     observe: 'paywall.opened',
     appsFlyer: AFInAppEventType.CONTENT_VIEW,
     meta: AppEventsLogger.AppEvents.ViewedContent,
   },
+  paywall_dismissed: { observe: 'paywall.dismissed' },
   subscription_activated: { observe: 'subscription.activated' },
+  subscription_management_opened: { observe: 'subscription.management_opened' },
   subscription_restore_started: { observe: 'subscription.restore_started' },
   subscription_restore_completed: { observe: 'subscription.restore_completed' },
   subscription_restore_failed: { observe: 'subscription.restore_failed' },
@@ -50,7 +69,7 @@ let metaReady = false;
 let initialization: Promise<TelemetryInitializationResult> | undefined;
 
 function recordInitializationFailure(
-  service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat',
+  service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat' | 'tiktok',
   error: unknown,
 ) {
   Observe.logEvent('telemetry.initialization_failed', {
@@ -90,6 +109,11 @@ async function resolveTrackingPermission(): Promise<TelemetryInitializationResul
     recordInitializationFailure('permissions', error);
     return { trackingPermission: 'unavailable', promptedForTracking: false };
   }
+}
+
+async function initializeTikTok(trackingPermission: TrackingPermission) {
+  if (Platform.OS !== 'ios') return;
+  await initializeTikTokBusiness(trackingPermission);
 }
 
 function sendAppsFlyerConversionDataToRevenueCat(data: ConversionData) {
@@ -178,6 +202,12 @@ export function initializeTelemetry() {
 
     const permissionResult = await resolveTrackingPermission();
     const permission = permissionResult.trackingPermission;
+    Observe.logEvent('tracking.permission_resolved', {
+      attributes: {
+        status: permission,
+        prompted: permissionResult.promptedForTracking,
+      },
+    });
     const trackingAuthorized = permission === 'granted';
     Observe.setGlobalAttributes({
       trackingPermission: permission,
@@ -187,6 +217,7 @@ export function initializeTelemetry() {
     const tasks = [
       initializeAppsFlyer().catch(error => recordInitializationFailure('appsflyer', error)),
       initializeMeta(trackingAuthorized).catch(error => recordInitializationFailure('meta', error)),
+      initializeTikTok(permission).catch(error => recordInitializationFailure('tiktok', error)),
     ];
 
     if (trackingAuthorized) {
@@ -210,9 +241,9 @@ export function setTelemetrySubscriptionState(active: boolean) {
   });
 }
 
-export function trackTelemetryEvent(event: TelemetryEvent) {
+export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveAttributes) {
   const definition = eventDefinitions[event];
-  Observe.logEvent(definition.observe);
+  Observe.logEvent(definition.observe, attributes ? { attributes } : undefined);
 
   if (appsFlyerReady && definition.appsFlyer) {
     void AppsFlyer.logEvent({

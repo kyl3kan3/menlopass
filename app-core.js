@@ -54,16 +54,20 @@ const Store = (() => {
   };
 })();
 
-function postNativeEvent(type){
+function postNativeEvent(type, attributes){
   if(window.__MENO_NATIVE__!==true || !window.ReactNativeWebView) return false;
   try{
-    window.ReactNativeWebView.postMessage(JSON.stringify({type}));
+    const message=Object.assign({type},attributes&&typeof attributes==='object'?attributes:{});
+    window.ReactNativeWebView.postMessage(JSON.stringify(message));
     return true;
   }catch(e){ return false; }
 }
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 4;
+const SCHEMA_V = 5;
+const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
+const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'];
+const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -72,7 +76,8 @@ function blankDB(){
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
       theme:'dark', stage:null, stageAnswers:null, onboarded:false,
-      onboardingStep:0, onboardingDeferred:false
+      onboardingStep:0, onboardingDeferred:false, intent:'',
+      pinnedSymptoms:[...DEFAULT_PINNED_SYMPTOMS]
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
@@ -116,8 +121,13 @@ function migrate(d){
   p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
   p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
   p.onboarded=rawProfile.onboarded===true;
-  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,1)||0;
+  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,3)||0;
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
+  p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
+  const pinned=Array.isArray(rawProfile.pinnedSymptoms)
+    ? [...new Set(rawProfile.pinnedSymptoms.filter(k=>PINNABLE_SYMPTOMS.includes(k)))].slice(0,6)
+    : [];
+  p.pinnedSymptoms=pinned.length>=3?pinned:[...DEFAULT_PINNED_SYMPTOMS];
   const stageAnswers=safeStageAnswers(rawProfile.stageAnswers);
   if(stageAnswers && typeof completeStageAnswers==='function' && completeStageAnswers(stageAnswers)
       && typeof stageResult==='function'){
@@ -127,7 +137,7 @@ function migrate(d){
 
   if(plainRecord(d.entries)){
     Object.keys(d.entries).filter(date=>pastOrTodayISO(date)&&(!birthDate||date>=birthDate)).sort().slice(-10000).forEach(date=>{
-      const clean=safeEntry(d.entries[date]);
+      const clean=safeEntry(d.entries[date], d.v<5);
       if(clean) out.entries[date]=clean;
     });
   }
@@ -147,11 +157,23 @@ function migrate(d){
       .sort((a,b)=>a.date.localeCompare(b.date)).slice(-500);
   }
   if(Array.isArray(d.medications)){
-    out.medications=d.medications.map(safeMedication).filter(Boolean).slice(0,50);
-    d.medications.forEach(raw=>{
-      if(!plainRecord(raw)||raw.taken!==true) return;
-      const med=safeMedication(raw); if(!med) return;
-      const day=out.entries[todayISO()]||(out.entries[todayISO()]={sym:{},act:{},nut:{}});
+    d.medications.slice(0,50).forEach(raw=>{
+      const base=safeMedication(raw); if(!base) return;
+      let startedFallback='';
+      if(d.v<5 && !base.started){
+        startedFallback=Object.keys(out.entries).sort().find(date=>{
+          const rec=out.entries[date]&&out.entries[date].med&&out.entries[date].med[base.id];
+          return rec&&rec.taken===true;
+        })||'';
+        /* A legacy top-level `taken` flag means the medication was used today.
+           Without that or dated adherence, inventing a start date would make
+           the treatment timeline look more precise than the source record. */
+        if(!startedFallback && plainRecord(raw) && raw.taken===true) startedFallback=todayISO();
+      }
+      const med=safeMedication(raw,startedFallback); if(!med) return;
+      out.medications.push(med);
+      if(raw.taken!==true) return;
+      const day=out.entries[todayISO()]||(out.entries[todayISO()]={sym:{},act:{},nut:{},confirmed:false,draftDirty:false});
       day.med=day.med||{}; day.med[med.id]={taken:true,at:safeText(raw.takenAt,20)};
     });
   }
@@ -186,7 +208,7 @@ function safeStageAnswers(raw){
   });
   return Object.keys(out).length?out:null;
 }
-function safeEntry(raw){
+function safeEntryPayload(raw){
   if(!plainRecord(raw)) return null;
   const out={sym:{},act:{},nut:{}};
   const integer=(k,min,max)=>{ const n=safeInteger(raw[k],min,max); if(n!=null) out[k]=n; };
@@ -212,6 +234,11 @@ function safeEntry(raw){
     ['alc','caf'].forEach(k=>{ const n=safeInteger(raw.nut[k],0,50); if(n!=null) out.nut[k]=n; });
   }
   const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
+  return out;
+}
+function safeEntry(raw,legacyConfirmed){
+  const out=safeEntryPayload(raw);
+  if(!out) return null;
   const prefilled=safePastDate(raw.prefilledFrom); if(prefilled) out.prefilledFrom=prefilled;
   if(plainRecord(raw.med)){
     out.med={};
@@ -222,21 +249,45 @@ function safeEntry(raw){
     });
     if(!Object.keys(out.med).length) delete out.med;
   }
+  let snapshot=safeEntryPayload(raw.confirmedData);
+  if(!hasEntryContent(snapshot)) snapshot=null;
+  /* v1-v4 had no explicit completion state. Preserve meaningful historical
+     logs as an atomic snapshot while keeping medication-only records out of
+     health trends. `raw.confirmed` supports early schema-v5 drafts that used
+     the boolean before confirmed snapshots were introduced. */
+  if(!snapshot&&(legacyConfirmed===true||raw.confirmed===true)&&hasEntryContent(out)){
+    snapshot=safeEntryPayload(out);
+  }
+  if(snapshot) out.confirmedData=snapshot;
+  out.confirmed=!!snapshot;
+  out.draftDirty=!!snapshot&&raw.draftDirty===true;
   return out;
 }
-function safeMedication(raw){
+function safeMedication(raw,startedFallback){
   if(!plainRecord(raw)) return null;
   const name=safeText(raw.name,80).trim();
   if(!name) return null;
   const rawId=safeText(raw.id,40), id=/^[A-Za-z0-9_-]{1,40}$/.test(rawId)?rawId:'med-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30);
   const days=Array.isArray(raw.days)?[...new Set(raw.days.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6))].sort():[];
+  const started=safePastDate(raw.started)||safePastDate(startedFallback);
+  let ended=safePastDate(raw.ended);
+  if(started&&ended&&ended<started) ended='';
+  const changes=(Array.isArray(raw.changes)?raw.changes:[]).map(change=>{
+    if(!plainRecord(change)) return null;
+    const date=safePastDate(change.date), label=safeText(change.label,120).trim();
+    if(!date||!label) return null;
+    return {date,label};
+  }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)).slice(-100);
   return {
     id,
     name,
     form:safeEnum(raw.form,['patch','tablet','capsule','gel','spray','cream','other'],raw.icon==='patch'?'patch':'tablet'),
     days:days.length?days:[0,1,2,3,4,5,6],
     due:safeText(raw.due,20),
-    notes:safeText(raw.notes||raw.detail,120)
+    notes:safeText(raw.notes||raw.detail,120),
+    started,
+    ended,
+    changes
   };
 }
 function safeLab(raw){
@@ -247,11 +298,20 @@ function safeLab(raw){
 }
 function prefillTodayFromYesterday(){
   const t=todayISO(), y=addDays(t,-1);
-  if(DB.entries[t] || !DB.entries[y]) return false;
-  const prev=DB.entries[y], next={sym:{},act:{},nut:{},prefilledFrom:y};
-  if(prev.hf!=null) next.hf=Math.min(3,prev.hf);
-  if(prev.ns!=null) next.ns=Math.min(3,prev.ns);
-  ['fog','energy','joint','anx'].forEach(k=>{ if(prev.sym&&prev.sym[k]!=null) next.sym[k]=Math.min(3,prev.sym[k]); });
+  const prev=confirmedEntry(y);
+  if(!prev) return false;
+  const current=DB.entries[t];
+  if(current&&(isConfirmedEntry(t)||hasEntryContent(current)||current.prefilledFrom)) return false;
+  const next=current||{sym:{},act:{},nut:{},confirmed:false,draftDirty:false};
+  next.sym=next.sym||{}; next.act=next.act||{}; next.nut=next.nut||{};
+  let copied=false;
+  if(prev.hf!=null){ next.hf=prev.hf; copied=true; }
+  if(prev.ns!=null){ next.ns=prev.ns; copied=true; }
+  ['fog','energy','joint','anx'].forEach(k=>{ if(prev.sym&&prev.sym[k]!=null){ next.sym[k]=prev.sym[k]; copied=true; } });
+  if(!copied) return false;
+  next.prefilledFrom=y;
+  next.confirmed=false;
+  next.draftDirty=false;
   DB.entries[t]=next;
   return true;
 }
@@ -406,27 +466,56 @@ const SYMS = [
 const SCALE4 = ['None','Mild','Moderate','Severe','Very severe'];
 
 function entry(d){
-  if(!DB.entries[d]) DB.entries[d] = {sym:{}, act:{}, nut:{}};
+  if(!DB.entries[d]) DB.entries[d] = {sym:{}, act:{}, nut:{}, confirmed:false, draftDirty:false};
   const e = DB.entries[d];
   e.sym = e.sym||{}; e.act = e.act||{}; e.nut = e.nut||{};
+  const hasSnapshot=plainRecord(e.confirmedData)&&hasEntryContent(e.confirmedData);
+  e.confirmed=!!hasSnapshot;
+  e.draftDirty=!!hasSnapshot&&e.draftDirty===true;
   return e;
 }
-function hasData(d){
-  const e = DB.entries[d]; if(!e) return false;
+function hasEntryContent(e){
+  if(!plainRecord(e)) return false;
   if(e.hf!=null||e.ns!=null||e.wt!=null||e.waist!=null||e.bleed||e.notes) return true;
   if(Object.keys(e.sym||{}).length) return true;
   if(e.sleepH!=null||e.inBedH!=null) return true;
   if(Object.keys(e.act||{}).length||Object.keys(e.nut||{}).length) return true;
   return false;
 }
-function entryDates(){ return Object.keys(DB.entries).filter(hasData).sort(); }
+function isConfirmedEntry(d){
+  const e=DB.entries[d];
+  return !!(e&&plainRecord(e.confirmedData)&&hasEntryContent(e.confirmedData));
+}
+function confirmedEntry(d){ return isConfirmedEntry(d)?DB.entries[d].confirmedData:null; }
+function markEntryDraft(d){
+  const e=DB.entries[d];
+  if(!e||!isConfirmedEntry(d)) return false;
+  e.confirmed=true;
+  e.draftDirty=true;
+  return true;
+}
+function confirmEntry(d){
+  const e=entry(d);
+  const snapshot=safeEntryPayload(e);
+  if(!hasEntryContent(snapshot)) return false;
+  /* Build and validate the complete snapshot before swapping it in, so a
+     failed confirmation cannot partly overwrite the last trusted record. */
+  e.confirmedData=snapshot;
+  e.confirmed=true;
+  e.draftDirty=false;
+  delete e.prefilledFrom;
+  return true;
+}
+function hasData(d){ return isConfirmedEntry(d); }
+function confirmedEntryDates(){ return Object.keys(DB.entries).filter(isConfirmedEntry).sort(); }
+function entryDates(){ return confirmedEntryDates(); }
 function rangeDates(n){
   const out=[]; const t=todayISO();
   for(let i=n-1;i>=0;i--) out.push(addDays(t,-i));
   return out;
 }
 function series(days, fn){
-  return days.map(d=>{ const e=DB.entries[d]; return {d, v: e? fn(e) : null}; });
+  return days.map(d=>{ const e=confirmedEntry(d); return {d, v:e?fn(e):null}; });
 }
 function movingAvg(arr, w){
   return arr.map((p,i)=>{
@@ -529,7 +618,7 @@ function insights(){
   const nLogged = dates.length;
 
   /* --- red flag: postmenopausal bleeding --- */
-  const bleeds = dates.filter(d=>{ const b=DB.entries[d].bleed; return b && b!=='none'; });
+  const bleeds = dates.filter(d=>{ const e=confirmedEntry(d), b=e&&e.bleed; return b && b!=='none'; });
   /* Check EVERY logged bleed against the gap before it, not just the most
      recent one — an event that followed 12+ months of amenorrhoea still needs
      evaluation even if there has been bleeding since. */
@@ -592,7 +681,7 @@ function insights(){
   }
 
   /* --- mood streak --- */
-  const moodVals = d14.map(d=>DB.entries[d]&&DB.entries[d].sym?DB.entries[d].sym.mood:null).filter(v=>v!=null);
+  const moodVals = series(d14,e=>e.sym?e.sym.mood:null).map(p=>p.v).filter(v=>v!=null);
   if(moodVals.length>=7){
     const high = moodVals.filter(v=>v>=3).length;
     if(high >= Math.ceil(moodVals.length*0.6)){
@@ -618,7 +707,7 @@ function insights(){
   /* --- alcohol association (personal pattern, honestly labelled) --- */
   const pairs = [];
   d30.forEach(d=>{
-    const e=DB.entries[d], nx=DB.entries[addDays(d,1)];
+    const e=confirmedEntry(d), nx=confirmedEntry(addDays(d,1));
     if(e && nx && e.nut && e.nut.alc!=null && nx.hf!=null) pairs.push({alc:e.nut.alc, hf:nx.hf, sq: nx.sym?nx.sym.sleepq:null});
   });
   if(pairs.length>=10){
@@ -634,7 +723,7 @@ function insights(){
   }
 
   /* --- sleep vs night sweats --- */
-  const nsPairs = d30.map(d=>DB.entries[d]).filter(e=>e&&e.ns!=null&&e.sym&&e.sym.sleepq!=null);
+  const nsPairs = d30.map(confirmedEntry).filter(e=>e&&e.ns!=null&&e.sym&&e.sym.sleepq!=null);
   if(nsPairs.length>=10){
     const hi = nsPairs.filter(e=>e.ns>=2), lo = nsPairs.filter(e=>e.ns<=1);
     if(hi.length>=4 && lo.length>=4){
@@ -648,8 +737,8 @@ function insights(){
   }
 
   /* --- resistance training --- */
-  const res7 = d7.filter(d=>DB.entries[d]&&DB.entries[d].act&&DB.entries[d].act.res).length;
-  const res28 = rangeDates(28).filter(d=>DB.entries[d]&&DB.entries[d].act&&DB.entries[d].act.res).length;
+  const res7 = d7.filter(d=>{ const e=confirmedEntry(d); return e&&e.act&&e.act.res; }).length;
+  const res28 = rangeDates(28).filter(d=>{ const e=confirmedEntry(d); return e&&e.act&&e.act.res; }).length;
   if(nLogged>=7){
     if(res28===0){
       out.push({t:'warn', h:'No strength sessions logged in four weeks',
@@ -663,7 +752,7 @@ function insights(){
     }
   }
   /* --- aerobic minutes --- */
-  const aero7 = sum(d7.map(d=>{const e=DB.entries[d]; return e&&e.act?e.act.aero:null;}));
+  const aero7 = sum(d7.map(d=>{const e=confirmedEntry(d); return e&&e.act?e.act.aero:null;}));
   if(nLogged>=5 && aero7!=null){
     out.push({t: aero7>=150?'ok':'info', h:aero7+' minutes of aerobic activity this week',
       b: aero7>=150 ? 'At or above the 150-minute guideline. Aerobic work is what moved waist circumference most in the trials (−2.30 cm), while resistance work moved lean mass.'
@@ -706,7 +795,7 @@ function insights(){
   }
 
   /* --- protein --- */
-  const prot28 = rangeDates(28).map(d=>DB.entries[d]).filter(e=>e&&e.nut&&e.nut.prot!=null);
+  const prot28 = rangeDates(28).map(confirmedEntry).filter(e=>e&&e.nut&&e.nut.prot!=null);
   if(prot28.length>=7){
     const met = prot28.filter(e=>e.nut.prot).length;
     const pct = Math.round(met/prot28.length*100);
@@ -716,7 +805,7 @@ function insights(){
       cta:{l:'Protein calculator', go:'tool:protein'}});
   }
   /* --- alcohol --- */
-  const alc28 = rangeDates(28).map(d=>DB.entries[d]).filter(e=>e&&e.nut&&e.nut.alc!=null);
+  const alc28 = rangeDates(28).map(confirmedEntry).filter(e=>e&&e.nut&&e.nut.alc!=null);
   if(alc28.length>=10){
     const total = sum(alc28.map(e=>e.nut.alc));
     const perDay = total/alc28.length;
@@ -726,20 +815,20 @@ function insights(){
     }
   }
   /* --- pelvic floor --- */
-  const dryDays = rangeDates(28).map(d=>DB.entries[d]).filter(e=>e&&e.sym&&(e.sym.dry>=2||e.sym.uri>=2));
+  const dryDays = rangeDates(28).map(confirmedEntry).filter(e=>e&&e.sym&&(e.sym.dry>=2||e.sym.uri>=2));
   if(dryDays.length>=5){
     out.push({t:'warn', h:'Vaginal or bladder symptoms are showing up regularly',
       b:'Logged at moderate or worse on '+dryDays.length+' days in the last four weeks. Unlike hot flashes, these are <b>progressive</b> — they get worse rather than better if left alone, and they respond well to treatment. Low-dose vaginal oestrogen is a Strong Recommendation in the 2025 guideline, needs no progestogen, and does not raise endometrial cancer risk.',
       cta:{l:'Read the options', go:'learn:sex'}});
   }
-  const pf28 = rangeDates(28).filter(d=>DB.entries[d]&&DB.entries[d].act&&DB.entries[d].act.pf).length;
+  const pf28 = rangeDates(28).filter(d=>{ const e=confirmedEntry(d); return e&&e.act&&e.act.pf; }).length;
   if(dryDays.length>=3 && pf28<8){
     out.push({t:'info', h:'Pelvic floor training is the best-evidenced thing you can do yourself',
       b:'Cochrane review of 31 trials: stress incontinence cured in 56% versus 6% of controls; cured or improved in 74% versus 11%. The catch is technique — many women contract incorrectly on the first attempt, which is why being taught beats guessing.',
       cta:{l:'How to do it', go:'learn:exercise'}});
   }
   /* --- OSA screen prompt --- */
-  const sleepObs = rangeDates(21).map(d=>DB.entries[d]).filter(e=>
+  const sleepObs = rangeDates(21).map(confirmedEntry).filter(e=>
     e && e.sym && e.sym.sleepq!=null && e.ns!=null
   );
   const badSleep = sleepObs.filter(e=>e.sym.sleepq>=3);

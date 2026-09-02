@@ -6,37 +6,51 @@ export const appReviewMilestones = [2, 5, 20] as const;
 type AppReviewMilestone = (typeof appReviewMilestones)[number];
 
 type AppReviewState = {
-  version: 1;
-  launchCount: number;
-  requestedAtLaunches: AppReviewMilestone[];
+  version: 2;
+  successfulMomentCount: number;
+  requestedAtMilestones: AppReviewMilestone[];
 };
 
-export type AppOpeningReviewState = {
-  launchCount: number;
+export type AppReviewProgress = {
+  successfulMomentCount: number;
   dueMilestone: AppReviewMilestone | null;
 };
 
 const reviewStateFile = new File(Paths.document, 'menocompass-review-state.json');
 
 function emptyReviewState(): AppReviewState {
-  return { version: 1, launchCount: 0, requestedAtLaunches: [] };
+  return { version: 2, successfulMomentCount: 0, requestedAtMilestones: [] };
 }
 
 function parseReviewState(serialized: string): AppReviewState {
   try {
     const parsed = JSON.parse(serialized);
-    if (!parsed || parsed.version !== 1 || !Number.isInteger(parsed.launchCount)) {
+    if (!parsed || typeof parsed !== 'object') {
       return emptyReviewState();
     }
 
-    const requestedAtLaunches = Array.isArray(parsed.requestedAtLaunches)
-      ? appReviewMilestones.filter(milestone => parsed.requestedAtLaunches.includes(milestone))
+    if (parsed.version === 1) {
+      const requestedAtMilestones = Array.isArray(parsed.requestedAtLaunches)
+        ? appReviewMilestones.filter(milestone => parsed.requestedAtLaunches.includes(milestone))
+        : [];
+      return { version: 2, successfulMomentCount: 0, requestedAtMilestones };
+    }
+
+    if (parsed.version !== 2 || !Number.isInteger(parsed.successfulMomentCount)) {
+      return emptyReviewState();
+    }
+
+    const requestedAtMilestones = Array.isArray(parsed.requestedAtMilestones)
+      ? appReviewMilestones.filter(milestone => parsed.requestedAtMilestones.includes(milestone))
       : [];
 
     return {
-      version: 1,
-      launchCount: Math.max(0, Math.min(parsed.launchCount, Number.MAX_SAFE_INTEGER - 1)),
-      requestedAtLaunches,
+      version: 2,
+      successfulMomentCount: Math.max(
+        0,
+        Math.min(parsed.successfulMomentCount, Number.MAX_SAFE_INTEGER - 1),
+      ),
+      requestedAtMilestones,
     };
   } catch {
     return emptyReviewState();
@@ -55,29 +69,34 @@ function writeReviewState(state: AppReviewState) {
 
 function dueMilestone(state: AppReviewState) {
   return appReviewMilestones.find(
-    milestone => state.launchCount >= milestone && !state.requestedAtLaunches.includes(milestone),
+    milestone =>
+      state.successfulMomentCount >= milestone
+      && !state.requestedAtMilestones.includes(milestone),
   ) || null;
 }
 
-export async function registerAppOpening(): Promise<AppOpeningReviewState> {
+export async function registerSuccessfulMoment(): Promise<AppReviewProgress> {
   const state = readReviewState();
-  state.launchCount += 1;
+  state.successfulMomentCount += 1;
   writeReviewState(state);
-  return { launchCount: state.launchCount, dueMilestone: dueMilestone(state) };
+  return {
+    successfulMomentCount: state.successfulMomentCount,
+    dueMilestone: dueMilestone(state),
+  };
 }
 
 export async function requestReviewForMilestone(milestone: AppReviewMilestone) {
   const state = readReviewState();
   if (
     !appReviewMilestones.includes(milestone)
-    || state.launchCount < milestone
-    || state.requestedAtLaunches.includes(milestone)
+    || state.successfulMomentCount < milestone
+    || state.requestedAtMilestones.includes(milestone)
   ) return false;
 
   if (!(await StoreReview.isAvailableAsync())) return false;
 
   await StoreReview.requestReview();
-  state.requestedAtLaunches.push(milestone);
+  state.requestedAtMilestones.push(milestone);
   writeReviewState(state);
   return true;
 }

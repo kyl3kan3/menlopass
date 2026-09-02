@@ -30,7 +30,8 @@ FONT_FILES = (
     "assets/fonts/bricolage-grotesque-latin.woff2",
     "assets/fonts/OFL.txt",
 )
-SOURCE_FILES = ("styles.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES)
+NOTICE_FILES = ("assets/icons/LUCIDE_LICENSE.txt",)
+SOURCE_FILES = ("styles.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES)
 
 
 def source_text(name: str) -> str:
@@ -56,22 +57,26 @@ def reset_dist() -> None:
 
 def build_html() -> str:
     css = source_text("styles.css")
+    icon_license = source_text("assets/icons/LUCIDE_LICENSE.txt")
     javascript = "\n\n".join(
         f"/* ==== {name} ==== */\n{source_text(name)}" for name in JS_ORDER
     )
     favicon = base64.b64encode((ROOT / "favicon-64.png").read_bytes()).decode("ascii")
 
     return f"""<!DOCTYPE html>
+<!-- Third-party icon notice:
+{icon_license}
+-->
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <title>Meno Compass — menopause tracker &amp; guide</title>
 <meta name="description" content="A private daily tracker and evidence-based reference for perimenopause and menopause: symptoms, sleep, weight, movement, diet, skin, mood and sexual health. No account, no server.">
-<meta name="theme-color" content="#F1F4F3">
+<meta name="theme-color" content="#071416">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Meno Compass">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MenoCompass">
 <meta name="color-scheme" content="light dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
