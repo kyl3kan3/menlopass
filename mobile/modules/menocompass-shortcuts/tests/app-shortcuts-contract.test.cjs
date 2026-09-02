@@ -43,6 +43,7 @@ test('defines two discoverable App Intents and an AppShortcutsProvider', () => {
   assert.equal((appTargetSwift.match(/\bAppShortcut\(/g) || []).length, 2);
   assert.match(appTargetSwift, /Log with \\\(.applicationName\)/);
   assert.match(appTargetSwift, /Review \\\(.applicationName\) patterns/);
+  assert.doesNotMatch(appTargetSwift, /IntentDescription\([^)]*siri/is);
 });
 
 test('intents foreground the app and publish only allow-listed route URLs', () => {

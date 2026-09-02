@@ -49,7 +49,7 @@ struct LogWithMenoCompassIntent: AppIntent {
 struct ReviewMenoCompassPatternsIntent: AppIntent {
   static var title: LocalizedStringResource = "Review MenoCompass patterns"
   static var description = IntentDescription(
-    "Opens your private MenoCompass pattern insights without exposing health details to Shortcuts or Siri."
+    "Opens your private MenoCompass pattern insights. Health details stay inside the app."
   )
   static var openAppWhenRun: Bool = true
 
