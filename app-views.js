@@ -102,6 +102,7 @@ let checkinComplete = false;
 let guideQuery = '';
 let reportRange = 90;
 let treatmentChangeTarget = null;
+let treatmentFollowUpTarget = null;
 const APP_VERSION = '1.1.0';
 
 /* ---------- tiny helpers ---------- */
@@ -1033,6 +1034,7 @@ function reportSheet(days){
   ${topSym.length?`<div class="card"><h4>Worth discussing · prominent symptoms (${summaryDays}-day average, 0–4)</h4>
     ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
   ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.due?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
+  ${treatmentFollowUpReport(days)}
   ${labs.length?`<div class="card"><h4>Recent lab results</h4>${labs.map(x=>`<div class="kv"><span>${esc(x.name)} · ${fmtDay(x.date)}</span><b>${esc(x.value+(x.unit?' '+x.unit:''))}</b></div>`).join('')}</div>`:''}
   ${questionnaires.length?`<div class="card"><h4>Questionnaire scores</h4>
     ${questionnaires.map(s=>`<div class="kv"><span>${s.type.toUpperCase()} · ${fmtDay(s.date)}</span><b>${s.score}${s.band?' — '+esc(s.band):''}</b></div>`).join('')}
@@ -1533,6 +1535,7 @@ function medicationForm(){
     <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form"><option>patch</option><option>tablet</option><option>capsule</option><option>gel</option><option>spray</option><option>cream</option><option>other</option></select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time"></div></div>
     <label class="fl">Scheduled days</label><div class="tw-day-picks">${DAY_SHORT.map((d,i)=>h('button',{class:'chip','data-act':'med-day','data-v':i,'aria-pressed':medDaysDraft.includes(i)?'true':'false','aria-label':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]},d)).join('')}</div>
     <div class="grid2"><div><label class="fl" for="med-started">Started or changed</label><input id="med-started" type="date" max="${todayISO()}" value="${todayISO()}"></div><div><label class="fl" for="med-change-label">What changed (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="Dose, form, or timing"></div></div>
+    ${treatmentTargetField('med')}
     <label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions">
     <div class="btn-row split"><button class="btn primary" data-act="med-save">Save medication</button><button class="btn ghost" data-act="med-cancel">Cancel</button></div>
   </div>`;
@@ -1612,6 +1615,131 @@ function symptomPath(key){ return key==='hf'||key==='ns'?key:'sym.'+key; }
 function symptomIcon(key){
   return key==='hf'?TWILIGHT_IC.flame:key==='ns'?TWILIGHT_IC.moon:(SYM_IC[key]||TWILIGHT_IC.cycle);
 }
+function treatmentTargetField(prefix,selected){
+  const chosen=Array.isArray(selected)?selected:[];
+  const ordered=[...new Set([...focusedKeys(),...PINNABLE_SYMPTOMS])];
+  return `<fieldset class="jc-target-field"><legend>What should this change help?</legend>
+    <p>Choose up to six target symptoms. MenoCompass saves the seven calendar days before the change as a baseline and schedules 2- and 6-week follow-ups.</p>
+    <div>${ordered.map(key=>`<label for="${prefix}-target-${esc(key)}"><input id="${prefix}-target-${esc(key)}" name="${prefix}-target" type="checkbox" value="${esc(key)}"${chosen.includes(key)?' checked':''}><span>${esc(symptomName(key))}</span></label>`).join('')}</div>
+  </fieldset>`;
+}
+function selectedTreatmentTargets(prefix){
+  return [...document.querySelectorAll(`input[name="${prefix}-target"]:checked`)]
+    .map(input=>input.value).filter(key=>PINNABLE_SYMPTOMS.includes(key));
+}
+function treatmentWindowSnapshot(changeDate,startOffset,endOffset,targets){
+  const windowStart=addDays(changeDate,startOffset), windowEnd=addDays(changeDate,endOffset), values={};
+  (Array.isArray(targets)?targets:[]).forEach(key=>{
+    const observations=[];
+    for(let offset=startOffset;offset<=endOffset;offset++){
+      const value=symptomValue(confirmedRecord(addDays(changeDate,offset)),key);
+      if(value!=null&&!isNaN(value)) observations.push(value);
+    }
+    if(observations.length) values[key]={average:avg(observations),n:observations.length};
+  });
+  return {windowStart,windowEnd,values};
+}
+function newTreatmentChange(date,label,targets){
+  const cleanTargets=[...new Set((targets||[]).filter(key=>PINNABLE_SYMPTOMS.includes(key)))].slice(0,6);
+  return {
+    date,label,targets:cleanTargets,
+    baseline:treatmentWindowSnapshot(date,-7,-1,cleanTargets),
+    followUps:[]
+  };
+}
+function treatmentFollowUpItems(){
+  const out=[];
+  (Array.isArray(DB.medications)?DB.medications:[]).forEach((med,medIndex)=>{
+    (Array.isArray(med.changes)?med.changes:[]).forEach((change,changeIndex)=>{
+      if(!change||!pastOrTodayISO(change.date)||!Array.isArray(change.targets)||!change.targets.length) return;
+      [2,6].forEach(week=>{
+        const followUp=(Array.isArray(change.followUps)?change.followUps:[]).find(item=>item&&item.week===week)||null;
+        const dueDate=addDays(change.date,week*7);
+        out.push({med,medIndex,change,changeIndex,week,dueDate,followUp});
+      });
+    });
+  });
+  const rank=item=>item.followUp?2:(item.dueDate<=todayISO()?0:1);
+  return out.sort((a,b)=>rank(a)-rank(b)
+    ||(rank(a)===2?(b.followUp.completed||'').localeCompare(a.followUp.completed||''):a.dueDate.localeCompare(b.dueDate)));
+}
+function findTreatmentFollowUp(target){
+  if(!target) return null;
+  return treatmentFollowUpItems().find(item=>item.med.id===target.medId&&item.changeIndex===target.changeIndex&&item.week===target.week)||null;
+}
+function treatmentBenefitLabel(value){
+  return ['No benefit noticed','Slight benefit','Some benefit','Clear benefit','Major benefit'][+value]||'Not recorded';
+}
+function treatmentAdherenceLabel(value){
+  return {all:'All scheduled doses',most:'Most scheduled doses',some:'About half of scheduled doses',few:'A few scheduled doses',none:'No scheduled doses'}[value]||'Not recorded';
+}
+function treatmentSideEffectLabel(value){
+  return {none:'None noticed',mild:'Mild',moderate:'Moderate',severe:'Severe'}[value]||'Not recorded';
+}
+function treatmentComparisonData(item){
+  const baseline=item.change.baseline&&item.change.baseline.values?item.change.baseline.values:{};
+  const after=item.followUp
+    ?(item.followUp.outcome||{values:{}})
+    :treatmentWindowSnapshot(item.change.date,item.week*7-6,item.week*7,item.change.targets);
+  return item.change.targets.map(key=>{
+    const before=baseline[key]||null, current=after.values[key]||null;
+    return {key,before,current,ready:!!before&&!!current&&before.n>=3&&current.n>=3};
+  });
+}
+function treatmentComparisonMarkup(item){
+  const rows=treatmentComparisonData(item);
+  return `<div class="jc-followup-comparison"><p><b>Matched 7-day windows</b> · the week before the change versus the week ending at week ${item.week}.</p>
+    ${rows.map(row=>{
+      const beforeN=row.before?row.before.n:0, currentN=row.current?row.current.n:0;
+      if(!row.ready) return `<div><b>${esc(symptomName(row.key))}</b><span>Not enough confirmed data yet (${beforeN}/7 before, ${currentN}/7 at week ${item.week}; at least 3 in each window needed).</span></div>`;
+      const before=row.before.average, current=row.current.average, delta=current-before;
+      const unit=row.key==='hf'?' / day':' / 4';
+      const direction=Math.abs(delta)<0.05?'about the same':Math.abs(delta).toFixed(1)+' '+(delta<0?'lower':'higher');
+      return `<div><b>${esc(symptomName(row.key))}</b><span>${r1(before)}${unit} before (${row.before.n}/7) · ${r1(current)}${unit} at week ${item.week} (${row.current.n}/7) · observed average ${direction}.</span></div>`;
+    }).join('')}
+  </div>`;
+}
+function treatmentFollowUpForm(item){
+  return `<div class="tw-form-card jc-inline-form jc-followup-form" aria-label="${item.week}-week follow-up for ${esc(item.med.name)}">
+    <span class="jc-followup-kicker">${item.week}-week treatment follow-up</span>
+    <h3>${esc(item.med.name)}</h3>
+    <p>Change recorded ${esc(fmtDay(item.change.date))}: ${esc(item.change.label)}. Think about the target symptoms overall; your confirmed logs provide the matched comparison below.</p>
+    <div class="grid2"><div><label class="fl" for="followup-benefit">Benefit noticed</label><select id="followup-benefit"><option value="">Choose…</option>${[0,1,2,3,4].map(value=>`<option value="${value}">${esc(treatmentBenefitLabel(value))}</option>`).join('')}</select></div>
+      <div><label class="fl" for="followup-adherence">Doses taken</label><select id="followup-adherence"><option value="">Choose…</option>${['all','most','some','few','none'].map(value=>`<option value="${value}">${esc(treatmentAdherenceLabel(value))}</option>`).join('')}</select></div></div>
+    <label class="fl" for="followup-side-effect-level">Side effects</label><select id="followup-side-effect-level"><option value="">Choose…</option>${['none','mild','moderate','severe'].map(value=>`<option value="${value}">${esc(treatmentSideEffectLabel(value))}</option>`).join('')}</select>
+    <label class="fl" for="followup-side-effects">Side-effect details (optional)</label><textarea id="followup-side-effects" maxlength="500" placeholder="What happened, when, and whether it settled"></textarea>
+    <label class="fl" for="followup-notes">Anything to ask at your next appointment? (optional)</label><textarea id="followup-notes" maxlength="500" placeholder="Questions or context worth remembering"></textarea>
+    ${treatmentComparisonMarkup(item)}
+    <p class="jc-causality">Observed association—not proof that the treatment caused the change.</p>
+    <div class="btn-row split"><button class="btn primary" data-act="treatment-followup-save" data-med-id="${esc(item.med.id)}" data-change-index="${item.changeIndex}" data-week="${item.week}">Save follow-up</button><button class="btn ghost" data-act="treatment-followup-cancel">Cancel</button></div>
+  </div>`;
+}
+function treatmentFollowUpSection(items){
+  return `<section class="jc-section jc-followups"><div class="jc-section-head"><span>Treatment follow-ups</span></div>
+    <div class="jc-followup-list">${items.length?items.slice(0,8).map(item=>{
+      const daysUntil=daysBetween(todayISO(),item.dueDate), complete=item.followUp;
+      const status=complete?'Completed '+fmtDay(complete.completed):daysUntil<=0?'Due now':daysUntil===1?'Due tomorrow':'Due in '+daysUntil+' days';
+      return `<article class="jc-followup-card${!complete&&daysUntil<=0?' due':''}"><div><span>${esc(status)}</span><h3>${item.week}-week check · ${esc(item.med.name)}</h3><p>${esc(item.change.targets.map(symptomName).join(', '))}</p></div>
+        ${complete?`<p><b>${esc(treatmentBenefitLabel(complete.benefit))}</b> · ${esc(treatmentAdherenceLabel(complete.adherence))} · side effects: ${esc(treatmentSideEffectLabel(complete.sideEffectLevel))}.</p>`:daysUntil<=0?`<button class="jc-secondary" data-act="treatment-followup-open" data-med-id="${esc(item.med.id)}" data-change-index="${item.changeIndex}" data-week="${item.week}">Complete follow-up</button>`:`<small>Scheduled for ${esc(fmtDay(item.dueDate))}</small>`}
+      </article>`;
+    }).join(''):`<p class="jc-empty-line">No follow-ups scheduled. Choose target symptoms when you record a treatment change to create 2- and 6-week check-ins.</p>`}</div>
+  </section>`;
+}
+function treatmentFollowUpReport(days){
+  const rangeStart=addDays(todayISO(),-(days-1));
+  const items=treatmentFollowUpItems().filter(item=>item.followUp&&item.followUp.completed>=rangeStart).slice(0,8);
+  if(!items.length) return '';
+  return `<div class="card jc-report-followups"><h4>Treatment follow-ups</h4>${items.map(item=>{
+    const followUp=item.followUp;
+    return `<section><p><b>${esc(item.med.name)} · ${item.week}-week check</b><br><span>${esc(item.change.label)} · completed ${esc(fmtDay(followUp.completed))}</span></p>
+      <div class="kv"><span>Benefit noticed</span><b>${esc(treatmentBenefitLabel(followUp.benefit))}</b></div>
+      <div class="kv"><span>Doses taken</span><b>${esc(treatmentAdherenceLabel(followUp.adherence))}</b></div>
+      <div class="kv"><span>Side effects</span><b>${esc(treatmentSideEffectLabel(followUp.sideEffectLevel))}${followUp.sideEffects?' · '+esc(followUp.sideEffects):''}</b></div>
+      ${followUp.notes?`<p class="tiny"><b>Appointment note:</b> ${esc(followUp.notes)}</p>`:''}
+      ${treatmentComparisonMarkup(item)}
+    </section>`;
+  }).join('')}<p class="xtiny"><b>Observed association—not proof that the treatment caused the change.</b> Comparisons use equal seven-calendar-day windows and only confirmed logs; coverage is shown for each target symptom.</p></div>`;
+}
 function recordSummary(record){
   if(!record) return 'No confirmed entries yet.';
   const ranked=focusedKeys().map(k=>({k,v:symptomValue(record,k)})).filter(x=>x.v!=null&&x.v>0).sort((a,b)=>b.v-a.v);
@@ -1620,34 +1748,74 @@ function recordSummary(record){
   const lead=first.k==='hf'?'Hot flashes: '+suffix:symptomName(first.k)+' was '+suffix;
   return lead+(ranked[1]?' · '+symptomName(ranked[1].k)+' was also present.':'.');
 }
-function weeklyPatternText(){
-  const dates=entryDates();
-  if(dates.length<14) return null;
-  const recent=dates.slice(-7), prior=dates.slice(-14,-7);
+const WEEKLY_WINDOW_DAYS=7, WEEKLY_MIN_COVERAGE=4;
+function weeklyPatternWindows(anchor){
+  const end=anchor||todayISO();
+  const recent=Array.from({length:WEEKLY_WINDOW_DAYS},(_,i)=>addDays(end,i-(WEEKLY_WINDOW_DAYS-1)));
+  const prior=Array.from({length:WEEKLY_WINDOW_DAYS},(_,i)=>addDays(end,i-(WEEKLY_WINDOW_DAYS*2-1)));
+  return {
+    recent,
+    prior,
+    recentCount:recent.filter(d=>!!confirmedRecord(d)).length,
+    priorCount:prior.filter(d=>!!confirmedRecord(d)).length
+  };
+}
+function weeklyCoverageText(summary){
+  return 'Coverage: '+summary.recentCount+'/'+WEEKLY_WINDOW_DAYS+' recent days · '+summary.priorCount+'/'+WEEKLY_WINDOW_DAYS+' prior days.';
+}
+function weeklyPattern(){
+  const windows=weeklyPatternWindows();
+  if(windows.recentCount<WEEKLY_MIN_COVERAGE||windows.priorCount<WEEKLY_MIN_COVERAGE) return null;
   const candidates=focusedKeys().map(k=>{
-    const a=avg(recent.map(d=>symptomValue(confirmedRecord(d),k)));
-    const b=avg(prior.map(d=>symptomValue(confirmedRecord(d),k)));
-    return {k,a,b,delta:a!=null&&b!=null?a-b:null};
-  }).filter(x=>x.delta!=null).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
-  if(!candidates.length) return 'Your confirmed days do not yet share enough of the same symptom fields for a weekly comparison.';
-  const top=candidates[0];
-  if(Math.abs(top.delta)<0.35) return 'Your most recent confirmed week looks broadly steady compared with the prior logged week.';
-  return symptomName(top.k)+' has been '+(top.delta<0?'lower':'higher')+' than in the prior confirmed week.';
+    const recentValues=windows.recent.map(d=>symptomValue(confirmedRecord(d),k)).filter(v=>v!=null&&!isNaN(v));
+    const priorValues=windows.prior.map(d=>symptomValue(confirmedRecord(d),k)).filter(v=>v!=null&&!isNaN(v));
+    if(recentValues.length<WEEKLY_MIN_COVERAGE||priorValues.length<WEEKLY_MIN_COVERAGE) return null;
+    const a=avg(recentValues), b=avg(priorValues), delta=a-b;
+    /* Rank unlike units by proportional change, with a floor of one unit so
+       tiny moves near zero cannot outrank a meaningful sustained change. */
+    const score=Math.abs(delta)/Math.max(Math.abs(a),Math.abs(b),1);
+    return {k,a,b,delta,score,recentCount:recentValues.length,priorCount:priorValues.length};
+  }).filter(Boolean).sort((a,b)=>b.score-a.score||Math.abs(b.delta)-Math.abs(a.delta));
+  if(!candidates.length){
+    return {
+      text:'Those calendar windows have enough confirmed check-ins, but not enough matching symptom answers to compare yet.',
+      recentCount:windows.recentCount,
+      priorCount:windows.priorCount
+    };
+  }
+  const changed=candidates.filter(candidate=>candidate.score>=0.2&&Math.abs(candidate.delta)>=0.35);
+  const top=changed[0], coverageCandidate=top||candidates[0];
+  return {
+    text:top
+      ?symptomName(top.k)+' has been '+(top.delta<0?'lower':'higher')+' in the recent 7 calendar days than in the previous 7 days.'
+      :'Your tracked symptoms look broadly steady across the two 7-day calendar windows.',
+    recentCount:coverageCandidate.recentCount,
+    priorCount:coverageCandidate.priorCount
+  };
+}
+function weeklyPatternText(){
+  const pattern=weeklyPattern();
+  return pattern?pattern.text:null;
 }
 function treatmentEvents(){
   const out=[];
   (Array.isArray(DB.medications)?DB.medications:[]).forEach(m=>{
     if(pastOrTodayISO(m.started)) out.push({date:m.started,order:0,title:m.name+' started',body:m.notes||medicationDetail(m)});
     (Array.isArray(m.changes)?m.changes:[]).forEach(change=>{
-      if(change&&pastOrTodayISO(change.date)) out.push({date:change.date,order:1,title:m.name+' changed',body:change.label||'Treatment details updated.'});
+      if(change&&pastOrTodayISO(change.date)){
+        const targets=Array.isArray(change.targets)&&change.targets.length?' · Watching '+change.targets.map(symptomName).join(', ')+'.':'';
+        out.push({date:change.date,order:1,title:m.name+' changed',body:(change.label||'Treatment details updated.')+targets});
+      }
     });
     if(pastOrTodayISO(m.ended)) out.push({date:m.ended,order:2,title:m.name+' ended',body:'Marked as no longer active.'});
   });
   return out.sort((a,b)=>b.date.localeCompare(a.date)||(b.order||0)-(a.order||0));
 }
 function comparisonPanel(count){
-  const ready=count>=14;
-  return `<div class="jc-sufficiency"><div><strong>${count} confirmed ${count===1?'day':'days'}</strong><span>${ready?'Comparisons are ready — keep confirming changes.':'Comparisons unlock after 14.'}</span></div><div class="jc-progress" aria-label="${Math.min(count,14)} of 14 confirmed days"><i style="width:${Math.min(100,count/14*100)}%"></i></div></div>`;
+  const windows=weeklyPatternWindows(), ready=windows.recentCount>=WEEKLY_MIN_COVERAGE&&windows.priorCount>=WEEKLY_MIN_COVERAGE;
+  const coverage='Calendar coverage: '+windows.recentCount+'/'+WEEKLY_WINDOW_DAYS+' recent days · '+windows.priorCount+'/'+WEEKLY_WINDOW_DAYS+' prior days.';
+  const progress=Math.min(100,Math.min(windows.recentCount,windows.priorCount)/WEEKLY_WINDOW_DAYS*100);
+  return `<div class="jc-sufficiency"><div><strong>${count} confirmed ${count===1?'day':'days'} total</strong><span>${coverage} ${ready?'Comparisons are ready — keep confirming changes.':'Weekly comparisons need at least 4 confirmed days in each window.'}</span></div><div class="jc-progress" aria-label="${windows.recentCount} of 7 recent days and ${windows.priorCount} of 7 prior days"><i style="width:${progress}%"></i></div></div>`;
 }
 function dcWeekStrip(anchor){
   const days=Array.from({length:7},(_,i)=>addDays(anchor,i-6));
@@ -1657,8 +1825,8 @@ function dcWeekStrip(anchor){
   }).join('')}</div>`;
 }
 function dcProgress(count){
-  const shown=Math.min(count,14), ready=count>=14;
-  const copy=ready?'patterns are ready to explore.':shown?'patterns are starting to form.':'Log 14 confirmed days to start finding patterns.';
+  const shown=Math.min(count,14), windows=weeklyPatternWindows(), ready=windows.recentCount>=WEEKLY_MIN_COVERAGE&&windows.priorCount>=WEEKLY_MIN_COVERAGE;
+  const copy=ready?'patterns are ready to explore.':count>=14?'Keep checking in — weekly comparisons need 4 days in each calendar window.':shown?'patterns are starting to form.':'Log 14 confirmed days to start finding patterns.';
   return `<div class="dc-progress"><div role="progressbar" aria-label="Confirmed days toward pattern insights" aria-valuemin="0" aria-valuemax="14" aria-valuenow="${shown}"><i style="width:${Math.min(100,count/14*100)}%"></i></div><p>${shown?`<strong>${shown} of 14 days</strong> — `:''}${copy}</p></div>`;
 }
 function dcTodayTask(date){
@@ -1677,9 +1845,9 @@ function viewHome(){
   const t=todayISO(), state=dayState(t), count=entryDates().length;
   const dates=entryDates(), latestDate=dates.length?dates[dates.length-1]:null, latest=latestDate?confirmedRecord(latestDate):null;
   const cta=state.key==='confirmed'?'Review today':state.key==='draft'?'Finish check-in':'Check in';
-  const pattern=weeklyPatternText();
-  const recapTitle=pattern||recordSummary(latest);
-  const recapBody=pattern?'Compared with your prior confirmed week.':latestDate?'From your latest confirmed day, '+fmtDay(latestDate)+'.':'Confirm a few quick check-ins and your first recap will appear here.';
+  const pattern=weeklyPattern();
+  const recapTitle=pattern?pattern.text:recordSummary(latest);
+  const recapBody=pattern?weeklyCoverageText(pattern):latestDate?'From your latest confirmed day, '+fmtDay(latestDate)+'.':'Confirm a few quick check-ins and your first recap will appear here.';
   const longDate=parseISO(t).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}).toUpperCase();
   return `<div class="view jc-screen jc-home">
     ${jcChrome()}
@@ -1702,18 +1870,18 @@ function viewJourney(){
   let timeline=jcTimelineEvent(state.key,'Today',state.label,todayBody);
   if(events.length){
     const event=events[0];
-    timeline+=jcTimelineEvent('treatment',fmtDay(event.date),event.title,event.body,'<span class="jc-proof">Early signal — not proof.</span>');
+    timeline+=jcTimelineEvent('treatment',fmtDay(event.date),event.title,event.body,'<span class="jc-proof">Observed association—not proof of cause and effect.</span>');
   } else if(DB.medications.length){
     timeline+=jcTimelineEvent('treatment','Treatment plan','Add a change date',DB.medications.length+' active treatment '+(DB.medications.length===1?'item is':'items are')+' on file. Record when something changes to place it in your story.');
   }
-  const pattern=weeklyPatternText();
+  const pattern=weeklyPattern();
   if(pattern){
-    timeline+=jcTimelineEvent('pattern','Recent confirmed weeks','Weekly pattern',pattern,'<button class="jc-inline-action" data-act="sheet" data-s="learn:symptoms">What this means '+IC.chev+'</button>');
+    timeline+=jcTimelineEvent('pattern','Recent calendar windows','Weekly pattern',pattern.text,'<span class="jc-proof">'+esc(weeklyCoverageText(pattern))+'</span><button class="jc-inline-action" data-act="sheet" data-s="learn:symptoms">What this means '+IC.chev+'</button>');
   } else if(dates.length&&dates[dates.length-1]!==t){
     const last=dates[dates.length-1], record=confirmedRecord(last);
     timeline+=jcTimelineEvent('confirmed',fmtDay(last),'Latest confirmed day',recordSummary(record));
   } else {
-    timeline+=jcTimelineEvent('waiting','Weekly pattern','Waiting for confirmed days','Comparisons need 14 confirmed days. Drafts and treatment-only entries do not count.');
+    timeline+=jcTimelineEvent('waiting','Weekly pattern','Waiting for confirmed days','Weekly comparisons need at least 4 confirmed days in each 7-day calendar window. Drafts and treatment-only entries do not count.');
   }
   return `<div class="view jc-screen jc-journey">
     ${jcChrome()}
@@ -1724,17 +1892,19 @@ function viewJourney(){
   </div>`;
 }
 function treatmentChangeForm(m){
-  return `<div class="tw-form-card jc-inline-form"><h3>Record a change to ${esc(m.name)}</h3><label class="fl" for="change-date">Change date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"><label class="fl" for="change-label">What changed?</label><input id="change-label" type="text" maxlength="120" placeholder="Dose, form, timing, or reason"><div class="btn-row split"><button class="btn primary" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn ghost" data-act="med-change-cancel">Cancel</button></div></div>`;
+  return `<div class="tw-form-card jc-inline-form"><h3>Record a change to ${esc(m.name)}</h3><label class="fl" for="change-date">Change date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"><label class="fl" for="change-label">What changed?</label><input id="change-label" type="text" maxlength="120" placeholder="Dose, form, timing, or reason">${treatmentTargetField('change')}<div class="btn-row split"><button class="btn primary" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn ghost" data-act="med-change-cancel">Cancel</button></div></div>`;
 }
 function viewCare(){
   const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[], due=scheduledMeds(todayISO()), count=entryDates().length;
   const changeMed=treatmentChangeTarget?meds.find(m=>m.id===treatmentChangeTarget):null;
+  const followUps=treatmentFollowUpItems(), activeFollowUp=findTreatmentFollowUp(treatmentFollowUpTarget);
   return `<div class="view jc-screen jc-care">
     ${jcChrome()}
     ${jcHeading('Care','Treatments, appointments, and follow-ups in one place.')}
-    ${!medFormOpen&&!changeMed?'<button class="jc-primary" data-act="med-add">Add treatment or change</button>':''}
-    ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}
+    ${!medFormOpen&&!changeMed&&!activeFollowUp?'<button class="jc-primary" data-act="med-add">Add treatment or change</button>':''}
+    ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
     <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'No treatments added yet. Add what you take so changes can appear in your journey.'}</p>`}</div></section>
+    ${treatmentFollowUpSection(followUps)}
     <section class="jc-context jc-appointment"><span>Appointments</span><h2>${count<7?'Early summary':'Your report is taking shape'}</h2><p>Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
     <section class="jc-section"><div class="jc-section-head"><span>Your treatment plan</span>${meds.length?'<button data-act="med-add">Add</button>':''}</div>
       <div class="jc-treatment-list">${meds.length?meds.map((m,i)=>`<article class="jc-treatment"><div>${medicationIcon(m)}<span><b>${esc(m.name)}</b><small>${esc(medicationDetail(m))}${m.started?' · since '+esc(fmtDay(m.started)):''}</small></span></div><div class="jc-treatment-actions"><button data-act="med-change" data-id="${esc(m.id)}">Record change</button><button data-act="med-remove" data-i="${i}" aria-label="Remove ${esc(m.name)}">Remove</button></div></article>`).join(''):'<p class="jc-empty-line">No treatments added yet.</p>'}</div>
@@ -1973,7 +2143,7 @@ function handleAction(el, ev){
       else records[m.id]={taken:true,at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
       save(true); render(true); return;
     }
-    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
+    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
     case 'med-cancel': medFormOpen=false; render(true); return;
     case 'med-day': {
       const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort(); render(true); return;
@@ -1983,19 +2153,46 @@ function handleAction(el, ev){
       if(!name||!name.value.trim()){ toast('Enter the medication and dose'); name&&name.focus(); return; }
       if(!medDaysDraft.length){ toast('Choose at least one scheduled day'); return; }
       let id='med-'+Date.now().toString(36); while(DB.medications.some(m=>m.id===id)) id+='x';
+      const targets=selectedTreatmentTargets('med');
+      if(targets.length>6){ toast('Choose up to six target symptoms'); return; }
       const med={id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim(),started:started&&pastOrTodayISO(started.value)?started.value:'',changes:[]};
-      if(changeLabel&&changeLabel.value.trim()&&med.started) med.changes.push({date:med.started,label:changeLabel.value.trim()});
+      if(med.started&&(changeLabel&&changeLabel.value.trim()||targets.length)) med.changes.push(newTreatmentChange(med.started,changeLabel&&changeLabel.value.trim()||'Treatment started',targets));
       DB.medications.push(med);
       medFormOpen=false; save(true); render(); toast('Medication added'); return;
     }
-    case 'med-change': treatmentChangeTarget=el.dataset.id; medFormOpen=false; render(true); return;
+    case 'med-change': treatmentChangeTarget=el.dataset.id; treatmentFollowUpTarget=null; medFormOpen=false; render(true); return;
     case 'med-change-cancel': treatmentChangeTarget=null; render(true); return;
     case 'med-change-save': {
       const med=DB.medications.find(m=>m.id===el.dataset.id), date=document.getElementById('change-date'), label=document.getElementById('change-label');
       if(!med||!date||!pastOrTodayISO(date.value)||!label||!label.value.trim()){ toast('Add a valid date and describe what changed'); return; }
+      const targets=selectedTreatmentTargets('change');
+      if(targets.length>6){ toast('Choose up to six target symptoms'); return; }
       med.changes=Array.isArray(med.changes)?med.changes:[];
-      med.changes.push({date:date.value,label:label.value.trim()});
+      med.changes.push(newTreatmentChange(date.value,label.value.trim(),targets));
       treatmentChangeTarget=null; save(true); render(); toast('Treatment change added to Journey'); return;
+    }
+    case 'treatment-followup-open': {
+      const target={medId:el.dataset.medId,changeIndex:+el.dataset.changeIndex,week:+el.dataset.week};
+      const item=findTreatmentFollowUp(target);
+      if(!item||item.followUp) return;
+      if(item.dueDate>todayISO()){ toast('This follow-up is not due yet'); return; }
+      treatmentFollowUpTarget=target; treatmentChangeTarget=null; medFormOpen=false; render(true); return;
+    }
+    case 'treatment-followup-cancel': treatmentFollowUpTarget=null; render(true); return;
+    case 'treatment-followup-save': {
+      const target={medId:el.dataset.medId,changeIndex:+el.dataset.changeIndex,week:+el.dataset.week};
+      const item=findTreatmentFollowUp(target);
+      const benefit=document.getElementById('followup-benefit'), adherence=document.getElementById('followup-adherence'), sideEffectLevel=document.getElementById('followup-side-effect-level');
+      const sideEffects=document.getElementById('followup-side-effects'), notes=document.getElementById('followup-notes');
+      if(!item||item.followUp) return;
+      if(!benefit||benefit.value===''||!adherence||!adherence.value||!sideEffectLevel||!sideEffectLevel.value){ toast('Choose benefit, doses taken, and side effects'); return; }
+      item.change.followUps=Array.isArray(item.change.followUps)?item.change.followUps.filter(record=>record&&record.week!==item.week):[];
+      item.change.followUps.push({
+        week:item.week,completed:todayISO(),benefit:+benefit.value,adherence:adherence.value,
+        sideEffectLevel:sideEffectLevel.value,sideEffects:sideEffects?sideEffects.value.trim():'',notes:notes?notes.value.trim():'',
+        outcome:treatmentWindowSnapshot(item.change.date,item.week*7-6,item.week*7,item.change.targets)
+      });
+      treatmentFollowUpTarget=null; save(true); render(); toast(item.week+'-week treatment follow-up saved'); return;
     }
     case 'med-remove': {
       const i=+el.dataset.i; if(!DB.medications[i]) return;
@@ -2100,7 +2297,14 @@ function handleAction(el, ev){
       return;
     }
     case 'wipe': openSheet('delete-local-data-confirm'); return;
-    case 'print': window.print(); return;
+    case 'print': {
+      const name='meno-compass-report-'+todayISO()+'.pdf';
+      if(postNativeEvent('share-report',{name,html:printableReportHtml()})){
+        toast('Preparing your report…');
+        return;
+      }
+      window.print(); return;
+    }
     case 'ob-next': {
       const step=+DB.profile.onboardingStep||0;
       if(step===1&&!DB.profile.intent){ toast('Choose what would help most'); return; }
@@ -2295,6 +2499,10 @@ function toCSV(){
   return rows.join('\n');
 }
 function download(name, text, mime){
+  if(postNativeEvent('share-file',{name,contents:text,mime})){
+    toast('Preparing '+name+'…');
+    return;
+  }
   try{
     const blob = new Blob([text], {type:mime});
     const url = URL.createObjectURL(blob);
@@ -2303,6 +2511,13 @@ function download(name, text, mime){
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
     toast('Downloaded '+name);
   }catch(x){ toast('Download blocked — use the copy box instead'); }
+}
+
+function printableReportHtml(){
+  const clone=document.documentElement.cloneNode(true);
+  clone.querySelectorAll('script').forEach(node=>node.remove());
+  clone.querySelector('title').textContent='MenoCompass appointment report';
+  return '<!doctype html>'+clone.outerHTML;
 }
 
 /* ---------- boot ---------- */

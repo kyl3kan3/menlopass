@@ -1,9 +1,12 @@
 import { Asset } from 'expo-asset';
 import { File, Paths } from 'expo-file-system';
 import { ObserveRoot, useObserve } from 'expo-observe';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -23,7 +26,115 @@ const appAsset = require('./assets/menlopass.html');
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || 'appl_SJzoZsrDheugNgeVISkHmDeKoOk';
 const proEntitlement = 'MenoCompass Pro';
 const maxPersistedStateLength = 5_000_000;
+const maxNativeShareContentLength = 5_000_000;
 const persistedStateFile = new File(Paths.document, 'menocompass-state.json');
+const supportedNativeExports = {
+  'application/json': { extension: '.json', uti: 'public.json' },
+  'text/csv': { extension: '.csv', uti: 'public.comma-separated-values-text' },
+} as const;
+
+type NativeExportMime = keyof typeof supportedNativeExports;
+type NativeShareKind = 'file' | 'report';
+
+function safeExportName(value: unknown, fallbackStem: string, extension: string) {
+  const requested = typeof value === 'string' ? value.trim().split(/[\\/]/).pop() || '' : '';
+  const cleaned = requested
+    .replace(/[^a-zA-Z0-9._ -]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^\.+/, '')
+    .slice(0, 120);
+  const stem = cleaned.toLowerCase().endsWith(extension)
+    ? cleaned.slice(0, -extension.length)
+    : cleaned;
+  return `${stem || fallbackStem}${extension}`;
+}
+
+async function ensureNativeSharing() {
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Native sharing is unavailable on this device.');
+  }
+}
+
+async function shareTextExport(message: Record<string, unknown>) {
+  if (typeof message.contents !== 'string' || !message.contents) {
+    throw new Error('This export has no data to share.');
+  }
+  if (message.contents.length > maxNativeShareContentLength) {
+    throw new Error('This export is too large to share.');
+  }
+  if (
+    typeof message.mime !== 'string'
+    || !Object.prototype.hasOwnProperty.call(supportedNativeExports, message.mime)
+  ) {
+    throw new Error('This export format is not supported.');
+  }
+
+  const mime = message.mime as NativeExportMime;
+  const format = supportedNativeExports[mime];
+  const name = safeExportName(message.name, 'meno-compass-export', format.extension);
+  await ensureNativeSharing();
+  const file = new File(Paths.cache, name);
+  file.create({ overwrite: true, intermediates: true });
+  file.write(message.contents);
+
+  await Sharing.shareAsync(file.uri, {
+    dialogTitle: 'Share MenoCompass export',
+    mimeType: mime,
+    UTI: format.uti,
+  });
+}
+
+async function shareReport(message: Record<string, unknown>) {
+  if (typeof message.html !== 'string' || !message.html.trim()) {
+    throw new Error('This report has no content to share.');
+  }
+  if (message.html.length > maxNativeShareContentLength) {
+    throw new Error('This report is too large to share.');
+  }
+
+  await ensureNativeSharing();
+  const generated = await Print.printToFileAsync({
+    html: message.html,
+    margins: { top: 36, right: 36, bottom: 36, left: 36 },
+  });
+  const name = safeExportName(
+    message.name,
+    `meno-compass-report-${new Date().toISOString().slice(0, 10)}`,
+    '.pdf',
+  );
+  const printableFile = new File(Paths.cache, name);
+  let shareUri = generated.uri;
+
+  try {
+    const generatedFile = new File(generated.uri);
+    await generatedFile.copy(printableFile, { overwrite: true });
+    shareUri = printableFile.uri;
+    generatedFile.delete();
+  } catch {
+    // The generated PDF is still shareable if assigning a friendly name fails.
+  }
+
+  await Sharing.shareAsync(shareUri, {
+    dialogTitle: 'Share MenoCompass report',
+    mimeType: 'application/pdf',
+    UTI: 'com.adobe.pdf',
+  });
+}
+
+function nativeShareErrorMessage(reason: unknown) {
+  if (reason instanceof Error && [
+    'Native sharing is unavailable on this device.',
+    'This export has no data to share.',
+    'This export is too large to share.',
+    'This export format is not supported.',
+    'This report has no content to share.',
+    'This report is too large to share.',
+  ].includes(reason.message)) {
+    return reason.message;
+  }
+  return 'MenoCompass could not prepare that export. Please try again.';
+}
 
 function canonicalPersistedState(serialized: string) {
   if (!serialized || serialized.length > maxPersistedStateLength) return null;
@@ -87,20 +198,25 @@ function SubscriptionGate({
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.gateMark}><Text style={styles.gateMarkText}>M</Text></View>
+        <View accessible={false} importantForAccessibility="no" style={styles.gateMark}>
+          <Text style={styles.gateMarkText}>M</Text>
+        </View>
         <Text style={styles.gateEyebrow}>MENOCOMPASS</Text>
         <Text style={styles.gateTitle}>Your menopause record, all in one place.</Text>
-        <Text style={styles.gateBody}>
+        <Text selectable style={styles.gateBody}>
           An active monthly or annual subscription is required to use MenoCompass. There is no free tier or free trial.
         </Text>
         <View style={styles.gateFeatures}>
-          <Text style={styles.gateFeature}>•  Daily symptoms, sleep, medications, and labs</Text>
-          <Text style={styles.gateFeature}>•  Personal trends and pattern summaries</Text>
-          <Text style={styles.gateFeature}>•  Clinician-ready reports and evidence guide</Text>
+          <Text selectable style={styles.gateFeature}>•  Daily symptoms, sleep, medications, and labs</Text>
+          <Text selectable style={styles.gateFeature}>•  Personal trends and pattern summaries</Text>
+          <Text selectable style={styles.gateFeature}>•  Clinician-ready reports and evidence guide</Text>
         </View>
-        {issue ? <Text accessibilityRole="alert" style={styles.gateIssue}>{issue}</Text> : null}
+        {issue ? <Text accessibilityRole="alert" selectable style={styles.gateIssue}>{issue}</Text> : null}
         <Pressable
+          accessibilityHint="Shows the monthly and annual subscription options from the App Store."
+          accessibilityLabel="View subscription plans"
           accessibilityRole="button"
+          accessibilityState={{ disabled: !revenueCatReady || purchaseBusy, busy: purchaseBusy }}
           disabled={!revenueCatReady || purchaseBusy}
           onPress={onSubscribe}
           style={({ pressed }) => [
@@ -112,22 +228,33 @@ function SubscriptionGate({
           {purchaseBusy ? <ActivityIndicator color="#0E1618" /> : <Text style={styles.gatePrimaryText}>View subscription plans</Text>}
         </Pressable>
         <Pressable
+          accessibilityHint="Checks this Apple ID for a previous MenoCompass purchase."
+          accessibilityLabel="Restore purchases"
           accessibilityRole="button"
+          accessibilityState={{ disabled: !revenueCatReady || purchaseBusy, busy: purchaseBusy }}
           disabled={!revenueCatReady || purchaseBusy}
           onPress={onRestore}
           style={({ pressed }) => [styles.gateSecondary, pressed && styles.gateButtonPressed]}
         >
           <Text style={styles.gateSecondaryText}>Restore purchases</Text>
         </Pressable>
-        <Text style={styles.gateTerms}>
+        <Text selectable style={styles.gateTerms}>
           The exact price and billing period are shown before purchase. Payment is charged immediately after confirmation and renews automatically unless canceled.
         </Text>
         <View style={styles.gateLinks}>
-          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL('https://menlopass.vercel.app/privacy.html')}>
+          <Pressable
+            accessibilityHint="Opens the MenoCompass privacy policy in your browser."
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL('https://menlopass.vercel.app/privacy.html')}
+          >
             <Text style={styles.gateLink}>Privacy</Text>
           </Pressable>
-          <Text style={styles.gateLinkDivider}>·</Text>
-          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL('https://menlopass.vercel.app/terms.html')}>
+          <Text accessible={false} style={styles.gateLinkDivider}>·</Text>
+          <Pressable
+            accessibilityHint="Opens the MenoCompass terms in your browser."
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL('https://menlopass.vercel.app/terms.html')}
+          >
             <Text style={styles.gateLink}>Terms</Text>
           </Pressable>
         </View>
@@ -157,6 +284,7 @@ function App() {
   const autoPaywallAttemptedRef = useRef(false);
   const appLaunchTrackedRef = useRef(false);
   const reviewRequestInFlightRef = useRef(false);
+  const nativeShareInFlightRef = useRef(false);
 
   const syncProStatusToWeb = (active: boolean) => {
     webViewRef.current?.injectJavaScript(`
@@ -164,6 +292,36 @@ function App() {
       window.dispatchEvent(new Event('menocompass-pro-changed'));
       true;
     `);
+  };
+
+  const notifyWebShareResult = (kind: NativeShareKind, ok: boolean, message?: string) => {
+    const detail = JSON.stringify({ kind, ok, ...(message ? { message } : {}) });
+    webViewRef.current?.injectJavaScript(`
+      window.dispatchEvent(new CustomEvent('menocompass-native-share-result', { detail: ${detail} }));
+      true;
+    `);
+  };
+
+  const runNativeShare = (kind: NativeShareKind, task: () => Promise<void>) => {
+    if (nativeShareInFlightRef.current) {
+      const message = 'Another export is still being prepared.';
+      notifyWebShareResult(kind, false, message);
+      Alert.alert('Share already open', message);
+      return;
+    }
+
+    nativeShareInFlightRef.current = true;
+    void task()
+      .then(() => notifyWebShareResult(kind, true))
+      .catch(reason => {
+        reportTelemetryError(reason);
+        const message = nativeShareErrorMessage(reason);
+        notifyWebShareResult(kind, false, message);
+        Alert.alert(kind === 'report' ? 'Could not share report' : 'Could not share export', message);
+      })
+      .finally(() => {
+        nativeShareInFlightRef.current = false;
+      });
   };
 
   useEffect(() => {
@@ -419,6 +577,14 @@ function App() {
         trackTelemetryEvent('report_opened', { rangeDays });
         return;
       }
+      if (message?.type === 'share-file') {
+        runNativeShare('file', () => shareTextExport(message));
+        return;
+      }
+      if (message?.type === 'share-report') {
+        runNativeShare('report', () => shareReport(message));
+        return;
+      }
       if (message?.type === 'open-subscription-management') {
         trackTelemetryEvent('subscription_management_opened');
         Linking.openURL('https://apps.apple.com/account/subscriptions').catch(reportTelemetryError);
@@ -453,7 +619,7 @@ function App() {
   };
 
   if (!html || (Platform.OS === 'ios' && !subscriptionChecked)) {
-    return <SafeAreaView style={styles.loading}><StatusBar style="light" /><ActivityIndicator color="#E8A552" /><Text style={styles.loadingText}>{error ? 'Could not open MenoCompass.' : 'Opening MenoCompass…'}</Text>{error ? <Text style={styles.error}>{error}</Text> : null}</SafeAreaView>;
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="light" /><ActivityIndicator color="#E8A552" /><Text style={styles.loadingText}>{error ? 'Could not open MenoCompass.' : 'Opening MenoCompass…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
   if (Platform.OS === 'ios' && !proActive) {
@@ -479,7 +645,7 @@ function App() {
           window.__MENO_NATIVE__ = true;
           window.__MENO_PRO_ACTIVE__ = ${proActive ? 'true' : 'false'};
           window.__MENO_PERSISTED_STATE__ = ${JSON.stringify(persistedState || '')};
-          (function lockNativeViewport() {
+          (function prepareNativeViewport() {
             var apply = function () {
               if (!document.head) return;
               var viewport = document.querySelector('meta[name="viewport"]');
@@ -488,7 +654,7 @@ function App() {
                 viewport.name = 'viewport';
                 document.head.appendChild(viewport);
               }
-              viewport.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+              viewport.content = 'width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover';
               document.documentElement.classList.add('native-app');
             };
             apply();
@@ -498,6 +664,7 @@ function App() {
         `}
         javaScriptEnabled
         domStorageEnabled
+        textInteractionEnabled
         allowFileAccess
         allowUniversalAccessFromFileURLs={false}
         mixedContentMode="never"
@@ -518,7 +685,11 @@ function App() {
   );
 }
 
-export default ObserveRoot.wrap(App);
+function AppWithSafeArea() {
+  return <SafeAreaProvider><App /></SafeAreaProvider>;
+}
+
+export default ObserveRoot.wrap(AppWithSafeArea);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0E1618' },

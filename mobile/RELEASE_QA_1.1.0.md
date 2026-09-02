@@ -94,10 +94,12 @@ Run on at least the small iPhone, Pro Max, and iPad.
 |---|---|---|---|---|
 | Onboarding | Completes without clipped controls, keyboard obstruction, or unsafe-area overlap |  |  |  |
 | Today | Confirm a daily check-in and relaunch; confirmed data persists |  |  |  |
-| Journey | Confirmed days and treatment changes appear; pattern language remains cautious |  |  |  |
-| Care | Add/edit medication and lab; create 30-, 90-, and 180-day reports |  |  |  |
+| Journey | Confirmed days and treatment changes appear; weekly comparisons use adjacent calendar windows, show n/7 coverage, and remain cautious |  |  |  |
+| Care | Add/edit medication and lab; capture treatment targets and complete due 2-/6-week follow-ups; create 30-, 90-, and 180-day reports |  |  |  |
 | Guide | Search and open evidence content and external source links |  |  |  |
-| Backup/restore | JSON round trip succeeds on a test-only record; exported health files are clearly disclosed as sensitive |  |  |  |
+| Native report share | Print/save creates a readable PDF of the current report and opens the iOS share sheet with a `.pdf` filename |  |  |  |
+| Backup/restore | JSON and CSV open the iOS share sheet with correctly named files; JSON round trip succeeds on a test-only record; exported health files are clearly disclosed as sensitive |  |  |  |
+| Accessibility | Pinch zoom, text selection, VoiceOver labels/states, Dynamic Type behavior, focus order, contrast, and safe areas work on all device classes |  |  |  |
 | Delete profile/data | Separate confirmation permanently removes the device-local record and explains that subscription cancellation is separate |  |  |  |
 | Review success milestone | Confirmed check-ins 2, 5, and 20 schedule StoreKit only after the success moment; cold launches do not advance the count |  |  |  |
 | Review/ATT separation | No rating request is attempted in the session that displayed ATT; TestFlight does not falsely count a system dialog as displayed |  |  |  |

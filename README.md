@@ -188,9 +188,12 @@ health day. Earlier meaningful records migrate into snapshots, while medication-
 excluded from symptom analytics.
 
 Export/import is plain JSON round-trip; CSV export is one row per confirmed day plus a questionnaire block.
-Both export formats are unencrypted and may contain sensitive health information. Restore accepts
+In the iOS wrapper, JSON and CSV use the native share sheet and appointment reports render to a shareable
+PDF. Both export formats are unencrypted and may contain sensitive health information. Restore accepts
 up to 5 MB and passes every field through a strict allowlist, type/range checks, and date validation;
-unknown fields and invalid values are discarded. Schemas v1–v4 are read from the existing
+unknown fields and invalid values are discarded. Treatment changes can retain chosen target symptoms, a
+frozen seven-day baseline, and structured 2- and 6-week follow-ups; report comparisons always show data
+coverage and describe association rather than causation. Schemas v1–v5 are read from the existing
 `menocompass.v1` storage key so earlier device-local records migrate in place.
 
 ## Editorial rules the content follows
@@ -239,7 +242,8 @@ never cited).
 
 Semantic buttons with `aria-pressed` / `aria-current`, every form control labelled, minimum 40 px
 tap targets, visible focus rings, `prefers-reduced-motion` honoured, `prefers-color-scheme` for
-theme with a manual override, and a print stylesheet for the clinician report.
+theme with a manual override, pinch zoom and text selection in the iOS wrapper, and a print stylesheet
+for the clinician report.
 
 ## Not medical advice
 

@@ -98,6 +98,18 @@ async function injectState(context,state){
       &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
       &&eas.build.production.channel==='production'
       &&eas.build.production.uploadSourceMaps===true);
+    check('native exports use validated share and PDF bridges',
+      !!mobilePackage.dependencies['expo-sharing']
+      &&!!mobilePackage.dependencies['expo-print']
+      &&nativeApp.includes("message?.type === 'share-file'")
+      &&nativeApp.includes("message?.type === 'share-report'")
+      &&nativeApp.includes('maxNativeShareContentLength')
+      &&nativeApp.includes('Print.printToFileAsync')
+      &&nativeApp.includes('Sharing.shareAsync'));
+    check('native WebView allows zoom and text selection',
+      nativeApp.includes('maximum-scale=5')
+      &&!nativeApp.includes('user-scalable=no')
+      &&nativeApp.includes('textInteractionEnabled'));
     check('versioned App Review notes cover the gated reviewer path and fit the Notes field',
       Buffer.byteLength(reviewNotesPayload,'utf8')<=4000
       &&reviewNotesPayload.length>0
@@ -116,7 +128,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v8'));
+    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v9'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -225,7 +237,7 @@ async function injectState(context,state){
     await page.locator('.jc-back').click();
     check('unfinished work returns as a draft',await page.getByRole('button',{name:'Finish check-in'}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
     await page.getByRole('button',{name:'Journey',exact:true}).click();
-    check('drafts do not count as confirmed',await page.getByText('0 confirmed days').isVisible()&&await page.getByText('Comparisons unlock after 14.').isVisible());
+    check('drafts do not count as confirmed',await page.getByText('0 confirmed days').isVisible()&&await page.getByText('Weekly comparisons need at least 4 confirmed days in each window.').isVisible());
     await page.getByRole('button',{name:'Finish check-in'}).click();
     await page.getByRole('button',{name:'Confirm today’s log'}).click();
     check('confirming a check-in emits a native success moment',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='checkin-confirmed')));
@@ -255,13 +267,27 @@ async function injectState(context,state){
     await page.getByLabel('What changed?').fill('Changed from 25 mcg to 50 mcg');
     await page.getByRole('button',{name:'Save change'}).click();
     await page.getByRole('button',{name:'Journey',exact:true}).click();
-    check('real treatment changes appear in Journey',await page.getByRole('heading',{name:'Estradiol patch changed'}).isVisible()&&await page.getByText('Early signal — not proof.').isVisible());
+    check('real treatment changes appear in Journey',await page.getByRole('heading',{name:'Estradiol patch changed'}).isVisible()&&await page.getByText('Observed association—not proof of cause and effect.').isVisible());
     await page.getByRole('button',{name:'Care',exact:true}).click();
     await page.getByRole('button',{name:'Prepare appointment report'}).click();
     check('report is a dedicated route',await page.getByRole('heading',{name:'Appointment report'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
     check('report states confirmed provenance',await page.getByText(/Based on 1 confirmed day/).isVisible());
     await page.getByRole('button',{name:'30 days'}).click();
     check('range controls materially update the report',await page.getByText('Appointment report · 30 days').isVisible());
+    await page.getByRole('button',{name:'Print / save as PDF'}).click();
+    const nativeReportShare=await page.evaluate(()=>window.__nativeMessages.filter(message=>message.type==='share-report').slice(-1)[0]);
+    check('native report export sends current rendered HTML without executable scripts',
+      nativeReportShare?.name?.endsWith('.pdf')
+      &&nativeReportShare?.html?.includes('Appointment report · 30 days')
+      &&!/<script\b/i.test(nativeReportShare?.html||''));
+    const nativeFileShare=await page.evaluate(()=>{
+      download('bridge-check.json','{"ok":true}','application/json');
+      return window.__nativeMessages.filter(message=>message.type==='share-file').slice(-1)[0];
+    });
+    check('native data export bypasses WebView downloads with typed contents',
+      nativeFileShare?.name==='bridge-check.json'
+      &&nativeFileShare?.mime==='application/json'
+      &&nativeFileShare?.contents==='{"ok":true}');
     await page.getByRole('button',{name:'Back to Care'}).click();
     await page.getByRole('button',{name:'Guide',exact:true}).click();
     check('Guide starts with search and a recommendation',await page.getByRole('searchbox',{name:'Search Guide'}).isVisible()&&await page.getByText('For you').isVisible());
@@ -327,7 +353,7 @@ async function injectState(context,state){
     console.log('\n== Confirmed-data core contracts ==');
     const seededContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(seededContext,seededState(16));
     const seededPage=await seededContext.newPage(); monitor(seededPage,'seeded',baseUrl); await seededPage.goto(baseUrl+'/index.html#journey');
-    check('14+ confirmed days unlock weekly pattern language',await seededPage.getByText('16 confirmed days').isVisible()&&await seededPage.getByText('Comparisons are ready — keep confirming changes.').isVisible());
+    check('calendar coverage unlocks weekly pattern language',await seededPage.getByText('16 confirmed days').isVisible()&&await seededPage.getByText('Calendar coverage: 7/7 recent days · 7/7 prior days.').isVisible()&&await seededPage.getByText('Comparisons are ready — keep confirming changes.').isVisible());
     check('seeded dated treatment change is on the timeline',await seededPage.getByRole('heading',{name:'Estradiol patch changed'}).isVisible());
     const atomic=await seededPage.evaluate(()=>{
       const t=todayISO(),before=confirmedEntry(t).hf,day=entry(t); day.hf=99; markEntryDraft(t); save(true);
@@ -335,6 +361,98 @@ async function injectState(context,state){
       return {before,confirmed:confirmedEntry(t).hf,draft:day.hf,count:entryDates().length,reportHas99:report.includes('>99<')};
     });
     check('poison drafts stay out of snapshots and reports',atomic.before===atomic.confirmed&&atomic.draft===99&&atomic.count===16&&!atomic.reportHas99,JSON.stringify(atomic));
+
+    console.log('\n== Structured treatment follow-ups ==');
+    const followupState=seededState(50);
+    followupState.medications[0].started=isoOffset(-60);
+    followupState.medications[0].changes=[];
+    const followupContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(followupContext,followupState);
+    const followupPage=await followupContext.newPage(); monitor(followupPage,'treatment-followup',baseUrl); await followupPage.goto(baseUrl+'/index.html#care');
+    await followupPage.getByRole('button',{name:'Record change'}).click();
+    await followupPage.getByLabel('Change date').fill(isoOffset(-42));
+    await followupPage.getByLabel('What changed?').fill('Dose increased to 50 mcg');
+    await followupPage.getByRole('checkbox',{name:'Hot flashes'}).check();
+    await followupPage.getByRole('checkbox',{name:'Brain fog'}).check();
+    await followupPage.getByRole('button',{name:'Save change'}).click();
+    check('a treatment change captures targets and schedules two follow-ups',
+      await followupPage.getByRole('heading',{name:'2-week check · Estradiol patch'}).isVisible()
+      &&await followupPage.getByRole('heading',{name:'6-week check · Estradiol patch'}).isVisible());
+    const sixWeekCard=followupPage.locator('.jc-followup-card').filter({has:followupPage.getByRole('heading',{name:'6-week check · Estradiol patch'})});
+    await sixWeekCard.getByRole('button',{name:'Complete follow-up'}).click();
+    check('follow-up shows matched baseline and outcome windows',
+      await followupPage.getByText('Matched 7-day windows',{exact:true}).isVisible()
+      &&await followupPage.getByText(/7\/7.*before.*7\/7.*week 6/).first().isVisible());
+    await followupPage.screenshot({path:path.join(TEST_RESULTS,'treatment-followup.png'),fullPage:true});
+    await followupPage.getByLabel('Benefit noticed').selectOption('3');
+    await followupPage.getByLabel('Doses taken').selectOption('most');
+    await followupPage.getByLabel('Side effects',{exact:true}).selectOption('mild');
+    await followupPage.getByLabel('Side-effect details (optional)').fill('Brief breast tenderness');
+    await followupPage.getByLabel('Anything to ask at your next appointment? (optional)').fill('Should the dose stay the same?');
+    await followupPage.getByRole('button',{name:'Save follow-up'}).click();
+    const storedFollowUp=await followupPage.evaluate(()=>{
+      const change=DB.medications[0].changes[0], clean=validateBackup(JSON.parse(JSON.stringify(DB))).medications[0].changes[0];
+      const completedItem=treatmentFollowUpItems().find(item=>item.week===6);
+      const recordedOutcome=treatmentComparisonData(completedItem).find(row=>row.key==='hf').current.average;
+      const todayRecord=DB.entries[todayISO()].confirmedData, originalTodayHotFlashes=todayRecord.hf;
+      todayRecord.hf=99;
+      const outcomeAfterEdit=treatmentComparisonData(completedItem).find(row=>row.key==='hf').current.average;
+      todayRecord.hf=originalTodayHotFlashes;
+      const tampered=JSON.parse(JSON.stringify(DB)), tamperedChange=tampered.medications[0].changes[0];
+      tamperedChange.baseline.windowStart=addDays(tamperedChange.date,-21);
+      tamperedChange.baseline.windowEnd=addDays(tamperedChange.date,-15);
+      tamperedChange.followUps[0].completed=addDays(tamperedChange.date,1);
+      const sanitized=validateBackup(tampered).medications[0].changes[0];
+      return {
+        version:DB.v,targets:change.targets,baselineStart:change.baseline.windowStart,
+        baselineHotFlashDays:change.baseline.values.hf.n,followUp:clean.followUps[0],
+        outcomeStayedFrozen:recordedOutcome===outcomeAfterEdit,
+        forgedBaselineRemoved:sanitized.baseline===null,prematureFollowUpRemoved:sanitized.followUps.length===0
+      };
+    });
+    check('baseline and follow-up answers survive strict backup validation',
+      storedFollowUp.version===6
+      &&JSON.stringify(storedFollowUp.targets)===JSON.stringify(['hf','fog'])
+      &&storedFollowUp.baselineStart===isoOffset(-49)
+      &&storedFollowUp.baselineHotFlashDays===7
+      &&storedFollowUp.followUp.week===6
+      &&storedFollowUp.followUp.benefit===3
+      &&storedFollowUp.followUp.adherence==='most'
+      &&storedFollowUp.followUp.sideEffectLevel==='mild'
+      &&storedFollowUp.followUp.sideEffects==='Brief breast tenderness'
+      &&storedFollowUp.followUp.outcome.values.hf.n===7
+      &&storedFollowUp.outcomeStayedFrozen
+      &&storedFollowUp.forgedBaselineRemoved
+      &&storedFollowUp.prematureFollowUpRemoved,JSON.stringify(storedFollowUp));
+    await followupPage.getByRole('button',{name:'Prepare appointment report'}).click();
+    check('clinician report includes structured follow-up and careful causality language',
+      await followupPage.getByText('Treatment follow-ups',{exact:true}).isVisible()
+      &&await followupPage.getByText('Clear benefit',{exact:true}).isVisible()
+      &&await followupPage.getByText('Most scheduled doses',{exact:true}).isVisible()
+      &&await followupPage.getByText(/Mild · Brief breast tenderness/).isVisible()
+      &&await followupPage.getByText('Observed association—not proof that the treatment caused the change.',{exact:true}).isVisible());
+
+    const normalizedEntries={};
+    for(let i=13;i>=0;i--){
+      const recent=i<=6;
+      normalizedEntries[isoOffset(-i)]=confirmed({hf:recent?12:10,ns:0,sym:{fog:recent?2:1,joint:1},act:{},nut:{}});
+    }
+    const normalizedContext=await browser.newContext({viewport:{width:390,height:844}});
+    await injectState(normalizedContext,{v:5,profile:profile({pinnedSymptoms:['hf','fog','joint']}),entries:normalizedEntries,medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-13)}});
+    const normalizedPage=await normalizedContext.newPage(); monitor(normalizedPage,'normalized-weekly-pattern',baseUrl); await normalizedPage.goto(baseUrl+'/index.html#journey');
+    const normalizedPattern=await normalizedPage.evaluate(()=>weeklyPattern());
+    check('weekly ranking compares proportional change across unlike symptom units',normalizedPattern.text.startsWith('Brain fog has been higher')&&normalizedPattern.recentCount===7&&normalizedPattern.priorCount===7,JSON.stringify(normalizedPattern));
+    check('weekly insight shows the observation coverage',await normalizedPage.getByText('Coverage: 7/7 recent days · 7/7 prior days.',{exact:true}).isVisible());
+
+    const sparseEntries={};
+    [-1,-2,-3,-8,-9,-10,-30,-31,-32,-33,-34,-35,-36,-37].forEach((offset,i)=>{
+      sparseEntries[isoOffset(offset)]=confirmed({hf:i+1,ns:1,sym:{fog:2,joint:1},act:{},nut:{}});
+    });
+    const sparseContext=await browser.newContext({viewport:{width:390,height:844}});
+    await injectState(sparseContext,{v:5,profile:profile({pinnedSymptoms:['hf','fog','joint']}),entries:sparseEntries,medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-37)}});
+    const sparsePage=await sparseContext.newPage(); monitor(sparsePage,'sparse-weekly-pattern',baseUrl); await sparsePage.goto(baseUrl+'/index.html#journey');
+    const sparsePattern=await sparsePage.evaluate(()=>({text:weeklyPatternText(),windows:weeklyPatternWindows()}));
+    check('four-of-seven coverage is required in both calendar windows despite old logs',sparsePattern.text===null&&sparsePattern.windows.recentCount===3&&sparsePattern.windows.priorCount===3,JSON.stringify(sparsePattern));
+    check('insufficient calendar coverage is visible',await sparsePage.getByText('Calendar coverage: 3/7 recent days · 3/7 prior days.').isVisible()&&await sparsePage.getByText('Weekly comparisons need at least 4 confirmed days in each window.').isVisible());
 
     const prefillContext=await browser.newContext();
     const yesterday=isoOffset(-1);
@@ -347,7 +465,7 @@ async function injectState(context,state){
     await injectState(migrationContext,{v:4,profile:{name:'Legacy',birthYear:1970,region:'us',units:'metric',onboarded:true},entries:{[isoOffset(-2)]:{hf:4,sym:{fog:2},act:{},nut:{}}},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-3)}});
     const migrationPage=await migrationContext.newPage(); monitor(migrationPage,'migration',baseUrl); await migrationPage.goto(baseUrl+'/index.html');
     const migration=await migrationPage.evaluate(()=>({version:DB.v,count:entryDates().length,snapshot:!!confirmedEntry(Object.keys(DB.entries)[0]),pins:DB.profile.pinnedSymptoms.length}));
-    check('v4 logs migrate to v5 confirmed snapshots',migration.version===5&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
+    check('v4 logs migrate to v6 confirmed snapshots',migration.version===6&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
 
     console.log('\n== Responsive and runtime quality ==');
     const desktopContext=await browser.newContext({viewport:{width:1280,height:900}}); await injectState(desktopContext,seededState(16));
@@ -358,7 +476,7 @@ async function injectState(context,state){
     await seededPage.screenshot({path:path.join(TEST_RESULTS,'journey-selected-flow.png')});
     await desktopPage.screenshot({path:path.join(TEST_RESULTS,'journey-desktop.png')});
 
-    await onboardingContext.close(); await resetContext.close(); await deleteContext.close(); await seededContext.close(); await prefillContext.close(); await migrationContext.close(); await desktopContext.close();
+    await onboardingContext.close(); await resetContext.close(); await deleteContext.close(); await seededContext.close(); await followupContext.close(); await normalizedContext.close(); await sparseContext.close(); await prefillContext.close(); await migrationContext.close(); await desktopContext.close();
     check('no page, console, request, or HTTP errors',runtimeErrors.length===0,runtimeErrors.join(' | '));
   } catch(error){
     failures.push('unhandled test exception');

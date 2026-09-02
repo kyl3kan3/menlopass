@@ -33,6 +33,7 @@ module.exports = ({ config }) => {
 
   let plugins = config.plugins || [];
   plugins = withoutPlugin(plugins, 'expo-tracking-transparency');
+  plugins = withoutPlugin(plugins, 'expo-sharing');
   plugins = withoutPlugin(plugins, 'react-native-appsflyer');
   plugins = withoutPlugin(plugins, 'react-native-fbsdk-next');
   plugins = withoutPlugin(plugins, './plugins/withTikTokPrivacyManifestFix');
@@ -44,6 +45,7 @@ module.exports = ({ config }) => {
         'Allow MenoCompass to measure which ads lead to installs and subscriptions. Your symptoms, medications, labs, notes, and reports are never shared.',
     },
   ]);
+  plugins.push('expo-sharing');
   plugins.push([
     'react-native-appsflyer',
     {

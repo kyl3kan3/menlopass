@@ -64,7 +64,7 @@ function postNativeEvent(type, attributes){
 }
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 5;
+const SCHEMA_V = 6;
 const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
 const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
@@ -263,6 +263,39 @@ function safeEntry(raw,legacyConfirmed){
   out.draftDirty=!!snapshot&&raw.draftDirty===true;
   return out;
 }
+function safeTreatmentTargets(raw){
+  if(!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter(key=>PINNABLE_SYMPTOMS.includes(key)))].slice(0,6);
+}
+function safeTreatmentWindow(raw,targets,expectedStart,expectedEnd){
+  if(!plainRecord(raw)) return null;
+  const windowStart=safePastDate(raw.windowStart), windowEnd=safePastDate(raw.windowEnd);
+  if(!windowStart||!windowEnd||windowStart!==expectedStart||windowEnd!==expectedEnd) return null;
+  const values={};
+  if(plainRecord(raw.values)) targets.forEach(key=>{
+    const rec=raw.values[key]; if(!plainRecord(rec)) return;
+    const average=safeNumber(rec.average,0,key==='hf'?500:4), n=safeInteger(rec.n,1,7);
+    if(average!=null&&n!=null) values[key]={average,n};
+  });
+  return {windowStart,windowEnd,values};
+}
+function safeTreatmentBaseline(raw,targets,changeDate){
+  return safeTreatmentWindow(raw,targets,addDays(changeDate,-7),addDays(changeDate,-1));
+}
+function safeTreatmentFollowUp(raw,changeDate,targets){
+  if(!plainRecord(raw)) return null;
+  const week=safeEnum(+raw.week,[2,6],null), completed=safePastDate(raw.completed);
+  const benefit=safeInteger(raw.benefit,0,4);
+  const adherence=safeEnum(raw.adherence,['all','most','some','few','none'],null);
+  const sideEffectLevel=safeEnum(raw.sideEffectLevel,['none','mild','moderate','severe'],null);
+  if(!week||!completed||completed<addDays(changeDate,week*7)||benefit==null||!adherence||!sideEffectLevel) return null;
+  const outcome=safeTreatmentWindow(raw.outcome,targets,addDays(changeDate,week*7-6),addDays(changeDate,week*7));
+  return {
+    week,completed,benefit,adherence,sideEffectLevel,
+    sideEffects:safeText(raw.sideEffects,500).trim(),
+    notes:safeText(raw.notes,500).trim(),outcome
+  };
+}
 function safeMedication(raw,startedFallback){
   if(!plainRecord(raw)) return null;
   const name=safeText(raw.name,80).trim();
@@ -276,7 +309,15 @@ function safeMedication(raw,startedFallback){
     if(!plainRecord(change)) return null;
     const date=safePastDate(change.date), label=safeText(change.label,120).trim();
     if(!date||!label) return null;
-    return {date,label};
+    const targets=safeTreatmentTargets(change.targets);
+    const baseline=safeTreatmentBaseline(change.baseline,targets,date);
+    const followUps=[];
+    [2,6].forEach(week=>{
+      const candidates=(Array.isArray(change.followUps)?change.followUps:[])
+        .map(item=>safeTreatmentFollowUp(item,date,targets)).filter(item=>item&&item.week===week);
+      if(candidates.length) followUps.push(candidates[candidates.length-1]);
+    });
+    return {date,label,targets,baseline,followUps};
   }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)).slice(-100);
   return {
     id,
