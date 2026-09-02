@@ -1,11 +1,13 @@
 import { Asset } from 'expo-asset';
+import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import { ObserveRoot, useObserve } from 'expo-observe';
+import * as Notifications from 'expo-notifications';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
@@ -21,20 +23,56 @@ import {
   requestReviewForMilestone,
 } from './reviewPrompt.native';
 import type { AppReviewProgress } from './reviewPrompt.native';
+import {
+  connectAndSyncHealthKit,
+  getHealthKitRequestStatus,
+  isHealthKitAvailable,
+} from './modules/menocompass-healthkit';
+import {
+  authenticateAppUnlockAsync,
+  clearNativePrivateDataAsync,
+  configureRemindersAsync,
+  decryptBackupAsync,
+  decryptForDeviceAsync,
+  encryptBackupAsync,
+  encryptForDeviceAsync,
+  getAppLockCapabilityAsync,
+  getReminderStatusAsync,
+  isDeviceEncryptionAvailable,
+  setAppLockEnabledAsync,
+} from './privacyFeatures.native';
+import {
+  injectQuickRoute,
+  subscribeToMenoCompassQuickEntries,
+} from './widgets/quick-entry.native';
+import type { MenoCompassQuickRoute } from './widgets/quick-entry.native';
+import { syncMenoCompassWidgets } from './widgets/widget-state.native';
 
 const appAsset = require('./assets/menlopass.html');
 const revenueCatIosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || 'appl_SJzoZsrDheugNgeVISkHmDeKoOk';
 const proEntitlement = 'MenoCompass Pro';
 const maxPersistedStateLength = 5_000_000;
 const maxNativeShareContentLength = 5_000_000;
-const persistedStateFile = new File(Paths.document, 'menocompass-state.json');
+const maxEncryptedBackupLength = 8_000_000;
+const encryptedPersistedStateFile = new File(Paths.document, 'menocompass-state.secure');
+const legacyPersistedStateFile = new File(Paths.document, 'menocompass-state.json');
 const supportedNativeExports = {
   'application/json': { extension: '.json', uti: 'public.json' },
   'text/csv': { extension: '.csv', uti: 'public.comma-separated-values-text' },
 } as const;
 
 type NativeExportMime = keyof typeof supportedNativeExports;
-type NativeShareKind = 'file' | 'report';
+type NativeShareKind = 'backup' | 'file' | 'report';
+type MenoCompassNativeRoute = MenoCompassQuickRoute | 'care';
+
+function notificationRoute(
+  response: Notifications.NotificationResponse | null,
+): MenoCompassNativeRoute | null {
+  const route = response?.notification.request.content.data?.route;
+  if (route === 'today' || route === 'checkin') return 'checkin';
+  if (route === 'care') return 'care';
+  return null;
+}
 
 function safeExportName(value: unknown, fallbackStem: string, extension: string) {
   const requested = typeof value === 'string' ? value.trim().split(/[\\/]/).pop() || '' : '';
@@ -125,6 +163,9 @@ async function shareReport(message: Record<string, unknown>) {
 function nativeShareErrorMessage(reason: unknown) {
   if (reason instanceof Error && [
     'Native sharing is unavailable on this device.',
+    'No MenoCompass record was provided.',
+    'The MenoCompass record is invalid.',
+    'Use a backup password with at least 10 characters.',
     'This export has no data to share.',
     'This export is too large to share.',
     'This export format is not supported.',
@@ -134,6 +175,18 @@ function nativeShareErrorMessage(reason: unknown) {
     return reason.message;
   }
   return 'MenoCompass could not prepare that export. Please try again.';
+}
+
+function nativeBackupImportErrorMessage(reason: unknown) {
+  if (!(reason instanceof Error)) return 'MenoCompass could not open that backup.';
+  if (reason.message.includes('password') || reason.message.includes('unlock')) {
+    return 'That password could not unlock this MenoCompass backup.';
+  }
+  if (reason.message.includes('too large')) return 'That backup is too large to import.';
+  if (reason.message.includes('valid MenoCompass') || reason.message.includes('invalid or damaged')) {
+    return 'That file is not a valid MenoCompass backup.';
+  }
+  return 'MenoCompass could not open that backup.';
 }
 
 function canonicalPersistedState(serialized: string) {
@@ -150,15 +203,96 @@ function canonicalPersistedState(serialized: string) {
 }
 
 async function readPersistedState() {
-  if (!persistedStateFile.exists) return null;
-  return canonicalPersistedState(await persistedStateFile.text());
+  if (encryptedPersistedStateFile.exists) {
+    const encrypted = await encryptedPersistedStateFile.text();
+    const cleartext = await decryptForDeviceAsync(encrypted);
+    const canonical = canonicalPersistedState(cleartext);
+    if (!canonical) throw new Error('The encrypted MenoCompass record is invalid.');
+    return canonical;
+  }
+
+  if (!legacyPersistedStateFile.exists) return null;
+  const canonical = canonicalPersistedState(await legacyPersistedStateFile.text());
+  if (!canonical) return null;
+
+  // Seamlessly migrate existing iOS installs from the legacy plaintext file.
+  if (isDeviceEncryptionAvailable()) {
+    const encrypted = await encryptForDeviceAsync(canonical);
+    encryptedPersistedStateFile.create({ overwrite: true, intermediates: true });
+    encryptedPersistedStateFile.write(encrypted);
+    legacyPersistedStateFile.delete();
+  }
+  return canonical;
 }
+
+let persistedStateWriteQueue: Promise<void> = Promise.resolve();
 
 function writePersistedState(serialized: string) {
   const canonical = canonicalPersistedState(serialized);
-  if (!canonical) return null;
-  if (!persistedStateFile.exists) persistedStateFile.create({ intermediates: true });
-  persistedStateFile.write(canonical);
+  if (!canonical) return Promise.resolve<string | null>(null);
+
+  const write = persistedStateWriteQueue.then(async () => {
+    if (isDeviceEncryptionAvailable()) {
+      const encrypted = await encryptForDeviceAsync(canonical);
+      if (!encryptedPersistedStateFile.exists) {
+        encryptedPersistedStateFile.create({ intermediates: true });
+      }
+      encryptedPersistedStateFile.write(encrypted);
+      if (legacyPersistedStateFile.exists) legacyPersistedStateFile.delete();
+      return;
+    }
+
+    if (!legacyPersistedStateFile.exists) legacyPersistedStateFile.create({ intermediates: true });
+    legacyPersistedStateFile.write(canonical);
+  });
+  persistedStateWriteQueue = write.catch(() => undefined);
+  return write.then(() => canonical);
+}
+
+async function shareEncryptedBackup(message: Record<string, unknown>) {
+  if (typeof message.state !== 'string') throw new Error('No MenoCompass record was provided.');
+  const canonical = canonicalPersistedState(message.state);
+  if (!canonical) throw new Error('The MenoCompass record is invalid.');
+  if (typeof message.password !== 'string' || message.password.length < 10) {
+    throw new Error('Use a backup password with at least 10 characters.');
+  }
+
+  const encrypted = await encryptBackupAsync(canonical, message.password);
+  await ensureNativeSharing();
+  const name = safeExportName(
+    message.name,
+    `meno-compass-backup-${new Date().toISOString().slice(0, 10)}`,
+    '.menocompass',
+  );
+  const file = new File(Paths.cache, name);
+  file.create({ overwrite: true, intermediates: true });
+  file.write(encrypted);
+  await Sharing.shareAsync(file.uri, {
+    dialogTitle: 'Save encrypted MenoCompass backup',
+    mimeType: 'application/octet-stream',
+    UTI: 'public.data',
+  });
+}
+
+async function chooseAndDecryptBackup(password: string) {
+  if (!password) throw new Error('Enter the password used to protect this backup.');
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['application/octet-stream', 'public.data', '*/*'],
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (result.canceled) return null;
+  const asset = result.assets[0];
+  if (!asset || (typeof asset.size === 'number' && asset.size > maxEncryptedBackupLength)) {
+    throw new Error('That backup is too large to import.');
+  }
+  const payload = await new File(asset.uri).text();
+  if (!payload || payload.length > maxEncryptedBackupLength) {
+    throw new Error('That backup is too large to import.');
+  }
+  const decrypted = await decryptBackupAsync(payload, password);
+  const canonical = canonicalPersistedState(decrypted);
+  if (!canonical) throw new Error('That file is not a valid MenoCompass backup.');
   return canonical;
 }
 
@@ -281,10 +415,22 @@ function App() {
   >(null);
   const [telemetrySettled, setTelemetrySettled] = useState(false);
   const [trackingPromptedThisSession, setTrackingPromptedThisSession] = useState(false);
+  const [privacyReady, setPrivacyReady] = useState(Platform.OS !== 'ios');
+  const [appLockEnabled, setAppLockEnabled] = useState(false);
+  const [appLocked, setAppLocked] = useState(false);
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const [unlockIssue, setUnlockIssue] = useState<string>();
+  const [appIsActive, setAppIsActive] = useState(AppState.currentState === 'active');
+  const [pendingNativeRoute, setPendingNativeRoute] = useState<MenoCompassNativeRoute | null>(null);
   const autoPaywallAttemptedRef = useRef(false);
   const appLaunchTrackedRef = useRef(false);
   const reviewRequestInFlightRef = useRef(false);
   const nativeShareInFlightRef = useRef(false);
+  const nativeBackupImportInFlightRef = useRef(false);
+  const privacyChangeInFlightRef = useRef(false);
+  const unlockInFlightRef = useRef(false);
+  const automaticUnlockAttemptedRef = useRef(false);
+  const healthKitInFlightRef = useRef(false);
 
   const syncProStatusToWeb = (active: boolean) => {
     webViewRef.current?.injectJavaScript(`
@@ -300,6 +446,92 @@ function App() {
       window.dispatchEvent(new CustomEvent('menocompass-native-share-result', { detail: ${detail} }));
       true;
     `);
+  };
+
+  const notifyWebPrivacyResult = (detail: Record<string, unknown>) => {
+    const serialized = JSON.stringify(detail);
+    webViewRef.current?.injectJavaScript(`
+      window.dispatchEvent(new CustomEvent('menocompass-native-privacy-result', { detail: ${serialized} }));
+      true;
+    `);
+  };
+
+  const notifyWebHealthKitResult = (detail: Record<string, unknown>) => {
+    const serialized = JSON.stringify(detail);
+    webViewRef.current?.injectJavaScript(`
+      window.dispatchEvent(new CustomEvent('menocompass-healthkit-result', { detail: ${serialized} }));
+      true;
+    `);
+  };
+
+  const refreshNativePrivacyStatus = () => {
+    void Promise.all([getAppLockCapabilityAsync(), getReminderStatusAsync()])
+      .then(([appLock, reminders]) => {
+        setAppLockEnabled(appLock.enabled);
+        notifyWebPrivacyResult({
+          ok: true,
+          appLock,
+          reminders,
+          deviceEncrypted: isDeviceEncryptionAvailable(),
+          encryptedBackups: Platform.OS === 'ios',
+          healthKitAvailable: isHealthKitAvailable(),
+        });
+      })
+      .catch(reason => {
+        reportTelemetryError(reason);
+        notifyWebPrivacyResult({ ok: false, message: 'Privacy settings could not be loaded.' });
+      });
+  };
+
+  const unlockApp = () => {
+    if (unlockInFlightRef.current) return;
+    unlockInFlightRef.current = true;
+    setUnlockBusy(true);
+    setUnlockIssue(undefined);
+    void authenticateAppUnlockAsync()
+      .then(unlocked => {
+        if (unlocked) {
+          setAppLocked(false);
+          setUnlockIssue(undefined);
+        } else {
+          setUnlockIssue('MenoCompass remains locked. Try Face ID or your device passcode again.');
+        }
+      })
+      .catch(reason => {
+        reportTelemetryError(reason);
+        setUnlockIssue('MenoCompass remains locked. Try Face ID or your device passcode again.');
+      })
+      .finally(() => {
+        unlockInFlightRef.current = false;
+        setUnlockBusy(false);
+      });
+  };
+
+  const importEncryptedBackup = (password: string) => {
+    if (nativeBackupImportInFlightRef.current) return;
+    nativeBackupImportInFlightRef.current = true;
+    void chooseAndDecryptBackup(password)
+      .then(canonical => {
+        if (!canonical) {
+          notifyWebPrivacyResult({ action: 'backup-import', ok: false, cancelled: true });
+          return;
+        }
+        const serialized = JSON.stringify({ ok: true, state: canonical });
+        webViewRef.current?.injectJavaScript(`
+          window.dispatchEvent(new CustomEvent('menocompass-native-backup-import', { detail: ${serialized} }));
+          true;
+        `);
+        notifyWebPrivacyResult({ action: 'backup-import', ok: true });
+      })
+      .catch(reason => {
+        reportTelemetryError(reason);
+        const message = nativeBackupImportErrorMessage(reason);
+        notifyWebPrivacyResult({ action: 'backup-import', ok: false, message });
+        Alert.alert('Could not restore backup', message);
+      })
+      .finally(() => {
+        nativeBackupImportInFlightRef.current = false;
+      });
   };
 
   const runNativeShare = (kind: NativeShareKind, task: () => Promise<void>) => {
@@ -325,16 +557,102 @@ function App() {
   };
 
   useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let active = true;
+    getAppLockCapabilityAsync()
+      .then(capability => {
+        if (!active) return;
+        setAppLockEnabled(capability.enabled);
+        setAppLocked(capability.enabled);
+      })
+      .catch(error => {
+        reportTelemetryError(error);
+        if (active) setUnlockIssue('App Lock settings could not be loaded.');
+      })
+      .finally(() => { if (active) setPrivacyReady(true); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const subscription = AppState.addEventListener('change', nextState => {
+      setAppIsActive(nextState === 'active');
+      if (
+        appLockEnabled
+        && !unlockInFlightRef.current
+        && nextState !== 'active'
+      ) {
+        automaticUnlockAttemptedRef.current = false;
+        setAppLocked(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [appLockEnabled]);
+
+  useEffect(() => {
+    if (!appIsActive || !privacyReady || !appLocked || automaticUnlockAttemptedRef.current) return;
+    automaticUnlockAttemptedRef.current = true;
+    const timer = setTimeout(unlockApp, 250);
+    return () => clearTimeout(timer);
+  }, [appIsActive, appLocked, privacyReady]);
+
+  useEffect(() => {
+    return subscribeToMenoCompassQuickEntries(setPendingNativeRoute);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const acceptResponse = (response: Notifications.NotificationResponse | null) => {
+      const route = notificationRoute(response);
+      if (!active || !route) return;
+      setPendingNativeRoute(route);
+      Notifications.clearLastNotificationResponse();
+    };
+    void Notifications.getLastNotificationResponseAsync()
+      .then(acceptResponse)
+      .catch(reportTelemetryError);
+    const subscription = Notifications.addNotificationResponseReceivedListener(acceptResponse);
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingNativeRoute || !webContentReady || appLocked) return;
+    if (pendingNativeRoute === 'care') {
+      webViewRef.current?.injectJavaScript(`
+        if (window.location.hash !== '#care') window.location.hash = 'care';
+        true;
+      `);
+    } else {
+      injectQuickRoute(
+        script => webViewRef.current?.injectJavaScript(script),
+        pendingNativeRoute,
+      );
+    }
+    setPendingNativeRoute(null);
+  }, [appLocked, pendingNativeRoute, webContentReady]);
+
+  useEffect(() => {
     let active = true;
     Promise.all([
       Asset.fromModule(appAsset).downloadAsync().then(asset => new File(asset.localUri || asset.uri).text()),
-      readPersistedState().catch(() => null),
+      // A missing record resolves to null. Authentication/decryption failures
+      // must surface instead of booting a blank database that could overwrite
+      // the still-recoverable encrypted file.
+      readPersistedState(),
     ])
       .then(([source, savedState]) => {
         if (!active) return;
         setPersistedState(savedState);
         setExperienceReady(persistedStateIsOnboarded(savedState));
         setHtml(source);
+        try {
+          syncMenoCompassWidgets(savedState);
+        } catch (error) {
+          reportTelemetryError(error);
+        }
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
     return () => { active = false; };
@@ -547,11 +865,25 @@ function App() {
     try {
       const message = JSON.parse(event.nativeEvent.data);
       if (message?.type === 'persist-state' && typeof message.state === 'string') {
-        const canonical = writePersistedState(message.state);
-        if (canonical) {
-          setPersistedState(canonical);
-          setExperienceReady(persistedStateIsOnboarded(canonical));
-        }
+        void writePersistedState(message.state)
+          .then(canonical => {
+            if (!canonical) return;
+            setPersistedState(canonical);
+            setExperienceReady(persistedStateIsOnboarded(canonical));
+            try {
+              syncMenoCompassWidgets(canonical);
+            } catch (error) {
+              reportTelemetryError(error);
+            }
+          })
+          .catch(reason => {
+            reportTelemetryError(reason);
+            notifyWebPrivacyResult({
+              action: 'state-save',
+              ok: false,
+              message: 'Your latest changes could not be saved securely.',
+            });
+          });
         return;
       }
       if (message?.type === 'onboarding-finished') {
@@ -583,6 +915,107 @@ function App() {
       }
       if (message?.type === 'share-report') {
         runNativeShare('report', () => shareReport(message));
+        return;
+      }
+      if (message?.type === 'export-encrypted-backup') {
+        runNativeShare('backup', () => shareEncryptedBackup(message));
+        return;
+      }
+      if (message?.type === 'import-encrypted-backup' && typeof message.password === 'string') {
+        importEncryptedBackup(message.password);
+        return;
+      }
+      if (message?.type === 'get-native-privacy-status') {
+        refreshNativePrivacyStatus();
+        return;
+      }
+      if (message?.type === 'clear-native-private-data') {
+        if (privacyChangeInFlightRef.current) return;
+        privacyChangeInFlightRef.current = true;
+        void clearNativePrivateDataAsync()
+          .then(({ appLock, reminders }) => {
+            setAppLockEnabled(false);
+            setAppLocked(false);
+            notifyWebPrivacyResult({
+              action: 'private-data-cleared',
+              ok: true,
+              appLock,
+              reminders,
+            });
+          })
+          .catch(reason => {
+            reportTelemetryError(reason);
+            notifyWebPrivacyResult({
+              action: 'private-data-cleared',
+              ok: false,
+              message: 'Native privacy settings could not be fully cleared.',
+            });
+          })
+          .finally(() => { privacyChangeInFlightRef.current = false; });
+        return;
+      }
+      if (message?.type === 'healthkit-status') {
+        void getHealthKitRequestStatus()
+          .then(status => notifyWebHealthKitResult({ action: 'status', ok: true, status }))
+          .catch(reason => {
+            reportTelemetryError(reason);
+            notifyWebHealthKitResult({
+              action: 'status',
+              ok: false,
+              message: 'Apple Health status could not be loaded.',
+            });
+          });
+        return;
+      }
+      if (message?.type === 'healthkit-sync') {
+        if (message.userInitiated !== true || healthKitInFlightRef.current) return;
+        healthKitInFlightRef.current = true;
+        const lookbackDays = Number.isFinite(Number(message.lookbackDays))
+          ? Number(message.lookbackDays)
+          : 7;
+        void connectAndSyncHealthKit({ userInitiated: true, lookbackDays })
+          .then(result => notifyWebHealthKitResult({ action: 'sync', ok: true, ...result }))
+          .catch(reason => {
+            reportTelemetryError(reason);
+            notifyWebHealthKitResult({
+              action: 'sync',
+              ok: false,
+              message: 'Apple Health could not be synced. No MenoCompass data was changed.',
+            });
+          })
+          .finally(() => { healthKitInFlightRef.current = false; });
+        return;
+      }
+      if (message?.type === 'configure-reminders') {
+        if (privacyChangeInFlightRef.current) return;
+        privacyChangeInFlightRef.current = true;
+        void configureRemindersAsync(message.preferences, message.requestPermission === true)
+          .then(reminders => notifyWebPrivacyResult({ action: 'reminders', ok: true, reminders }))
+          .catch(reason => {
+            reportTelemetryError(reason);
+            const text = reason instanceof Error ? reason.message : 'Reminders could not be updated.';
+            notifyWebPrivacyResult({ action: 'reminders', ok: false, message: text });
+            Alert.alert('Reminders not changed', text);
+          })
+          .finally(() => { privacyChangeInFlightRef.current = false; });
+        return;
+      }
+      if (message?.type === 'set-app-lock' && typeof message.enabled === 'boolean') {
+        if (privacyChangeInFlightRef.current) return;
+        privacyChangeInFlightRef.current = true;
+        void setAppLockEnabledAsync(message.enabled)
+          .then(appLock => {
+            setAppLockEnabled(appLock.enabled);
+            if (!appLock.enabled) setAppLocked(false);
+            notifyWebPrivacyResult({ action: 'app-lock', ok: true, appLock });
+          })
+          .catch(reason => {
+            reportTelemetryError(reason);
+            const text = reason instanceof Error ? reason.message : 'App Lock could not be changed.';
+            notifyWebPrivacyResult({ action: 'app-lock', ok: false, message: text });
+            Alert.alert('App Lock not changed', text);
+          })
+          .finally(() => { privacyChangeInFlightRef.current = false; });
         return;
       }
       if (message?.type === 'open-subscription-management') {
@@ -618,8 +1051,42 @@ function App() {
     }
   };
 
-  if (!html || (Platform.OS === 'ios' && !subscriptionChecked)) {
+  if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked)) {
     return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="light" /><ActivityIndicator color="#E8A552" /><Text style={styles.loadingText}>{error ? 'Could not open MenoCompass.' : 'Opening MenoCompass…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
+  }
+
+  if (Platform.OS === 'ios' && appLocked) {
+    return (
+      <SafeAreaView style={styles.locked}>
+        <StatusBar style="light" />
+        <View accessible={false} importantForAccessibility="no" style={styles.lockedMark}>
+          <Text style={styles.lockedMarkText}>M</Text>
+        </View>
+        <Text style={styles.lockedEyebrow}>MENOCOMPASS</Text>
+        <Text accessibilityRole="header" style={styles.lockedTitle}>Your record is locked.</Text>
+        <Text selectable style={styles.lockedBody}>
+          Use Face ID, Touch ID, or your device passcode to continue.
+        </Text>
+        {unlockIssue ? <Text accessibilityRole="alert" style={styles.lockedIssue}>{unlockIssue}</Text> : null}
+        <Pressable
+          accessibilityHint="Opens the secure iOS authentication prompt."
+          accessibilityLabel="Unlock MenoCompass"
+          accessibilityRole="button"
+          accessibilityState={{ busy: unlockBusy, disabled: unlockBusy }}
+          disabled={unlockBusy}
+          onPress={unlockApp}
+          style={({ pressed }) => [
+            styles.lockedButton,
+            pressed && styles.gateButtonPressed,
+            unlockBusy && styles.gateButtonDisabled,
+          ]}
+        >
+          {unlockBusy
+            ? <ActivityIndicator color="#0E1618" />
+            : <Text style={styles.lockedButtonText}>Unlock</Text>}
+        </Pressable>
+      </SafeAreaView>
+    );
   }
 
   if (Platform.OS === 'ios' && !proActive) {
@@ -672,6 +1139,7 @@ function App() {
         onLoadEnd={() => {
           setWebContentReady(true);
           syncProStatusToWeb(proActive);
+          refreshNativePrivacyStatus();
         }}
         onMessage={handleWebMessage}
         onShouldStartLoadWithRequest={({ url }) => {
@@ -717,4 +1185,13 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#0E1618' },
   loadingText: { color: '#E9F1EE', fontSize: 16 },
   error: { color: '#E0755F', textAlign: 'center', fontSize: 12 },
+  locked: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, backgroundColor: '#0E1618' },
+  lockedMark: { width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#E8A552' },
+  lockedMarkText: { color: '#0E1618', fontSize: 30, fontWeight: '900' },
+  lockedEyebrow: { color: '#E8A552', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 10 },
+  lockedTitle: { color: '#E9F1EE', fontSize: 28, lineHeight: 34, fontWeight: '800', textAlign: 'center' },
+  lockedBody: { maxWidth: 380, marginTop: 12, color: '#B8C8C5', fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  lockedIssue: { maxWidth: 380, marginTop: 14, color: '#E8A552', fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  lockedButton: { width: '100%', maxWidth: 320, minHeight: 52, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 24, backgroundColor: '#E8A552' },
+  lockedButtonText: { color: '#0E1618', fontSize: 15, fontWeight: '900' },
 });

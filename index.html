@@ -1457,6 +1457,14 @@ nav.tabs button[aria-current="page"]::after{bottom:10px;background:var(--jc-ambe
 .jc-account-actions{display:grid;gap:9px;margin:16px 0 13px}
 .jc-account-actions .btn{width:100%;min-height:48px;display:flex;align-items:center;justify-content:flex-start;gap:10px;text-align:left}
 .jc-account-actions .btn svg{width:19px;height:19px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.jc-native-settings h4{margin:0 0 7px}.jc-native-setting{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.jc-native-setting>div{display:flex;min-width:0;flex-direction:column;gap:5px}.jc-native-setting small{color:var(--jc-muted);font-size:11px;line-height:1.45}.jc-native-setting .btn{flex:0 0 auto}.jc-native-toggle{margin:10px 0;display:grid;grid-template-columns:26px minmax(95px,1fr) minmax(92px,auto);align-items:center;gap:8px;color:var(--jc-text);font-size:12px}.jc-native-toggle.stacked{grid-template-columns:26px minmax(95px,1fr)}.jc-native-toggle.stacked select,.jc-native-toggle.stacked input[type="time"]{grid-column:2}.jc-native-toggle input[type="checkbox"]{width:20px;height:20px;accent-color:var(--jc-amber)}.jc-native-toggle input[type="time"],.jc-native-toggle select{min-height:40px}.jc-health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:14px 0}.jc-health-grid>div{min-width:0;padding:10px 7px;border:1px solid var(--jc-line);border-radius:8px}.jc-health-grid span,.jc-health-grid b{display:block}.jc-health-grid span{color:var(--jc-muted);font-size:10px}.jc-health-grid b{margin-top:4px;font-size:12px;line-height:1.35}
+.jc-plan-heading{margin-top:28px}.jc-plan-list,.jc-visit-list{border-top:1px solid var(--jc-line)}
+.jc-plan-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:start;gap:9px;padding:12px 0;border-bottom:1px solid var(--jc-line)}
+.jc-plan-row.complete>span{text-decoration:line-through;color:var(--jc-muted)}.jc-plan-check{width:32px;height:32px;border:1px solid var(--jc-line);border-radius:50%;background:transparent;color:var(--jc-mint)}
+.jc-plan-row>span{padding-top:6px;font-size:13px;line-height:1.45}.jc-plan-row>div,.jc-visit-head>div:last-child{display:flex;gap:7px}.jc-plan-row>div button,.jc-visit-head button{min-height:32px;padding:0;border:0;background:transparent;color:var(--jc-amber);font-size:11px}
+.jc-plan-archive,.jc-treatment-archive{border-bottom:1px solid var(--jc-line)}.jc-plan-archive>summary,.jc-treatment-archive>summary{padding:13px 0;color:var(--jc-muted);font-size:12px;cursor:pointer}
+.jc-appointment-form textarea{min-height:92px}.jc-visit-plan{padding:16px 0;border-bottom:1px solid var(--jc-line)}.jc-visit-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.jc-visit-head>div:first-child{display:flex;flex-direction:column;gap:4px}.jc-visit-head small{color:var(--jc-muted);font-size:11px}.jc-visit-plan>p{margin:10px 0;color:var(--jc-muted);font-size:13px;line-height:1.5}
+.jc-action-list{display:grid;gap:6px;margin-top:10px}.jc-action-list button{min-height:40px;padding:7px 9px;display:grid;grid-template-columns:22px 1fr;align-items:start;gap:6px;border:1px solid var(--jc-line);border-radius:8px;background:transparent;color:var(--jc-text);text-align:left}.jc-action-list button[aria-pressed="true"] span{text-decoration:line-through;color:var(--jc-muted)}.jc-action-list i{color:var(--jc-mint);font-style:normal}.jc-treatment-subhead{padding:18px 0 7px;color:var(--jc-muted);font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}.jc-treatment.stopped,.jc-treatment.archived{color:var(--jc-muted)}.jc-report-plan+.jc-report-plan{margin-top:12px;padding-top:12px;border-top:1px solid var(--jc-line)}
 .jc-confirm-sheet{text-align:center}
 .jc-confirm-sheet .jc-confirm-icon{width:66px;height:66px;margin:2px auto 18px;display:grid;place-items:center;border:1px solid var(--jc-mint);border-radius:50%;color:var(--jc-mint)}
 .jc-confirm-sheet.danger .jc-confirm-icon{border-color:var(--jc-danger);color:var(--jc-danger)}
@@ -2802,7 +2810,15 @@ const Store = (() => {
     get ephemeral(){ return usingMemory&&!nativeBridge(); },
     read(){
       const injected=injectedState();
-      if(injected) return injected;
+      if(injected){
+        mem=injected;
+        if(nativeBridge()) try{ localStorage.removeItem(KEY); }catch(e){}
+        return injected;
+      }
+      if(nativeBridge()){
+        try{ localStorage.removeItem(KEY); }catch(e){}
+        return mem;
+      }
       if(usingMemory) return mem;
       try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }
       catch(e){ usingMemory = true; return mem; }
@@ -2812,6 +2828,11 @@ const Store = (() => {
       try{ serialized=JSON.stringify(obj); }
       catch(e){ return false; }
       const nativeSaved=postNative(serialized);
+      if(nativeBridge()){
+        mem=obj;
+        try{ localStorage.removeItem(KEY); }catch(e){}
+        return nativeSaved;
+      }
       if(usingMemory){ mem = obj; return nativeSaved; }
       try{ localStorage.setItem(KEY, serialized); return true; }
       catch(e){ usingMemory = true; mem = obj; return nativeSaved; }
@@ -2830,7 +2851,7 @@ function postNativeEvent(type, attributes){
 }
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 6;
+const SCHEMA_V = 7;
 const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
 const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
@@ -2846,6 +2867,7 @@ function blankDB(){
       pinnedSymptoms:[...DEFAULT_PINNED_SYMPTOMS]
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
+    appointments:{questions:[],plans:[]}, healthKit:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
   };
 }
@@ -2946,6 +2968,8 @@ function migrate(d){
   if(Array.isArray(d.labs)){
     out.labs=d.labs.map(safeLab).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,200);
   }
+  out.appointments=safeAppointments(d.appointments);
+  out.healthKit=safeHealthKitSummary(d.healthKit);
   out.trigger=safeTrigger(d.trigger);
   if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
   const meta=plainRecord(d.meta)?d.meta:{};
@@ -3085,6 +3109,11 @@ function safeMedication(raw,startedFallback){
     });
     return {date,label,targets,baseline,followUps};
   }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)).slice(-100);
+  const archivedAt=safePastDate(raw.archivedAt);
+  const requestedStatus=safeEnum(raw.status,['active','stopped','archived'],archivedAt||raw.archived===true?'archived':ended?'stopped':'active');
+  /* A stop date is authoritative. Do not let a malformed or older backup
+     reactivate a treatment simply by pairing `status: active` with `ended`. */
+  const status=requestedStatus==='archived'?'archived':ended?'stopped':'active';
   return {
     id,
     name,
@@ -3094,6 +3123,9 @@ function safeMedication(raw,startedFallback){
     notes:safeText(raw.notes||raw.detail,120),
     started,
     ended,
+    status,
+    stopReason:safeText(raw.stopReason,500).trim(),
+    archivedAt:status==='archived'?archivedAt:'',
     changes
   };
 }
@@ -3102,6 +3134,65 @@ function safeLab(raw){
   const name=safeText(raw.name,80).trim(), value=safeText(raw.value,40).trim(), date=safePastDate(raw.date);
   if(!name||!value||!date) return null;
   return {id:safeText(raw.id,40)||'lab-'+date+'-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20),name,value,date,unit:safeText(raw.unit,30)};
+}
+function safeAppointments(raw){
+  const out={questions:[],plans:[]};
+  if(!plainRecord(raw)) return out;
+  if(Array.isArray(raw.questions)){
+    raw.questions.slice(0,100).forEach((item,index)=>{
+      if(!plainRecord(item)) return;
+      const text=safeText(item.text,500).trim();
+      if(!text) return;
+      const rawId=safeText(item.id,50);
+      const id=/^[A-Za-z0-9_-]{1,50}$/.test(rawId)?rawId:'question-'+index;
+      const created=safePastDate(item.created);
+      const askedAt=safePastDate(item.askedAt);
+      out.questions.push({id,text,created,asked:item.asked===true,askedAt:item.asked===true?askedAt:''});
+    });
+  }
+  if(Array.isArray(raw.plans)){
+    raw.plans.slice(0,100).forEach((item,index)=>{
+      if(!plainRecord(item)) return;
+      const date=safePastDate(item.date);
+      if(!date) return;
+      const rawId=safeText(item.id,50);
+      const id=/^[A-Za-z0-9_-]{1,50}$/.test(rawId)?rawId:'visit-'+index;
+      const actions=[];
+      if(Array.isArray(item.actions)) item.actions.slice(0,30).forEach((action,actionIndex)=>{
+        if(!plainRecord(action)) return;
+        const text=safeText(action.text,500).trim();
+        if(!text) return;
+        const actionRawId=safeText(action.id,50);
+        const actionId=/^[A-Za-z0-9_-]{1,50}$/.test(actionRawId)?actionRawId:id+'-action-'+actionIndex;
+        actions.push({id:actionId,text,done:action.done===true});
+      });
+      const summary=safeText(item.summary,2000).trim();
+      const nextVisit=typeof item.nextVisit==='string'&&validISODate(item.nextVisit)?item.nextVisit:'';
+      if(!summary&&!actions.length&&!nextVisit) return;
+      out.plans.push({id,date,summary,actions,nextVisit});
+    });
+    out.plans.sort((a,b)=>b.date.localeCompare(a.date));
+  }
+  return out;
+}
+function safeHealthKitSummary(raw){
+  if(!plainRecord(raw)||raw.available!==true||raw.readOnly!==true) return null;
+  const generatedAt=typeof raw.generatedAt==='string'&&Number.isFinite(Date.parse(raw.generatedAt))?raw.generatedAt:'';
+  const lookbackDays=safeInteger(raw.lookbackDays,1,30);
+  if(!generatedAt||lookbackDays==null) return null;
+  const steps=plainRecord(raw.steps)?raw.steps:{}, sleep=plainRecord(raw.sleep)?raw.sleep:{}, bodyWeight=plainRecord(raw.bodyWeight)?raw.bodyWeight:{};
+  const totalSteps=safeNumber(steps.total,0,10000000), dailySteps=safeNumber(steps.dailyAverage,0,1000000);
+  const totalSleep=safeNumber(sleep.totalHours,0,720), nightlySleep=safeNumber(sleep.nightlyAverageHours,0,24), trackedNights=safeInteger(sleep.trackedNights,0,31)||0;
+  const latestKilograms=safeNumber(bodyWeight.latestKilograms,20,500);
+  const recordedAt=typeof bodyWeight.recordedAt==='string'&&Number.isFinite(Date.parse(bodyWeight.recordedAt))?bodyWeight.recordedAt:null;
+  const warnings=Array.isArray(raw.warnings)?raw.warnings.map(item=>safeText(item,80)).filter(Boolean).slice(0,10):[];
+  return {
+    available:true,readOnly:true,generatedAt,lookbackDays,
+    hasAnyData:raw.hasAnyData===true,
+    steps:{total:totalSteps,dailyAverage:dailySteps},
+    sleep:{totalHours:totalSleep,nightlyAverageHours:nightlySleep,trackedNights},
+    bodyWeight:{latestKilograms,recordedAt},warnings
+  };
 }
 function prefillTodayFromYesterday(){
   const t=todayISO(), y=addDays(t,-1);
@@ -3789,6 +3880,11 @@ let guideQuery = '';
 let reportRange = 90;
 let treatmentChangeTarget = null;
 let treatmentFollowUpTarget = null;
+let treatmentStopTarget = null;
+let appointmentQuestionEditId = null;
+let afterVisitPlanEditId = null;
+let nativePrivacyState = {loaded:false,appLock:null,reminders:null,deviceEncrypted:false,encryptedBackups:false};
+let nativeHealthState = {loaded:false,status:null,busy:false};
 const APP_VERSION = '1.1.0';
 
 /* ---------- tiny helpers ---------- */
@@ -3829,6 +3925,53 @@ function scaleRow(path, labels, cur, min, groupLabel){
 }
 function chip(path, label, on){
   return h('button',{class:'chip','data-act':'toggle','data-k':path,'aria-pressed':on?'true':'false'}, esc(label));
+}
+function nativeReminderTime(value,fallback){
+  const hour=value&&Number.isInteger(+value.hour)?+value.hour:+fallback.split(':')[0];
+  const minute=value&&Number.isInteger(+value.minute)?+value.minute:+fallback.split(':')[1];
+  return String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0');
+}
+function handleNativePrivacyResult(event){
+  const detail=event&&event.detail;
+  if(!detail||typeof detail!=='object') return;
+  if(detail.appLock) nativePrivacyState.appLock=detail.appLock;
+  if(detail.reminders) nativePrivacyState.reminders=detail.reminders;
+  if(typeof detail.deviceEncrypted==='boolean') nativePrivacyState.deviceEncrypted=detail.deviceEncrypted;
+  if(typeof detail.encryptedBackups==='boolean') nativePrivacyState.encryptedBackups=detail.encryptedBackups;
+  nativePrivacyState.loaded=true;
+  if(detail.ok===false&&!detail.cancelled&&detail.message) toast(detail.message);
+  else if(detail.action==='app-lock'&&detail.ok) toast(detail.appLock&&detail.appLock.enabled?'App Lock turned on':'App Lock turned off');
+  else if(detail.action==='reminders'&&detail.ok) toast('Reminder settings saved');
+  if(curTab==='profile') render(true);
+}
+function handleNativeBackupImport(event){
+  const detail=event&&event.detail;
+  if(!detail||detail.ok!==true||typeof detail.state!=='string') return;
+  try{
+    DB=validateBackup(JSON.parse(detail.state));
+    save(true); sheetStack=[]; renderSheet(); render();
+    toast('Encrypted backup restored and checked');
+  }catch(e){ toast('That backup could not be restored safely'); }
+}
+function handleNativeShareResult(event){
+  const detail=event&&event.detail;
+  if(!detail||detail.kind!=='backup') return;
+  if(detail.ok) toast('Encrypted backup is ready to save');
+  else if(detail.message) toast(detail.message);
+}
+function handleHealthKitResult(event){
+  const detail=event&&event.detail;
+  if(!detail||typeof detail!=='object') return;
+  nativeHealthState.loaded=true; nativeHealthState.busy=false;
+  nativeHealthState.status=detail.status||detail.authorization||detail.result&&detail.result.authorization||nativeHealthState.status;
+  const summary=detail.summary||detail.result&&detail.result.summary;
+  if(summary){
+    const clean=safeHealthKitSummary(summary);
+    if(clean){ DB.healthKit=clean; save(true); }
+  }
+  if(detail.ok===false&&detail.message) toast(detail.message);
+  else if(summary) toast(summary.hasAnyData?'Apple Health summary updated':'Apple Health connected; no matching data was available');
+  if(curTab==='profile') render(true);
 }
 function twilightHeader(title, subtitle){
   return '<div class="tw-status"><span>'+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span><span>MENOCOMPASS</span></div>'
@@ -4090,6 +4233,36 @@ function viewLearn(){
 /* ============================================================
    YOU
    ============================================================ */
+function nativePrivacyCard(){
+  if(window.__MENO_NATIVE__!==true) return '';
+  if(!nativePrivacyState.loaded) return `<div class="section-label">Privacy &amp; reminders</div><div class="card"><p class="tiny">Loading iPhone privacy settings…</p></div>`;
+  const lock=nativePrivacyState.appLock||{available:false,enabled:false,label:'biometric unlock'};
+  const reminders=nativePrivacyState.reminders||{permission:'not-determined',preferences:{dailyCheckIn:{enabled:false,hour:20,minute:0},treatmentFollowUp:{enabled:false,weekday:1,hour:10,minute:0}}};
+  const daily=reminders.preferences&&reminders.preferences.dailyCheckIn||{}, follow=reminders.preferences&&reminders.preferences.treatmentFollowUp||{};
+  const weekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return `<div class="section-label">Privacy &amp; reminders</div><div class="card jc-native-settings">
+    <div class="jc-native-setting"><div><b>App Lock</b><small>${lock.available?`Use ${esc(lock.label)} or the device passcode whenever MenoCompass returns from the background.`:'Set up Face ID or Touch ID in iOS Settings to make App Lock available.'}</small></div><button class="btn ${lock.enabled?'ghost':'primary'} sm" data-act="app-lock-toggle" data-enabled="${lock.enabled?'false':'true'}"${lock.available?'':' disabled'}>${lock.enabled?'Turn off':'Turn on'}</button></div>
+    <p class="xtiny">${nativePrivacyState.deviceEncrypted?'Your native MenoCompass record is encrypted at rest with a device-bound key.':'Secure native storage is unavailable on this build.'}</p>
+    <hr class="sep">
+    <h4>Reminders</h4><p class="tiny">Notifications stay generic and never include symptoms, treatments, or other health details. Permission is requested only when you save an enabled reminder.</p>
+    <label class="jc-native-toggle" for="daily-reminder-enabled"><input id="daily-reminder-enabled" type="checkbox"${daily.enabled?' checked':''}><span>Daily check-in</span><input id="daily-reminder-time" type="time" value="${nativeReminderTime(daily,'20:00')}" aria-label="Daily check-in reminder time"></label>
+    <label class="jc-native-toggle stacked" for="treatment-reminder-enabled"><input id="treatment-reminder-enabled" type="checkbox"${follow.enabled?' checked':''}><span>Weekly treatment review</span><select id="treatment-reminder-day" aria-label="Weekly treatment review day">${weekdays.map((label,index)=>`<option value="${index+1}"${+(follow.weekday||1)===index+1?' selected':''}>${label}</option>`).join('')}</select><input id="treatment-reminder-time" type="time" value="${nativeReminderTime(follow,'10:00')}" aria-label="Weekly treatment review time"></label>
+    <button class="btn block ghost" data-act="save-native-reminders">Save reminder settings</button>
+    <p class="xtiny">Notification permission: <b>${esc(String(reminders.permission||'not-determined').replace('-', ' '))}</b>.</p>
+  </div>`;
+}
+function healthKitCard(){
+  if(window.__MENO_NATIVE__!==true) return '';
+  const summary=DB.healthKit, status=nativeHealthState.status||{};
+  const unavailable=nativeHealthState.loaded&&status.available===false;
+  const value=(v,suffix)=>v==null?'Unavailable':r1(v)+suffix;
+  return `<div class="section-label">Apple Health</div><div class="card jc-healthkit">
+    <div class="jc-native-setting"><div><b>Read-only summary</b><small>MenoCompass reads only aggregate steps, sleep, and your latest body weight when you tap the button. It never writes to Apple Health.</small></div></div>
+    ${summary?`<div class="jc-health-grid"><div><span>Steps</span><b>${value(summary.steps.dailyAverage,' / day')}</b></div><div><span>Sleep</span><b>${value(summary.sleep.nightlyAverageHours,' h / night')}</b></div><div><span>Latest weight</span><b>${summary.bodyWeight.latestKilograms==null?'Unavailable':r1(U.wOut(summary.bodyWeight.latestKilograms))+' '+U.wLabel()}</b></div></div><p class="xtiny">${summary.lookbackDays}-day aggregate · synced ${esc(new Date(summary.generatedAt).toLocaleString())}. Missing values can mean no matching data or that access was not shared; Apple does not tell apps which read types were denied.</p>`:'<p class="tiny">No Apple Health summary has been saved yet.</p>'}
+    <div class="btn-row split"><button class="btn primary" data-act="healthkit-sync"${unavailable||nativeHealthState.busy?' disabled':''}>${summary?'Sync Apple Health':'Connect Apple Health'}</button>${summary?'<button class="btn ghost" data-act="healthkit-clear">Remove summary</button>':''}</div>
+    ${unavailable?'<p class="xtiny">Apple Health is unavailable on this device or build.</p>':''}
+  </div>`;
+}
 function viewYou(){
   const p = DB.profile;
   const age = p.birthYear? (new Date().getFullYear()-p.birthYear) : null;
@@ -4107,6 +4280,9 @@ function viewYou(){
       </div>
       <p class="xtiny">MenoCompass does not create an online account. Reset onboarding keeps your logs and treatments. Delete permanently erases this app profile and all health data stored on this device. An Apple subscription, if active, is managed separately in App Store settings.</p>
     </div>
+
+    ${nativePrivacyCard()}
+    ${healthKitCard()}
 
     <div class="card">
       <div class="card-head"><h3>${p.name?esc(p.name):'Your profile'}</h3>
@@ -4194,7 +4370,9 @@ function viewYou(){
 
     <div class="card flat">
       <h4>Privacy, plainly</h4>
-      <p class="tiny">Your health entries stay in this browser's storage on this device. The app has no account, health-data API, or sync service and does not transmit what you log. The native app sends limited performance and advertising-attribution data—never symptoms, medications, labs, notes, profile answers, or reports—to Expo, AppsFlyer, Meta, TikTok, and RevenueCat as described in the Privacy Policy. External source links contact those sites only when you open them. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices. Export a backup now and then.</p>
+      <p class="tiny">${window.__MENO_NATIVE__===true
+        ? 'Your native MenoCompass record stays on this device in an encrypted file protected by a device-bound key; it is not copied into WebView browser storage. Optional encrypted backups use a password you choose. Apple Health access is read-only, happens only when you tap Connect or Sync, and saves only the aggregate summary shown above. Widgets receive only whether today is complete and a seven-day completion count. Generic reminder schedules contain no health details. The app has no account or sync service and does not transmit your health record.'
+        : "Your health entries stay in this browser's storage on this device. The app has no account, health-data API, or sync service and does not transmit what you log. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices."} The native app sends limited performance and advertising-attribution data—never symptoms, medications, labs, notes, profile answers, Apple Health values, or reports—to Expo, AppsFlyer, Meta, TikTok, and RevenueCat as described in the Privacy Policy. External source links contact those sites only when you open them. Export a backup now and then.</p>
       <h4 style="margin-top:14px">Medical disclaimer</h4>
       <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
     </div>
@@ -4598,6 +4776,7 @@ function clinicianBody(){
   const hfAvg = avg(series(d30,e=>e.hf).map(p=>p.v));
   const bdAvg = avg(series(d30,burden).map(p=>p.v));
   const last = DB.scores.slice(-4).reverse();
+  const personalQuestions=appointmentData().questions.filter(item=>!item.asked);
   return `<p class="tiny muted">Pick the topics that apply. The questions are phrased to get you specific answers rather than reassurance — and they signal that you have read the guidelines, which changes the conversation.</p>
   <div class="callout ok"><span class="ctitle">Bring your numbers</span>
   <ul class="plain tiny" style="margin-bottom:0">
@@ -4607,6 +4786,7 @@ function clinicianBody(){
     ${last.length?'<li>Recent scores: '+last.map(s=>s.type.toUpperCase()+' '+s.score+' ('+fmtDay(s.date)+')').join(', ')+'</li>':''}
   </ul>
   <div style="margin-top:9px"><button class="btn sm ghost" data-act="sheet" data-s="report">Open the full report</button></div></div>
+  ${personalQuestions.length?`<div class="callout info"><span class="ctitle">Your saved questions</span><ul class="tick">${personalQuestions.map(item=>`<li>${esc(item.text)}</li>`).join('')}</ul><p class="xtiny">Edit or mark these asked from Care.</p></div>`:''}
   ${CLINICIAN_TOPICS.map(t=>`<details class="acc"><summary>${esc(t.l)}</summary><div>
     <ul class="tick">${t.q.map(q=>'<li>'+esc(q)+'</li>').join('')}</ul></div></details>`).join('')}
   <div class="callout info"><span class="ctitle">Two things worth saying out loud</span>
@@ -4620,8 +4800,18 @@ function dataSheet(){
   <div class="callout ${Store.ephemeral?'warn':'info'}"><span class="ctitle">${Store.ephemeral?'This preview is not saving to disk':'Where your data lives'}</span>
   ${Store.ephemeral
     ? 'Browser storage is unavailable in this preview, so entries are held in memory only and will be lost when you close the page. Install the app (or open the deployed version) and it will save normally.'
-    : "In this browser's local storage, on this device only. Clearing browser data deletes it, and it does not sync between devices — so take a backup occasionally."}</div>
-  <div class="section-label">Back up</div>
+    : window.__MENO_NATIVE__===true
+      ? 'In an encrypted file on this iPhone or iPad, protected by a key that stays on the device. It does not sync between devices, so save an encrypted backup occasionally.'
+      : "In this browser's local storage, on this device only. Clearing browser data deletes it, and it does not sync between devices — so take a backup occasionally."}</div>
+  ${window.__MENO_NATIVE__===true&&nativePrivacyState.encryptedBackups?`<div class="section-label">Encrypted backup</div>
+  <p class="tiny">Create a portable, password-protected <b>.menocompass</b> backup. The password is never stored, so keep it somewhere safe.</p>
+  <label class="fl" for="encrypted-backup-password">Backup password · at least 10 characters</label><input id="encrypted-backup-password" type="password" minlength="10" maxlength="200" autocomplete="new-password">
+  <label class="fl" for="encrypted-backup-confirm">Confirm password</label><input id="encrypted-backup-confirm" type="password" minlength="10" maxlength="200" autocomplete="new-password">
+  <button class="btn block primary" data-act="export-encrypted-backup">Save encrypted backup</button>
+  <p class="tiny" style="margin-top:18px">To restore, choose a <b>.menocompass</b> file and enter the password that protected it. Restoring replaces the current record.</p>
+  <label class="fl" for="encrypted-restore-password">Backup password</label><input id="encrypted-restore-password" type="password" maxlength="200" autocomplete="current-password">
+  <button class="btn block ghost" data-act="import-encrypted-backup">Choose encrypted backup</button>`:''}
+  <div class="section-label">${window.__MENO_NATIVE__===true?'Plain exports':'Back up'}</div>
   <div class="btn-row split">
     <button class="btn primary" data-act="export-json">Download JSON</button>
     <button class="btn ghost" data-act="export-csv">Download CSV</button>
@@ -4667,6 +4857,25 @@ function deleteLocalDataSheet(){
 }
 
 /* ---------- clinician report ---------- */
+function appointmentReportSection(){
+  const data=appointmentData(), questions=data.questions.filter(item=>!item.asked), plans=(data.plans||[]).slice(0,3);
+  if(!questions.length&&!plans.length) return '';
+  return `<div class="card"><h4>Appointment questions &amp; after-visit plans</h4>
+    ${questions.length?`<p class="xtiny"><b>Questions to ask</b></p><ul class="plain tiny">${questions.map(item=>`<li>${esc(item.text)}</li>`).join('')}</ul>`:''}
+    ${plans.map(plan=>`<div class="jc-report-plan"><p class="xtiny"><b>${esc(fmtDay(plan.date))} after-visit plan</b>${plan.nextVisit?' · next appointment '+esc(fmtDay(plan.nextVisit)):''}</p>${plan.summary?`<p class="tiny">${esc(plan.summary)}</p>`:''}${plan.actions&&plan.actions.length?`<ul class="plain tiny">${plan.actions.map(action=>`<li>${action.done?'✓':'○'} ${esc(action.text)}</li>`).join('')}</ul>`:''}</div>`).join('')}
+  </div>`;
+}
+function healthKitReportSection(){
+  const summary=DB.healthKit;
+  if(!summary) return '';
+  const shown=(value,suffix)=>value==null?'unavailable':r1(value)+suffix;
+  return `<div class="card"><h4>Apple Health summary · user-synced</h4>
+    <div class="kv"><span>Steps (${summary.lookbackDays} d)</span><b>${shown(summary.steps.dailyAverage,' / day')}</b></div>
+    <div class="kv"><span>Sleep (${summary.lookbackDays} d)</span><b>${shown(summary.sleep.nightlyAverageHours,' h / tracked night')}${summary.sleep.trackedNights?' · '+summary.sleep.trackedNights+' nights':''}</b></div>
+    <div class="kv"><span>Latest body weight</span><b>${summary.bodyWeight.latestKilograms==null?'unavailable':r1(U.wOut(summary.bodyWeight.latestKilograms))+' '+U.wLabel()}</b></div>
+    <p class="xtiny">Read-only aggregate synced ${esc(new Date(summary.generatedAt).toLocaleString())}. Missing values may mean no matching data or that access was not shared; they are never treated as zero.</p>
+  </div>`;
+}
 function reportSheet(days){
   days=[30,90,180].includes(+days)?+days:90;
   const summaryDays=Math.min(30,days), activityDays=Math.min(28,days);
@@ -4719,8 +4928,10 @@ function reportSheet(days){
   </div>
   ${topSym.length?`<div class="card"><h4>Worth discussing · prominent symptoms (${summaryDays}-day average, 0–4)</h4>
     ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
-  ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.due?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
+  ${healthKitReportSection()}
+  ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.ended?' · stopped '+esc(fmtDay(m.ended)):''}${medicationStatus(m)==='archived'?' · archived':''}${m.stopReason?' · '+esc(m.stopReason):''}${m.due&&medicationStatus(m)==='active'?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
   ${treatmentFollowUpReport(days)}
+  ${appointmentReportSection()}
   ${labs.length?`<div class="card"><h4>Recent lab results</h4>${labs.map(x=>`<div class="kv"><span>${esc(x.name)} · ${fmtDay(x.date)}</span><b>${esc(x.value+(x.unit?' '+x.unit:''))}</b></div>`).join('')}</div>`:''}
   ${questionnaires.length?`<div class="card"><h4>Questionnaire scores</h4>
     ${questionnaires.map(s=>`<div class="kv"><span>${s.type.toUpperCase()} · ${fmtDay(s.date)}</span><b>${s.score}${s.band?' — '+esc(s.band):''}</b></div>`).join('')}
@@ -5176,12 +5387,22 @@ function medicationDetail(m){
   return (m.form||'medication')+' · '+schedule;
 }
 function medicationIcon(m){ return PULSE_IC.task; }
+function medicationStatus(m){
+  return m&&['active','stopped','archived'].includes(m.status)?m.status:(m&&m.archivedAt?'archived':m&&m.ended?'stopped':'active');
+}
+function medicationActiveOn(m,date){
+  if(!m||!validISODate(date)) return false;
+  if(m.started&&date<m.started) return false;
+  if(m.ended&&date>m.ended) return false;
+  if(date===todayISO()&&medicationStatus(m)!=='active') return false;
+  return true;
+}
 function scheduledMeds(date){
   const dow=parseISO(date).getDay();
-  return (Array.isArray(DB.medications)?DB.medications:[]).filter(m=>(m.days||[0,1,2,3,4,5,6]).includes(dow));
+  return (Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationActiveOn(m,date)&&(m.days||[0,1,2,3,4,5,6]).includes(dow));
 }
 function todayMedicationRows(onlyScheduled){
-  const all=Array.isArray(DB.medications)?DB.medications:[], meds=onlyScheduled?scheduledMeds(curDate):all, day=DB.entries[curDate]||{}, adherence=day.med||{};
+  const all=(Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationActiveOn(m,curDate)), meds=onlyScheduled?scheduledMeds(curDate):all, day=DB.entries[curDate]||{}, adherence=day.med||{};
   if(!all.length) return '<button class="tw-empty-med" data-act="tab" data-v="care">Add your treatments</button>';
   if(!meds.length) return '<div class="tw-empty-med quiet">Nothing scheduled today.</div>';
   return meds.map(m=>{const rec=adherence[m.id]||{};return '<button class="tw-medrow" data-act="med-taken" data-id="'+esc(m.id)+'">'
@@ -5232,7 +5453,7 @@ function labForm(){
 function viewMeds(){
   const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[];
   return `<div class="view tw-screen tw-secondary">${twilightHeader('Medications','Schedules, daily doses and lab context in one place.')}
-    <div class="tw-med-list">${meds.length?meds.map((m,i)=>'<div class="tw-med-card"><div class="tw-medrow static">'+medicationIcon(m)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-i="'+i+'" aria-label="Remove '+esc(m.name)+'">×</button></div>'+adherenceDots(m)+'</div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
+    <div class="tw-med-list">${meds.length?meds.map(m=>'<div class="tw-med-card"><div class="tw-medrow static">'+medicationIcon(m)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-id="'+esc(m.id)+'" aria-label="Permanently remove '+esc(m.name)+'">×</button></div>'+adherenceDots(m)+'</div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
     ${medFormOpen?medicationForm():'<button class="btn ghost block" data-act="med-add">Add a medication</button>'}
     <div class="tw-label tw-labs-label">Labs</div><div class="tw-medcard">${labs.length?labs.slice(0,6).map((x,i)=>'<div class="tw-medrow static">'+TWILIGHT_IC.lab+'<span class="tw-grow"><b>'+esc(x.name)+'</b><small>'+esc(fmtDay(x.date))+'</small></span><span class="tw-due">'+esc(x.value+(x.unit?' '+x.unit:''))+'</span><button class="tw-remove" data-act="lab-remove" data-i="'+i+'" aria-label="Remove '+esc(x.name)+'">×</button></div>').join(''):'<div class="tw-empty-med">No lab results yet</div>'}</div>
     ${labFormOpen?labForm():'<button class="tw-quiet" data-act="lab-add">Add result</button>'}
@@ -5341,6 +5562,7 @@ function treatmentFollowUpItems(){
       [2,6].forEach(week=>{
         const followUp=(Array.isArray(change.followUps)?change.followUps:[]).find(item=>item&&item.week===week)||null;
         const dueDate=addDays(change.date,week*7);
+        if(!followUp&&med.ended&&dueDate>med.ended) return;
         out.push({med,medIndex,change,changeIndex,week,dueDate,followUp});
       });
     });
@@ -5493,7 +5715,7 @@ function treatmentEvents(){
         out.push({date:change.date,order:1,title:m.name+' changed',body:(change.label||'Treatment details updated.')+targets});
       }
     });
-    if(pastOrTodayISO(m.ended)) out.push({date:m.ended,order:2,title:m.name+' ended',body:'Marked as no longer active.'});
+    if(pastOrTodayISO(m.ended)) out.push({date:m.ended,order:2,title:m.name+' stopped',body:m.stopReason||'Marked as no longer active.'});
   });
   return out.sort((a,b)=>b.date.localeCompare(a.date)||(b.order||0)-(a.order||0));
 }
@@ -5516,7 +5738,7 @@ function dcProgress(count){
   return `<div class="dc-progress"><div role="progressbar" aria-label="Confirmed days toward pattern insights" aria-valuemin="0" aria-valuemax="14" aria-valuenow="${shown}"><i style="width:${Math.min(100,count/14*100)}%"></i></div><p>${shown?`<strong>${shown} of 14 days</strong> — `:''}${copy}</p></div>`;
 }
 function dcTodayTask(date){
-  const due=scheduledMeds(date), all=Array.isArray(DB.medications)?DB.medications:[];
+  const due=scheduledMeds(date), all=(Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationStatus(m)==='active');
   if(due.length){
     const m=due[0], rec=DB.entries[date]&&DB.entries[date].med&&DB.entries[date].med[m.id];
     return `<section class="dc-feature dc-task"><div class="dc-orb amber">${PULSE_IC.task}</div><div class="dc-feature-copy"><span>Today’s task</span><h2>${esc(m.name)} · ${rec&&rec.taken?'complete':'due today'}</h2><p>${rec&&rec.taken?'Recorded for today. Tap again if you need to undo it.':'Keeps your treatment record on track.'}</p><button class="dc-outline-action" data-act="med-taken" data-id="${esc(m.id)}">${PULSE_IC.check}<span>${rec&&rec.taken?'Done today':'Mark as done'}</span></button></div></section>`;
@@ -5557,8 +5779,9 @@ function viewJourney(){
   if(events.length){
     const event=events[0];
     timeline+=jcTimelineEvent('treatment',fmtDay(event.date),event.title,event.body,'<span class="jc-proof">Observed association—not proof of cause and effect.</span>');
-  } else if(DB.medications.length){
-    timeline+=jcTimelineEvent('treatment','Treatment plan','Add a change date',DB.medications.length+' active treatment '+(DB.medications.length===1?'item is':'items are')+' on file. Record when something changes to place it in your story.');
+  } else if(DB.medications.some(m=>medicationStatus(m)==='active')){
+    const activeCount=DB.medications.filter(m=>medicationStatus(m)==='active').length;
+    timeline+=jcTimelineEvent('treatment','Treatment plan','Add a change date',activeCount+' active treatment '+(activeCount===1?'item is':'items are')+' on file. Record when something changes to place it in your story.');
   }
   const pattern=weeklyPattern();
   if(pattern){
@@ -5580,20 +5803,81 @@ function viewJourney(){
 function treatmentChangeForm(m){
   return `<div class="tw-form-card jc-inline-form"><h3>Record a change to ${esc(m.name)}</h3><label class="fl" for="change-date">Change date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"><label class="fl" for="change-label">What changed?</label><input id="change-label" type="text" maxlength="120" placeholder="Dose, form, timing, or reason">${treatmentTargetField('change')}<div class="btn-row split"><button class="btn primary" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn ghost" data-act="med-change-cancel">Cancel</button></div></div>`;
 }
+function treatmentStopForm(m){
+  return `<div class="tw-form-card jc-inline-form" aria-label="Stop ${esc(m.name)}">
+    <span class="jc-followup-kicker">Treatment status</span><h3>Stop ${esc(m.name)}</h3>
+    <p>This keeps the treatment and its history in your Journey and reports, but removes it from today’s schedule.</p>
+    <label class="fl" for="stop-date">Last day taken</label><input id="stop-date" type="date" min="${esc(m.started||'1900-01-01')}" max="${todayISO()}" value="${todayISO()}">
+    <label class="fl" for="stop-reason">Reason or clinician instruction (optional)</label><textarea id="stop-reason" maxlength="500" placeholder="Why it stopped, side effects, or what happens next"></textarea>
+    <div class="btn-row split"><button class="btn primary" data-act="med-stop-save" data-id="${esc(m.id)}">Save as stopped</button><button class="btn ghost" data-act="med-stop-cancel">Cancel</button></div>
+  </div>`;
+}
+function appointmentData(){
+  if(!DB.appointments||typeof DB.appointments!=='object') DB.appointments={questions:[],plans:[]};
+  if(!Array.isArray(DB.appointments.questions)) DB.appointments.questions=[];
+  if(!Array.isArray(DB.appointments.plans)) DB.appointments.plans=[];
+  return DB.appointments;
+}
+function appointmentQuestionForm(){
+  const data=appointmentData(), question=appointmentQuestionEditId&&appointmentQuestionEditId!=='new'
+    ?data.questions.find(item=>item.id===appointmentQuestionEditId):null;
+  return `<div class="tw-form-card jc-inline-form jc-appointment-form" aria-label="${question?'Edit':'Add'} appointment question">
+    <label class="fl" for="appointment-question">Question for your clinician</label>
+    <textarea id="appointment-question" maxlength="500" placeholder="Could this treatment be adjusted based on my symptoms?">${esc(question&&question.text||'')}</textarea>
+    <div class="btn-row split"><button class="btn primary" data-act="appointment-question-save" data-id="${esc(question&&question.id||'')}">${question?'Save question':'Add question'}</button><button class="btn ghost" data-act="appointment-question-cancel">Cancel</button></div>
+  </div>`;
+}
+function afterVisitPlanForm(){
+  const data=appointmentData(), plan=afterVisitPlanEditId&&afterVisitPlanEditId!=='new'
+    ?data.plans.find(item=>item.id===afterVisitPlanEditId):null;
+  const actionText=plan?(plan.actions||[]).map(item=>item.text).join('\n'):'';
+  return `<div class="tw-form-card jc-inline-form jc-appointment-form" aria-label="${plan?'Edit':'Add'} after-visit plan">
+    <span class="jc-followup-kicker">After the appointment</span><h3>${plan?'Edit your plan':'Capture the plan while it is fresh'}</h3>
+    <label class="fl" for="visit-date">Visit date</label><input id="visit-date" type="date" max="${todayISO()}" value="${esc(plan&&plan.date||todayISO())}">
+    <label class="fl" for="visit-summary">What you and your clinician decided</label><textarea id="visit-summary" maxlength="2000" placeholder="Decision, dose change, tests ordered, or advice">${esc(plan&&plan.summary||'')}</textarea>
+    <label class="fl" for="visit-actions">Next steps · one per line</label><textarea id="visit-actions" maxlength="8000" placeholder="Pick up prescription&#10;Book blood test&#10;Review symptoms in six weeks">${esc(actionText)}</textarea>
+    <label class="fl" for="visit-next">Next appointment (optional)</label><input id="visit-next" type="date" value="${esc(plan&&plan.nextVisit||'')}">
+    <div class="btn-row split"><button class="btn primary" data-act="after-visit-save" data-id="${esc(plan&&plan.id||'')}">${plan?'Save plan':'Add plan'}</button><button class="btn ghost" data-act="after-visit-cancel">Cancel</button></div>
+  </div>`;
+}
+function appointmentPlannerSection(){
+  const data=appointmentData(), open=data.questions.filter(item=>!item.asked), asked=data.questions.filter(item=>item.asked), plans=data.plans||[];
+  const questionRows=items=>items.map(item=>`<div class="jc-plan-row${item.asked?' complete':''}"><button class="jc-plan-check" data-act="appointment-question-toggle" data-id="${esc(item.id)}" aria-label="${item.asked?'Move back to questions':'Mark question asked'}" aria-pressed="${item.asked?'true':'false'}">${item.asked?'✓':'○'}</button><span>${esc(item.text)}</span><div><button data-act="appointment-question-edit" data-id="${esc(item.id)}">Edit</button><button data-act="appointment-question-remove" data-id="${esc(item.id)}" aria-label="Remove question: ${esc(item.text)}">Remove</button></div></div>`).join('');
+  return `<section class="jc-section jc-appointment-planner"><div class="jc-section-head"><span>Appointment questions</span>${appointmentQuestionEditId==null?'<button data-act="appointment-question-add">Add question</button>':''}</div>
+    ${appointmentQuestionEditId!=null?appointmentQuestionForm():''}
+    <div class="jc-plan-list">${open.length?questionRows(open):'<p class="jc-empty-line">No open questions yet. Add anything you do not want to forget.</p>'}${asked.length?`<details class="jc-plan-archive"><summary>${asked.length} asked ${asked.length===1?'question':'questions'}</summary>${questionRows(asked)}</details>`:''}</div>
+    <div class="jc-section-head jc-plan-heading"><span>After-visit plans</span>${afterVisitPlanEditId==null?'<button data-act="after-visit-add">Add plan</button>':''}</div>
+    ${afterVisitPlanEditId!=null?afterVisitPlanForm():''}
+    <div class="jc-visit-list">${plans.length?plans.slice(0,12).map(plan=>`<article class="jc-visit-plan"><div class="jc-visit-head"><div><b>${esc(fmtDay(plan.date))}</b>${plan.nextVisit?`<small>Next appointment ${esc(fmtDay(plan.nextVisit))}</small>`:''}</div><div><button data-act="after-visit-edit" data-id="${esc(plan.id)}">Edit</button><button data-act="after-visit-remove" data-id="${esc(plan.id)}" aria-label="Remove plan from ${esc(fmtDay(plan.date))}">Remove</button></div></div>${plan.summary?`<p>${esc(plan.summary)}</p>`:''}<div class="jc-action-list">${(plan.actions||[]).map(action=>`<button data-act="after-visit-action-toggle" data-plan-id="${esc(plan.id)}" data-action-id="${esc(action.id)}" aria-pressed="${action.done?'true':'false'}"><i>${action.done?'✓':'○'}</i><span>${esc(action.text)}</span></button>`).join('')}</div></article>`).join(''):'<p class="jc-empty-line">After a visit, record decisions and next steps here.</p>'}</div>
+  </section>`;
+}
+function treatmentRow(m){
+  const status=medicationStatus(m), detail=esc(medicationDetail(m))+(m.started?' · since '+esc(fmtDay(m.started)):'');
+  const actions=status==='active'
+    ?`<button data-act="med-change" data-id="${esc(m.id)}">Record change</button><button data-act="med-stop" data-id="${esc(m.id)}">Stop</button>`
+    :status==='stopped'
+      ?`<button data-act="med-restart" data-id="${esc(m.id)}">Restart</button><button data-act="med-archive" data-id="${esc(m.id)}">Archive</button>`
+      :`<button data-act="med-unarchive" data-id="${esc(m.id)}">Unarchive</button><button data-act="med-remove" data-id="${esc(m.id)}" aria-label="Permanently remove ${esc(m.name)}">Delete</button>`;
+  const stopped=status!=='active'&&m.ended?`<small>Stopped ${esc(fmtDay(m.ended))}${m.stopReason?' · '+esc(m.stopReason):''}</small>`:'';
+  return `<article class="jc-treatment ${status}"><div>${medicationIcon(m)}<span><b>${esc(m.name)}</b><small>${detail}</small>${stopped}</span></div><div class="jc-treatment-actions">${actions}</div></article>`;
+}
 function viewCare(){
   const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[], due=scheduledMeds(todayISO()), count=entryDates().length;
   const changeMed=treatmentChangeTarget?meds.find(m=>m.id===treatmentChangeTarget):null;
+  const stopMed=treatmentStopTarget?meds.find(m=>m.id===treatmentStopTarget):null;
   const followUps=treatmentFollowUpItems(), activeFollowUp=findTreatmentFollowUp(treatmentFollowUpTarget);
+  const activeMeds=meds.filter(m=>medicationStatus(m)==='active'), stoppedMeds=meds.filter(m=>medicationStatus(m)==='stopped'), archivedMeds=meds.filter(m=>medicationStatus(m)==='archived');
   return `<div class="view jc-screen jc-care">
     ${jcChrome()}
     ${jcHeading('Care','Treatments, appointments, and follow-ups in one place.')}
-    ${!medFormOpen&&!changeMed&&!activeFollowUp?'<button class="jc-primary" data-act="med-add">Add treatment or change</button>':''}
-    ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
+    ${!medFormOpen&&!changeMed&&!stopMed&&!activeFollowUp?'<button class="jc-primary" data-act="med-add">Add treatment or change</button>':''}
+    ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
     <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'No treatments added yet. Add what you take so changes can appear in your journey.'}</p>`}</div></section>
     ${treatmentFollowUpSection(followUps)}
     <section class="jc-context jc-appointment"><span>Appointments</span><h2>${count<7?'Early summary':'Your report is taking shape'}</h2><p>Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
+    ${appointmentPlannerSection()}
     <section class="jc-section"><div class="jc-section-head"><span>Your treatment plan</span>${meds.length?'<button data-act="med-add">Add</button>':''}</div>
-      <div class="jc-treatment-list">${meds.length?meds.map((m,i)=>`<article class="jc-treatment"><div>${medicationIcon(m)}<span><b>${esc(m.name)}</b><small>${esc(medicationDetail(m))}${m.started?' · since '+esc(fmtDay(m.started)):''}</small></span></div><div class="jc-treatment-actions"><button data-act="med-change" data-id="${esc(m.id)}">Record change</button><button data-act="med-remove" data-i="${i}" aria-label="Remove ${esc(m.name)}">Remove</button></div></article>`).join(''):'<p class="jc-empty-line">No treatments added yet.</p>'}</div>
+      <div class="jc-treatment-list">${activeMeds.length?activeMeds.map(treatmentRow).join(''):'<p class="jc-empty-line">No active treatments.</p>'}${stoppedMeds.length?`<div class="jc-treatment-subhead">Stopped</div>${stoppedMeds.map(treatmentRow).join('')}`:''}${archivedMeds.length?`<details class="jc-treatment-archive"><summary>${archivedMeds.length} archived ${archivedMeds.length===1?'treatment':'treatments'}</summary>${archivedMeds.map(treatmentRow).join('')}</details>`:''}</div>
     </section>
     <section class="jc-section"><div class="jc-section-head"><span>Labs</span><button data-act="lab-add">Add result</button></div>${labFormOpen?labForm():`<div class="jc-data-list">${labs.length?labs.slice(0,6).map((x,i)=>`<div><span><b>${esc(x.name)}</b><small>${esc(fmtDay(x.date))}</small></span><strong>${esc(x.value+(x.unit?' '+x.unit:''))}</strong><button data-act="lab-remove" data-i="${i}" aria-label="Remove ${esc(x.name)} result">×</button></div>`).join(''):'<p class="jc-empty-line">No lab results yet.</p>'}</div>`}</section>
     <button class="jc-open-row" data-act="sheet" data-s="learn:screening"><span>${TWILIGHT_IC.calendar}</span><span><b>Preventive care</b><small>Keep screening dates and regional guidance together.</small></span>${IC.chev}</button>
@@ -5802,6 +6086,25 @@ function handleAction(el, ev){
       return;
     case 'manage-subscription':
       postNativeEvent('open-subscription-management'); return;
+    case 'app-lock-toggle':
+      postNativeEvent('set-app-lock',{enabled:el.dataset.enabled==='true'}); return;
+    case 'save-native-reminders': {
+      const dailyEnabled=document.getElementById('daily-reminder-enabled'), dailyTime=document.getElementById('daily-reminder-time');
+      const treatmentEnabled=document.getElementById('treatment-reminder-enabled'), treatmentDay=document.getElementById('treatment-reminder-day'), treatmentTime=document.getElementById('treatment-reminder-time');
+      const timeParts=(field,fallback)=>((field&&/^\d\d:\d\d$/.test(field.value)?field.value:fallback).split(':').map(Number));
+      const [dailyHour,dailyMinute]=timeParts(dailyTime,'20:00'), [treatmentHour,treatmentMinute]=timeParts(treatmentTime,'10:00');
+      postNativeEvent('configure-reminders',{requestPermission:true,preferences:{
+        dailyCheckIn:{enabled:!!(dailyEnabled&&dailyEnabled.checked),hour:dailyHour,minute:dailyMinute},
+        treatmentFollowUp:{enabled:!!(treatmentEnabled&&treatmentEnabled.checked),weekday:+(treatmentDay&&treatmentDay.value||1),hour:treatmentHour,minute:treatmentMinute}
+      }}); return;
+    }
+    case 'healthkit-sync':
+      nativeHealthState.busy=true; render(true);
+      if(!postNativeEvent('healthkit-sync',{userInitiated:true,lookbackDays:7})){ nativeHealthState.busy=false; render(true); toast('Apple Health is available only in the iPhone app'); }
+      return;
+    case 'healthkit-clear':
+      if(confirm('Remove the saved Apple Health summary from MenoCompass? Apple Health itself will not be changed.')){ DB.healthKit=null; save(true); render(true); toast('Apple Health summary removed'); }
+      return;
     case 'reset-onboarding':
       openSheet('reset-onboarding-confirm'); return;
     case 'confirm-reset-onboarding':
@@ -5815,6 +6118,7 @@ function handleAction(el, ev){
     case 'delete-local-data':
       openSheet('delete-local-data-confirm'); return;
     case 'confirm-delete-local-data':
+      postNativeEvent('clear-native-private-data');
       Store.clear();
       DB=blankDB();
       setRoute('today',true);
@@ -5829,7 +6133,7 @@ function handleAction(el, ev){
       else records[m.id]={taken:true,at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
       save(true); render(true); return;
     }
-    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
+    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
     case 'med-cancel': medFormOpen=false; render(true); return;
     case 'med-day': {
       const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort(); render(true); return;
@@ -5841,12 +6145,12 @@ function handleAction(el, ev){
       let id='med-'+Date.now().toString(36); while(DB.medications.some(m=>m.id===id)) id+='x';
       const targets=selectedTreatmentTargets('med');
       if(targets.length>6){ toast('Choose up to six target symptoms'); return; }
-      const med={id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim(),started:started&&pastOrTodayISO(started.value)?started.value:'',changes:[]};
+      const med={id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim(),started:started&&pastOrTodayISO(started.value)?started.value:'',ended:'',status:'active',stopReason:'',archivedAt:'',changes:[]};
       if(med.started&&(changeLabel&&changeLabel.value.trim()||targets.length)) med.changes.push(newTreatmentChange(med.started,changeLabel&&changeLabel.value.trim()||'Treatment started',targets));
       DB.medications.push(med);
       medFormOpen=false; save(true); render(); toast('Medication added'); return;
     }
-    case 'med-change': treatmentChangeTarget=el.dataset.id; treatmentFollowUpTarget=null; medFormOpen=false; render(true); return;
+    case 'med-change': treatmentChangeTarget=el.dataset.id; treatmentStopTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); return;
     case 'med-change-cancel': treatmentChangeTarget=null; render(true); return;
     case 'med-change-save': {
       const med=DB.medications.find(m=>m.id===el.dataset.id), date=document.getElementById('change-date'), label=document.getElementById('change-label');
@@ -5856,6 +6160,33 @@ function handleAction(el, ev){
       med.changes=Array.isArray(med.changes)?med.changes:[];
       med.changes.push(newTreatmentChange(date.value,label.value.trim(),targets));
       treatmentChangeTarget=null; save(true); render(); toast('Treatment change added to Journey'); return;
+    }
+    case 'med-stop': treatmentStopTarget=el.dataset.id; treatmentChangeTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); return;
+    case 'med-stop-cancel': treatmentStopTarget=null; render(true); return;
+    case 'med-stop-save': {
+      const med=DB.medications.find(item=>item.id===el.dataset.id), date=document.getElementById('stop-date'), reason=document.getElementById('stop-reason');
+      if(!med||!date||!pastOrTodayISO(date.value)||(med.started&&date.value<med.started)){ toast('Choose a valid last day on or after the treatment start'); return; }
+      med.ended=date.value; med.status='stopped'; med.stopReason=reason?reason.value.trim():''; med.archivedAt='';
+      treatmentStopTarget=null; save(true); render(); toast('Treatment moved to stopped'); return;
+    }
+    case 'med-restart': {
+      const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
+      if(!confirm('Restart '+med.name+' from today?')) return;
+      med.status='active'; med.ended=''; med.archivedAt=''; med.stopReason=''; med.started=med.started||todayISO();
+      med.changes=Array.isArray(med.changes)?med.changes:[];
+      med.changes.push(newTreatmentChange(todayISO(),'Treatment restarted',[]));
+      save(true); render(); toast('Treatment is active again'); return;
+    }
+    case 'med-archive': {
+      const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
+      if(!confirm('Archive '+med.name+'? Its history will stay in Journey and reports.')) return;
+      med.status='archived'; med.ended=med.ended||todayISO(); med.archivedAt=todayISO();
+      save(true); render(); toast('Treatment archived'); return;
+    }
+    case 'med-unarchive': {
+      const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
+      med.status='stopped'; med.archivedAt=''; med.ended=med.ended||todayISO();
+      save(true); render(); toast('Treatment moved back to stopped'); return;
     }
     case 'treatment-followup-open': {
       const target={medId:el.dataset.medId,changeIndex:+el.dataset.changeIndex,week:+el.dataset.week};
@@ -5881,8 +6212,61 @@ function handleAction(el, ev){
       treatmentFollowUpTarget=null; save(true); render(); toast(item.week+'-week treatment follow-up saved'); return;
     }
     case 'med-remove': {
-      const i=+el.dataset.i; if(!DB.medications[i]) return;
-      if(confirm('Remove '+DB.medications[i].name+'?')){ DB.medications.splice(i,1); save(true); render(); }
+      const i=DB.medications.findIndex(item=>item.id===el.dataset.id); if(i<0) return;
+      if(confirm('Permanently delete '+DB.medications[i].name+' and its treatment history?')){ DB.medications.splice(i,1); save(true); render(); toast('Treatment permanently deleted'); }
+      return;
+    }
+    case 'appointment-question-add': appointmentQuestionEditId='new'; render(true); return;
+    case 'appointment-question-edit': appointmentQuestionEditId=el.dataset.id; render(true); return;
+    case 'appointment-question-cancel': appointmentQuestionEditId=null; render(true); return;
+    case 'appointment-question-save': {
+      const field=document.getElementById('appointment-question'), data=appointmentData();
+      if(!field||!field.value.trim()){ toast('Write a question first'); field&&field.focus(); return; }
+      const existing=el.dataset.id?data.questions.find(item=>item.id===el.dataset.id):null;
+      if(existing) existing.text=field.value.trim();
+      else {
+        let id='question-'+Date.now().toString(36); while(data.questions.some(item=>item.id===id)) id+='x';
+        data.questions.push({id,text:field.value.trim(),created:todayISO(),asked:false,askedAt:''});
+      }
+      appointmentQuestionEditId=null; save(true); render(); toast(existing?'Question updated':'Question added'); return;
+    }
+    case 'appointment-question-toggle': {
+      const item=appointmentData().questions.find(question=>question.id===el.dataset.id); if(!item) return;
+      item.asked=!item.asked; item.askedAt=item.asked?todayISO():''; save(true); render(true); return;
+    }
+    case 'appointment-question-remove': {
+      const data=appointmentData(), index=data.questions.findIndex(item=>item.id===el.dataset.id); if(index<0) return;
+      if(confirm('Remove this appointment question?')){ data.questions.splice(index,1); if(appointmentQuestionEditId===el.dataset.id) appointmentQuestionEditId=null; save(true); render(); }
+      return;
+    }
+    case 'after-visit-add': afterVisitPlanEditId='new'; render(true); return;
+    case 'after-visit-edit': afterVisitPlanEditId=el.dataset.id; render(true); return;
+    case 'after-visit-cancel': afterVisitPlanEditId=null; render(true); return;
+    case 'after-visit-save': {
+      const date=document.getElementById('visit-date'), summary=document.getElementById('visit-summary'), actionField=document.getElementById('visit-actions'), next=document.getElementById('visit-next'), data=appointmentData();
+      if(!date||!pastOrTodayISO(date.value)){ toast('Choose a valid visit date'); return; }
+      const summaryText=summary?summary.value.trim():'', lines=(actionField?actionField.value:'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean).slice(0,30);
+      const nextVisit=next&&next.value&&validISODate(next.value)?next.value:'';
+      if(!summaryText&&!lines.length&&!nextVisit){ toast('Add a decision, next step, or follow-up date'); return; }
+      const existing=el.dataset.id?data.plans.find(item=>item.id===el.dataset.id):null;
+      let id=existing?existing.id:'visit-'+Date.now().toString(36); while(!existing&&data.plans.some(item=>item.id===id)) id+='x';
+      const prior=existing&&Array.isArray(existing.actions)?existing.actions:[];
+      const actions=lines.map((text,index)=>{
+        const match=prior.find(item=>item.text===text);
+        return match?{id:match.id,text,done:match.done===true}:{id:id+'-action-'+index+'-'+Date.now().toString(36),text,done:false};
+      });
+      const plan={id,date:date.value,summary:summaryText,actions,nextVisit};
+      if(existing) data.plans[data.plans.indexOf(existing)]=plan; else data.plans.push(plan);
+      data.plans.sort((a,b)=>b.date.localeCompare(a.date));
+      afterVisitPlanEditId=null; save(true); render(); toast(existing?'After-visit plan updated':'After-visit plan saved'); return;
+    }
+    case 'after-visit-action-toggle': {
+      const plan=appointmentData().plans.find(item=>item.id===el.dataset.planId), action=plan&&plan.actions.find(item=>item.id===el.dataset.actionId); if(!action) return;
+      action.done=!action.done; save(true); render(true); return;
+    }
+    case 'after-visit-remove': {
+      const data=appointmentData(), index=data.plans.findIndex(item=>item.id===el.dataset.id); if(index<0) return;
+      if(confirm('Remove this after-visit plan?')){ data.plans.splice(index,1); if(afterVisitPlanEditId===el.dataset.id) afterVisitPlanEditId=null; save(true); render(); }
       return;
     }
     case 'lab-add': labFormOpen=true; render(true); return;
@@ -5965,6 +6349,21 @@ function handleAction(el, ev){
       if(DB.trigger){ DB.trigger.active=false; DB.trigger.status='stopped'; DB.trigger.ended=todayISO(); }
       save(true); renderSheet(); return;
     case 'trig-reset': DB.trigger=null; save(true); renderSheet(); return;
+    case 'export-encrypted-backup': {
+      const password=document.getElementById('encrypted-backup-password'), confirmation=document.getElementById('encrypted-backup-confirm');
+      if(!password||password.value.length<10){ toast('Use a backup password with at least 10 characters'); password&&password.focus(); return; }
+      if(!confirmation||confirmation.value!==password.value){ toast('The backup passwords do not match'); confirmation&&confirmation.focus(); return; }
+      if(postNativeEvent('export-encrypted-backup',{state:JSON.stringify(DB),password:password.value,name:'meno-compass-backup-'+todayISO()+'.menocompass'})){
+        password.value=''; confirmation.value=''; toast('Encrypting your backup…');
+      }
+      return;
+    }
+    case 'import-encrypted-backup': {
+      const password=document.getElementById('encrypted-restore-password');
+      if(!password||!password.value){ toast('Enter the password used for this backup'); password&&password.focus(); return; }
+      if(postNativeEvent('import-encrypted-backup',{password:password.value})){ password.value=''; toast('Choose your encrypted backup…'); }
+      return;
+    }
     case 'export-json': download('meno-compass-backup-'+todayISO()+'.json', JSON.stringify(DB,null,2), 'application/json'); return;
     case 'export-csv': download('meno-compass-'+todayISO()+'.csv', toCSV(), 'text/csv'); return;
     case 'copy-dump': {
@@ -6209,6 +6608,10 @@ function printableReportHtml(){
 /* ---------- boot ---------- */
 function boot(){
   load();
+  window.addEventListener('menocompass-native-privacy-result',handleNativePrivacyResult);
+  window.addEventListener('menocompass-native-backup-import',handleNativeBackupImport);
+  window.addEventListener('menocompass-native-share-result',handleNativeShareResult);
+  window.addEventListener('menocompass-healthkit-result',handleHealthKitResult);
   const prefilled=prefillTodayFromYesterday();
   if(prefilled||window.__MENO_NATIVE__===true) save(true);
   document.body.insertAdjacentHTML('afterbegin',
@@ -6257,6 +6660,10 @@ function boot(){
   const rawHash=(location.hash||'').replace('#',''), hash=normalizeRoute(rawHash);
   if(validRoutes.includes(hash)) curTab = hash;
   render();
+  if(window.__MENO_NATIVE__===true) setTimeout(()=>{
+    postNativeEvent('get-native-privacy-status');
+    postNativeEvent('healthkit-status');
+  },0);
   if(hash==='redflags') openSheet('redflags');
   window.addEventListener('hashchange', ()=>{
     const hh=normalizeRoute((location.hash||'').replace('#',''));

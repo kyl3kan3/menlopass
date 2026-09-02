@@ -67,11 +67,14 @@ async function injectState(context,state){
     const review=fs.readFileSync(path.join(__dirname,'mobile','reviewPrompt.native.ts'),'utf8');
     const telemetry=fs.readFileSync(path.join(__dirname,'mobile','telemetry.native.ts'),'utf8');
     const expoApp=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','app.json'),'utf8')).expo;
+    const dynamicAppConfig=fs.readFileSync(path.join(__dirname,'mobile','app.config.js'),'utf8');
+    const widgetPrivacyManifest=fs.readFileSync(path.join(__dirname,'mobile','widgets','PrivacyInfo.xcprivacy'),'utf8');
     const eas=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','eas.json'),'utf8'));
     const mobilePackage=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','package.json'),'utf8'));
     const tiktokModuleConfig=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','expo-module.config.json'),'utf8'));
     const tiktokSwift=fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','ios','MenoCompassTikTokBusinessModule.swift'),'utf8');
     const reviewNotes=fs.readFileSync(path.join(__dirname,'mobile','APP_REVIEW_NOTES_1.1.0.md'),'utf8');
+    const exportCompliance=fs.readFileSync(path.join(__dirname,'mobile','EXPORT_COMPLIANCE_1.1.0.md'),'utf8');
     const reviewNotesPayload=reviewNotes.split('## Paste into the Notes field')[1]?.split('## Submission attachments')[0]?.trim()||'';
     const releaseQa=fs.readFileSync(path.join(__dirname,'mobile','RELEASE_QA_1.1.0.md'),'utf8');
     const screenshotGenerator=fs.readFileSync(path.join(__dirname,'mobile','store-assets','generate-screenshots.js'),'utf8');
@@ -85,7 +88,7 @@ async function injectState(context,state){
     check('native persistence refreshes the active snapshot',nativeApp.includes('setPersistedState(canonical)')&&nativeApp.includes('setExperienceReady(persistedStateIsOnboarded(canonical))'));
     check('store copy discloses no free tier or trial',storeDescription.includes('There is no free tier or free trial.'));
     check('store copy matches Journey and report ranges',storeDescription.includes('ONE COHERENT JOURNEY')&&storeDescription.includes('30-, 90-, or 180-day report')&&!storeDescription.includes('7, 30, and 90 days'));
-    check('support and privacy use the new navigation',supportCopy.includes('Add treatments and lab results in Care')&&supportCopy.includes('open Profile')&&privacyCopy.includes('From Profile under <strong>Account &amp; data</strong>')&&!supportCopy.includes('from Meds')&&!supportCopy.includes('open Settings'));
+    check('support and privacy use the new navigation',supportCopy.includes('In Care, add treatments and lab results')&&supportCopy.includes('open Profile')&&privacyCopy.includes('From Profile under <strong>Account &amp; data</strong>')&&!supportCopy.includes('from Meds')&&!supportCopy.includes('open Settings'));
     check('review prompts follow successful check-ins at milestones 2, 5, and 20',review.includes('appReviewMilestones = [2, 5, 20] as const')&&review.includes('registerSuccessfulMoment')&&!review.includes('registerAppOpening'));
     check('TikTok is initialized only through the ATT-gated native bridge',
       tiktokModuleConfig.apple.modules?.includes('MenoCompassTikTokBusinessModule')
@@ -94,10 +97,24 @@ async function injectState(context,state){
       &&telemetry.indexOf('await resolveTrackingPermission()')<telemetry.indexOf('initializeTikTok(permission)'));
     check('EAS Update is configured for versioned production releases',
       !!mobilePackage.dependencies['expo-updates']
-      &&expoApp.runtimeVersion?.policy==='appVersion'
+      &&expoApp.runtimeVersion==='1.1.0-native-2'
       &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
       &&eas.build.production.channel==='production'
       &&eas.build.production.uploadSourceMaps===true);
+    const splashPlugin=expoApp.plugins.find(plugin=>Array.isArray(plugin)&&plugin[0]==='expo-splash-screen');
+    check('branded native launch screen is explicitly configured',
+      !!mobilePackage.dependencies['expo-splash-screen']
+      &&splashPlugin?.[1]?.image==='./assets/icon.png'
+      &&splashPlugin?.[1]?.backgroundColor==='#743D61');
+    check('app and widget declare the App Group UserDefaults privacy reason',
+      dynamicAppConfig.includes("APP_GROUP_DEFAULTS_REASON = '1C8F.1'")
+      &&dynamicAppConfig.includes("plugins.push('./widgets/withWidgetPrivacyManifest.js')")
+      &&widgetPrivacyManifest.includes('<string>1C8F.1</string>'));
+    check('new custom encryption receives an explicit App Store determination',
+      expoApp.ios?.config?.usesNonExemptEncryption==null
+      &&exportCompliance.includes('AES.GCM')
+      &&exportCompliance.includes('PBKDF2')
+      &&releaseQa.includes('| Encryption export compliance |'));
     check('native exports use validated share and PDF bridges',
       !!mobilePackage.dependencies['expo-sharing']
       &&!!mobilePackage.dependencies['expo-print']
@@ -120,7 +137,7 @@ async function injectState(context,state){
     check('release QA record covers native devices, ATT, purchases, restore, and OTA',
       releaseQa.includes('Small iPhone')
       &&releaseQa.includes('Pro Max iPhone')
-      &&releaseQa.includes('| iPad |')
+      &&releaseQa.includes('iPad (portrait + landscape)')
       &&releaseQa.includes('Restore on fresh install')
       &&releaseQa.includes('OTA smoke test'));
     check('store screenshot timing matches the 30-second in-app promise',screenshotGenerator.includes('about 30 seconds')&&!screenshotGenerator.includes('about 20 seconds'));
@@ -128,7 +145,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v9'));
+    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v10'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -321,6 +338,31 @@ async function injectState(context,state){
     check('Guide search filters visible modules',await page.getByRole('button',{name:/^Sleep /}).isVisible()&&!(await page.getByRole('button',{name:/^Treatment options /}).isVisible()));
     await page.getByRole('button',{name:'Open Profile'}).click();
     check('Profile is global, not a fifth tab',await page.getByRole('heading',{name:'Profile'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
+    await page.evaluate(()=>{
+      window.dispatchEvent(new CustomEvent('menocompass-native-privacy-result',{detail:{ok:true,deviceEncrypted:true,encryptedBackups:true,appLock:{available:true,enabled:false,label:'Face ID'},reminders:{permission:'not-determined',preferences:{dailyCheckIn:{enabled:false,hour:20,minute:0},treatmentFollowUp:{enabled:false,weekday:2,hour:10,minute:0}}}}}));
+      window.dispatchEvent(new CustomEvent('menocompass-healthkit-result',{detail:{ok:true,status:{available:true,requestStatus:'shouldRequest',readOnly:true}}}));
+    });
+    check('native privacy controls explain encryption, Face ID, and in-context reminders',
+      await page.getByText('Your native MenoCompass record is encrypted at rest with a device-bound key.').isVisible()
+      &&await page.getByRole('button',{name:'Turn on'}).isVisible()
+      &&await page.getByRole('button',{name:'Save reminder settings'}).isVisible());
+    await page.getByRole('button',{name:'Turn on'}).click();
+    await page.locator('#daily-reminder-enabled').check();
+    await page.getByLabel('Daily check-in reminder time').fill('19:30');
+    await page.getByRole('button',{name:'Save reminder settings'}).click();
+    await page.getByRole('button',{name:'Connect Apple Health'}).click();
+    const nativePrivacyMessages=await page.evaluate(()=>window.__nativeMessages.filter(message=>['set-app-lock','configure-reminders','healthkit-sync'].includes(message.type)));
+    check('privacy and Health controls use explicit native actions',
+      nativePrivacyMessages.some(message=>message.type==='set-app-lock'&&message.enabled===true)
+      &&nativePrivacyMessages.some(message=>message.type==='configure-reminders'&&message.requestPermission===true&&message.preferences.dailyCheckIn.hour===19&&message.preferences.dailyCheckIn.minute===30)
+      &&nativePrivacyMessages.some(message=>message.type==='healthkit-sync'&&message.userInitiated===true));
+    await page.getByRole('button',{name:'Export or restore data'}).click();
+    check('native data tools offer a portable encrypted backup',await page.getByRole('button',{name:'Save encrypted backup'}).isVisible()&&await page.getByRole('button',{name:'Choose encrypted backup'}).isVisible());
+    await page.getByLabel('Backup password · at least 10 characters').fill('private-passphrase');
+    await page.getByLabel('Confirm password').fill('private-passphrase');
+    await page.getByRole('button',{name:'Save encrypted backup'}).click();
+    check('encrypted export passes the current canonical record to native code',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='export-encrypted-backup'&&message.password==='private-passphrase'&&JSON.parse(message.state).v===7)));
+    await page.getByRole('button',{name:'Close Export & import'}).click();
     check('selected daily pulse appearance is coherent',await page.getByText('Guided daily pulse',{exact:true}).isVisible()&&await page.evaluate(()=>{DB.profile.theme='light';applyTheme();return document.documentElement.getAttribute('data-theme')==='dark'&&document.querySelector('meta[name="theme-color"]').content==='#071416';}));
     check('Profile exposes reset and deletion controls',await page.getByRole('button',{name:'Reset onboarding'}).isVisible()&&await page.getByRole('button',{name:'Delete app profile & data'}).isVisible());
     await page.getByRole('button',{name:'Manage Apple subscription'}).click();
@@ -410,7 +452,7 @@ async function injectState(context,state){
       };
     });
     check('baseline and follow-up answers survive strict backup validation',
-      storedFollowUp.version===6
+      storedFollowUp.version===7
       &&JSON.stringify(storedFollowUp.targets)===JSON.stringify(['hf','fog'])
       &&storedFollowUp.baselineStart===isoOffset(-49)
       &&storedFollowUp.baselineHotFlashDays===7
@@ -430,6 +472,51 @@ async function injectState(context,state){
       &&await followupPage.getByText('Most scheduled doses',{exact:true}).isVisible()
       &&await followupPage.getByText(/Mild · Brief breast tenderness/).isVisible()
       &&await followupPage.getByText('Observed association—not proof that the treatment caused the change.',{exact:true}).isVisible());
+
+    console.log('\n== Appointment planning and treatment lifecycle ==');
+    const planningContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(planningContext,seededState(16));
+    const planningPage=await planningContext.newPage(); monitor(planningPage,'appointment-planning',baseUrl); await planningPage.goto(baseUrl+'/index.html#care');
+    await planningPage.getByRole('button',{name:'Add question'}).click();
+    await planningPage.getByLabel('Question for your clinician').fill('Should we change the dose before my next visit?');
+    await planningPage.getByRole('button',{name:'Add question',exact:true}).click();
+    await planningPage.getByRole('button',{name:'Edit',exact:true}).first().click();
+    await planningPage.getByLabel('Question for your clinician').fill('Should we change the dose based on my tracked symptoms?');
+    await planningPage.getByRole('button',{name:'Save question'}).click();
+    check('appointment questions can be added and edited',await planningPage.getByText('Should we change the dose based on my tracked symptoms?',{exact:true}).isVisible());
+    await planningPage.getByRole('button',{name:'Add plan'}).click();
+    await planningPage.getByLabel('What you and your clinician decided').fill('Keep the current dose and review after the lab result.');
+    await planningPage.getByLabel('Next steps · one per line').fill('Book the lab\nTrack night sweats for two weeks');
+    await planningPage.getByRole('button',{name:'Add plan',exact:true}).click();
+    await planningPage.getByRole('button',{name:'Book the lab'}).click();
+    const treatmentRow=planningPage.locator('.jc-treatment.active').filter({hasText:'Estradiol patch'});
+    await treatmentRow.getByRole('button',{name:'Stop',exact:true}).click();
+    await planningPage.getByLabel('Reason or clinician instruction (optional)').fill('Paused after clinician review');
+    await planningPage.getByRole('button',{name:'Save as stopped'}).click();
+    check('stopping a treatment removes it from today while preserving its record',
+      await planningPage.locator('.jc-treatment.stopped').filter({hasText:'Paused after clinician review'}).isVisible()
+      &&!(await planningPage.locator('.jc-open-list').getByText('Estradiol patch',{exact:true}).isVisible()));
+    planningPage.once('dialog',dialog=>dialog.accept());
+    await planningPage.getByRole('button',{name:'Archive',exact:true}).click();
+    await planningPage.getByText('1 archived treatment').click();
+    check('stopped treatments can be archived without deletion',await planningPage.locator('.jc-treatment.archived').filter({hasText:'Estradiol patch'}).isVisible());
+    await planningPage.screenshot({path:path.join(TEST_RESULTS,'appointment-planning-and-archive.png'),fullPage:true});
+    const planningState=await planningPage.evaluate(()=>{
+      const raw=JSON.parse(JSON.stringify(DB)), clean=validateBackup(raw);
+      return {version:clean.v,question:clean.appointments.questions[0],plan:clean.appointments.plans[0],med:clean.medications[0],scheduled:scheduledMeds(todayISO()).length};
+    });
+    check('appointment plans and lifecycle survive strict backup validation',
+      planningState.version===7
+      &&planningState.question.text==='Should we change the dose based on my tracked symptoms?'
+      &&planningState.plan.summary==='Keep the current dose and review after the lab result.'
+      &&planningState.plan.actions.length===2&&planningState.plan.actions[0].done===true
+      &&planningState.med.status==='archived'&&planningState.med.stopReason==='Paused after clinician review'
+      &&planningState.scheduled===0,JSON.stringify(planningState));
+    await planningPage.getByRole('button',{name:'Prepare appointment report'}).click();
+    check('appointment report includes editable questions, plans, and stopped-treatment context',
+      await planningPage.getByText('Appointment questions & after-visit plans',{exact:true}).isVisible()
+      &&await planningPage.getByText('Should we change the dose based on my tracked symptoms?',{exact:true}).isVisible()
+      &&await planningPage.getByText('Keep the current dose and review after the lab result.',{exact:true}).isVisible()
+      &&await planningPage.getByText(/stopped .*Paused after clinician review/).isVisible());
 
     const normalizedEntries={};
     for(let i=13;i>=0;i--){
@@ -465,7 +552,7 @@ async function injectState(context,state){
     await injectState(migrationContext,{v:4,profile:{name:'Legacy',birthYear:1970,region:'us',units:'metric',onboarded:true},entries:{[isoOffset(-2)]:{hf:4,sym:{fog:2},act:{},nut:{}}},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-3)}});
     const migrationPage=await migrationContext.newPage(); monitor(migrationPage,'migration',baseUrl); await migrationPage.goto(baseUrl+'/index.html');
     const migration=await migrationPage.evaluate(()=>({version:DB.v,count:entryDates().length,snapshot:!!confirmedEntry(Object.keys(DB.entries)[0]),pins:DB.profile.pinnedSymptoms.length}));
-    check('v4 logs migrate to v6 confirmed snapshots',migration.version===6&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
+    check('v4 logs migrate to v7 confirmed snapshots',migration.version===7&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
 
     console.log('\n== Responsive and runtime quality ==');
     const desktopContext=await browser.newContext({viewport:{width:1280,height:900}}); await injectState(desktopContext,seededState(16));
@@ -476,7 +563,7 @@ async function injectState(context,state){
     await seededPage.screenshot({path:path.join(TEST_RESULTS,'journey-selected-flow.png')});
     await desktopPage.screenshot({path:path.join(TEST_RESULTS,'journey-desktop.png')});
 
-    await onboardingContext.close(); await resetContext.close(); await deleteContext.close(); await seededContext.close(); await followupContext.close(); await normalizedContext.close(); await sparseContext.close(); await prefillContext.close(); await migrationContext.close(); await desktopContext.close();
+    await onboardingContext.close(); await resetContext.close(); await deleteContext.close(); await seededContext.close(); await followupContext.close(); await planningContext.close(); await normalizedContext.close(); await sparseContext.close(); await prefillContext.close(); await migrationContext.close(); await desktopContext.close();
     check('no page, console, request, or HTTP errors',runtimeErrors.length===0,runtimeErrors.join(' | '));
   } catch(error){
     failures.push('unhandled test exception');

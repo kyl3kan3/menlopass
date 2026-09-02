@@ -36,7 +36,15 @@ const Store = (() => {
     get ephemeral(){ return usingMemory&&!nativeBridge(); },
     read(){
       const injected=injectedState();
-      if(injected) return injected;
+      if(injected){
+        mem=injected;
+        if(nativeBridge()) try{ localStorage.removeItem(KEY); }catch(e){}
+        return injected;
+      }
+      if(nativeBridge()){
+        try{ localStorage.removeItem(KEY); }catch(e){}
+        return mem;
+      }
       if(usingMemory) return mem;
       try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }
       catch(e){ usingMemory = true; return mem; }
@@ -46,6 +54,11 @@ const Store = (() => {
       try{ serialized=JSON.stringify(obj); }
       catch(e){ return false; }
       const nativeSaved=postNative(serialized);
+      if(nativeBridge()){
+        mem=obj;
+        try{ localStorage.removeItem(KEY); }catch(e){}
+        return nativeSaved;
+      }
       if(usingMemory){ mem = obj; return nativeSaved; }
       try{ localStorage.setItem(KEY, serialized); return true; }
       catch(e){ usingMemory = true; mem = obj; return nativeSaved; }
@@ -64,7 +77,7 @@ function postNativeEvent(type, attributes){
 }
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 6;
+const SCHEMA_V = 7;
 const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
 const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
@@ -80,6 +93,7 @@ function blankDB(){
       pinnedSymptoms:[...DEFAULT_PINNED_SYMPTOMS]
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
+    appointments:{questions:[],plans:[]}, healthKit:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
   };
 }
@@ -180,6 +194,8 @@ function migrate(d){
   if(Array.isArray(d.labs)){
     out.labs=d.labs.map(safeLab).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,200);
   }
+  out.appointments=safeAppointments(d.appointments);
+  out.healthKit=safeHealthKitSummary(d.healthKit);
   out.trigger=safeTrigger(d.trigger);
   if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
   const meta=plainRecord(d.meta)?d.meta:{};
@@ -319,6 +335,11 @@ function safeMedication(raw,startedFallback){
     });
     return {date,label,targets,baseline,followUps};
   }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)).slice(-100);
+  const archivedAt=safePastDate(raw.archivedAt);
+  const requestedStatus=safeEnum(raw.status,['active','stopped','archived'],archivedAt||raw.archived===true?'archived':ended?'stopped':'active');
+  /* A stop date is authoritative. Do not let a malformed or older backup
+     reactivate a treatment simply by pairing `status: active` with `ended`. */
+  const status=requestedStatus==='archived'?'archived':ended?'stopped':'active';
   return {
     id,
     name,
@@ -328,6 +349,9 @@ function safeMedication(raw,startedFallback){
     notes:safeText(raw.notes||raw.detail,120),
     started,
     ended,
+    status,
+    stopReason:safeText(raw.stopReason,500).trim(),
+    archivedAt:status==='archived'?archivedAt:'',
     changes
   };
 }
@@ -336,6 +360,65 @@ function safeLab(raw){
   const name=safeText(raw.name,80).trim(), value=safeText(raw.value,40).trim(), date=safePastDate(raw.date);
   if(!name||!value||!date) return null;
   return {id:safeText(raw.id,40)||'lab-'+date+'-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20),name,value,date,unit:safeText(raw.unit,30)};
+}
+function safeAppointments(raw){
+  const out={questions:[],plans:[]};
+  if(!plainRecord(raw)) return out;
+  if(Array.isArray(raw.questions)){
+    raw.questions.slice(0,100).forEach((item,index)=>{
+      if(!plainRecord(item)) return;
+      const text=safeText(item.text,500).trim();
+      if(!text) return;
+      const rawId=safeText(item.id,50);
+      const id=/^[A-Za-z0-9_-]{1,50}$/.test(rawId)?rawId:'question-'+index;
+      const created=safePastDate(item.created);
+      const askedAt=safePastDate(item.askedAt);
+      out.questions.push({id,text,created,asked:item.asked===true,askedAt:item.asked===true?askedAt:''});
+    });
+  }
+  if(Array.isArray(raw.plans)){
+    raw.plans.slice(0,100).forEach((item,index)=>{
+      if(!plainRecord(item)) return;
+      const date=safePastDate(item.date);
+      if(!date) return;
+      const rawId=safeText(item.id,50);
+      const id=/^[A-Za-z0-9_-]{1,50}$/.test(rawId)?rawId:'visit-'+index;
+      const actions=[];
+      if(Array.isArray(item.actions)) item.actions.slice(0,30).forEach((action,actionIndex)=>{
+        if(!plainRecord(action)) return;
+        const text=safeText(action.text,500).trim();
+        if(!text) return;
+        const actionRawId=safeText(action.id,50);
+        const actionId=/^[A-Za-z0-9_-]{1,50}$/.test(actionRawId)?actionRawId:id+'-action-'+actionIndex;
+        actions.push({id:actionId,text,done:action.done===true});
+      });
+      const summary=safeText(item.summary,2000).trim();
+      const nextVisit=typeof item.nextVisit==='string'&&validISODate(item.nextVisit)?item.nextVisit:'';
+      if(!summary&&!actions.length&&!nextVisit) return;
+      out.plans.push({id,date,summary,actions,nextVisit});
+    });
+    out.plans.sort((a,b)=>b.date.localeCompare(a.date));
+  }
+  return out;
+}
+function safeHealthKitSummary(raw){
+  if(!plainRecord(raw)||raw.available!==true||raw.readOnly!==true) return null;
+  const generatedAt=typeof raw.generatedAt==='string'&&Number.isFinite(Date.parse(raw.generatedAt))?raw.generatedAt:'';
+  const lookbackDays=safeInteger(raw.lookbackDays,1,30);
+  if(!generatedAt||lookbackDays==null) return null;
+  const steps=plainRecord(raw.steps)?raw.steps:{}, sleep=plainRecord(raw.sleep)?raw.sleep:{}, bodyWeight=plainRecord(raw.bodyWeight)?raw.bodyWeight:{};
+  const totalSteps=safeNumber(steps.total,0,10000000), dailySteps=safeNumber(steps.dailyAverage,0,1000000);
+  const totalSleep=safeNumber(sleep.totalHours,0,720), nightlySleep=safeNumber(sleep.nightlyAverageHours,0,24), trackedNights=safeInteger(sleep.trackedNights,0,31)||0;
+  const latestKilograms=safeNumber(bodyWeight.latestKilograms,20,500);
+  const recordedAt=typeof bodyWeight.recordedAt==='string'&&Number.isFinite(Date.parse(bodyWeight.recordedAt))?bodyWeight.recordedAt:null;
+  const warnings=Array.isArray(raw.warnings)?raw.warnings.map(item=>safeText(item,80)).filter(Boolean).slice(0,10):[];
+  return {
+    available:true,readOnly:true,generatedAt,lookbackDays,
+    hasAnyData:raw.hasAnyData===true,
+    steps:{total:totalSteps,dailyAverage:dailySteps},
+    sleep:{totalHours:totalSleep,nightlyAverageHours:nightlySleep,trackedNights},
+    bodyWeight:{latestKilograms,recordedAt},warnings
+  };
 }
 function prefillTodayFromYesterday(){
   const t=todayISO(), y=addDays(t,-1);

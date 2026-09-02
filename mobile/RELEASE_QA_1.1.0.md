@@ -35,15 +35,16 @@ Use physical devices for ATT and purchase testing. Simulator results may supplem
 |---|---|---|---|---|---|---|
 | Small iPhone | `[for example, iPhone SE]` | `[version]` | Fresh install / `[account alias]` | Yes |  |  |
 | Pro Max iPhone | `[model]` | `[version]` | Fresh install / `[account alias]` | Yes |  |  |
-| iPad | `[model]` | `[version]` | Fresh install / `[account alias]` | Yes |  |  |
+| iPad (portrait + landscape) | `[model]` | `[version]` | Fresh install / `[account alias]` | Yes |  |  |
 
 ## Build and store artifact gates
 
 | Test | Expected result | Result | Device/evidence | Initials/date |
 |---|---|---|---|---|
-| Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit |  |  |  |
+| Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit and runtime `1.1.0-native-2` (isolated from pre-native build 14) |  |  |  |
 | Production configuration | Required AppsFlyer, Meta, TikTok, and RevenueCat production values are present without logging secrets |  |  |  |
-| Final Info.plist | Bundle ID is `com.kyl3kan3.menlopass`; ATT purpose text and required privacy manifests are present |  |  |  |
+| Final Info.plist and entitlements | Bundle ID is `com.kyl3kan3.menlopass`; ATT, Face ID, and Health read purpose text; HealthKit entitlement; widget extension/app group; and required privacy manifests are present |  |  |  |
+| Encryption export compliance | Complete Apple's questionnaire for the exact binary based on its CryptoKit AES-GCM, HMAC-SHA256/PBKDF2 backup protection, Keychain, and HTTPS use; attach any declaration Apple requires before review |  |  |  |
 | English bundle declaration | Final archive declares English in `CFBundleLocalizations` |  |  |  |
 | App icon | Final archive contains every required opaque iOS icon slot and the icon renders correctly on light/dark/tinted home screens |  |  |  |
 | Launch screen | Production build shows the approved branded launch screen without the Expo placeholder |  |  |  |
@@ -95,28 +96,36 @@ Run on at least the small iPhone, Pro Max, and iPad.
 | Onboarding | Completes without clipped controls, keyboard obstruction, or unsafe-area overlap |  |  |  |
 | Today | Confirm a daily check-in and relaunch; confirmed data persists |  |  |  |
 | Journey | Confirmed days and treatment changes appear; weekly comparisons use adjacent calendar windows, show n/7 coverage, and remain cautious |  |  |  |
-| Care | Add/edit medication and lab; capture treatment targets and complete due 2-/6-week follow-ups; create 30-, 90-, and 180-day reports |  |  |  |
+| Care | Add medication/lab; capture treatment targets; complete due 2-/6-week follow-ups; stop, restart, archive, and unarchive without losing history; edit appointment questions and after-visit actions; create 30-, 90-, and 180-day reports |  |  |  |
 | Guide | Search and open evidence content and external source links |  |  |  |
 | Native report share | Print/save creates a readable PDF of the current report and opens the iOS share sheet with a `.pdf` filename |  |  |  |
-| Backup/restore | JSON and CSV open the iOS share sheet with correctly named files; JSON round trip succeeds on a test-only record; exported health files are clearly disclosed as sensitive |  |  |  |
+| Backup/restore | Password-protected `.menocompass` export/import round trip succeeds; wrong password and malformed/future-schema files fail without replacing current data; JSON/CSV sharing still works and plain exports are disclosed as sensitive |  |  |  |
 | Accessibility | Pinch zoom, text selection, VoiceOver labels/states, Dynamic Type behavior, focus order, contrast, and safe areas work on all device classes |  |  |  |
 | Delete profile/data | Separate confirmation permanently removes the device-local record and explains that subscription cancellation is separate |  |  |  |
 | Review success milestone | Confirmed check-ins 2, 5, and 20 schedule StoreKit only after the success moment; cold launches do not advance the count |  |  |  |
 | Review/ATT separation | No rating request is attempted in the session that displayed ATT; TestFlight does not falsely count a system dialog as displayed |  |  |  |
-| Relaunch/rotation/backgrounding | Supported portrait layouts recover without blank or stale state |  |  |  |
+| Relaunch/rotation/backgrounding | iPhone portrait and iPad portrait/landscape recover without clipping, blank screens, or stale state |  |  |  |
 | Privacy/Terms links | Links open from the pre-purchase gate and resolve successfully |  |  |  |
+
+## Native privacy and iOS integrations
+
+Use test-only records. Verify that no notification, widget, shortcut, diagnostic, or attribution payload contains health values or free text.
+
+| Test | Expected result | Result | Device/evidence | Initials/date |
+|---|---|---|---|---|
+| Encrypted persistence migration | A legacy plaintext native record migrates to the encrypted device-bound file, relaunches intact, and the plaintext file/WebView local-storage copy is removed |  |  |  |
+| App Lock | Enabling requires enrolled Face ID/Touch ID and authentication; backgrounding hides the record; successful biometric or passcode unlock restores it; cancel/failure keeps it hidden |  |  |  |
+| Daily reminder | Permission is requested only after enabling and saving; the generic notification arrives at the chosen time and a tap opens Check-in |  |  |  |
+| Weekly treatment reminder | Generic notification arrives on the selected weekday/time and a tap opens Care; disabling cancels the scheduled notification |  |  |  |
+| Notification denial | Denial leaves every non-reminder feature working and Profile explains how to re-enable permission |  |  |  |
+| Apple Health authorization | Connect is user initiated and requests read-only steps, sleep analysis, and body weight with no write types or background delivery |  |  |  |
+| Apple Health values | Aggregate values render correctly; partial/denied and no-data cases say unavailable rather than zero; removing the summary does not change Apple Health |  |  |  |
+| Widgets | Small/medium widgets show only today-complete and 7-day count, update after a saved check-in, and open Check-in/Journey from cold and foreground states |  |  |  |
+| App Shortcuts | Both published MenoCompass App Shortcuts appear in Shortcuts/Search and open the correct Check-in/Journey route from cold and foreground states |  |  |  |
 
 ## Explicit 1.1.0 scope waivers
 
 These proposed waivers document features intentionally absent from this release. They become valid only after both signatures are present.
-
-### Notifications — proposed WAIVED
-
-Version 1.1.0 does not implement local or push notifications, does not request notification permission, and makes no notification claim in the listing. Therefore permission, receipt, and notification deep-link tests are outside this version's product scope.
-
-- Product owner approval: `[name / signature / UTC date]`
-- Release owner approval: `[name / signature / UTC date]`
-- Final status: `[WAIVED or NOT APPROVED]`
 
 ### Native Liquid Glass navigation — proposed WAIVED
 

@@ -4,9 +4,13 @@ A private, offline-capable PWA and Expo app for women in perimenopause and beyon
 organized around one flow: confirm a focused daily check-in, follow symptoms and treatment changes
 in Journey, prepare care, and open evidence in Guide.
 
-- **No account, backend health database, or health-data transmission.** Entries live in the
-  browser's local storage on the user's device. The native wrapper uses privacy-gated AppsFlyer,
-  Meta, and TikTok attribution plus EAS Observe performance metrics; none receive health entries.
+- **No account, backend health database, or health-data transmission.** Browser entries live in
+  local storage. The native wrapper keeps its record in an encrypted file with a device-bound
+  Keychain key and offers Face ID App Lock plus password-protected portable backups. Privacy-gated
+  AppsFlyer, Meta, TikTok, RevenueCat, and EAS Observe integrations never receive health entries.
+- **Optional native conveniences stay privacy-minimal.** Local reminders use generic copy, widgets
+  receive only check-in completion counts, and user-initiated Apple Health sync reads aggregate
+  steps/sleep plus the latest body weight without writes or background delivery.
 - **Privacy-safe web-to-app attribution.** `get-app.html` is a public, health-data-free install page
   whose App Store button uses AppsFlyer OneLink. The private tracker does not load ad pixels.
 - **Works offline** once installed, via a service worker that caches the app shell.
@@ -69,8 +73,9 @@ CI artifact.
 
 The Expo SDK 57 package bundles the generated app and local font into the native binary. It uses
 an offline WebView, so symptom, medication, lab, and report data remain on the device and do not
-depend on the hosted site. The native shell resolves ATT before initializing AppsFlyer, Meta, or
-TikTok, and sends only explicitly defined, health-data-free events to EAS Observe. Configure the SDK
+depend on the hosted site. Native persistence is encrypted outside WebView browser storage. The
+native shell resolves ATT before initializing AppsFlyer, Meta, or TikTok, and sends only explicitly
+defined, health-data-free events to EAS Observe. Configure the SDK
 identifiers and client credentials listed in `mobile/.env.example`, then use a development build
 because these packages contain native code. Run `npm --prefix mobile start` for local Expo
 development. EAS configuration lives in `mobile/eas.json`; the linked project is
@@ -145,11 +150,13 @@ shell, bump `CACHE` in the root `sw.js`, then rebuild. The activation handler re
 
 ## Data model
 
-Everything lives under the single localStorage key `menocompass.v1`:
+The browser/PWA stores the record under `menocompass.v1`; the native wrapper injects the same
+strict schema from its encrypted device-local file and deliberately removes any WebView
+local-storage copy:
 
 ```js
 {
-  v: 5,
+  v: 7,
   profile:  { name, birthYear, region, units,
               uterus:   'intact'|'hyst'|'ablation'|'unknown',
               ovaries:  'kept'|'one'|'both'|'unknown',
@@ -160,8 +167,12 @@ Everything lives under the single localStorage key `menocompass.v1`:
                                bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf},
                                med:{ medicationId:{taken,at} }, notes, prefilledFrom?,
                                confirmedData:{…trusted health snapshot…}, draftDirty } },
-  medications:[ {id,name,form,days,due,notes,started,ended,changes:[{date,label}]} ],
+  medications:[ {id,name,form,days,due,notes,started,ended,status,stopReason,archivedAt,
+                 changes:[{date,label,targets,baseline,followUps}]} ],
   labs:      [ {id,name,date,value,unit} ],
+  appointments:{ questions:[{id,text,asked,askedAt}],
+                 plans:[{id,date,summary,actions:[{id,text,done}],nextVisit}] },
+  healthKit:{ readOnly,generatedAt,lookbackDays,steps,sleep,bodyWeight,warnings } | null,
   screening:{ dxa:{last}, mammo:{last,intervalYears}, … },
   scores:   [ {date, type:'phq9'|'gad7', score, band} ],
   trigger:  { active, status:'running'|'stopped'|'completed', item, start, ended? } | null
@@ -187,13 +198,15 @@ user confirms again. Medication adherence can be saved without turning that reco
 health day. Earlier meaningful records migrate into snapshots, while medication-only records remain
 excluded from symptom analytics.
 
-Export/import is plain JSON round-trip; CSV export is one row per confirmed day plus a questionnaire block.
-In the iOS wrapper, JSON and CSV use the native share sheet and appointment reports render to a shareable
-PDF. Both export formats are unencrypted and may contain sensitive health information. Restore accepts
+Export/import includes a plain JSON round-trip; CSV is one row per confirmed day plus a questionnaire block.
+In the iOS wrapper, JSON and CSV use the native share sheet, appointment reports render to a shareable
+PDF, and a separate `.menocompass` format provides password-encrypted portable backup/restore. Plain
+JSON, CSV, and PDF exports are unencrypted and may contain sensitive health information. Restore accepts
 up to 5 MB and passes every field through a strict allowlist, type/range checks, and date validation;
 unknown fields and invalid values are discarded. Treatment changes can retain chosen target symptoms, a
 frozen seven-day baseline, and structured 2- and 6-week follow-ups; report comparisons always show data
-coverage and describe association rather than causation. Schemas v1–v5 are read from the existing
+coverage and describe association rather than causation. Treatments can be stopped or archived without
+deleting history, and appointment questions/after-visit actions join the same report. Schemas v1–v6 are read from the existing
 `menocompass.v1` storage key so earlier device-local records migrate in place.
 
 ## Editorial rules the content follows

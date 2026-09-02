@@ -12,7 +12,7 @@ This is the versioned source for the App Store Connect **App Review Information*
 
 ## Paste into the Notes field
 
-MenoCompass is a local-only menopause symptom, treatment, and medication tracker. It has no login or demo account. Health entries, medications, labs, notes, questionnaire answers, reports, and backups remain on the device and are not sent to the developer or the attribution/analytics providers.
+MenoCompass is a local-only menopause symptom, treatment, and medication tracker. It has no login or demo account. Health entries, medications, labs, notes, questionnaire answers, Apple Health summaries, reports, and backups remain on the device and are not sent to the developer or the attribution/analytics providers. The native record is encrypted with a device-bound key; users may also create a password-protected portable backup.
 
 On a fresh iOS install, the Apple App Tracking Transparency dialog may appear before the subscription paywall. AppsFlyer and Meta initialization waits for the ATT decision. TikTok is not initialized until the app has resolved the ATT decision, and its native guard rejects initialization while iOS still reports the status as not determined. Denying tracking does not remove any app or subscription feature. Attribution events never contain health-entry or free-text values.
 
@@ -26,11 +26,17 @@ After purchase, complete the short onboarding flow. The main navigation is:
 
 - **Today:** focused daily check-in and quick tools.
 - **Journey:** confirmed symptom days, treatment changes, and observed patterns.
-- **Care:** medications, lab results, and 30-, 90-, or 180-day clinician reports.
+- **Care:** medications, treatment follow-ups, editable appointment questions, after-visit plans, lab results, and 30-, 90-, or 180-day clinician reports. Stopping or archiving a treatment preserves its history.
 - **Guide:** searchable evidence-graded educational content.
-- **Profile** (top-right person control): Manage Apple subscription, backup/restore, reset onboarding, and **Account & data > Delete app profile & data**.
+- **Profile** (top-right person control): Manage Apple subscription; password-protected backup/restore; optional App Lock and reminders; optional read-only Apple Health sync; reset onboarding; and **Account & data > Delete app profile & data**.
 
-Deleting the app profile permanently removes the device-local health record after confirmation. It does not cancel an Apple subscription. The app does not request notification permission in version 1.1.0.
+Deleting the app profile permanently removes the device-local health record after confirmation. It does not cancel an Apple subscription.
+
+Notification permission is requested only after the user enables and saves a daily check-in or weekly treatment-review reminder in Profile. Notifications are scheduled locally with generic text and no health details. Tapping a reminder opens the relevant app route.
+
+Apple Health is optional and read-only. It requests step count, sleep analysis, and body-weight read access only when the user taps Connect/Sync in Profile; it does not write or use background delivery. The UI treats unavailable values as unavailable, never as zero. Home Screen widgets receive only today-complete status and a seven-day confirmed-count; their Check-in and Insights links open the matching app route.
+
+Two privacy-safe App Shortcuts are included: **Log with MenoCompass** opens Check-in; **Review MenoCompass patterns** opens Journey. They expose or record no health details outside the app.
 
 The optional StoreKit rating request is tied to successful confirmed-check-in milestones 2, 5, and 20, not app launches. It is requested only after the success moment, while access and onboarding are active, and never in the same session that displayed ATT. StoreKit controls whether the system prompt appears; the prompt is not displayed in TestFlight.
 
@@ -43,6 +49,8 @@ Attach evidence where App Store Connect permits it, without including real healt
 - Screenshot of the pre-purchase subscription gate showing Restore Purchases, Privacy, and Terms.
 - Screenshot of the RevenueCat paywall showing the localized monthly and annual prices and no trial language.
 - Screenshot of Profile showing Manage Apple subscription and Account & data.
+- Screenshot of Profile showing the in-context reminder, App Lock, and read-only Apple Health controls.
+- Screenshot of both privacy-safe Home Screen widgets and their opened destinations.
 - Completed `RELEASE_QA_1.1.0.md` or an exported signed copy.
 
 ## Pre-submission verification
@@ -51,4 +59,5 @@ Attach evidence where App Store Connect permits it, without including real healt
 - [ ] Confirm the selected build is the same build recorded in `RELEASE_QA_1.1.0.md`.
 - [ ] Confirm both plans are available in Apple's review sandbox and have no introductory, promotional, or win-back free period.
 - [ ] Confirm the public Privacy, Support, and Terms pages match the 1.1.0 navigation described above.
+- [ ] Confirm App Store Connect does not declare device-only Apple Health values as collected, while SDK diagnostics, identifiers, attribution, and purchase data are fully declared; keep Apple Health access described in the policy and review notes.
 - [ ] Paste the Notes section into App Store Connect and set **Sign-in required** to **No**.

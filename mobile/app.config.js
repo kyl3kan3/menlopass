@@ -4,12 +4,43 @@ const tiktokAppId = process.env.TIKTOK_APP_ID?.trim() || '6798018790';
 const tiktokBusinessAppId =
   process.env.TIKTOK_BUSINESS_APP_ID?.trim() || '7679768878880178197';
 const tiktokAppSecret = process.env.TIKTOK_APP_SECRET?.trim();
+const { menocompassWidgetsPlugin } = require('./widgets/app-config');
+
+const APP_GROUP_DEFAULTS_API = 'NSPrivacyAccessedAPICategoryUserDefaults';
+const APP_GROUP_DEFAULTS_REASON = '1C8F.1';
 
 function withoutPlugin(plugins, pluginName) {
   return plugins.filter(plugin => {
     const name = Array.isArray(plugin) ? plugin[0] : plugin;
     return name !== pluginName;
   });
+}
+
+function withAppGroupDefaultsPrivacyReason(privacyManifests = {}) {
+  const accessedApiTypes = Array.isArray(privacyManifests.NSPrivacyAccessedAPITypes)
+    ? privacyManifests.NSPrivacyAccessedAPITypes
+    : [];
+  const existing = accessedApiTypes.find(
+    entry => entry.NSPrivacyAccessedAPIType === APP_GROUP_DEFAULTS_API,
+  );
+  const reasons = Array.isArray(existing?.NSPrivacyAccessedAPITypeReasons)
+    ? existing.NSPrivacyAccessedAPITypeReasons
+    : [];
+
+  return {
+    ...privacyManifests,
+    NSPrivacyAccessedAPITypes: [
+      ...accessedApiTypes.filter(
+        entry => entry.NSPrivacyAccessedAPIType !== APP_GROUP_DEFAULTS_API,
+      ),
+      {
+        NSPrivacyAccessedAPIType: APP_GROUP_DEFAULTS_API,
+        NSPrivacyAccessedAPITypeReasons: [
+          ...new Set([...reasons, APP_GROUP_DEFAULTS_REASON]),
+        ],
+      },
+    ],
+  };
 }
 
 module.exports = ({ config }) => {
@@ -34,6 +65,13 @@ module.exports = ({ config }) => {
   let plugins = config.plugins || [];
   plugins = withoutPlugin(plugins, 'expo-tracking-transparency');
   plugins = withoutPlugin(plugins, 'expo-sharing');
+  plugins = withoutPlugin(plugins, 'expo-notifications');
+  plugins = withoutPlugin(plugins, 'expo-local-authentication');
+  plugins = withoutPlugin(plugins, 'expo-secure-store');
+  plugins = withoutPlugin(plugins, 'expo-widgets');
+  plugins = withoutPlugin(plugins, './modules/menocompass-healthkit/app.plugin.js');
+  plugins = withoutPlugin(plugins, './modules/menocompass-shortcuts/app.plugin.js');
+  plugins = withoutPlugin(plugins, './widgets/withWidgetPrivacyManifest.js');
   plugins = withoutPlugin(plugins, 'react-native-appsflyer');
   plugins = withoutPlugin(plugins, 'react-native-fbsdk-next');
   plugins = withoutPlugin(plugins, './plugins/withTikTokPrivacyManifestFix');
@@ -46,6 +84,30 @@ module.exports = ({ config }) => {
     },
   ]);
   plugins.push('expo-sharing');
+  plugins.push('expo-notifications');
+  plugins.push([
+    'expo-local-authentication',
+    {
+      faceIDPermission: 'Use Face ID to unlock your private MenoCompass record.',
+    },
+  ]);
+  plugins.push([
+    'expo-secure-store',
+    {
+      configureAndroidBackup: true,
+      faceIDPermission: 'Use Face ID to unlock your private MenoCompass record.',
+    },
+  ]);
+  plugins.push([
+    './modules/menocompass-healthkit/app.plugin.js',
+    {
+      healthSharePermission:
+        'MenoCompass reads your steps, sleep, and body weight only when you choose to sync, so you can view those summaries alongside your menopause records. MenoCompass never writes to Apple Health.',
+    },
+  ]);
+  plugins.push('./modules/menocompass-shortcuts/app.plugin.js');
+  plugins.push('./widgets/withWidgetPrivacyManifest.js');
+  plugins.push(menocompassWidgetsPlugin);
   plugins.push([
     'react-native-appsflyer',
     {
@@ -76,6 +138,9 @@ module.exports = ({ config }) => {
     ...config,
     ios: {
       ...config.ios,
+      privacyManifests: withAppGroupDefaultsPrivacyReason(
+        config.ios?.privacyManifests,
+      ),
       infoPlist: {
         ...config.ios?.infoPlist,
         // The current binary is English-only. This declaration does not add an

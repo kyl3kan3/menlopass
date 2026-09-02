@@ -3,9 +3,7 @@
     "name": "MenoCompass",
     "slug": "menlopass",
     "version": "1.1.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.1.0-native-2",
     "updates": {
       "url": "https://u.expo.dev/e7a9bddc-4193-41a0-81f6-b7c74b59aece"
     },
@@ -19,10 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kyl3kan3.menlopass",
-      "appStoreUrl": "https://apps.apple.com/app/id6798018790",
-      "config": {
-        "usesNonExemptEncryption": false
-      }
+      "appStoreUrl": "https://apps.apple.com/app/id6798018790"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +32,20 @@
       "output": "single"
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#743D61",
+          "image": "./assets/icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#743D61",
+            "image": "./assets/icon.png"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
