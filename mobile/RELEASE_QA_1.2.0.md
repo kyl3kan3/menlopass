@@ -41,7 +41,7 @@ Use physical devices for ATT and purchase testing. Simulator results may supplem
 | Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
 | Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit and runtime `1.2.0-native-1` (isolated from the 1.1.0 native runtime) |  |  |  |
-| Production configuration | Required AppsFlyer, Meta, TikTok, RevenueCat, and Sentry production values are present without logging secrets |  |  |  |
+| Production configuration | Required AppsFlyer, Meta, TikTok, and RevenueCat production values are present without logging secrets |  |  |  |
 | Final Info.plist and entitlements | Bundle ID is `com.kyl3kan3.menlopass`; ATT, Face ID, and Health read purpose text; HealthKit entitlement; widget extension/app group; and required privacy manifests are present |  |  |  |
 | Encryption export compliance | Complete Apple's questionnaire for the exact binary based on its CryptoKit AES-GCM, HMAC-SHA256/PBKDF2 backup protection, Keychain, and HTTPS use; attach any declaration Apple requires before review |  |  |  |
 | English bundle declaration | Final archive declares English in `CFBundleLocalizations` |  |  |  |
@@ -106,7 +106,7 @@ Run on at least the small iPhone, Pro Max, and iPad.
 | Relaunch/rotation/backgrounding | iPhone portrait and iPad portrait/landscape recover without clipping, blank screens, or stale state |  |  |  |
 | Privacy/Terms links | Links open from the pre-purchase gate and resolve successfully |  |  |  |
 
-## Native Liquid Glass and diagnostics
+## Native Liquid Glass and Expo Observe
 
 Run the iOS 26 rows from a build produced with Xcode 26. Repeat the fallback row on an earlier iOS version or with Reduce Transparency enabled. Diagnostics must use synthetic failures and contain no real health or free-text data.
 
@@ -115,11 +115,9 @@ Run the iOS 26 rows from a build produced with Xcode 26. Repeat the fallback row
 | Liquid Glass primary navigation | On iOS 26, Today, Journey, Care, and Guide render in the native floating glass bar; selection follows WebView navigation and every tab reaches the correct route |  |  |  |
 | Glass accessibility fallback | Earlier iOS versions and Reduce Transparency use an opaque, high-contrast native fallback with the same labels, symbols, states, and 44-point-or-larger targets |  |  |  |
 | Navigation visibility | Native tabs are hidden during onboarding, subscription/App Lock gates, secondary routes, open sheets, and keyboard entry; content and home indicator remain unobstructed on iPhone and iPad |  |  |  |
-| Sentry handled JavaScript error | A synthetic production/TestFlight failure appears in Sentry with release/update tags and symbolicated frames; message, exception value, request, user, extras, screenshots, view hierarchy, performance traces, and health/free-text values are absent |  |  |  |
-| Sentry native crash | A synthetic native crash appears for the exact build with correct release/source maps and contains no health or free-text data |  |  |  |
-| Sentry server-side privacy | Sentry data scrubbing and IP-address storage settings are enabled and verified for the production project |  |  |  |
+| Expo Observe JavaScript errors | Synthetic handled and unhandled failures appear in EAS Observe with sanitized error names and stacks; original messages, health values, and free text are absent |  |  |  |
 | Expo Observe startup | The exact TestFlight build appears in EAS Observe with startup/interactive measurements and safe route/product events; payloads contain no health values or free text |  |  |  |
-| OTA source maps | A preview OTA for runtime `1.2.0-native-1` uploads matching Sentry source maps and reports the correct update ID/group tags |  |  |  |
+| OTA observability | A preview OTA for runtime `1.2.0-native-1` appears as the correct update/release marker in EAS Observe; OTA JavaScript error stacks may remain unsymbolicated |  |  |  |
 
 ## Native privacy and iOS integrations
 
@@ -170,7 +168,7 @@ The production OTA published on 2026-09-02 (update `01a06467-aac9-775f-b87d-9dd5
 - [ ] App Store Connect privacy answers rechecked
 - [ ] App Store Connect IAP/paywall configuration rechecked
 - [ ] App Review notes pasted
-- [ ] Sentry and EAS Observe production dashboards rechecked
+- [ ] EAS Observe production dashboard rechecked
 - [ ] Apple export-compliance questionnaire completed in App Store Connect
 - [ ] Automatic public release acknowledged (`store.config.json` currently sets `automaticRelease: true`)
 - Release decision: `[APPROVE / REJECT]`

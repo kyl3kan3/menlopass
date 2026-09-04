@@ -16,11 +16,6 @@ import {
   initializeTikTokBusiness,
   type TrackingPermission,
 } from './modules/menocompass-tiktok-business';
-import {
-  captureDiagnosticError,
-  recordDiagnosticBreadcrumb,
-  setDiagnosticRoute,
-} from './sentry.native';
 
 const appleAppId = process.env.EXPO_PUBLIC_APPLE_APP_ID?.trim() || '6798018790';
 const appsFlyerDevKey = process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY?.trim();
@@ -84,9 +79,42 @@ function recordInitializationFailure(
       errorType: error instanceof Error ? error.name : 'UnknownError',
     },
   });
-  captureDiagnosticError(error, `${service}.initialization`);
   if (__DEV__) console.warn(`${service} telemetry setup failed`, error);
 }
+
+function sanitizedDiagnosticError(error: unknown) {
+  const name = error instanceof Error && error.name
+    ? error.name
+    : 'ApplicationError';
+  const diagnostic = new Error('A MenoCompass operation failed.');
+  diagnostic.name = name;
+  if (error instanceof Error && error.stack) {
+    const stackLines = error.stack.split('\n');
+    diagnostic.stack = [`${name}: A MenoCompass operation failed.`, ...stackLines.slice(1)].join('\n');
+  }
+  return diagnostic;
+}
+
+function installPrivacySafeObserveErrorHandler() {
+  type ErrorHandler = (error: Error, isFatal?: boolean) => void;
+  type ErrorUtilsShape = {
+    getGlobalHandler: () => ErrorHandler | undefined;
+    setGlobalHandler: (handler: ErrorHandler) => void;
+  };
+  const runtime = globalThis as typeof globalThis & {
+    ErrorUtils?: ErrorUtilsShape;
+    __MENO_OBSERVE_ERROR_SANITIZED__?: boolean;
+  };
+  if (runtime.__MENO_OBSERVE_ERROR_SANITIZED__ || !runtime.ErrorUtils) return;
+  const observeHandler = runtime.ErrorUtils.getGlobalHandler();
+  if (!observeHandler) return;
+  runtime.ErrorUtils.setGlobalHandler((error, isFatal) => {
+    observeHandler(sanitizedDiagnosticError(error), isFatal);
+  });
+  runtime.__MENO_OBSERVE_ERROR_SANITIZED__ = true;
+}
+
+installPrivacySafeObserveErrorHandler();
 
 async function withRevenueCat(action: () => Promise<void>) {
   if (await Purchases.isConfigured()) await action();
@@ -200,6 +228,7 @@ export function initializeTelemetry() {
   if (initialization) return initialization;
 
   initialization = (async () => {
+    installPrivacySafeObserveErrorHandler();
     Observe.configure({
       environment: __DEV__ ? 'development' : 'production',
       dispatchInDebug: false,
@@ -250,7 +279,6 @@ export function setTelemetrySubscriptionState(active: boolean) {
 export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveAttributes) {
   const definition = eventDefinitions[event];
   Observe.logEvent(definition.observe, attributes ? { attributes } : undefined);
-  recordDiagnosticBreadcrumb(definition.observe);
 
   if (appsFlyerReady && definition.appsFlyer) {
     void AppsFlyer.logEvent({
@@ -271,11 +299,9 @@ export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveA
 }
 
 export function reportTelemetryError(error: unknown) {
-  Observe.reportError(error);
-  captureDiagnosticError(error);
+  Observe.reportError(sanitizedDiagnosticError(error));
 }
 
 export function setTelemetryRoute(route: string) {
   Observe.setGlobalAttributes({ route });
-  setDiagnosticRoute(route);
 }

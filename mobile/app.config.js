@@ -4,8 +4,6 @@ const tiktokAppId = process.env.TIKTOK_APP_ID?.trim() || '6798018790';
 const tiktokBusinessAppId =
   process.env.TIKTOK_BUSINESS_APP_ID?.trim() || '7679768878880178197';
 const tiktokAppSecret = process.env.TIKTOK_APP_SECRET?.trim();
-const sentryOrganization = process.env.SENTRY_ORG?.trim();
-const sentryProject = process.env.SENTRY_PROJECT?.trim();
 const { menocompassWidgetsPlugin } = require('./widgets/app-config');
 
 const APP_GROUP_DEFAULTS_API = 'NSPrivacyAccessedAPICategoryUserDefaults';
@@ -91,10 +89,6 @@ module.exports = ({ config }) => {
       !metaClientToken && 'EXPO_PUBLIC_META_CLIENT_TOKEN',
       !tiktokAppSecret && 'TIKTOK_APP_SECRET',
       !process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim() && 'EXPO_PUBLIC_REVENUECAT_IOS_API_KEY',
-      !process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() && 'EXPO_PUBLIC_SENTRY_DSN',
-      !process.env.SENTRY_AUTH_TOKEN?.trim() && 'SENTRY_AUTH_TOKEN',
-      !sentryOrganization && 'SENTRY_ORG',
-      !sentryProject && 'SENTRY_PROJECT',
     ].filter(Boolean);
     if (missing.length) {
       throw new Error(`Missing production mobile configuration: ${missing.join(', ')}`);
@@ -113,8 +107,6 @@ module.exports = ({ config }) => {
   plugins = withoutPlugin(plugins, './widgets/withWidgetPrivacyManifest.js');
   plugins = withoutPlugin(plugins, 'react-native-appsflyer');
   plugins = withoutPlugin(plugins, 'react-native-fbsdk-next');
-  plugins = withoutPlugin(plugins, '@sentry/react-native');
-  plugins = withoutPlugin(plugins, '@sentry/react-native/expo');
   plugins = withoutPlugin(plugins, './plugins/withTikTokPrivacyManifestFix');
 
   plugins.push([
@@ -174,15 +166,6 @@ module.exports = ({ config }) => {
       },
     ]);
   }
-
-  plugins.push([
-    '@sentry/react-native/expo',
-    {
-      url: 'https://sentry.io/',
-      ...(sentryOrganization ? { organization: sentryOrganization } : {}),
-      ...(sentryProject ? { project: sentryProject } : {}),
-    },
-  ]);
 
   plugins.push('./plugins/withTikTokPrivacyManifestFix');
 

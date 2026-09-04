@@ -23,7 +23,6 @@ import {
   NativeGlassTabs,
   type MenoCompassPrimaryRoute,
 } from './NativeGlassTabs.native';
-import { Sentry } from './sentry.native';
 import {
   registerSuccessfulMoment,
   requestReviewForMilestone,
@@ -1257,7 +1256,7 @@ function AppWithSafeArea() {
   return <SafeAreaProvider><App /></SafeAreaProvider>;
 }
 
-export default Sentry.wrap(ObserveRoot.wrap(AppWithSafeArea));
+export default ObserveRoot.wrap(AppWithSafeArea);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0E1618' },

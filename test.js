@@ -67,8 +67,8 @@ async function injectState(context,state){
     const nativeGlassTabs=fs.readFileSync(path.join(__dirname,'mobile','NativeGlassTabs.native.tsx'),'utf8');
     const review=fs.readFileSync(path.join(__dirname,'mobile','reviewPrompt.native.ts'),'utf8');
     const telemetry=fs.readFileSync(path.join(__dirname,'mobile','telemetry.native.ts'),'utf8');
-    const sentry=fs.readFileSync(path.join(__dirname,'mobile','sentry.native.ts'),'utf8');
     const metro=fs.readFileSync(path.join(__dirname,'mobile','metro.config.js'),'utf8');
+    const publishUpdate=fs.readFileSync(path.join(__dirname,'mobile','scripts','publish-update.cjs'),'utf8');
     const expoApp=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','app.json'),'utf8')).expo;
     const dynamicAppConfig=fs.readFileSync(path.join(__dirname,'mobile','app.config.js'),'utf8');
     const widgetPrivacyManifest=fs.readFileSync(path.join(__dirname,'mobile','widgets','PrivacyInfo.xcprivacy'),'utf8');
@@ -121,26 +121,22 @@ async function injectState(context,state){
       &&nativeApp.includes('markInteractive')
       &&telemetry.includes('Observe.configure')
       &&telemetry.includes('Observe.logEvent'));
-    check('Sentry crash diagnostics are privacy-restricted and source-map ready',
-      !!mobilePackage.dependencies['@sentry/react-native']
-      &&dynamicAppConfig.includes("'@sentry/react-native/expo'")
-      &&metro.includes('getSentryExpoConfig')
-      &&nativeApp.includes('Sentry.wrap')
-      &&sentry.includes('sendDefaultPii: false')
-      &&sentry.includes('enableAutoPerformanceTracing: false')
-      &&sentry.includes('delete event.message')
-      &&sentry.includes('delete event.logentry')
-      &&sentry.includes('delete exception.value')
-      &&sentry.includes('attachScreenshot: false')
-      &&sentry.includes('attachViewHierarchy: false')
-      &&sentry.includes('enableCaptureFailedRequests: false')
-      &&telemetry.includes('captureDiagnosticError(error)'));
-    check('diagnostic privacy declarations cover Sentry and Observe',
+    check('Expo Observe is the only diagnostics layer and sanitizes handled errors',
+      !mobilePackage.dependencies['@sentry/react-native']
+      &&!dynamicAppConfig.includes('@sentry/react-native')
+      &&metro.includes('getDefaultConfig')
+      &&!nativeApp.includes('Sentry.wrap')
+      &&telemetry.includes('sanitizedDiagnosticError')
+      &&telemetry.includes('installPrivacySafeObserveErrorHandler')
+      &&telemetry.includes('Observe.reportError(sanitizedDiagnosticError(error))')
+      &&!publishUpdate.toLowerCase().includes('sentry'));
+    check('diagnostic privacy declarations cover Expo Observe',
       dynamicAppConfig.includes('NSPrivacyCollectedDataTypeCrashData')
       &&dynamicAppConfig.includes('NSPrivacyCollectedDataTypePerformanceData')
       &&dynamicAppConfig.includes('NSPrivacyCollectedDataTypeOtherDiagnosticData')
       &&dynamicAppConfig.includes("NSPrivacyAccessedAPICategorySystemBootTime: ['35F9.1']")
-      &&privacyCopy.includes('Sentry for crash diagnostics'));
+      &&privacyCopy.includes('EAS Observe does not capture native crashes')
+      &&!privacyCopy.includes('Sentry'));
     const splashPlugin=expoApp.plugins.find(plugin=>Array.isArray(plugin)&&plugin[0]==='expo-splash-screen');
     check('branded native launch screen is explicitly configured',
       !!mobilePackage.dependencies['expo-splash-screen']

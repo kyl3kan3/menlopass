@@ -1,9 +1,6 @@
-const { getSentryExpoConfig } = require('@sentry/react-native/metro');
+const { getDefaultConfig } = require('expo/metro-config');
 
-const config = getSentryExpoConfig(__dirname, {
-  annotateReactComponents: false,
-  includeWebReplay: false,
-});
+const config = getDefaultConfig(__dirname);
 config.resolver.assetExts.push('html');
 
 module.exports = config;

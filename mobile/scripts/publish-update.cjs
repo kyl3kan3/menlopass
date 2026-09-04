@@ -31,17 +31,6 @@ if (!['preview', 'production'].includes(environment)) {
   throw new Error('EAS environment must be preview or production.');
 }
 
-const requiredSentryVariables = [
-  'EXPO_PUBLIC_SENTRY_DSN',
-  'SENTRY_AUTH_TOKEN',
-  'SENTRY_ORG',
-  'SENTRY_PROJECT',
-];
-const missing = requiredSentryVariables.filter(name => !process.env[name]?.trim());
-if (missing.length) {
-  throw new Error(`Missing Sentry configuration: ${missing.join(', ')}`);
-}
-
 const dirty = run('git', ['status', '--porcelain'], repositoryRoot, true);
 if (dirty) {
   throw new Error('Refusing to publish a production-grade OTA from a dirty Git worktree.');
@@ -65,5 +54,3 @@ run(npx, [
   '--clear-cache',
   '--non-interactive',
 ]);
-run(npx, ['sentry-expo-upload-sourcemaps', 'dist']);
-

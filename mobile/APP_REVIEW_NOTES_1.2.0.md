@@ -24,7 +24,7 @@ In Profile, **Manage Apple subscription** opens Apple's management page. **Accou
 
 Notification permission is requested only after a reminder is enabled; locally scheduled text is generic. Apple Health access is user-initiated, read-only steps/sleep/body weight, and has no background delivery. Widgets and App Shortcuts expose only privacy-safe completion/count or destination information.
 
-Expo Observe receives startup/interactive measurements and safe route/product events. Sentry receives release-tagged crash diagnostics. Sentry tracing, replay, screenshots, view hierarchy, failed requests, default PII, messages, exception values, requests, users, and extras are disabled/removed. Neither service receives health entries, Apple Health values, answers, notes, medication/lab content, report text, or other free-form health data.
+Expo Observe receives startup/interactive measurements, safe route/product events, and sanitized JavaScript error names and stack locations. Original error messages are replaced before automatic or explicitly handled errors are reported. Expo Observe does not capture native crashes. It receives no health entries, Apple Health values, answers, notes, medication/lab content, report text, or other free-form health data.
 
 MenoCompass provides general health education and self-tracking. It does not diagnose, prescribe, or replace qualified care.
 
