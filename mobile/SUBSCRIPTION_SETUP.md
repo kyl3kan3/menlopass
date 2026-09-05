@@ -8,7 +8,7 @@ The iOS app requires the RevenueCat entitlement `MenoCompass Pro` before it moun
 2. Attach both the monthly and annual App Store products to that entitlement.
 3. Put those packages in the current offering and attach the production paywall.
 4. Include localized price, billing period, automatic-renewal disclosure, restore purchases, Privacy, and Terms in the RevenueCat paywall.
-5. Do not configure a close button as an escape route. The app also invokes the paywall with `displayCloseButton: false` and keeps its own gate in place if the sheet is dismissed by the system.
+5. Do not configure a close button as an escape route. The app mounts `RevenueCatUI.Paywall` with `displayCloseButton: false` and keeps its own gate in place if the paywall is dismissed. The embedded view supplies separate purchase-start, cancellation, error, completion, and restore callbacks for measurement. This option is ignored by RevenueCat V2 paywalls, so also remove close components in the dashboard; closing can never unlock the app.
 6. Disable RevenueCat exit offers and other discount paths so dismissing the main paywall cannot present a free or discounted alternative.
 
 ## App Store Connect: no trial or free offer

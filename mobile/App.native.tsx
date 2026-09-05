@@ -9,8 +9,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import Purchases, { CustomerInfo, LOG_LEVEL } from 'react-native-purchases';
-import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+import Purchases, { CustomerInfo, LOG_LEVEL, type PurchasesOffering } from 'react-native-purchases';
+import { TrackedPaywall } from './TrackedPaywall.native';
+import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import {
   initializeTelemetry,
@@ -443,6 +444,7 @@ function App() {
   const [subscriptionIssue, setSubscriptionIssue] = useState<string>();
   const [proActive, setProActive] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [paywall, setPaywall] = useState<{ offering: PurchasesOffering; source: 'automatic' | 'subscribe_button' | 'feature' } | null>(null);
   const [experienceReady, setExperienceReady] = useState(false);
   const [webContentReady, setWebContentReady] = useState(false);
   const [pendingReviewMilestone, setPendingReviewMilestone] = useState<
@@ -465,6 +467,9 @@ function App() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const autoPaywallAttemptedRef = useRef(false);
   const appLaunchTrackedRef = useRef(false);
+  const onboardingStartedRef = useRef(false);
+  const onboardingCompletedRef = useRef(false);
+  const paywallLoadingRef = useRef(false);
   const reviewRequestInFlightRef = useRef(false);
   const nativeShareInFlightRef = useRef(false);
   const nativeBackupImportInFlightRef = useRef(false);
@@ -747,7 +752,7 @@ function App() {
       setProActive(nextProActive);
       setSubscriptionChecked(true);
       setSubscriptionIssue(undefined);
-      setTelemetrySubscriptionState(nextProActive);
+      setTelemetrySubscriptionState(customerInfo);
       syncProStatusToWeb(nextProActive);
     };
 
@@ -762,11 +767,13 @@ function App() {
       Purchases.getCustomerInfo().then(updateCustomer).catch(error => {
         if (!active) return;
         reportTelemetryError(error);
+        trackTelemetryEvent('subscription_check_failed', { reason: 'sdk_error' });
         setSubscriptionChecked(true);
         setSubscriptionIssue('MenoCompass could not verify your subscription. Check your connection and try again.');
       });
     } catch (error) {
       reportTelemetryError(error);
+      trackTelemetryEvent('subscription_check_failed', { reason: 'sdk_error' });
       setSubscriptionChecked(true);
       setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen MenoCompass and try again.');
       setRevenueCatReady(false);
@@ -792,21 +799,19 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'ios' || !revenueCatReady || !subscriptionChecked) return;
+    if (Platform.OS !== 'ios' || !subscriptionChecked) return;
 
     let active = true;
     const timer = setTimeout(() => {
       initializeTelemetry()
         .then(result => {
           if (!active) return;
-          setTelemetrySubscriptionState(proActive);
           setTrackingPromptedThisSession(result.promptedForTracking);
           setTelemetrySettled(true);
         })
         .catch(error => {
           reportTelemetryError(error);
           if (active) {
-            setTelemetrySubscriptionState(proActive);
             setTelemetrySettled(true);
           }
         });
@@ -822,8 +827,14 @@ function App() {
     if (!html || !telemetrySettled || appLaunchTrackedRef.current) return;
     appLaunchTrackedRef.current = true;
     trackTelemetryEvent('app_launched');
-    if (!experienceReady) trackTelemetryEvent('onboarding_started');
   }, [experienceReady, html, telemetrySettled]);
+
+  useEffect(() => {
+    if (!webContentReady || !telemetrySettled || experienceReady || onboardingStartedRef.current) return;
+    if (Platform.OS === 'ios' && !proActive) return;
+    onboardingStartedRef.current = true;
+    trackTelemetryEvent('onboarding_started');
+  }, [webContentReady, telemetrySettled, experienceReady, proActive]);
 
   useEffect(() => {
     if (
@@ -861,12 +872,15 @@ function App() {
     webContentReady,
   ]);
 
-  const openPaywall = async () => {
-    if (!revenueCatReady || purchaseBusy) return;
+  const openPaywall = async (source: 'automatic' | 'subscribe_button' | 'feature') => {
+    if (!revenueCatReady || purchaseBusy || paywall || paywallLoadingRef.current) return;
+    paywallLoadingRef.current = true;
     setPurchaseBusy(true);
+    trackTelemetryEvent('paywall_requested', { source });
     try {
       const offerings = await Purchases.getOfferings();
       if (!offerings.current || offerings.current.availablePackages.length === 0) {
+        trackTelemetryEvent('paywall_failed', { source, reason: 'no_offering' });
         setSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.');
         return;
       }
@@ -877,39 +891,31 @@ function App() {
           || availablePackage.product.discounts?.some(discount => discount.price === 0),
       );
       if (hasFreeTrial) {
+        trackTelemetryEvent('paywall_failed', { source, reason: 'free_offer' });
         setSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.');
         if (__DEV__) console.error('Remove the free introductory offer from every MenoCompass product in App Store Connect.');
         return;
       }
 
       setSubscriptionIssue(undefined);
-      trackTelemetryEvent('paywall_opened');
-      const result = await RevenueCatUI.presentPaywallIfNeeded({
-        requiredEntitlementIdentifier: proEntitlement,
-        offering: offerings.current,
-        displayCloseButton: false,
-      });
-      const active = hasProAccess(await Purchases.getCustomerInfo());
-      setProActive(active);
-      setSubscriptionChecked(true);
-      setTelemetrySubscriptionState(active);
-      if (result === PAYWALL_RESULT.PURCHASED) trackTelemetryEvent('subscription_activated');
-      if (result === PAYWALL_RESULT.CANCELLED) trackTelemetryEvent('paywall_dismissed');
+      setPaywall({ offering: offerings.current, source });
     } catch (reason) {
+      trackTelemetryEvent('paywall_failed', { source, reason: 'offerings_error' });
       reportTelemetryError(reason);
       setSubscriptionIssue('MenoCompass could not reach the App Store. Check your connection and try again.');
     } finally {
+      paywallLoadingRef.current = false;
       setPurchaseBusy(false);
     }
   };
 
-  const requestPaywall = () => {
+  const requestPaywall = (source: 'subscribe_button' | 'feature' = 'subscribe_button') => {
     if (purchaseBusy || proActive) return;
     if (!revenueCatReady) {
       setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen MenoCompass and try again.');
       return;
     }
-    void openPaywall();
+    void openPaywall(source);
   };
 
   useEffect(() => {
@@ -927,7 +933,7 @@ function App() {
     ) return;
 
     autoPaywallAttemptedRef.current = true;
-    void openPaywall();
+    void openPaywall('automatic');
   }, [subscriptionChecked, proActive, revenueCatReady, telemetrySettled, purchaseBusy]);
 
   const handleWebMessage = (event: WebViewMessageEvent) => {
@@ -965,8 +971,11 @@ function App() {
         return;
       }
       if (message?.type === 'onboarding-finished') {
+        if (onboardingStartedRef.current && !onboardingCompletedRef.current) {
+          onboardingCompletedRef.current = true;
+          trackTelemetryEvent('onboarding_completed', { skipped: message.skipped === true });
+        }
         setExperienceReady(true);
-        trackTelemetryEvent('onboarding_completed', { skipped: message.skipped === true });
         return;
       }
       if (message?.type === 'onboarding-step' && Number.isInteger(message.step)) {
@@ -1101,7 +1110,7 @@ function App() {
         Linking.openURL('https://apps.apple.com/account/subscriptions').catch(reportTelemetryError);
         return;
       }
-      if (message?.type === 'open-pro-paywall') requestPaywall();
+      if (message?.type === 'open-pro-paywall') requestPaywall('feature');
     } catch {
       // Ignore non-MenoCompass messages from the embedded document.
     }
@@ -1110,18 +1119,18 @@ function App() {
   const restorePurchases = async () => {
     if (!revenueCatReady || purchaseBusy) return;
     setPurchaseBusy(true);
-    trackTelemetryEvent('subscription_restore_started');
+    trackTelemetryEvent('subscription_restore_started', { source: 'gate' });
     try {
       const customerInfo = await Purchases.restorePurchases();
       const restored = hasProAccess(customerInfo);
       setProActive(restored);
       setSubscriptionChecked(true);
       setSubscriptionIssue(restored ? undefined : 'No active MenoCompass subscription was found for this Apple ID.');
-      setTelemetrySubscriptionState(restored);
-      trackTelemetryEvent('subscription_restore_completed');
+      setTelemetrySubscriptionState(customerInfo);
+      trackTelemetryEvent('subscription_restore_completed', { source: 'gate', ...subscriptionSnapshot(customerInfo) });
       Alert.alert(restored ? 'Purchase restored' : 'Nothing to restore', restored ? 'MenoCompass Pro is active.' : 'No MenoCompass Pro purchase was found for this Apple ID.');
     } catch (reason) {
-      trackTelemetryEvent('subscription_restore_failed');
+      trackTelemetryEvent('subscription_restore_failed', { source: 'gate' });
       reportTelemetryError(reason);
       Alert.alert('Restore unavailable', 'MenoCompass could not restore purchases. Please try again later.');
     } finally {
@@ -1167,6 +1176,30 @@ function App() {
     );
   }
 
+  if (Platform.OS === 'ios' && paywall) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <TrackedPaywall
+          offering={paywall.offering}
+          source={paywall.source}
+          onCustomer={customerInfo => {
+            const active = hasProAccess(customerInfo);
+            setProActive(active);
+            setSubscriptionChecked(true);
+            setSubscriptionIssue(active ? undefined : 'No active MenoCompass subscription was found for this Apple ID.');
+            syncProStatusToWeb(active);
+          }}
+          onClose={() => setPaywall(null)}
+          onFailure={() => {
+            setPaywall(null);
+            setSubscriptionIssue('The subscription screen could not load. Please try again.');
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
   if (Platform.OS === 'ios' && !proActive) {
     return (
       <SubscriptionGate
@@ -1174,7 +1207,7 @@ function App() {
         purchaseBusy={purchaseBusy}
         revenueCatReady={revenueCatReady}
         onRestore={() => void restorePurchases()}
-        onSubscribe={requestPaywall}
+        onSubscribe={() => requestPaywall()}
       />
     );
   }

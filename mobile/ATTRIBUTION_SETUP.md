@@ -12,7 +12,7 @@ The native app now uses:
 - RevenueCat as the source of subscription lifecycle and revenue events. The client does not duplicate purchase revenue events in AppsFlyer, Meta, or TikTok.
 - RevenueCat's random anonymous App User ID as the optional AppsFlyer customer ID. MenoCompass has no login identity, and no name, email address, phone number, or health value is used as a customer ID.
 
-On iOS, RevenueCat is configured first so its anonymous App User ID is available to the attribution SDKs. The ATT decision then resolves before AppsFlyer, Meta, or TikTok initializes, and only after telemetry settles may the automatic hard paywall open. This ordering ensures first-time install, activation, and paywall-view signals are available without sending health-journal content or duplicating subscription revenue events.
+On iOS, RevenueCat is configured first so its anonymous App User ID is available to the attribution SDKs. The ATT decision then resolves before AppsFlyer, Meta, or TikTok initializes. After that decision, SDK initialization has an eight-second deadline so an unavailable analytics provider cannot hold the automatic hard paywall indefinitely. Initialization continues in the background. Up to 50 sanitized commerce events are buffered in memory until AppsFlyer starts; they retain the access state at event time. The buffer is not durable across process termination. Product events containing health-feature usage stay in Observe.
 
 Health entries, medications, labs, notes, reports, and other free-form user content must never be added to these events.
 
@@ -59,3 +59,50 @@ A development or production build is required because these SDKs contain native 
 7. Complete a sandbox purchase and confirm only one subscription/revenue event reaches each configured destination.
 8. Trigger a synthetic handled JavaScript failure. Confirm EAS Observe receives a sanitized error name and stack without the original message, health data, or free text.
 9. Confirm EAS Observe receives startup/interactive measurements and privacy-safe route/product events for the exact build. Native crashes are not captured by EAS Observe.
+
+## Commerce measurement, schema 2
+
+The September 5 audit found that AppsFlyer received `af_content_view` but no client purchase-attempt/cancellation/error funnel. The previous `paywall_opened` signal ran before presentation, and `onboarding_started` ran before the subscription gate. Historical installs and active users therefore cannot establish purchases or successful access.
+
+New named events go to AppsFlyer and Observe. `af_content_view` and Meta ViewedContent remain compatibility events at native paywall mount. Do not add them to `mc_paywall_rendered` counts: they represent the same step.
+
+| AppsFlyer event | Meaning |
+| --- | --- |
+| `mc_app_launched` | One app launch per JS process, after local content and telemetry initialization settle |
+| `mc_subscription_status_checked` | First verified access snapshot this process, then changes; active access is not proof of payment |
+| `mc_subscription_check_failed` | RevenueCat configuration or customer-info lookup failed |
+| `mc_paywall_requested` | App requests plans; source distinguishes automatic, subscribe button, and feature route |
+| `mc_paywall_failed` | Missing offering, blocked free offer, offering fetch error, or React render failure |
+| `mc_paywall_rendered` | Native paywall view mounted; not confirmation that remote content fully rendered |
+| `mc_purchase_started` | RevenueCat invokes purchase-start callback, with product and package type |
+| `mc_purchase_cancelled` | Store purchase cancelled; paywall remains available for retry |
+| `mc_purchase_failed` | Purchase failed, with SDK numeric error code; no raw message |
+| `mc_purchase_completed` | Client store operation completed; includes access/environment, is not authoritative revenue |
+| `mc_paywall_dismissed` | Paywall closed without a successful access-unlocking purchase/restore |
+| `mc_restore_started/completed/failed` | Restore path; completed with `access=inactive` means nothing was restored |
+
+All commerce events carry `schemaVersion=2`, release channel/runtime/update metadata, and known access state. An active entitlement supplies `storeEnvironment=sandbox/production`, period type, and ownership type; without one, environment is **unknown**, never assumed production. TestFlight can use the production EAS channel. No client attribute alone establishes payment or reliably identifies an unpaid tester. Debug builds suppress these custom AppsFlyer events; existing SDK install/session auto-events are separate. Register test devices in AppsFlyer and exclude them when evaluating acquisition. Use preview builds for routine QA; exclude `buildChannel=preview/development` and known sandbox events when querying custom-event data.
+
+Only explicit commerce fields pass the marketing payload allowlist. Do not add health entries, profile answers, onboarding answers, route names, customer IDs, receipts, or free-text error messages. Generic onboarding/check-in/report events remain Observe-only. Onboarding starts after content is available behind the entitlement gate, and reopening the stage sheet no longer counts as another completion.
+
+### Reports to configure after deployment
+
+Use **Activity** event dates, identical UTC date ranges, and unique users rather than event totals for conversion. Attempts can repeat; funnel counts must use ordered events for the same anonymous user, not ratios of unrelated totals. AppsFlyer aggregation and plan limitations may require an event export for the ordered funnel.
+
+1. Acquisition: installs and active users, explicitly labelled as app activity.
+2. Paywall: unique requested → rendered → purchase started, then cancelled/failed/completed; break down failures by reason/code and release. A killed process produces no dismissal event; never infer a cancellation solely from a missing completion.
+3. Paid customers and revenue: RevenueCat **production** active subscriptions and initial paid purchases. Exclude sandbox, trial, complimentary/promotional access, and distinguish family-shared access. Restores and `mc_purchase_completed` are not new paying customers.
+4. Connect RevenueCat's AppsFlyer server integration for initial purchases, renewals, refunds, expirations, and billing issues. Verify production delivery logs and the linked AppsFlyer ID. Keep sandbox delivery disabled for the production destination or route it separately. Do not also emit `af_purchase`/`af_revenue` from this client. On September 5, 2026, the MenoCompass integrations page showed AppsFlyer and Meta Ads **Active**. That confirms configured integrations, not successful event delivery; production delivery and sandbox routing still require verification.
+
+Observed production baseline on September 5, 2026: RevenueCat project `50953eca`, sandbox switch off, **0 active subscriptions, $0 MRR, $0 revenue (last 28 days), no live transactions**. Its 33 active customer records in that period are not paying subscribers. AppsFlyer's 12 active users for August 6–September 4 use a different date range and definition and must not be equated with either RevenueCat customer records or subscribers.
+
+Validate on a physical iPhone before release: both ATT choices; slow/offline analytics; no offering; purchase cancel then retry; store error; sandbox purchase; empty restore; existing-subscriber restore; entitlement revocation; app lock. Each completed operation should have one matching client result and, when configured, one authoritative RevenueCat server event. Never make a real purchase merely to test tracking. Confirm the exact runtime/update in AppsFlyer and Observe after publishing. These changes require shipping the mobile bundle; committing them does not change live measurements or backfill missing history.
+
+Reference: [RevenueCat AppsFlyer integration](https://www.revenuecat.com/docs/integrations/attribution/appsflyer) and [RevenueCat event environments](https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields).
+
+### Implementation validation, September 5, 2026
+
+- TypeScript check passed; 29 mobile contract tests (including 8 commerce behavior tests) and 3 TikTok tests passed.
+- Commerce tests exercise payload privacy, sandbox and family/trial classification, cancellation/retry, purchase and restore access gating, duplicate callbacks, queued pre-initialization events, SDK timeouts/recovery, and synchronous analytics failures.
+- The full browser suite stalled with bundled Chromium. Retrying using installed Chrome passed onboarding, tool access, check-in, and reconfirmation, then timed out at `Save medication` in `test.js:317`. The full browser suite is not recorded as passing.
+- Native StoreKit/RevenueCat UI callbacks and live destination receipt still require physical-device verification and a mobile release. No mobile OTA or App Store release was published as part of this change.

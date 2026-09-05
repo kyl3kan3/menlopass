@@ -12,6 +12,9 @@ import {
 } from 'react-native-appsflyer';
 import { AppEventsLogger, Settings } from 'react-native-fbsdk-next';
 import Purchases from 'react-native-purchases';
+import type { CustomerInfo } from 'react-native-purchases';
+import * as Updates from 'expo-updates';
+import { commerceAttributes, commerceEvents, subscriptionSnapshot } from './commerce-events';
 import {
   initializeTikTokBusiness,
   type TrackingPermission,
@@ -26,59 +29,63 @@ export type TelemetryInitializationResult = {
   trackingPermission: TrackingPermission;
   promptedForTracking: boolean;
 };
-type TelemetryEvent =
-  | 'app_launched'
+type TelemetryEvent = keyof typeof commerceEvents
   | 'onboarding_started'
   | 'onboarding_step_viewed'
   | 'onboarding_completed'
   | 'checkin_confirmed'
   | 'report_opened'
-  | 'paywall_opened'
-  | 'paywall_dismissed'
-  | 'subscription_activated'
-  | 'subscription_management_opened'
-  | 'subscription_restore_started'
-  | 'subscription_restore_completed'
-  | 'subscription_restore_failed';
+  | 'subscription_management_opened';
 
 const eventDefinitions: Record<
   TelemetryEvent,
   { observe: string; appsFlyer?: string; meta?: string }
 > = {
-  app_launched: { observe: 'app.launched' },
+  ...Object.fromEntries(Object.keys(commerceEvents).map(event => [event, { observe: event.replace('_', '.') }])) as Record<keyof typeof commerceEvents, { observe: string }>,
   onboarding_started: { observe: 'onboarding.started' },
   onboarding_step_viewed: { observe: 'onboarding.step_viewed' },
   onboarding_completed: { observe: 'onboarding.completed' },
   checkin_confirmed: { observe: 'checkin.confirmed' },
   report_opened: { observe: 'report.opened' },
-  paywall_opened: {
-    observe: 'paywall.opened',
+  paywall_rendered: {
+    observe: 'paywall.rendered',
     appsFlyer: AFInAppEventType.CONTENT_VIEW,
     meta: AppEventsLogger.AppEvents.ViewedContent,
   },
-  paywall_dismissed: { observe: 'paywall.dismissed' },
-  subscription_activated: { observe: 'subscription.activated' },
   subscription_management_opened: { observe: 'subscription.management_opened' },
-  subscription_restore_started: { observe: 'subscription.restore_started' },
-  subscription_restore_completed: { observe: 'subscription.restore_completed' },
-  subscription_restore_failed: { observe: 'subscription.restore_failed' },
 };
 
 let appsFlyerReady = false;
 let metaReady = false;
 let initialization: Promise<TelemetryInitializationResult> | undefined;
+let subscriptionContext = { access: 'unknown', storeEnvironment: 'unknown', periodType: 'unknown', ownershipType: 'unknown' };
+const buildContext = commerceAttributes({
+  buildChannel: __DEV__ ? 'development'
+    : ['development', 'preview', 'production'].includes(Updates.channel || '') ? Updates.channel : 'unknown',
+  runtimeVersion: Updates.runtimeVersion || 'unknown',
+  updateId: Updates.updateId || 'embedded',
+});
+const pendingCommerce: { eventName: string; eventValues: Record<string, string | number> }[] = [];
+
+function sendCommerce(eventName: string, eventValues: Record<string, string | number>) {
+  try {
+    void AppsFlyer.logEvent({ eventName, eventValues }).catch(error => recordInitializationFailure('appsflyer', error));
+  } catch (error) {
+    recordInitializationFailure('appsflyer', error);
+  }
+}
 
 function recordInitializationFailure(
   service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat' | 'tiktok',
   error: unknown,
 ) {
-  Observe.logEvent('telemetry.initialization_failed', {
+  try { Observe.logEvent('telemetry.initialization_failed', {
     severity: 'warn',
     attributes: {
       service,
       errorType: error instanceof Error ? error.name : 'UnknownError',
     },
-  });
+  }); } catch { /* Diagnostics cannot interrupt purchases. */ }
   if (__DEV__) console.warn(`${service} telemetry setup failed`, error);
 }
 
@@ -196,6 +203,7 @@ async function initializeAppsFlyer() {
   await Promise.all([initialized, conversionListener]);
   await started;
   appsFlyerReady = true;
+  for (const event of pendingCommerce.splice(0)) sendCommerce(event.eventName, event.eventValues);
 
   const appsFlyerId = await AppsFlyer.getAppsFlyerUID();
   if (appsFlyerId) await withRevenueCat(() => Purchases.setAppsflyerID(appsFlyerId));
@@ -230,7 +238,7 @@ export function initializeTelemetry() {
   initialization = (async () => {
     installPrivacySafeObserveErrorHandler();
     Observe.configure({
-      environment: __DEV__ ? 'development' : 'production',
+      environment: String(buildContext.buildChannel),
       dispatchInDebug: false,
       sampleRate: 1,
     });
@@ -246,7 +254,8 @@ export function initializeTelemetry() {
     const trackingAuthorized = permission === 'granted';
     Observe.setGlobalAttributes({
       trackingPermission: permission,
-      subscriptionTier: 'free',
+      ...buildContext,
+      ...subscriptionContext,
     });
 
     const tasks = [
@@ -263,43 +272,71 @@ export function initializeTelemetry() {
       );
     }
 
-    await Promise.all(tasks);
+    // Analytics must not indefinitely hold the automatic subscription screen.
+    // SDK initialization continues in the background and flushes queued events
+    // if it recovers. ATT itself is resolved before starting this deadline.
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      Promise.all(tasks),
+      new Promise<void>(resolve => {
+        deadline = setTimeout(() => {
+          try { Observe.logEvent('telemetry.initialization_timed_out'); } catch { /* Best effort. */ }
+          resolve();
+        }, 8_000);
+      }),
+    ]).finally(() => { if (deadline) clearTimeout(deadline); });
     return permissionResult;
   })();
 
   return initialization;
 }
 
-export function setTelemetrySubscriptionState(active: boolean) {
-  Observe.setGlobalAttributes({
-    subscriptionTier: active ? 'pro' : 'free',
-  });
+export function setTelemetrySubscriptionState(customerInfo: CustomerInfo) {
+  const next = subscriptionSnapshot(customerInfo);
+  const changed = JSON.stringify(next) !== JSON.stringify(subscriptionContext);
+  subscriptionContext = next;
+  try { Observe.setGlobalAttributes({
+    ...subscriptionContext,
+  }); } catch { /* Access checks must survive unavailable diagnostics. */ }
+  if (changed) trackTelemetryEvent('subscription_status_checked');
 }
 
 export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveAttributes) {
   const definition = eventDefinitions[event];
-  Observe.logEvent(definition.observe, attributes ? { attributes } : undefined);
+  const commerceName = commerceEvents[event as keyof typeof commerceEvents];
+  const safeAttributes = commerceName
+    ? commerceAttributes({ ...buildContext, ...subscriptionContext, ...attributes })
+    : attributes;
+  try { Observe.logEvent(definition.observe, safeAttributes ? { attributes: safeAttributes } : undefined); } catch { /* Best effort. */ }
+
+  if (commerceName && !__DEV__) {
+    if (appsFlyerReady) sendCommerce(commerceName, safeAttributes as Record<string, string | number>);
+    else if (appsFlyerDevKey && pendingCommerce.length < 50) {
+      pendingCommerce.push({ eventName: commerceName, eventValues: safeAttributes as Record<string, string | number> });
+    }
+  }
 
   if (appsFlyerReady && definition.appsFlyer) {
-    void AppsFlyer.logEvent({
+    try { void AppsFlyer.logEvent({
       eventName: definition.appsFlyer,
       eventValues: {
         af_content_id: 'menocompass_pro',
         af_content_type: 'subscription_paywall',
       },
     }).catch(error => recordInitializationFailure('appsflyer', error));
+    } catch (error) { recordInitializationFailure('appsflyer', error); }
   }
 
   if (metaReady && definition.meta) {
-    AppEventsLogger.logEvent(definition.meta, {
+    try { AppEventsLogger.logEvent(definition.meta, {
       fb_content_id: 'menocompass_pro',
       fb_content_type: 'subscription_paywall',
-    });
+    }); } catch (error) { recordInitializationFailure('meta', error); }
   }
 }
 
 export function reportTelemetryError(error: unknown) {
-  Observe.reportError(sanitizedDiagnosticError(error));
+  try { Observe.reportError(sanitizedDiagnosticError(error)); } catch { /* Best effort. */ }
 }
 
 export function setTelemetryRoute(route: string) {

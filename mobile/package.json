@@ -48,7 +48,7 @@
     "preios": "npm run sync:web",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test:contracts": "node --test modules/menocompass-security/tests/security-contract.test.cjs modules/menocompass-healthkit/tests/healthkit-contract.test.cjs modules/menocompass-shortcuts/tests/app-shortcuts-contract.test.cjs widgets/widgets.test.mjs",
+    "test:contracts": "node --test tests/commerce-tracking.test.cjs modules/menocompass-security/tests/security-contract.test.cjs modules/menocompass-healthkit/tests/healthkit-contract.test.cjs modules/menocompass-shortcuts/tests/app-shortcuts-contract.test.cjs widgets/widgets.test.mjs",
     "typecheck": "tsc --noEmit",
     "export:web": "expo export --platform web",
     "ota:preview:ios": "npx eas-cli@latest env:exec preview \"node scripts/publish-update.cjs --channel preview --environment preview\"",

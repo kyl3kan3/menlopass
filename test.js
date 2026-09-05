@@ -86,7 +86,7 @@ async function injectState(context,state){
     const supportCopy=fs.readFileSync(path.join(__dirname,'support.html'),'utf8');
     const privacyCopy=fs.readFileSync(path.join(__dirname,'privacy.html'),'utf8');
     check('inactive iOS entitlement is gated before WebView',nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")>=0&&nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")<nativeApp.lastIndexOf('<WebView'));
-    check('RevenueCat paywall cannot show a close button',nativeApp.includes('displayCloseButton: false'));
+    check('RevenueCat paywall cannot show a close button',fs.readFileSync(path.join(__dirname,'mobile','TrackedPaywall.native.tsx'),'utf8').includes('displayCloseButton: false'));
     check('zero-price App Store offers fail closed',nativeApp.includes('introPrice?.price === 0'));
     check('native persistence refreshes the active snapshot',nativeApp.includes('setPersistedState(canonical)')&&nativeApp.includes('setExperienceReady(persistedStateIsOnboarded(canonical))'));
     check('store copy discloses no free tier or trial',storeDescription.includes('There is no free tier or free trial.'));
