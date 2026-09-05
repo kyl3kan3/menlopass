@@ -735,6 +735,8 @@ function toolsLibraryBody(){
 }
 
 function sheetContent(id){
+  if(id==='support'||id.startsWith('support:')) return supportSheet(id.split(':')[1]);
+  if(id==='appointment-brief') return briefSheet();
   if(id.startsWith('learn:')) return learnSheet(id.slice(6));
   if(id.startsWith('tool:'))  return toolSheet(id.slice(5));
   if(id==='redflags') return learnSheet('redflags');
@@ -1156,6 +1158,7 @@ function reportSheet(days){
   ${healthKitReportSection()}
   ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.ended?' · stopped '+esc(fmtDay(m.ended)):''}${medicationStatus(m)==='archived'?' · archived':''}${m.stopReason?' · '+esc(m.stopReason):''}${m.due&&medicationStatus(m)==='active'?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
   ${treatmentFollowUpReport(days)}
+  ${savedBrief().concerns.length?`<div class="card"><h4>My appointment brief</h4>${briefSummaryMarkup(savedBrief())}</div>`:''}
   ${appointmentReportSection()}
   ${labs.length?`<div class="card"><h4>Recent lab results</h4>${labs.map(x=>`<div class="kv"><span>${esc(x.name)} · ${fmtDay(x.date)}</span><b>${esc(x.value+(x.unit?' '+x.unit:''))}</b></div>`).join('')}</div>`:''}
   ${questionnaires.length?`<div class="card"><h4>Questionnaire scores</h4>
@@ -1989,6 +1992,7 @@ function viewHome(){
     <div class="dc-hero"><h1>How are you today?</h1><p>A 30-second check-in helps you understand what changed and what to do next.</p></div>
     <button class="jc-primary dc-checkin" data-act="start-checkin">${PULSE_IC.check}<span>${esc(cta)}</span></button>
     ${dcProgress(count)}
+    ${supportHomeCard()}
     ${quickToolsMarkup('today')}
     ${DB.trigger&&DB.trigger.active?triggerBanner():''}
     ${DB.profile.onboardingDeferred?`<button class="jc-open-row jc-setup" data-act="finish-setup"><span>${TWILIGHT_IC.cycle}</span><span><b>Finish your context</b><small>Personalize guidance and the symptoms you watch.</small></span>${IC.chev}</button>`:''}
@@ -2022,6 +2026,7 @@ function viewJourney(){
     ${jcHeading('Your journey','Symptoms and treatment changes, in one story.')}
     <button class="jc-primary" data-act="start-checkin">${PULSE_IC.check}<span>${state.key==='confirmed'?'Edit today':state.key==='draft'?'Finish check-in':'Log today'}</span></button>
     <div class="jc-timeline">${timeline}</div>
+    ${weeklyStoryMarkup()}
     ${comparisonPanel(count)}
   </div>`;
 }
@@ -2099,8 +2104,10 @@ function viewCare(){
     ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
     <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'No treatments added yet. Add what you take so changes can appear in your journey.'}</p>`}</div></section>
     ${treatmentFollowUpSection(followUps)}
+    ${appointmentCompanionCard()}
     <section class="jc-context jc-appointment"><span>Appointments</span><h2>${count<7?'Early summary':'Your report is taking shape'}</h2><p>Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
     ${appointmentPlannerSection()}
+    ${visitReminderMarkup()}
     <section class="jc-section"><div class="jc-section-head"><span>Your treatment plan</span>${meds.length?'<button data-act="med-add">Add</button>':''}</div>
       <div class="jc-treatment-list">${activeMeds.length?activeMeds.map(treatmentRow).join(''):'<p class="jc-empty-line">No active treatments.</p>'}${stoppedMeds.length?`<div class="jc-treatment-subhead">Stopped</div>${stoppedMeds.map(treatmentRow).join('')}`:''}${archivedMeds.length?`<details class="jc-treatment-archive"><summary>${archivedMeds.length} archived ${archivedMeds.length===1?'treatment':'treatments'}</summary>${archivedMeds.map(treatmentRow).join('')}</details>`:''}</div>
     </section>
@@ -2282,6 +2289,7 @@ window.addEventListener('menocompass-pro-changed',()=>{
 
 function handleAction(el, ev){
   const a = el.dataset.act;
+  if(companionAction(el)) return;
   const e = () => entry(curDate);
   switch(a){
     case 'tab': {

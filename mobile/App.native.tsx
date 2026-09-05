@@ -64,6 +64,7 @@ const legacyPersistedStateFile = new File(Paths.document, 'menocompass-state.jso
 const supportedNativeExports = {
   'application/json': { extension: '.json', uti: 'public.json' },
   'text/csv': { extension: '.csv', uti: 'public.comma-separated-values-text' },
+  'text/calendar': { extension: '.ics', uti: 'com.apple.ical.ics' },
 } as const;
 
 type NativeExportMime = keyof typeof supportedNativeExports;

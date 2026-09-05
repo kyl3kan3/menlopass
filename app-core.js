@@ -77,7 +77,7 @@ function postNativeEvent(type, attributes){
 }
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 7;
+const SCHEMA_V = 8;
 const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
 const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
@@ -93,7 +93,7 @@ function blankDB(){
       pinnedSymptoms:[...DEFAULT_PINNED_SYMPTOMS]
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
-    appointments:{questions:[],plans:[]}, healthKit:null,
+    appointments:{questions:[],plans:[],brief:{concerns:[],goal:'',date:''}}, support:[], healthKit:null,
     meta:{created:todayISO(), lastOpen:todayISO()}
   };
 }
@@ -195,6 +195,7 @@ function migrate(d){
     out.labs=d.labs.map(safeLab).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,200);
   }
   out.appointments=safeAppointments(d.appointments);
+  out.support=Array.isArray(d.support)?d.support.slice(-200).filter(item=>plainRecord(item)&&safePastDate(item.date)&&['sleep','overwhelmed','hot','fog'].includes(item.kind)&&['yes','no','unsure'].includes(item.helped)).map(item=>({date:item.date,kind:item.kind,helped:item.helped})):[];
   out.healthKit=safeHealthKitSummary(d.healthKit);
   out.trigger=safeTrigger(d.trigger);
   if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
@@ -362,8 +363,17 @@ function safeLab(raw){
   return {id:safeText(raw.id,40)||'lab-'+date+'-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20),name,value,date,unit:safeText(raw.unit,30)};
 }
 function safeAppointments(raw){
-  const out={questions:[],plans:[]};
+  const out={questions:[],plans:[],brief:{concerns:[],goal:'',date:''}};
   if(!plainRecord(raw)) return out;
+  if(plainRecord(raw.brief)){
+    const seen=new Set();
+    out.brief.concerns=(Array.isArray(raw.brief.concerns)?raw.brief.concerns:[]).filter(item=>{
+      if(!plainRecord(item)||!PINNABLE_SYMPTOMS.includes(item.key)||seen.has(item.key)) return false;
+      seen.add(item.key); return true;
+    }).slice(0,3).map(item=>({key:item.key,impact:safeText(item.impact,500).trim()}));
+    out.brief.goal=safeText(raw.brief.goal,500).trim();
+    out.brief.date=typeof raw.brief.date==='string'&&validISODate(raw.brief.date)?raw.brief.date:'';
+  }
   if(Array.isArray(raw.questions)){
     raw.questions.slice(0,100).forEach((item,index)=>{
       if(!plainRecord(item)) return;

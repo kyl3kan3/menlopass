@@ -181,7 +181,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v10'));
+    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v11'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -397,7 +397,7 @@ async function injectState(context,state){
     await page.getByLabel('Backup password · at least 10 characters').fill('private-passphrase');
     await page.getByLabel('Confirm password').fill('private-passphrase');
     await page.getByRole('button',{name:'Save encrypted backup'}).click();
-    check('encrypted export passes the current canonical record to native code',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='export-encrypted-backup'&&message.password==='private-passphrase'&&JSON.parse(message.state).v===7)));
+    check('encrypted export passes the current canonical record to native code',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='export-encrypted-backup'&&message.password==='private-passphrase'&&JSON.parse(message.state).v===8)));
     await page.getByRole('button',{name:'Close Export & import'}).click();
     check('selected daily pulse appearance is coherent',await page.getByText('Guided daily pulse',{exact:true}).isVisible()&&await page.evaluate(()=>{DB.profile.theme='light';applyTheme();return document.documentElement.getAttribute('data-theme')==='dark'&&document.querySelector('meta[name="theme-color"]').content==='#071416';}));
     check('Profile exposes reset and deletion controls',await page.getByRole('button',{name:'Reset onboarding'}).isVisible()&&await page.getByRole('button',{name:'Delete app profile & data'}).isVisible());
@@ -488,7 +488,7 @@ async function injectState(context,state){
       };
     });
     check('baseline and follow-up answers survive strict backup validation',
-      storedFollowUp.version===7
+      storedFollowUp.version===8
       &&JSON.stringify(storedFollowUp.targets)===JSON.stringify(['hf','fog'])
       &&storedFollowUp.baselineStart===isoOffset(-49)
       &&storedFollowUp.baselineHotFlashDays===7
@@ -541,7 +541,7 @@ async function injectState(context,state){
       return {version:clean.v,question:clean.appointments.questions[0],plan:clean.appointments.plans[0],med:clean.medications[0],scheduled:scheduledMeds(todayISO()).length};
     });
     check('appointment plans and lifecycle survive strict backup validation',
-      planningState.version===7
+      planningState.version===8
       &&planningState.question.text==='Should we change the dose based on my tracked symptoms?'
       &&planningState.plan.summary==='Keep the current dose and review after the lab result.'
       &&planningState.plan.actions.length===2&&planningState.plan.actions[0].done===true
@@ -588,7 +588,7 @@ async function injectState(context,state){
     await injectState(migrationContext,{v:4,profile:{name:'Legacy',birthYear:1970,region:'us',units:'metric',onboarded:true},entries:{[isoOffset(-2)]:{hf:4,sym:{fog:2},act:{},nut:{}}},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-3)}});
     const migrationPage=await migrationContext.newPage(); monitor(migrationPage,'migration',baseUrl); await migrationPage.goto(baseUrl+'/index.html');
     const migration=await migrationPage.evaluate(()=>({version:DB.v,count:entryDates().length,snapshot:!!confirmedEntry(Object.keys(DB.entries)[0]),pins:DB.profile.pinnedSymptoms.length}));
-    check('v4 logs migrate to v7 confirmed snapshots',migration.version===7&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
+    check('v4 logs migrate to v8 confirmed snapshots',migration.version===8&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
 
     console.log('\n== Responsive and runtime quality ==');
     const desktopContext=await browser.newContext({viewport:{width:1280,height:900}}); await injectState(desktopContext,seededState(16));
@@ -599,6 +599,7 @@ async function injectState(context,state){
     await seededPage.screenshot({path:path.join(TEST_RESULTS,'journey-selected-flow.png')});
     await desktopPage.screenshot({path:path.join(TEST_RESULTS,'journey-desktop.png')});
 
+    await require('./test-companion')({browser,baseUrl,check,monitor,seededState,testResults:TEST_RESULTS});
     await onboardingContext.close(); await resetContext.close(); await deleteContext.close(); await seededContext.close(); await followupContext.close(); await planningContext.close(); await normalizedContext.close(); await sparseContext.close(); await prefillContext.close(); await migrationContext.close(); await desktopContext.close();
     check('no page, console, request, or HTTP errors',runtimeErrors.length===0,runtimeErrors.join(' | '));
   } catch(error){

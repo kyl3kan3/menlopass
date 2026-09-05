@@ -30,6 +30,7 @@ content-a.js               symptom library, treatment landscape, supplements
 content-b.js               staging, diet, exercise, weight, skin, sleep, mind,
                            sexual health, screening, red flags, sources
 app-core.js                storage, data model, charts, insights engine
+app-companion.js           weekly stories, immediate support, appointment briefs
 app-views.js               views, tools, router
 manifest.webmanifest       PWA metadata
 sw.js                      offline shell cache
@@ -52,6 +53,27 @@ dist/                      generated; deploy this directory, do not edit it
 ```
 
 ## Running it
+
+### Companion features
+
+- **Today → I’m struggling right now:** short sleep, overwhelm, hot-flash, and brain-fog
+  support paths. Optional feedback builds a local list of helpful experiences; it can be cleared.
+  Self-care screens link to NHS sources. This does not constitute independent clinician review
+  of the new screens or a claim that the comfort tools treat menopause symptoms.
+- **Journey → Your weekly story:** compares the latest two calendar weeks using confirmed
+  snapshots, groups lower/higher/steady symptoms, shows treatment overlap and supporting logs,
+  and saves a dated recap into appointment questions. Each symptom requires four answers in
+  each week; missing values are never treated as zero.
+- **Care → Help me explain this:** select up to three concerns, describe everyday impact,
+  preview and save an opening statement with observations and suggested questions. The saved
+  brief is included in the printable report. Existing after-visit plans track agreed actions.
+  Appointment and follow-up dates can export a generic `.ics` event with a one-day reminder;
+  users must import it and confirm the time in their calendar. Native calendar sharing still
+  requires real-device verification.
+
+Schema v8 adds the brief and bounded support feedback to local persistence and JSON/encrypted
+backups; earlier backups migrate automatically. No health data is sent to a service by these
+features. `test-companion.js` is run by `npm test` alongside the existing regression suite.
 
 Install the pinned development dependency, install its Chromium build once, then build and test:
 
@@ -139,8 +161,8 @@ npm run test:e2e      # test an already-built dist/
 npm test              # rebuild, then test
 ```
 
-`build.py` inlines `styles.css` and the four JS files, in this order:
-`content-a.js`, `content-b.js`, `app-core.js`, `app-views.js`. They share globals, so the order
+`build.py` inlines `styles.css` and the five JS files, in this order:
+`content-a.js`, `content-b.js`, `app-core.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
 matters. It writes identical HTML to the tracked root `index.html` convenience mirror and to
 `dist/index.html`; neither generated file should be edited manually.
 
@@ -156,7 +178,7 @@ local-storage copy:
 
 ```js
 {
-  v: 7,
+  v: 8,
   profile:  { name, birthYear, region, units,
               uterus:   'intact'|'hyst'|'ablation'|'unknown',
               ovaries:  'kept'|'one'|'both'|'unknown',
@@ -171,7 +193,9 @@ local-storage copy:
                  changes:[{date,label,targets,baseline,followUps}]} ],
   labs:      [ {id,name,date,value,unit} ],
   appointments:{ questions:[{id,text,asked,askedAt}],
-                 plans:[{id,date,summary,actions:[{id,text,done}],nextVisit}] },
+                 plans:[{id,date,summary,actions:[{id,text,done}],nextVisit}],
+                 brief:{concerns:[{key,impact}],goal,date} },
+  support:[{date,kind:'sleep'|'overwhelmed'|'hot'|'fog',helped:'yes'|'no'|'unsure'}],
   healthKit:{ readOnly,generatedAt,lookbackDays,steps,sleep,bodyWeight,warnings } | null,
   screening:{ dxa:{last}, mammo:{last,intervalYears}, … },
   scores:   [ {date, type:'phq9'|'gad7', score, band} ],
