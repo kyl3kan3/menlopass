@@ -1499,3 +1499,5 @@ input[type=date],input[type=time]{display:block;width:100%}
 @media(max-width:359px){.jc-pin-grid{grid-template-columns:1fr}}
 
 .jc-feeling-field{min-width:0;margin:0 0 28px;padding:0;border:0}.jc-feeling-field legend{margin-bottom:12px;font-weight:650}.jc-feeling-field .jc-pin-grid button{min-height:48px}.jc-feeling-field .jc-inline-action{margin-top:0}
+
+.mc-question-card{min-width:0;margin:16px 0;padding:14px;border:1px solid var(--jc-line);border-radius:12px}.mc-question-include{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:14px;font-weight:650}.mc-question-include input{width:20px;height:20px;accent-color:var(--jc-amber);flex-shrink:0}.mc-question-card textarea{min-height:140px;line-height:1.5}.mc-question-card p,.mc-saved-questions p{margin:10px 0 0;color:var(--jc-muted);font-size:13px;line-height:1.5}.mc-saved-questions li{margin:14px 0}.mc-question-editor{margin-bottom:26px}@media print{.mc-saved-questions p{color:#444}.mc-saved-questions li{break-inside:avoid}}

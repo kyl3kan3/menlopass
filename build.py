@@ -16,7 +16,7 @@ import shutil
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
-JS_ORDER = ("content-a.js", "content-b.js", "app-core.js", "app-companion.js", "app-views.js")
+JS_ORDER = ("content-a.js", "content-b.js", "app-core.js", "appointment-questions.js", "app-companion.js", "app-views.js")
 PWA_FILES = ("manifest.webmanifest", "sw.js")
 PUBLIC_PAGES = ("get-app.html", "privacy.html", "support.html", "terms.html")
 ICONS = (

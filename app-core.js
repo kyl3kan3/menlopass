@@ -373,6 +373,14 @@ function safeAppointments(raw){
       if(!plainRecord(item)||!PINNABLE_SYMPTOMS.includes(item.key)||seen.has(item.key)) return false;
       seen.add(item.key); return true;
     }).slice(0,3).map(item=>({key:item.key,impact:safeText(item.impact,500).trim()}));
+    if(Array.isArray(raw.brief.questions)){
+      const questionIds=new Set();
+      out.brief.questions=raw.brief.questions.slice(0,10).filter(item=>{
+        if(!plainRecord(item)||!/^[a-z0-9-]{1,60}$/.test(item.id)||questionIds.has(item.id)||!safeText(item.text,1000).trim()) return false;
+        questionIds.add(item.id); return true;
+      }).map(item=>({id:item.id,text:safeText(item.text,1000).trim(),reason:safeText(item.reason,1000).trim(),selected:item.selected!==false}));
+      out.brief.generatedAt=safePastDate(raw.brief.generatedAt);
+    }
     out.brief.goal=safeText(raw.brief.goal,500).trim();
     out.brief.date=typeof raw.brief.date==='string'&&validISODate(raw.brief.date)?raw.brief.date:'';
   }

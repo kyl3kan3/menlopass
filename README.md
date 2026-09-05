@@ -30,6 +30,7 @@ content-a.js               symptom library, treatment landscape, supplements
 content-b.js               staging, diet, exercise, weight, skin, sleep, mind,
                            sexual health, screening, red flags, sources
 app-core.js                storage, data model, charts, insights engine
+appointment-questions.js   local, context-based appointment question suggestions
 app-companion.js           weekly stories, immediate support, appointment briefs
 app-views.js               views, tools, router
 manifest.webmanifest       PWA metadata
@@ -162,7 +163,7 @@ npm test              # rebuild, then test
 ```
 
 `build.py` inlines `styles.css` and the five JS files, in this order:
-`content-a.js`, `content-b.js`, `app-core.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
+`content-a.js`, `content-b.js`, `app-core.js`, `appointment-questions.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
 matters. It writes identical HTML to the tracked root `index.html` convenience mirror and to
 `dist/index.html`; neither generated file should be edited manually.
 
@@ -288,3 +289,9 @@ The app provides general health education compiled from published clinical guide
 not diagnose, treat or prescribe. It is not a medical device and has not been reviewed by any
 regulator. If you plan to distribute it publicly, get the disclaimer and privacy language
 reviewed for your jurisdiction.
+
+### Appointment question suggestions
+
+The brief suggests discussion questions from selected concerns, sufficiently covered confirmed symptom comparisons, recorded treatment changes and follow-up answers, and relevant profile context. Each suggestion includes its reason. These are prompts to discuss with a clinician, not diagnoses or treatment recommendations; the feature makes no network requests. Users can edit or exclude suggestions, and those choices are preserved in the local saved brief, backups, and appointment report. Refreshing suggestions is explicit. The discussion framework links to NICE shared decision-making and menopause guidance and the NHS treatment overview.
+
+Run `node --test test-appointment-questions.js` for question-selection and provenance checks. `npm test` also covers editing, exclusion, reopening, backup validation, and report output. `PLAYWRIGHT_CHANNEL=chrome` can select installed Chrome for local browser checks; `PLAYWRIGHT_BROWSER=webkit node test-mobile-ux.js` checks the phone forms and layouts with Playwright WebKit.

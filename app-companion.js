@@ -6,7 +6,7 @@ const SUPPORT_OPTIONS = {
   fog:{label:'Brain fog',title:'Make the next step smaller',steps:['Pause and choose just one thing to do next.','Write yourself a short reminder, so you do not have to hold it all in your head.','Give yourself permission to take a break.'],guide:'mind'}
 };
 let supportFeedback=null;
-let briefDraft=null, briefStep=1;
+let briefDraft=null, briefStep=1, briefQuestionContext='';
 
 function weeklyStoryData(keys){
   const w=weeklyPatternWindows();
@@ -60,23 +60,51 @@ function supportSheet(kind){
     <button class="jc-inline-action" data-act="sheet" data-s="learn:${option.guide}">Explore related guidance</button><p class="mc-muted">${kind==='fog'?'Practical organization prompts. For broader self-care, see':'Self-care guidance adapted from'} <a href="${source}" target="_blank" rel="noopener noreferrer">NHS guidance</a>. Comfort measures do not replace treatment. If symptoms persist or disrupt your life, discuss them with your clinician.</p><button class="jc-inline-action" data-act="sheet" data-s="redflags">When to get medical help</button></div>`};
 }
 function savedBrief(){ return appointmentData().brief||{concerns:[],goal:'',date:''}; }
-function beginBrief(){ briefDraft=JSON.parse(JSON.stringify(savedBrief())); briefStep=1; openSheet('appointment-brief'); }
+function briefContextKey(brief){ return JSON.stringify([brief.concerns,brief.goal]); }
+function beginBrief(){ briefDraft=JSON.parse(JSON.stringify(savedBrief())); briefQuestionContext=briefContextKey(briefDraft); briefStep=1; openSheet('appointment-brief'); }
 function captureBriefFields(){
   if(!briefDraft) return;
   briefDraft.concerns.forEach(c=>{const input=document.getElementById('brief-impact-'+c.key); if(input) c.impact=input.value.slice(0,500).trim();});
   const goal=document.getElementById('brief-goal'), date=document.getElementById('brief-date');
   if(goal) briefDraft.goal=goal.value.slice(0,500).trim();
   if(date) briefDraft.date=date.value;
+  (briefDraft.questions||[]).forEach(question=>{
+    const text=document.getElementById('brief-question-'+question.id), include=document.getElementById('brief-include-'+question.id);
+    if(text) question.text=text.value.slice(0,1000).trim();
+    if(include) question.selected=include.checked;
+  });
 }
 function briefOpening(brief){
   if(!brief.concerns.length) return '';
   const concerns=brief.concerns.map(c=>symptomName(c.key)+(c.impact?' — '+c.impact:'')).join('; ');
   return 'I would like to talk about '+concerns+'.'+(brief.goal?' What I hope to get from this visit: '+brief.goal:'');
 }
-function briefQuestion(c){ return 'What could be contributing to my '+symptomName(c.key).toLowerCase()+', and what options or next steps should we discuss?'; }
-function briefSummaryMarkup(brief){
+function generateBriefQuestions(brief){
+  const story=weeklyStoryData(PINNABLE_SYMPTOMS), date=todayISO();
+  const changes=(DB.medications||[]).flatMap(med=>(med.changes||[]).filter(change=>change.date>=addDays(date,-90)&&change.date<=date).map(change=>({medication:med.name,...change}))).sort((a,b)=>b.date.localeCompare(a.date));
+  return buildAppointmentQuestions(brief,{
+    profile:DB.profile,
+    names:Object.fromEntries(PINNABLE_SYMPTOMS.map(key=>[key,symptomName(key)])),
+    medications:(DB.medications||[]).filter(med=>medicationStatus(med)==='active'),
+    changes,
+    observations:story.rows.map(row=>({key:row.key,ready:row.ready,direction:row.direction,before:row.before,after:row.after,priorCount:row.prior.length,recentCount:row.recent.length})),
+    windowLabel:fmtDay(story.windows.prior[0])+'–'+fmtDay(story.windows.prior[6])+' compared with '+fmtDay(story.windows.recent[0])+'–'+fmtDay(story.windows.recent[6])
+  });
+}
+function refreshBriefQuestions(){
+  briefDraft.questions=generateBriefQuestions(briefDraft); briefDraft.generatedAt=todayISO(); briefQuestionContext=briefContextKey(briefDraft);
+}
+function briefQuestionSources(){
+  return '<details class="mc-evidence"><summary>About these suggestions</summary><p>Questions connect your concerns, confirmed logs, and recorded treatment history with topics worth discussing. They cannot diagnose the cause or decide which treatment is right for you. Review and edit anything that does not fit.</p><p>Discussion framework: <a href="https://www.nice.org.uk/guidance/ng197/chapter/recommendations" target="_blank" rel="noopener noreferrer">NICE shared decision making</a>. Menopause context: <a href="https://www.nice.org.uk/guidance/ng23/chapter/Recommendations" target="_blank" rel="noopener noreferrer">NICE menopause guidance</a> and <a href="https://www.nhs.uk/conditions/menopause-and-perimenopause/treatment/" target="_blank" rel="noopener noreferrer">NHS treatment overview</a>.</p></details>';
+}
+function briefQuestionsEditor(brief){
+  return '<section class="mc-question-editor"><h3>Questions you might not think to ask</h3><p>Use the suggestions that fit. Edit the wording, or untick a question to leave it out of your saved brief.</p>'+(brief.questions||[]).map((question,index)=>'<article class="mc-question-card"><label class="mc-question-include" for="brief-include-'+esc(question.id)+'"><input type="checkbox" id="brief-include-'+esc(question.id)+'"'+(question.selected!==false?' checked':'')+'>Include question '+(index+1)+'</label><label class="sr-only" for="brief-question-'+esc(question.id)+'">Question '+(index+1)+'</label><textarea id="brief-question-'+esc(question.id)+'" maxlength="1000">'+esc(question.text)+'</textarea><p><b>Why this may help:</b> '+esc(question.reason)+'</p></article>').join('')+'<button class="jc-inline-action" data-act="brief-refresh">Refresh suggestions from my latest record</button><p class="mc-muted">Refreshing replaces question edits. Your answers and suggestions stay on this device.</p>'+briefQuestionSources()+'<button class="jc-inline-action" data-act="sheet" data-s="redflags">When to seek medical help</button></section>';
+}
+function briefSummaryMarkup(brief,editing){
   const story=weeklyStoryData(brief.concerns.map(c=>c.key));
-  return `<div class="mc-brief-summary"><h3>How I’d like to start</h3><p class="mc-opening">${esc(briefOpening(brief))}</p>${brief.date?`<p>Appointment: ${esc(fmtDay(brief.date))}</p>`:''}<h3>Relevant observations</h3>${story.rows.map(r=>`<p>${esc(storySentence(r))}</p>`).join('')}<p class="mc-muted">Previous week ${esc(fmtDay(story.windows.prior[0]))}–${esc(fmtDay(story.windows.prior[6]))}; recent week ${esc(fmtDay(story.windows.recent[0]))}–${esc(fmtDay(story.windows.recent[6]))}. Confirmed self-reports; these comparisons do not establish a cause.</p><h3>Questions to consider</h3><ul>${brief.concerns.map(c=>`<li>${esc(briefQuestion(c))}</li>`).join('')}</ul></div>`;
+  const questions=(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(question=>question.selected!==false&&question.text);
+  const questionMarkup=editing?'':'<h3>Questions to bring</h3>'+(questions.length?'<ol class="mc-saved-questions">'+questions.map(question=>'<li><b>'+esc(question.text)+'</b><p>'+esc(question.reason)+'</p></li>').join('')+'</ol>':'<p>No questions selected.</p>');
+  return '<div class="mc-brief-summary">'+questionMarkup+'<h3>How I’d like to start</h3><p class="mc-opening">'+esc(briefOpening(brief))+'</p>'+(brief.date?'<p>Appointment: '+esc(fmtDay(brief.date))+'</p>':'')+'<h3>Relevant observations</h3>'+story.rows.map(r=>'<p>'+esc(storySentence(r))+'</p>').join('')+'<p class="mc-muted">Previous week '+esc(fmtDay(story.windows.prior[0]))+'–'+esc(fmtDay(story.windows.prior[6]))+'; recent week '+esc(fmtDay(story.windows.recent[0]))+'–'+esc(fmtDay(story.windows.recent[6]))+'. Confirmed self-reports; these comparisons do not establish a cause.</p></div>';
 }
 function briefSheet(){
   if(!briefDraft) briefDraft=JSON.parse(JSON.stringify(savedBrief()));
@@ -84,12 +112,12 @@ function briefSheet(){
   let body='';
   if(briefStep===1) body=`<h3>Choose up to three concerns</h3><p>Start with what matters most to you. Your selection order sets the order in your brief.</p><div class="mc-concerns">${PINNABLE_SYMPTOMS.map(key=>`<button class="btn ghost" data-act="brief-toggle" data-key="${key}" aria-pressed="${brief.concerns.some(c=>c.key===key)}">${esc(symptomName(key))}</button>`).join('')}</div><button class="jc-primary" data-act="brief-next"${brief.concerns.length?'':' disabled'}>Next: everyday impact</button>`;
   if(briefStep===2) body=`<h3>Help your clinician understand the impact</h3><p>A concrete example is enough. These fields are optional.</p>${brief.concerns.map(c=>`<label class="fl" for="brief-impact-${c.key}">${esc(symptomName(c.key))} — how does it affect your day?</label><textarea id="brief-impact-${c.key}" maxlength="500" placeholder="For example: I lose my place during meetings.">${esc(c.impact)}</textarea>`).join('')}<label class="fl" for="brief-goal">What would make this visit useful?</label><textarea id="brief-goal" maxlength="500" placeholder="For example: agree on a plan for sleep.">${esc(brief.goal)}</textarea><label class="fl" for="brief-date">Appointment date (optional)</label><input type="date" id="brief-date" value="${esc(brief.date)}"><div class="btn-row split"><button class="btn ghost" data-act="brief-back">Back</button><button class="btn primary" data-act="brief-next">Preview my brief</button></div>`;
-  if(briefStep===3) body=`${briefSummaryMarkup(brief)}<p class="mc-muted">Review your wording before saving. The brief will be included in your appointment report.</p><div class="btn-row split"><button class="btn ghost" data-act="brief-back">Edit impact</button><button class="btn primary" data-act="brief-save">Save appointment brief</button></div>`;
+  if(briefStep===3) body=`${briefQuestionsEditor(brief)}${briefSummaryMarkup(brief,true)}<p class="mc-muted">Review your wording before saving. The brief will be included in your appointment report.</p><div class="btn-row split"><button class="btn ghost" data-act="brief-back">Edit impact</button><button class="btn primary" data-act="brief-save">Save appointment brief</button></div>`;
   return {title:'Help me explain this',body:`<div class="mc-brief"><p class="mc-eyebrow">Step ${briefStep} of 3 · ${['Your concerns','Your everyday life','Your brief'][briefStep-1]}</p>${body}</div>`};
 }
 function appointmentCompanionCard(){
   const brief=savedBrief();
-  return `<section class="mc-card mc-appointment"><span class="mc-eyebrow">Your appointment companion</span><h2>Help me explain this</h2><p>${brief.concerns.length?esc(brief.concerns.map(c=>symptomName(c.key)).join(' · ')):'Turn your three biggest concerns into words you can bring to your visit.'}</p><button class="jc-secondary" data-act="brief-start">${brief.concerns.length?'Edit my appointment brief':'Prepare my appointment brief'}</button>${brief.concerns.length?`<details class="mc-evidence"><summary>Read my saved brief</summary>${briefSummaryMarkup(brief)}</details><button class="jc-inline-action" data-act="brief-clear">Clear appointment brief</button>`:''}${brief.date?calendarButton(brief.date):''}<p class="mc-muted">After your visit, use After-visit plans below to record agreed actions and check them off.</p></section>`;
+  return `<section class="mc-card mc-appointment"><span class="mc-eyebrow">Your appointment companion</span><h2>Help me explain this</h2><p>${brief.concerns.length?esc(brief.concerns.map(c=>symptomName(c.key)).join(' · ')):'Find useful questions to ask, connect symptoms with your treatment history, and leave with a clearer plan.'}</p><button class="jc-secondary" data-act="brief-start">${brief.concerns.length?'Edit my appointment brief':'Prepare my appointment brief'}</button>${brief.concerns.length?`<details class="mc-evidence"><summary>Read my saved brief</summary>${briefSummaryMarkup(brief)}</details><button class="jc-inline-action" data-act="brief-clear">Clear appointment brief</button>`:''}${brief.date?calendarButton(brief.date):''}<p class="mc-muted">After your visit, use After-visit plans below to record agreed actions and check them off.</p></section>`;
 }
 function calendarButton(date){
   return `<button class="jc-inline-action" data-act="appointment-calendar" data-date="${esc(date)}">Add ${esc(fmtDay(date))} to calendar</button><p class="mc-muted">Exports a generic “Appointment” calendar event at 9 am with a reminder one day before. Adjust the time and confirm it in your calendar. No health details are included.</p>`;
@@ -137,9 +165,12 @@ function companionAction(el){
   }
   if(act==='brief-next'||act==='brief-back'){
     captureBriefFields();if(!briefDraft||!briefDraft.concerns.length)return true;
+    if(act==='brief-next'&&briefStep===2&&(!Array.isArray(briefDraft.questions)||briefQuestionContext!==briefContextKey(briefDraft)))refreshBriefQuestions();
     briefStep=Math.max(1,Math.min(3,briefStep+(act==='brief-next'?1:-1)));renderSheet(true);return true;
   }
+  if(act==='brief-refresh'){captureBriefFields();refreshBriefQuestions();renderSheet(false);return true;}
   if(act==='brief-save'){
+    captureBriefFields();
     if(!briefDraft||!briefDraft.concerns.length)return true;
     appointmentData().brief=safeAppointments({brief:briefDraft}).brief;save(true);closeSheet();render(true);toast('Appointment brief saved');return true;
   }

@@ -1506,6 +1506,10 @@ function waistTool(){
 /* ---------- animated tool hooks ---------- */
 let breathTimer=null, pmrTimer=null;
 function runSheetHooks(id){
+  if(id==='appointment-brief') document.querySelectorAll('.mc-question-card textarea').forEach(input=>{
+    const fit=()=>{input.style.height='auto';input.style.height=(input.scrollHeight+2)+'px';};
+    fit(); input.addEventListener('input',fit);
+  });
   if(id!=='tool:breath' && breathTimer){ clearInterval(breathTimer); breathTimer=null; }
   if(id!=='tool:pmr' && pmrTimer){ clearInterval(pmrTimer); pmrTimer=null; }
 }

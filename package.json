@@ -5,7 +5,7 @@
   "description": "Private, offline-capable menopause tracker and reference PWA",
   "scripts": {
     "build": "python build.py",
-    "test": "npm run build && node test.js && node test-mobile-ux.js && npm --prefix mobile run test:contracts && npm --prefix mobile/modules/menocompass-tiktok-business test",
+    "test": "npm run build && node --test test-appointment-questions.js && node test.js && node test-mobile-ux.js && npm --prefix mobile run test:contracts && npm --prefix mobile/modules/menocompass-tiktok-business test",
     "test:e2e": "node test.js",
     "test:install": "playwright install chromium",
     "screenshots:store": "node mobile/store-assets/generate-screenshots.js",
