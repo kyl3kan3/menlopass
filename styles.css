@@ -70,13 +70,13 @@ html[data-theme="dark"] {
 }
 
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
 html.native-app,html.native-app body{touch-action:manipulation}
 html.native-ios-tabs nav.tabs{display:none!important}
 body{
   margin:0; font-family:var(--ff); background:var(--bg); color:var(--text);
   font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
-  overscroll-behavior-y:none;
+  overscroll-behavior-y:none;overflow-x:clip;
 }
 h1,h2,h3,h4{line-height:1.25; margin:0 0 .4em; font-weight:650; letter-spacing:-.01em}
 h1{font-size:1.55rem} h2{font-size:1.2rem} h3{font-size:1.02rem} h4{font-size:.94rem}
@@ -159,14 +159,15 @@ html[data-theme="dark"] .btn.primary{color:#1b1119}
 
 /* ---------- form ---------- */
 label.fl{display:block; font-weight:600; font-size:.86rem; margin:0 0 5px}
-input[type=text],input[type=number],input[type=date],select,textarea{
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=search],select,textarea{
   width:100%; padding:11px 12px; border:1px solid var(--border-strong); border-radius:var(--r-sm);
   background:var(--surface); color:var(--text); font-family:inherit; font-size:1rem;
 }
 textarea{min-height:76px; resize:vertical}
 .field{margin-bottom:14px}
-.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+.grid3{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+.grid2>*,.grid3>*{min-width:0}
 .inline-unit{display:flex;gap:8px;align-items:center}
 .inline-unit select{width:auto;flex:0 0 auto}
 
@@ -622,14 +623,14 @@ html[data-theme="dark"] .btn.primary{color:var(--button-label)}
 .btn-row{gap:8px}
 
 label.fl{margin:0 0 7px;font-size:13px;font-weight:600;color:var(--text)}
-input[type=text],input[type=number],input[type=date],select,textarea{
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=search],select,textarea{
   min-height:46px;
   padding:11px 12px;
   border:1px solid var(--border-strong);
   border-radius:10px;
   background:var(--surface);
   color:var(--text);
-  font:14px/1.3 var(--ff);
+  font:16px/1.3 var(--ff);
   accent-color:var(--accent);
 }
 textarea{min-height:92px;line-height:1.45}
@@ -1484,3 +1485,17 @@ nav.tabs button[aria-current="page"]::after{width:5px;height:5px;bottom:5px;bord
 .mc-brief button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:359px){.mc-card{padding:18px 12px}.mc-support-grid{grid-template-columns:1fr}.mc-evidence ul{columns:1}}
 @media print{.mc-opening{color:#111;border-color:#444}.mc-brief-summary h3,.mc-brief-summary p,.mc-brief-summary li{color:#111}.mc-brief-summary{break-inside:avoid}}
+
+/* Keep form controls inside narrow iPhone layouts and avoid focus zoom. */
+input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{min-width:0;max-width:100%}
+html input:not([type=checkbox]):not([type=radio]):not([type=range]),html select,html textarea{font-size:max(16px,1rem)}
+input[type=date],input[type=time]{display:block;width:100%}
+.jc-pin-grid,.jc-target-field>div{grid-template-columns:repeat(2,minmax(0,1fr))}
+.jc-pin-grid button{min-width:0}.jc-pin-grid button svg{flex-shrink:0}
+.jc-screen,.jc-onboard,.sheet{overflow-wrap:anywhere}
+.jc-treatment-actions{flex-wrap:wrap}
+.jc-scale-guide{margin:0 0 20px;padding:14px;border:1px solid var(--jc-line);border-radius:12px;color:var(--jc-muted);font-size:13px;line-height:1.5}
+.jc-scale-guide>b{color:var(--jc-text);font-size:15px}.jc-scale-guide p{margin:6px 0 0}.jc-scale-guide dl{margin:12px 0}.jc-scale-guide dl>div{display:grid;grid-template-columns:100px minmax(0,1fr);gap:8px;margin:5px 0}.jc-scale-guide dt{color:var(--jc-text);font-weight:650}.jc-scale-guide dd{margin:0}
+@media(max-width:359px){.jc-pin-grid{grid-template-columns:1fr}}
+
+.jc-feeling-field{min-width:0;margin:0 0 28px;padding:0;border:0}.jc-feeling-field legend{margin-bottom:12px;font-weight:650}.jc-feeling-field .jc-pin-grid button{min-height:48px}.jc-feeling-field .jc-inline-action{margin-top:0}

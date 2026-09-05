@@ -1247,6 +1247,9 @@ function App() {
         javaScriptEnabled
         domStorageEnabled
         textInteractionEnabled
+        directionalLockEnabled
+        bounces={false}
+        showsHorizontalScrollIndicator={false}
         allowFileAccess
         allowUniversalAccessFromFileURLs={false}
         mixedContentMode="never"

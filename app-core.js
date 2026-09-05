@@ -79,7 +79,8 @@ function postNativeEvent(type, attributes){
 /* ---------- defaults & schema ---------- */
 const SCHEMA_V = 8;
 const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
-const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'];
+const ONBOARDING_FEELINGS = {calm:'Calm',hopeful:'Hopeful',mixed:'Up and down',overwhelmed:'Overwhelmed',low:'Low',unsure:'Not sure'};
+const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido','bloating','dizzy','irritable','overwhelmed'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
 function blankDB(){
   return {
@@ -89,7 +90,7 @@ function blankDB(){
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
       theme:'dark', stage:null, stageAnswers:null, onboarded:false,
-      onboardingStep:0, onboardingDeferred:false, intent:'',
+      onboardingStep:0, onboardingDeferred:false, intent:'', onboardingFeeling:'',
       pinnedSymptoms:[...DEFAULT_PINNED_SYMPTOMS]
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
@@ -138,6 +139,7 @@ function migrate(d){
   p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,3)||0;
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
   p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
+  p.onboardingFeeling=safeEnum(rawProfile.onboardingFeeling,Object.keys(ONBOARDING_FEELINGS),'');
   const pinned=Array.isArray(rawProfile.pinnedSymptoms)
     ? [...new Set(rawProfile.pinnedSymptoms.filter(k=>PINNABLE_SYMPTOMS.includes(k)))].slice(0,6)
     : [];
@@ -233,7 +235,7 @@ function safeEntryPayload(raw){
   integer('hf',0,500); integer('ns',0,4); number('inBedH',0,16); number('sleepH',0,16);
   if(out.sleepH!=null&&out.inBedH!=null&&out.sleepH>out.inBedH) delete out.sleepH;
   if(plainRecord(raw.sym)){
-    ['sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido'].forEach(k=>{
+    PINNABLE_SYMPTOMS.filter(k=>k!=='hf'&&k!=='ns').forEach(k=>{
       const n=safeInteger(raw.sym[k],0,4); if(n!=null) out.sym[k]=n;
     });
   }
@@ -344,7 +346,7 @@ function safeMedication(raw,startedFallback){
   return {
     id,
     name,
-    form:safeEnum(raw.form,['patch','tablet','capsule','gel','spray','cream','other'],raw.icon==='patch'?'patch':'tablet'),
+    form:safeEnum(raw.form,['patch','tablet','capsule','gel','spray','cream','injection','other'],raw.icon==='patch'?'patch':'tablet'),
     days:days.length?days:[0,1,2,3,4,5,6],
     due:safeText(raw.due,20),
     notes:safeText(raw.notes||raw.detail,120),
@@ -595,7 +597,11 @@ const SYMS = [
   {k:'head',   n:'Headache'},
   {k:'palp',   n:'Palpitations'},
   {k:'itch',   n:'Skin dryness / itch'},
-  {k:'libido', n:'Low libido'}
+  {k:'libido', n:'Low libido'},
+  {k:'bloating', n:'Bloating'},
+  {k:'dizzy', n:'Dizziness'},
+  {k:'irritable', n:'Irritability'},
+  {k:'overwhelmed', n:'Feeling overwhelmed'}
 ];
 const SCALE4 = ['None','Mild','Moderate','Severe','Very severe'];
 

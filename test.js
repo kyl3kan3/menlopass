@@ -181,12 +181,12 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v11'));
+    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v12'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
     const baseUrl=`http://127.0.0.1:${server.address().port}`;
-    browser=await chromium.launch({headless:true});
+    browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
 
     console.log('\n== Onboarding and four-part shell ==');
     const onboardingContext=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2});
@@ -210,7 +210,7 @@ async function injectState(context,state){
     await page.getByLabel('Birth year').fill('1976');
     await page.getByLabel('Region').selectOption('us');
     await page.getByRole('button',{name:'Continue'}).click();
-    check('focused symptom step is shown',await page.getByRole('heading',{name:'What should we watch?'}).isVisible());
+    check('focused symptom step is shown',await page.getByRole('heading',{name:'How have you been feeling?'}).isVisible());
     check('six focused symptoms are selected by default',await page.locator('.jc-pin-grid [aria-pressed="true"]').count()===6);
     await page.getByRole('button',{name:'Start my journey'}).click();
     check('setup finishes on the option #1 Today prompt',await page.getByRole('heading',{name:'How are you today?'}).isVisible());
@@ -311,9 +311,10 @@ async function injectState(context,state){
     console.log('\n== Care, treatment events, report, Guide, and Profile ==');
     await page.getByRole('button',{name:'Care',exact:true}).click();
     check('Care uses the selected hierarchy',await page.getByRole('heading',{name:'Care'}).isVisible()&&await page.getByText('Today’s care').isVisible()&&await page.getByText('Appointments',{exact:true}).isVisible());
-    await page.getByRole('button',{name:'Add treatment or change'}).click();
+    await page.getByRole('button',{name:'Add a medication'}).click();
     await page.getByLabel('Medication and dose').fill('Estradiol patch');
-    await page.getByLabel('What changed (optional)').fill('Started 25 mcg');
+    await page.getByLabel('Starting details (optional)').fill('Started 25 mcg');
+    await page.getByLabel('Start date (optional)').fill(isoOffset(-7));
     await page.getByRole('button',{name:'Save medication'}).click();
     check('a dated treatment can be added',await page.locator('.jc-treatment').filter({hasText:'Estradiol patch'}).isVisible());
     await page.getByRole('button',{name:'Record change'}).click();

@@ -74,7 +74,7 @@ const SYM_IC = {
   libido:TWILIGHT_IC.heart
 };
 const SYM_DISPLAY = {
-  mood:'Low mood', anx:'Anxiety', fog:'Brain fog', joint:'Joint pain',
+  sleepq:'Trouble sleeping', mood:'Low mood', anx:'Anxiety', fog:'Brain fog', joint:'Joint pain',
   dry:'Dryness', uri:'Bladder', energy:'Fatigue', head:'Headache',
   palp:'Palpitations', itch:'Skin', libido:'Low libido'
 };
@@ -570,8 +570,9 @@ function viewYou(){
     <div class="section-label">Tracking preferences</div>
     <div class="card jc-profile-tracking">
       <div class="field"><label class="fl" for="profile-intent">What would help most?</label><select id="profile-intent" data-act="prof" data-k="intent">${[['understand','Understand symptoms'],['treatment','See whether treatment helps'],['appointment','Prepare for an appointment'],['record','Keep a private record']].map(([v,l])=>`<option value="${v}"${p.intent===v?' selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label class="fl" for="profile-feeling">Overall feeling during setup (optional)</label><select id="profile-feeling" data-act="prof" data-k="onboardingFeeling"><option value="">Not recorded</option>${Object.entries(ONBOARDING_FEELINGS).map(([v,l])=>`<option value="${v}"${p.onboardingFeeling===v?' selected':''}>${esc(l)}</option>`).join('')}</select><p class="jc-footnote">Your starting point from onboarding. You can update or clear it here.</p></div>
       <p class="tiny">Focused check-in symptoms · choose 3–6</p>
-      <div class="jc-pin-grid compact">${[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.filter(s=>s.k!=='sleepq').map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])].map(([k,label])=>`<button data-act="profile-symptom" data-v="${k}" aria-pressed="${(p.pinnedSymptoms||[]).includes(k)?'true':'false'}">${symptomIcon(k)}<span>${esc(label)}</span></button>`).join('')}</div>
+      <div class="jc-pin-grid compact">${[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])].map(([k,label])=>`<button data-act="profile-symptom" data-v="${k}" aria-pressed="${(p.pinnedSymptoms||[]).includes(k)?'true':'false'}">${symptomIcon(k)}<span>${esc(label)}</span></button>`).join('')}</div>
     </div>
 
     <div class="section-label">Settings</div>
@@ -1584,9 +1585,11 @@ function viewOnboard(){
       </div>
       <button class="jc-primary" data-act="ob-next">Continue</button>`);
   }
-  const pins=Array.isArray(p.pinnedSymptoms)&&p.pinnedSymptoms.length?p.pinnedSymptoms:['hf','ns','fog','energy','joint','anx'];
-  const choices=[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.filter(s=>s.k!=='sleepq').map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])];
-  return shell('What should we watch?','Choose 3–6 symptoms for your focused check-in.',`
+  const pins=Array.isArray(p.pinnedSymptoms)?p.pinnedSymptoms:['hf','ns','fog','energy','joint','anx'];
+  const choices=[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])];
+  return shell('How have you been feeling?','Start with how things feel overall, then choose what you want to keep an eye on.',`
+    <fieldset class="jc-feeling-field"><legend>Overall lately (optional)</legend><div class="jc-pin-grid">${Object.entries(ONBOARDING_FEELINGS).map(([value,label])=>`<button data-act="ob-feeling" data-v="${value}" aria-pressed="${p.onboardingFeeling===value?'true':'false'}">${esc(label)}</button>`).join('')}</div><button class="jc-inline-action" data-act="ob-feeling" data-v="">Prefer not to say</button><p class="jc-footnote">This is a starting point, not a daily log or a score. Your answer stays on this device.</p></fieldset>
+    <h2>Symptoms to follow</h2><p class="jc-footnote">Choose 3–6. Tap a selected symptom to swap it for another.</p>
     <div class="jc-pin-grid">${choices.map(([k,label])=>`<button data-act="ob-symptom" data-v="${k}" aria-pressed="${pins.includes(k)?'true':'false'}">${SYM_IC[k]||(k==='hf'?TWILIGHT_IC.flame:k==='ns'?TWILIGHT_IC.moon:TWILIGHT_IC.cycle)}<span>${esc(label)}</span></button>`).join('')}</div>
     <p class="jc-footnote"><span id="ob-pin-count">${pins.length}</span> selected · treatments can be added in Care.</p>
     <button class="jc-primary" data-act="ob-done">Start my journey</button>`);
@@ -1666,10 +1669,10 @@ function adherenceDots(m){
 }
 function medicationForm(){
   return `<div class="tw-form-card" aria-label="Add medication">
-    <label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Estradot 50µg">
-    <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form"><option>patch</option><option>tablet</option><option>capsule</option><option>gel</option><option>spray</option><option>cream</option><option>other</option></select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time"></div></div>
+    <h3>Add a medication</h3><p class="jc-footnote">Enter what you currently take. To log an adjustment to an existing medication, choose Record change in your treatment plan.</p><label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Medication name and prescribed dose">
+    <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form"><option>patch</option><option>tablet</option><option>capsule</option><option>gel</option><option>spray</option><option>cream</option><option>injection</option><option>other</option></select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time"></div></div>
     <label class="fl">Scheduled days</label><div class="tw-day-picks">${DAY_SHORT.map((d,i)=>h('button',{class:'chip','data-act':'med-day','data-v':i,'aria-pressed':medDaysDraft.includes(i)?'true':'false','aria-label':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]},d)).join('')}</div>
-    <div class="grid2"><div><label class="fl" for="med-started">Started or changed</label><input id="med-started" type="date" max="${todayISO()}" value="${todayISO()}"></div><div><label class="fl" for="med-change-label">What changed (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="Dose, form, or timing"></div></div>
+    <div><label class="fl" for="med-started">Start date (optional)</label><input id="med-started" type="date" max="${todayISO()}" aria-describedby="med-started-help"><p id="med-started-help" class="jc-footnote">When you first started taking this medication. Leave blank if you’re not sure.</p></div><div><label class="fl" for="med-change-label">Starting details (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="For example: started this dose after my appointment"></div>
     ${treatmentTargetField('med')}
     <label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions">
     <div class="btn-row split"><button class="btn primary" data-act="med-save">Save medication</button><button class="btn ghost" data-act="med-cancel">Cancel</button></div>
@@ -1753,8 +1756,8 @@ function symptomIcon(key){
 function treatmentTargetField(prefix,selected){
   const chosen=Array.isArray(selected)?selected:[];
   const ordered=[...new Set([...focusedKeys(),...PINNABLE_SYMPTOMS])];
-  return `<fieldset class="jc-target-field"><legend>What should this change help?</legend>
-    <p>Choose up to six target symptoms. MenoCompass saves the seven calendar days before the change as a baseline and schedules 2- and 6-week follow-ups.</p>
+  return `<fieldset class="jc-target-field"><legend>${prefix==='med'?'What are you taking this for? (optional)':'Which symptoms should improve? (optional)'}</legend>
+    <p>Choose up to six symptoms to review after 2 and 6 weeks. ${prefix==='med'?'Add a start date above to schedule these follow-ups.':'Your earlier logs help you compare how you felt before and after the change.'}</p>
     <div>${ordered.map(key=>`<label for="${prefix}-target-${esc(key)}"><input id="${prefix}-target-${esc(key)}" name="${prefix}-target" type="checkbox" value="${esc(key)}"${chosen.includes(key)?' checked':''}><span>${esc(symptomName(key))}</span></label>`).join('')}</div>
   </fieldset>`;
 }
@@ -2031,7 +2034,7 @@ function viewJourney(){
   </div>`;
 }
 function treatmentChangeForm(m){
-  return `<div class="tw-form-card jc-inline-form"><h3>Record a change to ${esc(m.name)}</h3><label class="fl" for="change-date">Change date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"><label class="fl" for="change-label">What changed?</label><input id="change-label" type="text" maxlength="120" placeholder="Dose, form, timing, or reason">${treatmentTargetField('change')}<div class="btn-row split"><button class="btn primary" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn ghost" data-act="med-change-cancel">Cancel</button></div></div>`;
+  return `<div class="tw-form-card jc-inline-form"><h3>Record a change to ${esc(m.name)}</h3><p class="jc-footnote">Add a dated note about a dose, form, or schedule adjustment. It appears in Journey so you can compare symptoms before and after. This records the change; it does not change your saved medication name or schedule.</p><label class="fl" for="change-date">Change date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"><label class="fl" for="change-label">What changed?</label><input id="change-label" type="text" maxlength="120" aria-describedby="change-example" placeholder="Describe the previous and new treatment"><p id="change-example" class="jc-footnote">Example: switched from a tablet to a patch, or moved my usual time from morning to evening.</p>${treatmentTargetField('change')}<div class="btn-row split"><button class="btn primary" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn ghost" data-act="med-change-cancel">Cancel</button></div></div>`;
 }
 function treatmentStopForm(m){
   return `<div class="tw-form-card jc-inline-form" aria-label="Stop ${esc(m.name)}">
@@ -2100,7 +2103,7 @@ function viewCare(){
   return `<div class="view jc-screen jc-care">
     ${jcChrome()}
     ${jcHeading('Care','Treatments, appointments, and follow-ups in one place.')}
-    ${!medFormOpen&&!changeMed&&!stopMed&&!activeFollowUp?'<button class="jc-primary" data-act="med-add">Add treatment or change</button>':''}
+    ${!medFormOpen&&!changeMed&&!stopMed&&!activeFollowUp?'<button class="jc-primary" data-act="med-add">Add a medication</button>':''}
     ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
     <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'No treatments added yet. Add what you take so changes can appear in your journey.'}</p>`}</div></section>
     ${treatmentFollowUpSection(followUps)}
@@ -2160,6 +2163,7 @@ function viewCheckin(){
     ${jcChrome(backLabel)}
     ${jcHeading('Today’s check-in','Nothing counts in your patterns until you confirm.',fmtLong(t))}
     <div class="jc-draft-badge ${state.key}">${state.key==='confirmed'?'Confirmed version on file':state.label}</div>
+    <aside class="jc-scale-guide" aria-label="How to rate symptoms"><b>What does 0–4 mean?</b><p>Rate how much each symptom affected you today.</p><dl><div><dt>0 · None</dt><dd>Did not happen.</dd></div><div><dt>1 · Mild</dt><dd>Noticeable, but easy to carry on.</dd></div><div><dt>2 · Moderate</dt><dd>Sometimes interrupted what you were doing.</dd></div><div><dt>3 · Severe</dt><dd>Made usual activities difficult.</dd></div><div><dt>4 · Very severe</dt><dd>Stopped you doing usual activities.</dd></div></dl><p>For example, choose 2 for brain fog if you sometimes lost your train of thought but could continue. Hot flashes use a count, not this scale.</p></aside>
     <section class="jc-check-list">
       ${keys.map(key=>key==='hf'?`<div class="jc-check-row"><div class="jc-check-label">${TWILIGHT_IC.flame}<span><b>Hot flashes</b><small>Actual count today</small></span></div><div class="jc-count"><button data-act="hf" data-n="-1" aria-label="One fewer hot flash">−</button><strong>${raw.hf==null?'—':raw.hf}</strong><button data-act="hf" data-n="1" aria-label="One more hot flash">+</button><button data-act="set" data-k="hf" data-v="0">None</button></div></div>`:jcSeverityControl(key,symptomValue(raw,key))).join('')}
     </section>
@@ -2241,6 +2245,7 @@ function render(preserveScroll){
     $('#tabs').style.display='none';
     $('#topbar').style.display='none';
     syncNativeNavigationState();
+    window.scrollTo(0,scrollY);
     return;
   }
   const primary=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab);
@@ -2384,7 +2389,8 @@ function handleAction(el, ev){
     case 'med-add': medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
     case 'med-cancel': medFormOpen=false; render(true); return;
     case 'med-day': {
-      const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort(); render(true); return;
+      const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort();
+      el.setAttribute('aria-pressed',medDaysDraft.includes(d)?'true':'false'); return;
     }
     case 'med-save': {
       const name=document.getElementById('med-name'), form=document.getElementById('med-form'), due=document.getElementById('med-due'), notes=document.getElementById('med-notes'), started=document.getElementById('med-started'), changeLabel=document.getElementById('med-change-label');
@@ -2393,6 +2399,8 @@ function handleAction(el, ev){
       let id='med-'+Date.now().toString(36); while(DB.medications.some(m=>m.id===id)) id+='x';
       const targets=selectedTreatmentTargets('med');
       if(targets.length>6){ toast('Choose up to six target symptoms'); return; }
+      if(started&&started.value&&!pastOrTodayISO(started.value)){ toast('Choose a start date on or before today'); started.focus(); return; }
+      if((targets.length||(changeLabel&&changeLabel.value.trim()))&&!(started&&started.value)){ toast('Add a start date for starting details or symptom follow-ups'); started&&started.focus(); return; }
       const med={id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim(),started:started&&pastOrTodayISO(started.value)?started.value:'',ended:'',status:'active',stopReason:'',archivedAt:'',changes:[]};
       if(med.started&&(changeLabel&&changeLabel.value.trim()||targets.length)) med.changes.push(newTreatmentChange(med.started,changeLabel&&changeLabel.value.trim()||'Treatment started',targets));
       DB.medications.push(med);
@@ -2651,12 +2659,14 @@ function handleAction(el, ev){
       setTimeout(()=>document.querySelector('#app button,#app input')?.focus(),0);
       return;
     case 'ob-intent': DB.profile.intent=el.dataset.v; save(true); render(); return;
+    case 'ob-feeling':
+      DB.profile.onboardingFeeling=safeEnum(el.dataset.v,Object.keys(ONBOARDING_FEELINGS),''); save(true); render(true); return;
     case 'ob-symptom': {
       const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:['hf','ns','fog','energy','joint','anx'];
       if(current.includes(key)) DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
       else if(current.length<6) DB.profile.pinnedSymptoms=[...current,key];
       else { toast('Choose up to six symptoms'); return; }
-      save(true); render(); return;
+      save(true); render(true); return;
     }
     case 'profile-symptom': {
       const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:focusedKeys();

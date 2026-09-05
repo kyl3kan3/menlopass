@@ -1,0 +1,87 @@
+const { chromium, webkit } = require('playwright');
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const server = http.createServer((req,res)=>{const filename=path.join(__dirname,'dist',req.url.split('?')[0]==='/'?'index.html':req.url.split('?')[0]);if(!fs.existsSync(filename)){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',filename.endsWith('.html')?'text/html':'application/octet-stream');res.end(fs.readFileSync(filename));});
+(async()=>{
+ let browser;
+ try {
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base='http://127.0.0.1:'+server.address().port;
+  const engine=process.env.PLAYWRIGHT_BROWSER==='webkit'?webkit:chromium;
+  browser=await engine.launch({headless:true,...(engine===chromium&&process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
+  fs.mkdirSync(path.join(__dirname,'test-results'),{recursive:true});
+  const errors=[];
+  for(const width of [320,390,430,768]){
+   const context=await browser.newContext({viewport:{width,height:844},isMobile:true,hasTouch:true});
+   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+   await page.goto(base);
+   async function fits(label){const result=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,body:document.body.scrollWidth,overflow:[...document.querySelectorAll('#app input,#app select,#app textarea,#app button')].filter(el=>el.getClientRects().length).filter(el=>{const r=el.getBoundingClientRect();return r.left < -1 || r.right > innerWidth+1;}).map(el=>({tag:el.tagName,id:el.id,text:el.textContent.slice(0,40)}))}));assert.ok(result.scroll<=width+1&&result.body<=width+1&&result.overflow.length===0,label+' '+width+': '+JSON.stringify(result));}
+   await fits('welcome');
+   await page.getByRole('button',{name:'Set up my compass',exact:true}).click();
+   await page.getByRole('button',{name:'Understand symptoms',exact:true}).click();
+   await page.getByRole('button',{name:'Continue',exact:true}).click();
+   await page.getByLabel('First name (optional)').fill('Test');
+   await fits('onboarding form');
+   assert.equal(await page.getByLabel('First name (optional)').evaluate(el=>getComputedStyle(el).fontSize),'16px');
+   await page.getByRole('button',{name:'Continue',exact:true}).click();
+   await page.getByRole('button',{name:'Hopeful',exact:true}).click();
+   for(const label of ['Trouble sleeping','Bloating','Dizziness','Irritability','Feeling overwhelmed'])assert.equal(await page.getByRole('button',{name:label,exact:true}).count(),1);
+   for(const key of ['hf','ns','fog','energy','joint','anx'])await page.locator('[data-act="ob-symptom"][data-v="'+key+'"]').click();
+   for(const key of ['sleepq','bloating','dizzy','irritable','overwhelmed'])await page.locator('[data-act="ob-symptom"][data-v="'+key+'"]').click();
+   await fits('symptom choices');
+   await page.getByRole('button',{name:'Start my journey',exact:true}).click();
+   await page.reload();
+   assert.equal(await page.evaluate(()=>DB.profile.onboardingFeeling),'hopeful');
+   assert.deepEqual(await page.evaluate(()=>DB.profile.pinnedSymptoms),['sleepq','bloating','dizzy','irritable','overwhelmed']);
+   for(const tab of ['today','journey','guide','care']){await page.locator('nav [data-v="'+tab+'"]').click();await fits(tab);}
+   await page.getByRole('button',{name:'Add a medication',exact:true}).click();
+   const today=await page.evaluate(()=>todayISO());
+   await page.getByLabel('Medication and dose',{exact:true}).fill('Example medicine — prescribed dose');
+   await page.getByLabel('Form',{exact:true}).selectOption('injection');
+   await page.getByLabel('Usual time',{exact:true}).fill('09:30');
+   await page.getByLabel('Start date (optional)',{exact:true}).fill(today);
+   await page.getByLabel('Starting details (optional)',{exact:true}).fill('Started after my appointment');
+   await page.getByLabel('Notes (optional)',{exact:true}).fill('Keep this note');
+   await page.getByLabel('Bloating',{exact:true}).check();
+   await page.getByRole('button',{name:'Tuesday',exact:true}).click();
+   await page.getByRole('button',{name:'Thursday',exact:true}).click();
+   assert.equal(await page.getByLabel('Medication and dose',{exact:true}).inputValue(),'Example medicine — prescribed dose');
+   assert.equal(await page.getByLabel('Form',{exact:true}).inputValue(),'injection');
+   assert.equal(await page.getByLabel('Usual time',{exact:true}).inputValue(),'09:30');
+   assert.equal(await page.getByLabel('Start date (optional)',{exact:true}).inputValue(),today);
+   assert.equal(await page.getByLabel('Starting details (optional)',{exact:true}).inputValue(),'Started after my appointment');
+   assert.equal(await page.getByLabel('Notes (optional)',{exact:true}).inputValue(),'Keep this note');
+   assert.equal(await page.getByLabel('Bloating',{exact:true}).isChecked(),true);
+   await fits('medication form after scheduling');
+   const fonts=await page.locator('.tw-form-card input,.tw-form-card select').evaluateAll(els=>els.filter(el=>el.type!=='checkbox').map(el=>parseFloat(getComputedStyle(el).fontSize)));
+   assert.ok(fonts.every(n=>n>=16),'focus-safe form font sizes');
+   if(width===390)await page.screenshot({path:'test-results/mobile-ux-medication.png',fullPage:true,animations:'disabled'});
+   await page.getByLabel('Start date (optional)',{exact:true}).fill('');
+   await page.getByRole('button',{name:'Save medication',exact:true}).click();
+   assert.equal(await page.evaluate(()=>DB.medications.length),0,'follow-ups must have a date, not silently discard the targets');
+   assert.equal(await page.getByLabel('Medication and dose',{exact:true}).inputValue(),'Example medicine — prescribed dose');
+   await page.getByLabel('Start date (optional)',{exact:true}).fill(today);
+   await page.getByRole('button',{name:'Save medication',exact:true}).click();
+   await page.reload();
+   const med=await page.evaluate(()=>DB.medications[0]);
+   assert.equal(med.form,'injection');assert.deepEqual(med.days,[0,1,3,5,6]);assert.equal(med.notes,'Keep this note');assert.equal(med.changes[0].targets[0],'bloating');
+   await page.getByRole('button',{name:'Record change',exact:true}).click();
+   assert.equal(await page.locator('#change-example').count(),1);await fits('change form');
+   await page.getByRole('button',{name:'Cancel',exact:true}).click();
+   await page.locator('nav [data-v="today"]').click();
+   await page.locator('[data-act="start-checkin"]').first().click();
+   assert.equal(await page.getByRole('complementary',{name:'How to rate symptoms'}).count(),1);
+   for(const label of ['Trouble sleeping','Bloating','Dizziness','Irritability','Feeling overwhelmed'])await page.getByRole('button',{name:label+': Moderate',exact:true}).click();
+   await fits('check-in');
+   if(width===390)await page.screenshot({path:'test-results/mobile-ux-checkin.png',fullPage:true,animations:'disabled'});
+   await page.getByRole('button',{name:'Confirm today’s log',exact:true}).click();
+   await page.reload();
+   assert.equal(await page.evaluate(()=>confirmedEntry(todayISO()).sym.bloating),2);
+   assert.equal(await page.evaluate(()=>confirmedEntry(todayISO()).sym.overwhelmed),2);
+   await context.close();console.log('PASS '+width+'px: layout, onboarding, form retention, injection, change help, scale, persistence');
+  }
+  assert.deepEqual(errors,[]);console.log('PASS no runtime errors');
+ }finally{await browser?.close();server.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});
