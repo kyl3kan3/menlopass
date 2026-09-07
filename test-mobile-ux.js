@@ -76,10 +76,17 @@ const server = http.createServer((req,res)=>{const filename=path.join(__dirname,
    for(const label of ['Trouble sleeping','Bloating','Dizziness','Irritability','Feeling overwhelmed'])await page.getByRole('button',{name:label+': Moderate',exact:true}).click();
    await fits('check-in');
    if(width===390)await page.screenshot({path:'test-results/mobile-ux-checkin.png',fullPage:true,animations:'disabled'});
+   await page.getByRole('button',{name:'Add context',exact:true}).click();
+   await page.getByLabel('Anything worth remembering?',{exact:true}).fill('A quieter afternoon helped.');
+   assert.equal(await page.locator('.mc-check-summary > div').count(),5);
+   await fits('check-in context');
+   await page.getByRole('button',{name:'Edit ratings',exact:true}).click();
+   assert.equal(await page.getByRole('button',{name:'Bloating: Moderate',exact:true}).getAttribute('aria-pressed'),'true');
    await page.getByRole('button',{name:'Confirm today’s log',exact:true}).click();
    await page.reload();
    assert.equal(await page.evaluate(()=>confirmedEntry(todayISO()).sym.bloating),2);
    assert.equal(await page.evaluate(()=>confirmedEntry(todayISO()).sym.overwhelmed),2);
+   assert.equal(await page.evaluate(()=>confirmedEntry(todayISO()).notes),'A quieter afternoon helped.');
    await context.close();console.log('PASS '+width+'px: layout, onboarding, form retention, injection, change help, scale, persistence');
   }
   assert.deepEqual(errors,[]);console.log('PASS no runtime errors');

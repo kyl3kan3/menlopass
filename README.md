@@ -1,8 +1,11 @@
 # MenoCompass
 
 A private, offline-capable PWA and Expo app for women in perimenopause and beyond. The product is
-organized around one flow: confirm a focused daily check-in, follow symptoms and treatment changes
-in Journey, prepare care, and open evidence in Guide.
+organized around one flow: a welcoming Today journal, focused symptom ratings with optional context,
+a weekly story and dated activity in Journey, appointment-first Care, and a searchable Guide.
+
+The warm paper redesign uses deep teal actions, sage surfaces, serif headings, and a responsive
+desktop sidebar / mobile bottom navigation. It preserves the local record and native security model.
 
 - **No account, backend health database, or health-data transmission.** Browser entries live in
   local storage. The native wrapper keeps its record in an encrypted file with a device-bound
@@ -24,7 +27,8 @@ in Journey, prepare care, and open evidence in Guide.
 The editable sources are intentionally flat at the repository root:
 
 ```text
-styles.css                 Guided Daily Pulse design system and responsive shell
+styles.css                 base components, tools, reports and legacy detailed-log styles
+redesign.css               warm paper design system and responsive app layouts
 assets/fonts/              local Bricolage Grotesque webfont + OFL license
 content-a.js               symptom library, treatment landscape, supplements
 content-b.js               staging, diet, exercise, weight, skin, sleep, mind,
@@ -162,7 +166,7 @@ npm run test:e2e      # test an already-built dist/
 npm test              # rebuild, then test
 ```
 
-`build.py` inlines `styles.css` and the five JS files, in this order:
+`build.py` inlines `styles.css`, then `redesign.css`, and the JavaScript files in this order:
 `content-a.js`, `content-b.js`, `app-core.js`, `appointment-questions.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
 matters. It writes identical HTML to the tracked root `index.html` convenience mirror and to
 `dist/index.html`; neither generated file should be edited manually.

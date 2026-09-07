@@ -169,8 +169,27 @@ module.exports = ({ config }) => {
 
   plugins.push('./plugins/withTikTokPrivacyManifestFix');
 
+  plugins = plugins.map(plugin => {
+    if (!Array.isArray(plugin) || plugin[0] !== 'expo-splash-screen') return plugin;
+    const options = plugin[1] || {};
+    return [plugin[0], {
+      ...options,
+      backgroundColor: '#f7f5ef',
+      dark: { ...options.dark, backgroundColor: '#f7f5ef' },
+    }];
+  });
+
   return {
     ...config,
+    backgroundColor: '#f7f5ef',
+    userInterfaceStyle: 'light',
+    android: {
+      ...config.android,
+      adaptiveIcon: {
+        ...config.android?.adaptiveIcon,
+        backgroundColor: '#f7f5ef',
+      },
+    },
     ios: {
       ...config.ios,
       privacyManifests: withAppPrivacyDeclarations(

@@ -28,16 +28,19 @@ function storySentence(row){
 }
 function weeklyStoryMarkup(){
   const story=weeklyStoryData();
+  const waiting=story.rows.filter(r=>!r.ready), ready=story.rows.some(r=>r.ready);
+  const windowLabel=esc(fmtDay(story.windows.prior[0]))+'–'+esc(fmtDay(story.windows.prior[6]))+' compared with '+esc(fmtDay(story.windows.recent[0]))+'–'+esc(fmtDay(story.windows.recent[6]));
   const group=(direction,title)=>{
     const rows=story.rows.filter(r=>r.direction===direction);
     return rows.length?`<div class="mc-story-group"><h3>${title}</h3>${rows.map(r=>`<p>${esc(storySentence(r))}</p>`).join('')}</div>`:'';
   };
-  return `<section class="mc-card mc-weekly" aria-labelledby="weekly-story-title"><span class="mc-eyebrow">Your weekly story</span><h2 id="weekly-story-title">Here’s what’s changing</h2>
-    <p class="mc-muted">${esc(fmtDay(story.windows.prior[0]))}–${esc(fmtDay(story.windows.prior[6]))} compared with ${esc(fmtDay(story.windows.recent[0]))}–${esc(fmtDay(story.windows.recent[6]))}</p>
-    ${group('lower','Lower this week')}${group('higher','Higher this week')}${group('steady','Holding steady')}${group('waiting','Still taking shape')}
-    <p class="mc-muted">Each symptom needs at least four confirmed answers in each week. Small changes are described as steady; these are descriptive comparisons, not clinical thresholds.</p>
-    ${story.events.length?`<div class="mc-story-group"><h3>Treatment changes in these weeks</h3>${story.events.slice(0,5).map(e=>`<p><b>${esc(fmtDay(e.date))}</b> · ${esc(e.title)}. ${esc(e.body)}</p>`).join('')}<p class="mc-muted">Timing can be useful to discuss, but does not show what caused a change.</p></div>`:'<p class="mc-muted">No treatment changes recorded in these two weeks.</p>'}
-    <details class="mc-evidence"><summary>See supporting logs</summary><p>Previous week → recent week. Missing answers are left out; drafts never replace confirmed answers.</p>${story.rows.map(r=>`<div><h3>${esc(symptomName(r.key))}</h3>${r.prior.concat(r.recent).length?`<ul>${r.prior.concat(r.recent).map(x=>`<li>${esc(fmtDay(x.date))}: ${x.value}${r.key==='hf'?' per day':' / 4'}</li>`).join('')}</ul>`:'<p>No confirmed answers in these weeks.</p>'}</div>`).join('')}</details>
+  const waitingMarkup=waiting.length?`<div class="mc-story-waiting">${ready?'<h3>Still taking shape</h3>':''}<ul class="mc-story-chips" aria-label="Symptoms awaiting enough answers">${waiting.map(r=>`<li>${esc(symptomName(r.key))}</li>`).join('')}</ul><p class="mc-muted">Comparisons need 4 confirmed answers for a symptom in each of the two 7-day calendar windows.</p></div>`:'';
+  return `<section class="mc-card mc-weekly${ready?'':' mc-weekly-empty'}" aria-labelledby="weekly-story-title"><span class="mc-eyebrow">Your weekly story</span>
+    ${ready?`<h2 id="weekly-story-title">Here’s what’s changing</h2><p class="mc-muted">${windowLabel}</p>`:`<div class="mc-story-empty"><span class="mc-story-empty-icon" aria-hidden="true">${PULSE_IC.journey}</span><h2 id="weekly-story-title">A little each day. A clearer picture.</h2><p>Your check-ins will help you see what’s changing. For now, keep noticing how you feel.</p></div>`}
+    ${group('lower','Lower this week')}${group('higher','Higher this week')}${group('steady','Holding steady')}${waitingMarkup}
+    ${ready?'':'<button class="jc-secondary mc-story-checkin" data-act="start-checkin">Open today’s check-in</button>'}
+    ${story.events.length?`<div class="mc-story-group"><h3>Treatment changes in these weeks</h3>${story.events.slice(0,5).map(e=>`<p><b>${esc(fmtDay(e.date))}</b> · ${esc(e.title)}. ${esc(e.body)}</p>`).join('')}<p class="mc-muted">Timing can be useful to discuss, but does not show what caused a change.</p></div>`:''}
+    <details class="mc-evidence"><summary>See supporting logs</summary><p>${windowLabel}.</p><p>Each symptom needs at least 4 confirmed answers in each 7-day calendar window. Small changes are described as steady; these are descriptive comparisons, not clinical thresholds. Missing answers are left out; drafts never replace confirmed answers.</p>${story.events.length?'':'<p>No treatment changes recorded in these two weeks.</p>'}${story.rows.map(r=>`<div><h3>${esc(symptomName(r.key))}</h3><p class="mc-muted">${r.prior.length}/7 previous · ${r.recent.length}/7 recent confirmed answers</p>${r.prior.concat(r.recent).length?`<ul>${r.prior.concat(r.recent).map(x=>`<li>${esc(fmtDay(x.date))}: ${x.value}${r.key==='hf'?' per day':' / 4'}</li>`).join('')}</ul>`:'<p>No confirmed answers in these weeks.</p>'}</div>`).join('')}</details>
     <button class="jc-secondary" data-act="save-weekly-question">Save recap for my appointment</button></section>`;
 }
 function supportHomeCard(){

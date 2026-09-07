@@ -64,7 +64,7 @@ function TabItems({ activeRoute, onSelect }: NativeGlassTabsProps) {
             <SymbolView
               name={selected ? tab.selectedIcon : tab.icon}
               size={21}
-              tintColor={selected ? '#FFB44D' : '#A6B7B5'}
+              tintColor={selected ? '#244b43' : '#68756d'}
               weight={selected ? 'semibold' : 'regular'}
             />
             <Text style={[styles.label, selected && styles.selectedLabel]}>{tab.label}</Text>
@@ -106,11 +106,11 @@ export function NativeGlassTabs({ activeRoute, onSelect }: NativeGlassTabsProps)
     <View pointerEvents="box-none" style={[styles.positioner, positionStyle]}>
       {glassAvailable ? (
         <GlassView
-          colorScheme="dark"
+          colorScheme="light"
           glassEffectStyle="regular"
           isInteractive
           style={styles.surface}
-          tintColor="#17363A"
+          tintColor="#fffefa"
         >
           <TabItems activeRoute={activeRoute} onSelect={onSelect} />
         </GlassView>
@@ -140,12 +140,12 @@ const styles = StyleSheet.create({
     borderRadius: 35,
   },
   fallbackSurface: {
-    backgroundColor: '#102124',
+    backgroundColor: '#fffefa',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#3D5558',
-    shadowColor: '#000000',
+    borderColor: '#dce3da',
+    shadowColor: '#263e37',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.34,
+    shadowOpacity: 0.12,
     shadowRadius: 20,
   },
   row: {
@@ -165,19 +165,19 @@ const styles = StyleSheet.create({
     borderRadius: 28,
   },
   selectedTab: {
-    backgroundColor: 'rgba(255, 180, 77, 0.14)',
+    backgroundColor: '#e6eee7',
   },
   pressedTab: {
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: 'rgba(36, 75, 67, 0.10)',
   },
   label: {
-    color: '#A6B7B5',
+    color: '#68756d',
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
   },
   selectedLabel: {
-    color: '#FFB44D',
+    color: '#244b43',
     fontWeight: '800',
   },
 });

@@ -181,7 +181,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v12'));
+    check('offline cache version was bumped for the redesign',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v13'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -213,42 +213,42 @@ async function injectState(context,state){
     check('focused symptom step is shown',await page.getByRole('heading',{name:'How have you been feeling?'}).isVisible());
     check('six focused symptoms are selected by default',await page.locator('.jc-pin-grid [aria-pressed="true"]').count()===6);
     await page.getByRole('button',{name:'Start my journey'}).click();
-    check('setup finishes on the option #1 Today prompt',await page.getByRole('heading',{name:'How are you today?'}).isVisible());
+    check('setup finishes on the redesigned Today welcome',await page.getByRole('heading',{name:'Your space to feel more like you.'}).isVisible());
     const onboardingEvents=await page.evaluate(()=>window.__nativeMessages.filter(message=>message.type!=='persist-state'));
     check('native bridge records onboarding steps and completion',
       onboardingEvents.some(message=>message.type==='onboarding-step'&&message.step===1)
       &&onboardingEvents.some(message=>message.type==='onboarding-finished'&&message.skipped===false),
       JSON.stringify(onboardingEvents));
-    const tabs=await page.locator('nav.tabs button').allTextContents();
+    const tabs=await page.locator('nav.tabs .inner button').allTextContents();
     check('shell has exactly Today, Journey, Care, Guide',JSON.stringify(tabs)===JSON.stringify(['Today','Journey','Care','Guide']),JSON.stringify(tabs));
     check('Tools, Safety, and Profile are global actions',await page.getByRole('button',{name:'Open tools'}).isVisible()&&await page.getByRole('button',{name:'Safety guidance'}).isVisible()&&await page.getByRole('button',{name:'Open Profile'}).isVisible());
 
     console.log('\n== Prominent tool access ==');
-    const todayTools=page.getByRole('region',{name:'Quick tools'});
-    const todayToolLabels=await todayTools.locator('.dc-tool b').allTextContents();
-    check('Today surfaces Quick tools with three direct actions and the full library',
+    const todayTools=page.locator('.mc-home-resources');
+    const todayToolLabels=await todayTools.locator('button b').allTextContents();
+    check('Today surfaces three focused resources and the global tool library',
       await todayTools.isVisible()
-      &&await todayTools.locator('.dc-tool').count()===3
-      &&JSON.stringify(todayToolLabels)===JSON.stringify(['Breathe','Release tension','Mood check'])
-      &&await todayTools.getByRole('button',{name:'Breathe — open Paced breathing'}).isVisible()
-      &&await todayTools.getByRole('button',{name:'Release tension — open Progressive muscle relaxation'}).isVisible()
-      &&await todayTools.getByRole('button',{name:'Mood check — open PHQ-9 mood check'}).isVisible()
-      &&await todayTools.getByRole('button',{name:'See all 8 tools',exact:true}).isVisible(),
+      &&await todayTools.locator('button').count()===3
+      &&JSON.stringify(todayToolLabels)===JSON.stringify(['A moment to breathe','Make sense of sleep','Check in with your mood'])
+      &&await todayTools.locator('[data-s="tool:breath"]').isVisible()
+      &&await todayTools.locator('[data-s="learn:sleep"]').isVisible()
+      &&await todayTools.locator('[data-s="tool:phq9"]').isVisible()
+      &&await page.getByRole('button',{name:'Open tools',exact:true}).isVisible(),
       JSON.stringify(todayToolLabels));
     const todayUrl=page.url();
-    const breatheTrigger=todayTools.getByRole('button',{name:'Breathe — open Paced breathing'});
+    const breatheTrigger=todayTools.getByRole('button',{name:/^A moment to breathe/});
     await breatheTrigger.click();
     check('Today opens Paced breathing directly',
       await page.getByRole('dialog').getByRole('heading',{name:'Paced breathing',exact:true}).isVisible()
       &&await page.getByRole('dialog').getByText('6 breaths per minute',{exact:true}).isVisible());
     await page.getByRole('button',{name:'Close Paced breathing'}).click();
-    await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Breathe — open Paced breathing');
+    await page.waitForFunction(()=>document.activeElement?.dataset?.s==='tool:breath');
     check('closing a direct tool preserves Today and restores its trigger',
       page.url()===todayUrl
       &&await page.getByRole('dialog').count()===0
       &&await breatheTrigger.evaluate(el=>document.activeElement===el)
       &&await page.evaluate(()=>breathTimer===null));
-    await todayTools.getByRole('button',{name:'See all 8 tools',exact:true}).click();
+    await page.getByRole('button',{name:'Open tools',exact:true}).click();
     const toolsDialog=page.getByRole('dialog');
     const toolGroupShape=await toolsDialog.locator('.jc-tools-library > section').evaluateAll(groups=>groups.map(group=>({
       name:group.querySelector('h3')?.textContent?.trim()||'',
@@ -279,14 +279,20 @@ async function injectState(context,state){
     await page.screenshot({path:path.join(TEST_RESULTS,'journey-shell-today.png')});
 
     console.log('\n== Draft, confirmation, and atomic update ==');
-    check('Today starts with one clear Check in action',await page.locator('.dc-checkin').count()===1&&await page.getByRole('button',{name:/Check in/}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
-    await page.getByRole('button',{name:/Check in/}).click();
+    check('Today starts with one clear Check in action',await page.locator('.mc-checkin-card [data-act="start-checkin"]').count()===1&&await page.getByRole('button',{name:'Check in',exact:true}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
+    await page.getByRole('button',{name:'Check in',exact:true}).click();
     check('check-in is focused and hides bottom navigation',await page.getByRole('heading',{name:'Today’s check-in'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
     check('check-in explains the confirmation boundary',await page.getByText('Nothing counts in your patterns until you confirm.').isVisible());
     check('focused check-in has six symptom controls',await page.locator('.jc-check-row').count()===6);
     await page.getByRole('button',{name:'One more hot flash'}).click();
     await page.getByRole('button',{name:'One more hot flash'}).click();
     await page.getByRole('button',{name:'Night sweats: Moderate'}).click();
+    check('symptoms come first with optional context and expandable rating help',await page.locator('.mc-check-steps button').count()===2&&await page.locator('.jc-note').count()===0&&await page.locator('.jc-scale-guide details').getAttribute('open')===null);
+    await page.getByRole('button',{name:'Add context',exact:true}).click();
+    check('context review preserves ratings and offers treatment and detail access',await page.locator('.mc-check-summary').innerText().then(text=>text.includes('Hot flashes')&&text.includes('2 flashes')&&text.includes('Moderate'))&&await page.getByText('Today’s treatment',{exact:true}).isVisible()&&await page.getByRole('button',{name:/^Add more detail/}).isVisible());
+    await page.getByLabel('Anything worth remembering?').fill('A quiet walk helped today.');
+    await page.getByRole('button',{name:'Edit ratings',exact:true}).click();
+    check('moving between check-in steps preserves the autosaved draft',await page.getByRole('button',{name:'Night sweats: Moderate',exact:true}).getAttribute('aria-pressed')==='true'&&await page.evaluate(()=>entry(todayISO()).notes==='A quiet walk helped today.'&&entryDates().length===0));
     await page.locator('.jc-back').click();
     check('unfinished work returns as a draft',await page.getByRole('button',{name:'Finish check-in'}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
     await page.getByRole('button',{name:'Journey',exact:true}).click();
@@ -310,7 +316,7 @@ async function injectState(context,state){
 
     console.log('\n== Care, treatment events, report, Guide, and Profile ==');
     await page.getByRole('button',{name:'Care',exact:true}).click();
-    check('Care uses the selected hierarchy',await page.getByRole('heading',{name:'Care'}).isVisible()&&await page.getByText('Today’s care').isVisible()&&await page.getByText('Appointments',{exact:true}).isVisible());
+    check('Care uses the selected hierarchy',await page.getByRole('heading',{name:'Care',exact:true}).isVisible()&&await page.getByText('Today’s care').isVisible()&&await page.getByText('Appointments',{exact:true}).isVisible());
     await page.getByRole('button',{name:'Add a medication'}).click();
     await page.getByLabel('Medication and dose').fill('Estradiol patch');
     await page.getByLabel('Starting details (optional)').fill('Started 25 mcg');
@@ -321,7 +327,7 @@ async function injectState(context,state){
     await page.getByLabel('What changed?').fill('Changed from 25 mcg to 50 mcg');
     await page.getByRole('button',{name:'Save change'}).click();
     await page.getByRole('button',{name:'Journey',exact:true}).click();
-    check('real treatment changes appear in Journey',await page.getByRole('heading',{name:'Estradiol patch changed'}).isVisible()&&await page.getByText('Observed association—not proof of cause and effect.').isVisible());
+    check('real treatment changes appear in Journey',await page.locator('.jc-timeline-event.treatment').filter({hasText:'Changed from 25 mcg to 50 mcg'}).getByRole('heading',{name:'Estradiol patch changed',exact:true}).isVisible()&&await page.getByText('Observed association—not proof of cause and effect.').isVisible());
     await page.getByRole('button',{name:'Care',exact:true}).click();
     await page.getByRole('button',{name:'Prepare appointment report'}).click();
     check('report is a dedicated route',await page.getByRole('heading',{name:'Appointment report'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
@@ -344,7 +350,7 @@ async function injectState(context,state){
       &&nativeFileShare?.contents==='{"ok":true}');
     await page.getByRole('button',{name:'Back to Care'}).click();
     await page.getByRole('button',{name:'Guide',exact:true}).click();
-    check('Guide starts with search and a recommendation',await page.getByRole('searchbox',{name:'Search Guide'}).isVisible()&&await page.getByText('For you').isVisible());
+    check('Guide starts with search and a recommendation',await page.getByRole('searchbox',{name:'Search Guide'}).isVisible()&&await page.getByText('For you',{exact:true}).isVisible());
     const guideToolkit=page.getByRole('region',{name:'Tools for right now'});
     const guideToolLabels=await guideToolkit.locator('.jc-tool-card b').allTextContents();
     const guideToolkitPlacement=await guideToolkit.evaluate(el=>{
@@ -400,7 +406,7 @@ async function injectState(context,state){
     await page.getByRole('button',{name:'Save encrypted backup'}).click();
     check('encrypted export passes the current canonical record to native code',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='export-encrypted-backup'&&message.password==='private-passphrase'&&JSON.parse(message.state).v===8)));
     await page.getByRole('button',{name:'Close Export & import'}).click();
-    check('selected daily pulse appearance is coherent',await page.getByText('Guided daily pulse',{exact:true}).isVisible()&&await page.evaluate(()=>{DB.profile.theme='light';applyTheme();return document.documentElement.getAttribute('data-theme')==='dark'&&document.querySelector('meta[name="theme-color"]').content==='#071416';}));
+    check('warm paper appearance is coherent even with a saved dark preference',await page.evaluate(()=>{DB.profile.theme='dark';applyTheme();return document.documentElement.getAttribute('data-theme')==='light'&&document.querySelector('meta[name="theme-color"]').content==='#f7f5ef';}));
     check('Profile exposes reset and deletion controls',await page.getByRole('button',{name:'Reset onboarding'}).isVisible()&&await page.getByRole('button',{name:'Delete app profile & data'}).isVisible());
     await page.getByRole('button',{name:'Manage Apple subscription'}).click();
     check('native Profile exposes Apple subscription management',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='open-subscription-management')));
@@ -433,7 +439,7 @@ async function injectState(context,state){
     const seededContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(seededContext,seededState(16));
     const seededPage=await seededContext.newPage(); monitor(seededPage,'seeded',baseUrl); await seededPage.goto(baseUrl+'/index.html#journey');
     check('calendar coverage unlocks weekly pattern language',await seededPage.getByText('16 confirmed days').isVisible()&&await seededPage.getByText('Calendar coverage: 7/7 recent days · 7/7 prior days.').isVisible()&&await seededPage.getByText('Comparisons are ready — keep confirming changes.').isVisible());
-    check('seeded dated treatment change is on the timeline',await seededPage.getByRole('heading',{name:'Estradiol patch changed'}).isVisible());
+    check('seeded dated treatment change is on the timeline',await seededPage.locator('.jc-timeline-event.treatment').filter({hasText:'Changed from 25 mcg to 50 mcg'}).getByRole('heading',{name:'Estradiol patch changed',exact:true}).isVisible());
     const atomic=await seededPage.evaluate(()=>{
       const t=todayISO(),before=confirmedEntry(t).hf,day=entry(t); day.hf=99; markEntryDraft(t); save(true);
       const report=reportSheet(30).body;
@@ -595,7 +601,8 @@ async function injectState(context,state){
     const desktopContext=await browser.newContext({viewport:{width:1280,height:900}}); await injectState(desktopContext,seededState(16));
     const desktopPage=await desktopContext.newPage(); monitor(desktopPage,'desktop',baseUrl); await desktopPage.goto(baseUrl+'/index.html#journey');
     const desktopLayout=await desktopPage.locator('#app').evaluate(el=>({width:el.getBoundingClientRect().width,left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right}));
-    check('desktop layout remains a centered app surface',desktopLayout.width<=442&&Math.abs(desktopLayout.left-(1280-desktopLayout.right))<2,JSON.stringify(desktopLayout));
+    const desktopNavigation=await desktopPage.locator('nav.tabs').evaluate(el=>({width:el.getBoundingClientRect().width,left:el.getBoundingClientRect().left,top:el.getBoundingClientRect().top}));
+    check('desktop layout uses a sidebar and a spacious content surface',desktopLayout.width>=800&&desktopLayout.left>=desktopNavigation.width&&desktopLayout.right<=1280&&desktopNavigation.left===0&&desktopNavigation.top===0&&desktopNavigation.width===228,JSON.stringify({content:desktopLayout,navigation:desktopNavigation}));
     check('one primary destination is current',await desktopPage.locator('nav.tabs [aria-current="page"]').count()===1);
     await seededPage.screenshot({path:path.join(TEST_RESULTS,'journey-selected-flow.png')});
     await desktopPage.screenshot({path:path.join(TEST_RESULTS,'journey-desktop.png')});

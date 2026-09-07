@@ -362,7 +362,7 @@ function SubscriptionGate({
 }: SubscriptionGateProps) {
   return (
     <SafeAreaView style={styles.gate}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.gateContent}
         contentInsetAdjustmentBehavior="automatic"
@@ -395,7 +395,7 @@ function SubscriptionGate({
             (!revenueCatReady || purchaseBusy) && styles.gateButtonDisabled,
           ]}
         >
-          {purchaseBusy ? <ActivityIndicator color="#0E1618" /> : <Text style={styles.gatePrimaryText}>View subscription plans</Text>}
+          {purchaseBusy ? <ActivityIndicator color="#fffefa" /> : <Text style={styles.gatePrimaryText}>View subscription plans</Text>}
         </Pressable>
         <Pressable
           accessibilityHint="Checks this Apple ID for a previous MenoCompass purchase."
@@ -1139,13 +1139,13 @@ function App() {
   };
 
   if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked)) {
-    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="light" /><ActivityIndicator color="#E8A552" /><Text style={styles.loadingText}>{error ? 'Could not open MenoCompass.' : 'Opening MenoCompass…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><ActivityIndicator color="#244b43" /><Text style={styles.loadingText}>{error ? 'Could not open MenoCompass.' : 'Opening MenoCompass…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
   if (Platform.OS === 'ios' && appLocked) {
     return (
       <SafeAreaView style={styles.locked}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View accessible={false} importantForAccessibility="no" style={styles.lockedMark}>
           <Text style={styles.lockedMarkText}>M</Text>
         </View>
@@ -1169,7 +1169,7 @@ function App() {
           ]}
         >
           {unlockBusy
-            ? <ActivityIndicator color="#0E1618" />
+            ? <ActivityIndicator color="#fffefa" />
             : <Text style={styles.lockedButtonText}>Unlock</Text>}
         </Pressable>
       </SafeAreaView>
@@ -1179,7 +1179,7 @@ function App() {
   if (Platform.OS === 'ios' && paywall) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <TrackedPaywall
           offering={paywall.offering}
           source={paywall.source}
@@ -1214,7 +1214,7 @@ function App() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
@@ -1296,38 +1296,38 @@ function AppWithSafeArea() {
 export default ObserveRoot.wrap(AppWithSafeArea);
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0E1618' },
-  webview: { flex: 1, backgroundColor: '#0E1618' },
-  gate: { flex: 1, backgroundColor: '#0E1618' },
+  container: { flex: 1, backgroundColor: '#f7f5ef' },
+  webview: { flex: 1, backgroundColor: '#f7f5ef' },
+  gate: { flex: 1, backgroundColor: '#f7f5ef' },
   gateContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 24 },
-  gateMark: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#E8A552' },
-  gateMarkText: { color: '#0E1618', fontSize: 27, fontWeight: '900' },
-  gateEyebrow: { color: '#E8A552', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 10 },
-  gateTitle: { maxWidth: 420, color: '#E9F1EE', fontSize: 30, lineHeight: 36, fontWeight: '800', textAlign: 'center' },
-  gateBody: { maxWidth: 420, marginTop: 14, color: '#B8C8C5', fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  gateMark: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#e6eee7' },
+  gateMarkText: { color: '#244b43', fontSize: 27, fontWeight: '900' },
+  gateEyebrow: { color: '#a76149', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 10 },
+  gateTitle: { maxWidth: 420, color: '#263e37', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 34, lineHeight: 40, fontWeight: '400', textAlign: 'center' },
+  gateBody: { maxWidth: 420, marginTop: 14, color: '#68756d', fontSize: 15, lineHeight: 23, textAlign: 'center' },
   gateFeatures: { width: '100%', maxWidth: 420, gap: 10, marginTop: 24, marginBottom: 24 },
-  gateFeature: { color: '#E9F1EE', fontSize: 14, lineHeight: 20, paddingLeft: 18 },
-  gateIssue: { maxWidth: 420, marginBottom: 14, color: '#E8A552', fontSize: 12, lineHeight: 17, textAlign: 'center' },
-  gatePrimary: { width: '100%', maxWidth: 420, minHeight: 52, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8A552' },
-  gatePrimaryText: { color: '#0E1618', fontSize: 15, fontWeight: '900' },
+  gateFeature: { color: '#263e37', fontSize: 14, lineHeight: 20, paddingLeft: 18 },
+  gateIssue: { maxWidth: 420, marginBottom: 14, color: '#a76149', fontSize: 12, lineHeight: 17, textAlign: 'center' },
+  gatePrimary: { width: '100%', maxWidth: 420, minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: '#244b43' },
+  gatePrimaryText: { color: '#fffefa', fontSize: 15, fontWeight: '700' },
   gateSecondary: { minHeight: 44, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
-  gateSecondaryText: { color: '#E9F1EE', fontSize: 13, fontWeight: '700' },
+  gateSecondaryText: { color: '#244b43', fontSize: 13, fontWeight: '700' },
   gateButtonPressed: { opacity: 0.72 },
   gateButtonDisabled: { opacity: 0.45 },
-  gateTerms: { maxWidth: 420, marginTop: 8, color: '#718685', fontSize: 11, lineHeight: 16, textAlign: 'center' },
+  gateTerms: { maxWidth: 420, marginTop: 8, color: '#68756d', fontSize: 11, lineHeight: 16, textAlign: 'center' },
   gateLinks: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  gateLink: { color: '#93A8A8', fontSize: 12, textDecorationLine: 'underline' },
-  gateLinkDivider: { color: '#526768', fontSize: 12 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#0E1618' },
-  loadingText: { color: '#E9F1EE', fontSize: 16 },
-  error: { color: '#E0755F', textAlign: 'center', fontSize: 12 },
-  locked: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, backgroundColor: '#0E1618' },
-  lockedMark: { width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#E8A552' },
-  lockedMarkText: { color: '#0E1618', fontSize: 30, fontWeight: '900' },
-  lockedEyebrow: { color: '#E8A552', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 10 },
-  lockedTitle: { color: '#E9F1EE', fontSize: 28, lineHeight: 34, fontWeight: '800', textAlign: 'center' },
-  lockedBody: { maxWidth: 380, marginTop: 12, color: '#B8C8C5', fontSize: 15, lineHeight: 22, textAlign: 'center' },
-  lockedIssue: { maxWidth: 380, marginTop: 14, color: '#E8A552', fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  lockedButton: { width: '100%', maxWidth: 320, minHeight: 52, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 24, backgroundColor: '#E8A552' },
-  lockedButtonText: { color: '#0E1618', fontSize: 15, fontWeight: '900' },
+  gateLink: { color: '#244b43', fontSize: 12, textDecorationLine: 'underline' },
+  gateLinkDivider: { color: '#68756d', fontSize: 12 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#f7f5ef' },
+  loadingText: { color: '#263e37', fontSize: 16 },
+  error: { color: '#a76149', textAlign: 'center', fontSize: 12 },
+  locked: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, backgroundColor: '#f7f5ef' },
+  lockedMark: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#e6eee7' },
+  lockedMarkText: { color: '#244b43', fontSize: 30, fontWeight: '900' },
+  lockedEyebrow: { color: '#a76149', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 10 },
+  lockedTitle: { color: '#263e37', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 32, lineHeight: 38, fontWeight: '400', textAlign: 'center' },
+  lockedBody: { maxWidth: 380, marginTop: 12, color: '#68756d', fontSize: 15, lineHeight: 23, textAlign: 'center' },
+  lockedIssue: { maxWidth: 380, marginTop: 14, color: '#a76149', fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  lockedButton: { width: '100%', maxWidth: 320, minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', marginTop: 24, backgroundColor: '#244b43' },
+  lockedButtonText: { color: '#fffefa', fontSize: 15, fontWeight: '700' },
 });

@@ -99,6 +99,7 @@ let sheetStack = [];
 let sheetReturnStack = [];
 let lastSheetTrigger = null;
 let checkinComplete = false;
+let checkinStep = 0;
 let guideQuery = '';
 let reportRange = 90;
 let treatmentChangeTarget = null;
@@ -589,7 +590,7 @@ function viewYou(){
           <option value="other"${p.region==='other'?' selected':''}>Elsewhere</option>
         </select>
         <p class="xtiny">Guidance genuinely differs — on drug labelling, SSRIs for hot flashes, testosterone access, and calcium and vitamin D targets.</p></div>
-      <div class="jc-setting-note" style="margin-bottom:0"><span class="fl">Appearance</span><strong>Guided daily pulse</strong><p class="xtiny">A calm, high-contrast theme built around one clear next step.</p></div>
+      <div class="jc-setting-note" style="margin-bottom:0"><span class="fl">Appearance</span><strong>Warm &amp; grounded</strong><p class="xtiny">Soft paper tones and clear, comfortable type. A little room to breathe.</p></div>
     </div>
 
     <div class="card flat">
@@ -659,7 +660,7 @@ function renderSheet(moveFocus,returnState){
     runSheetHooks(''); sheetReturnStack=[];
     host.innerHTML=''; document.body.style.overflow=''; setBackgroundInert(false);
     const target=lastSheetTrigger; lastSheetTrigger=null;
-    setTimeout(()=>{
+    if(moveFocus) setTimeout(()=>{
       const candidate=findFocusTarget(target,document);
       const restored=(candidate&&candidate!==document.body?candidate:null)
         ||document.querySelector('#app button,#app input,#app select,#tabs button');
@@ -1554,7 +1555,7 @@ function viewOnboard(){
   const p=DB.profile;
   const step=Math.max(0,Math.min(3,+p.onboardingStep||0));
   const shell=(title,subtitle,body)=>`<div class="view tw-screen tw-onboard jc-onboard">
-    <div class="jc-onboard-top"><div class="jc-wordmark"><span>MENO</span>COMPASS</div><span>${step+1} / 4</span></div>
+    <div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span>MenoCompass</div><span>${step+1} / 4</span></div>
     <div class="jc-onboard-progress" aria-label="Setup step ${step+1} of 4"><i style="width:${(step+1)*25}%"></i></div>
     ${step?'<button class="jc-back" data-act="ob-back">'+IC.chev+' Back</button>':''}
     <div class="jc-page-head"><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>
@@ -1710,7 +1711,8 @@ function viewReport(){
 function jcChrome(backLabel){
   return `<div class="jc-chrome">
     <div class="jc-chrome-main">
-      <div class="jc-wordmark" aria-label="MenoCompass"><span>MENO</span>COMPASS</div>
+      <div class="jc-wordmark" aria-label="MenoCompass"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span><span>Meno<span class="mc-brand-light">Compass</span></span></div>
+      <span class="mc-chrome-caption">A little clarity, every day.</span>
       <div class="jc-global-actions">
         <button data-act="sheet" data-s="tools" aria-label="Open tools">${PULSE_IC.grid}</button>
         <button data-act="sheet" data-s="redflags" aria-label="Safety guidance">${PULSE_IC.safety}</button>
@@ -1991,50 +1993,60 @@ function viewHome(){
   const pattern=weeklyPattern();
   const recapTitle=pattern?pattern.text:recordSummary(latest);
   const recapBody=pattern?weeklyCoverageText(pattern):latestDate?'From your latest confirmed day, '+fmtDay(latestDate)+'.':'Confirm a few quick check-ins and your first recap will appear here.';
-  const longDate=parseISO(t).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}).toUpperCase();
+  const name=safeText(DB.profile.name,80).trim(), hour=new Date().getHours();
+  const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+  const weekDates=Array.from({length:7},(_,i)=>addDays(t,i-6));
+  const weekCount=weekDates.filter(date=>confirmedRecord(date)).length;
+  const dayMarks=weekDates.map(date=>`<div class="mc-week-mark${confirmedRecord(date)?' logged':''}${date===t?' current':''}"><span>${parseISO(date).toLocaleDateString(undefined,{weekday:'narrow'})}</span><i>${confirmedRecord(date)?PULSE_IC.check:parseISO(date).getDate()}</i></div>`).join('');
   return `<div class="view jc-screen jc-home">
     ${jcChrome()}
-    <p class="dc-date">${esc(longDate)}</p>
-    ${dcWeekStrip(t)}
-    <div class="dc-hero"><h1>How are you today?</h1><p>A 30-second check-in helps you understand what changed and what to do next.</p></div>
-    <button class="jc-primary dc-checkin" data-act="start-checkin">${PULSE_IC.check}<span>${esc(cta)}</span></button>
-    ${dcProgress(count)}
-    ${supportHomeCard()}
-    ${quickToolsMarkup('today')}
+    <div class="mc-welcome"><div><p class="mc-eyebrow">${esc(greeting+(name?', '+name:''))}</p><h1>Your space to feel<br><em>more like you.</em></h1><p>One day at a time. We’ll help you see the bigger picture.</p></div><span class="mc-date">${TWILIGHT_IC.calendar}${esc(parseISO(t).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}))}</span></div>
+    <div class="mc-home-top">
+      <section class="mc-checkin-card"><div class="mc-card-top"><span class="mc-eyebrow">YOUR DAILY CHECK-IN</span><span class="mc-time">${TWILIGHT_IC.sun} About a minute</span></div><h2>How are you<br>feeling today?</h2><p>A small moment to check in with yourself.<br>Your symptoms, your pace, your story.</p><div class="mc-checkin-bottom"><button class="jc-primary dc-checkin" data-act="start-checkin"><span>${esc(cta)}</span>${IC.chev}</button><span>${state.key==='confirmed'?'Today’s check-in is saved':state.key==='draft'?'Your draft is ready to finish':'A little reflection goes a long way'}</span></div></section>
+      <section class="mc-week-card"><div class="mc-card-top"><span class="mc-eyebrow">LITTLE STEPS, BIGGER PICTURE</span>${PULSE_IC.journey}</div><h2>Your week so far</h2><p><strong>${weekCount}</strong> ${weekCount===1?'check-in':'check-ins'} in the last seven days</p><div class="mc-week-marks" aria-label="Your check-ins this week">${dayMarks}</div>${dcProgress(count)}<button class="dc-text-link" data-act="tab" data-v="journey">Explore your journey ${IC.chev}</button></section>
+    </div>
     ${DB.trigger&&DB.trigger.active?triggerBanner():''}
     ${DB.profile.onboardingDeferred?`<button class="jc-open-row jc-setup" data-act="finish-setup"><span>${TWILIGHT_IC.cycle}</span><span><b>Finish your context</b><small>Personalize guidance and the symptoms you watch.</small></span>${IC.chev}</button>`:''}
-    <section class="dc-feature dc-recap"><div class="dc-orb">${PULSE_IC.recap}</div><div class="dc-feature-copy"><span>Today’s recap</span><h2>${esc(recapTitle)}</h2><p>${esc(recapBody)}</p><button class="dc-text-link" data-act="tab" data-v="journey">See why ${IC.chev}</button></div></section>
-    ${dcTodayTask(t)}
-    <div class="dc-privacy">${PULSE_IC.privacy}<p><strong>Your data stays on this device.</strong><span>Private, local, and for your care.</span></p></div>
+    <div class="mc-section-heading"><h2>A little more understanding</h2><span>Here for the everyday</span></div>
+    <div class="mc-home-middle"><section class="dc-feature dc-recap"><div class="dc-orb">${PULSE_IC.recap}</div><div class="dc-feature-copy"><span>Today’s recap</span><h2>${esc(latestDate?recapTitle:'Your story starts with you.')}</h2><p>${esc(recapBody)}</p><button class="dc-text-link" data-act="tab" data-v="journey">See why ${IC.chev}</button></div></section>${dcTodayTask(t)}</div>
+    <div class="mc-support-banner"><span class="mc-support-icon">${PULSE_IC.wind}</span><div><h2>Some days ask a little more of you.</h2><p>Find a moment of support, whenever you need it.</p></div><button class="jc-secondary" data-act="sheet" data-s="support">I’m struggling right now ${IC.chev}</button></div>
+    <div class="mc-section-heading"><h2>Make room for yourself</h2><button class="dc-text-link" data-act="tab" data-v="guide">Visit your guide ${IC.chev}</button></div>
+    <div class="mc-home-resources"><button data-act="sheet" data-s="tool:breath"><span class="mc-resource-icon">${PULSE_IC.wind}</span><span><b>A moment to breathe</b><small>A guided pause for your day</small></span>${IC.chev}</button><button data-act="sheet" data-s="learn:sleep"><span class="mc-resource-icon lilac">${PULSE_IC.moon}</span><span><b>Make sense of sleep</b><small>Understand what’s changing</small></span>${IC.chev}</button><button data-act="sheet" data-s="tool:phq9"><span class="mc-resource-icon peach">${PULSE_IC.heartPulse}</span><span><b>Check in with your mood</b><small>Make space for how you feel</small></span>${IC.chev}</button></div>
+    <div class="dc-privacy">${PULSE_IC.privacy}<p><strong>Your data stays on this device.</strong><span>Always personal. Always yours.</span></p></div>
   </div>`;
 }
 function viewJourney(){
   const t=todayISO(), state=dayState(t), dates=entryDates(), count=dates.length, events=treatmentEvents();
+  const windows=weeklyPatternWindows(), pattern=weeklyPattern();
   const todayBody=state.key==='confirmed'?recordSummary(state.confirmed):state.key==='draft'?('Your draft is saved locally. The last confirmed version stays in patterns'+(state.confirmed?' — '+recordSummary(state.confirmed):'.')):'No confirmed entry yet. Log to keep your story complete.';
   let timeline=jcTimelineEvent(state.key,'Today',state.label,todayBody);
-  if(events.length){
-    const event=events[0];
-    timeline+=jcTimelineEvent('treatment',fmtDay(event.date),event.title,event.body,'<span class="jc-proof">Observed association—not proof of cause and effect.</span>');
-  } else if(DB.medications.some(m=>medicationStatus(m)==='active')){
+  const recentActivity=[
+    ...events.slice(0,3).map(event=>({...event,kind:'treatment'})),
+    ...dates.filter(date=>date!==t).slice(-3).map(date=>({date,kind:'confirmed',title:'Confirmed check-in',body:recordSummary(confirmedRecord(date))}))
+  ].sort((a,b)=>b.date.localeCompare(a.date)||(b.order||0)-(a.order||0));
+  const latestTreatment=recentActivity.find(event=>event.kind==='treatment');
+  timeline+=recentActivity.map(event=>jcTimelineEvent(event.kind,fmtDay(event.date),event.title,event.body,event===latestTreatment?'<span class="jc-proof">Observed association—not proof of cause and effect.</span>':'')).join('');
+  if(!events.length&&DB.medications.some(m=>medicationStatus(m)==='active')){
     const activeCount=DB.medications.filter(m=>medicationStatus(m)==='active').length;
     timeline+=jcTimelineEvent('treatment','Treatment plan','Add a change date',activeCount+' active treatment '+(activeCount===1?'item is':'items are')+' on file. Record when something changes to place it in your story.');
   }
-  const pattern=weeklyPattern();
-  if(pattern){
-    timeline+=jcTimelineEvent('pattern','Recent calendar windows','Weekly pattern',pattern.text,'<span class="jc-proof">'+esc(weeklyCoverageText(pattern))+'</span><button class="jc-inline-action" data-act="sheet" data-s="learn:symptoms">What this means '+IC.chev+'</button>');
-  } else if(dates.length&&dates[dates.length-1]!==t){
-    const last=dates[dates.length-1], record=confirmedRecord(last);
-    timeline+=jcTimelineEvent('confirmed',fmtDay(last),'Latest confirmed day',recordSummary(record));
-  } else {
-    timeline+=jcTimelineEvent('waiting','Weekly pattern','Waiting for confirmed days','Weekly comparisons need at least 4 confirmed days in each 7-day calendar window. Drafts and treatment-only entries do not count.');
-  }
   return `<div class="view jc-screen jc-journey">
     ${jcChrome()}
-    ${jcHeading('Your journey','Symptoms and treatment changes, in one story.')}
-    <button class="jc-primary" data-act="start-checkin">${PULSE_IC.check}<span>${state.key==='confirmed'?'Edit today':state.key==='draft'?'Finish check-in':'Log today'}</span></button>
+    ${jcHeading('Your journey','A little perspective on how you have been feeling.','YOUR PERSONAL RECORD')}
+    <div class="mc-journey-overview">
+      ${weeklyStoryMarkup()}
+      <aside class="mc-record-summary" aria-labelledby="record-summary-title">
+        <span class="mc-eyebrow">The bigger picture</span><h2 id="record-summary-title">One day at a time.</h2>
+        <div class="mc-stat-grid"><div><strong>${count}</strong><span>confirmed ${count===1?'day':'days'}</span></div><div><strong>${windows.recentCount}<small>/7</small></strong><span>past 7 days</span></div><div><strong>${focusedKeys().length}</strong><span>symptoms you watch</span></div></div>
+        <p>${pattern?esc(pattern.text):'Your confirmed check-ins build a clearer picture over time. Start with how you feel today.'}</p>
+        ${pattern?`<p class="mc-muted">${esc(weeklyCoverageText(pattern))}</p>`:''}
+        <button class="jc-primary" data-act="start-checkin">${PULSE_IC.check}<span>${state.key==='confirmed'?'Edit today':state.key==='draft'?'Finish check-in':'Log today'}</span></button>
+        ${comparisonPanel(count)}
+        <button class="jc-inline-action" data-act="sheet" data-s="learn:symptoms">What this means ${IC.chev}</button>
+      </aside>
+    </div>
+    <div class="mc-section-intro"><div><span class="mc-eyebrow">Your record, in order</span><h2>Recent activity</h2></div><p>Check-ins and treatment changes, together.</p></div>
     <div class="jc-timeline">${timeline}</div>
-    ${weeklyStoryMarkup()}
-    ${comparisonPanel(count)}
   </div>`;
 }
 function treatmentChangeForm(m){
@@ -2104,43 +2116,50 @@ function viewCare(){
   const stopMed=treatmentStopTarget?meds.find(m=>m.id===treatmentStopTarget):null;
   const followUps=treatmentFollowUpItems(), activeFollowUp=findTreatmentFollowUp(treatmentFollowUpTarget);
   const activeMeds=meds.filter(m=>medicationStatus(m)==='active'), stoppedMeds=meds.filter(m=>medicationStatus(m)==='stopped'), archivedMeds=meds.filter(m=>medicationStatus(m)==='archived');
+  const appointments=appointmentData(), plannerOpen=appointmentQuestionEditId!=null||afterVisitPlanEditId!=null||appointments.questions.length||appointments.plans.length;
+  const pendingFollowUps=followUps.filter(item=>!item.followUp&&daysBetween(todayISO(),item.dueDate)<=0).length;
   return `<div class="view jc-screen jc-care">
     ${jcChrome()}
-    ${jcHeading('Care','Treatments, appointments, and follow-ups in one place.')}
-    ${!medFormOpen&&!changeMed&&!stopMed&&!activeFollowUp?'<button class="jc-primary" data-act="med-add">Add a medication</button>':''}
+    ${jcHeading('Care','Feel prepared for the next conversation.','YOUR CARE, CONNECTED')}
     ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
-    <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'No treatments added yet. Add what you take so changes can appear in your journey.'}</p>`}</div></section>
-    ${treatmentFollowUpSection(followUps)}
-    ${appointmentCompanionCard()}
-    <section class="jc-context jc-appointment"><span>Appointments</span><h2>${count<7?'Early summary':'Your report is taking shape'}</h2><p>Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
-    ${appointmentPlannerSection()}
+    <div class="mc-care-prep">
+      ${appointmentCompanionCard()}
+      <section class="jc-context jc-appointment"><span>Appointments</span><h2>Your story, ready to share.</h2><p>Bring your symptoms, treatment changes, and questions into one appointment report.</p><p class="mc-muted">Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
+    </div>
+    ${!plannerOpen?'<div class="mc-care-actions"><button class="jc-secondary" data-act="appointment-question-add">Add question</button><button class="jc-secondary" data-act="after-visit-add">Add plan</button></div>':''}
+    <details class="mc-disclosure mc-care-planner"${plannerOpen?' open':''}><summary><span><b>Questions &amp; after-visit plans</b><small>${appointments.questions.filter(item=>!item.asked).length} open questions · ${appointments.plans.length} saved ${appointments.plans.length===1?'plan':'plans'}</small></span>${IC.chev}</summary>${appointmentPlannerSection()}</details>
     ${visitReminderMarkup()}
-    <section class="jc-section"><div class="jc-section-head"><span>Your treatment plan</span>${meds.length?'<button data-act="med-add">Add</button>':''}</div>
-      <div class="jc-treatment-list">${activeMeds.length?activeMeds.map(treatmentRow).join(''):'<p class="jc-empty-line">No active treatments.</p>'}${stoppedMeds.length?`<div class="jc-treatment-subhead">Stopped</div>${stoppedMeds.map(treatmentRow).join('')}`:''}${archivedMeds.length?`<details class="jc-treatment-archive"><summary>${archivedMeds.length} archived ${archivedMeds.length===1?'treatment':'treatments'}</summary>${archivedMeds.map(treatmentRow).join('')}</details>`:''}</div>
-    </section>
-    <section class="jc-section"><div class="jc-section-head"><span>Labs</span><button data-act="lab-add">Add result</button></div>${labFormOpen?labForm():`<div class="jc-data-list">${labs.length?labs.slice(0,6).map((x,i)=>`<div><span><b>${esc(x.name)}</b><small>${esc(fmtDay(x.date))}</small></span><strong>${esc(x.value+(x.unit?' '+x.unit:''))}</strong><button data-act="lab-remove" data-i="${i}" aria-label="Remove ${esc(x.name)} result">×</button></div>`).join(''):'<p class="jc-empty-line">No lab results yet.</p>'}</div>`}</section>
+    <div class="mc-section-intro"><div><span class="mc-eyebrow">Between appointments</span><h2>Your everyday care</h2></div>${!medFormOpen&&!changeMed&&!stopMed&&!activeFollowUp?'<button class="jc-secondary" data-act="med-add">Add a medication</button>':''}</div>
+    <div class="mc-care-columns">
+      <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span><small>${due.length?due.length+' scheduled':''}</small></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'Add your treatments to keep track of what you take and when it changes.'}</p>`}</div></section>
+      <section class="jc-section"><div class="jc-section-head"><span>Your treatment plan</span><small>${activeMeds.length} active</small></div><div class="jc-treatment-list">${activeMeds.length?activeMeds.map(treatmentRow).join(''):'<p class="jc-empty-line">No active treatments.</p>'}${stoppedMeds.length?`<div class="jc-treatment-subhead">Stopped</div>${stoppedMeds.map(treatmentRow).join('')}`:''}${archivedMeds.length?`<details class="jc-treatment-archive"><summary>${archivedMeds.length} archived ${archivedMeds.length===1?'treatment':'treatments'}</summary>${archivedMeds.map(treatmentRow).join('')}</details>`:''}</div></section>
+    </div>
+    <details class="mc-disclosure"${pendingFollowUps?' open':''}><summary><span><b>Treatment follow-ups</b><small>${pendingFollowUps?pendingFollowUps+' ready to complete':followUps.length?followUps.length+' scheduled or completed':'Check in after a treatment change'}</small></span>${IC.chev}</summary>${treatmentFollowUpSection(followUps)}</details>
+    <section class="jc-section mc-labs"><div class="jc-section-head"><span>Labs</span><button data-act="lab-add">Add result</button></div>${labFormOpen?labForm():labs.length?`<details class="mc-disclosure"><summary><span><b>${labs.length} saved ${labs.length===1?'result':'results'}</b><small>Open your lab record</small></span>${IC.chev}</summary><div class="jc-data-list">${labs.map((x,i)=>`<div><span><b>${esc(x.name)}</b><small>${esc(fmtDay(x.date))}</small></span><strong>${esc(x.value+(x.unit?' '+x.unit:''))}</strong><button data-act="lab-remove" data-i="${i}" aria-label="Remove ${esc(x.name)} result">×</button></div>`).join('')}</div></details>`:'<p class="jc-empty-line">Keep results here for your next appointment.</p>'}</section>
     <button class="jc-open-row" data-act="sheet" data-s="learn:screening"><span>${TWILIGHT_IC.calendar}</span><span><b>Preventive care</b><small>Keep screening dates and regional guidance together.</small></span>${IC.chev}</button>
   </div>`;
 }
 function guideRows(ids){
   return ids.map(id=>LEARN_MODULES.find(m=>m.id===id)).filter(Boolean).map(m=>h('button',{class:'jc-guide-row','data-act':'sheet','data-s':'learn:'+m.id,'data-guide-text':(m.n+' '+m.s).toLowerCase()},'<span class="ico">'+m.i+'</span><span class="txt"><b>'+esc(m.n)+'</b><span>'+esc(m.s)+'</span></span><span class="chev">'+IC.chev+'</span>')).join('');
 }
-function guideGroup(title,ids){ return `<section class="jc-guide-group" data-guide-group><h2>${esc(title)}</h2>${guideRows(ids)}</section>`; }
+function guideGroup(title,ids,index,description){ return `<section class="jc-guide-group" data-guide-group><div class="mc-guide-group-heading"><span class="mc-guide-index">${esc(index||'')}</span><div><h2>${esc(title)}</h2>${description?`<p>${esc(description)}</p>`:''}</div></div>${guideRows(ids)}</section>`; }
 function viewGuide(){
   const intent=DB.profile.intent||'understand';
   const rec={understand:'stage',treatment:'treatment',appointment:'clinician',record:'symptoms'}[intent]||'stage';
   const recommendation=LEARN_MODULES.find(m=>m.id===rec)||LEARN_MODULES[0];
   return `<div class="view jc-screen jc-guide">
     ${jcChrome()}
-    ${jcHeading('Guide','Evidence without the hype, matched to where you are.')}
+    ${jcHeading('A little more clarity.','Explore at your pace. Start with what matters to you.','THE MENOCOMPASS GUIDE')}
     <label class="jc-search"><span class="sr-only">Search Guide</span><input type="search" data-act="guide-search" value="${esc(guideQuery)}" placeholder="Search symptoms, treatments, and questions"></label>
+    <p class="mc-search-status" role="status" aria-live="polite" hidden></p>
     ${quickToolsMarkup('guide')}
-    <section class="jc-context jc-for-you"><span>For you</span><h2>${esc(recommendation.n)}</h2><p>${esc(recommendation.s)}</p><button class="jc-inline-action" data-act="sheet" data-s="learn:${esc(recommendation.id)}">Open guide ${IC.chev}</button></section>
-    <div id="guide-results">
-      ${guideGroup('Understand',['stage','symptoms'])}
-      ${guideGroup('Treat',['treatment','supplements'])}
-      ${guideGroup('Feel better',['sleep','mind','exercise','sex','diet','weight','skin'])}
-      ${guideGroup('Prepare',['clinician','screening','sources'])}
+    <section class="jc-context jc-for-you mc-guide-feature"><div><span class="mc-eyebrow">For you</span><h2>${esc(recommendation.n)}</h2><p>${esc(recommendation.s)}</p><button class="jc-inline-action" data-act="sheet" data-s="learn:${esc(recommendation.id)}">Open guide ${IC.chev}</button></div><div class="mc-guide-feature-art" aria-hidden="true"><span>${recommendation.i}</span><i></i><i></i></div></section>
+    <div class="mc-section-intro"><div><span class="mc-eyebrow">The library</span><h2>Find your starting point</h2></div><p>Clear information for each part of your journey.</p></div>
+    <div id="guide-results" class="mc-guide-library">
+      ${guideGroup('Understand',['stage','symptoms'],'01','Make sense of the changes.')}
+      ${guideGroup('Treat',['treatment','supplements'],'02','Know the options to discuss.')}
+      ${guideGroup('Feel better',['sleep','mind','exercise','sex','diet','weight','skin'],'03','Everyday wellbeing, one topic at a time.')}
+      ${guideGroup('Prepare',['clinician','screening','sources'],'04','Bring more confidence to your care.')}
       <p class="jc-no-results" hidden>No matching guidance. Try a symptom or treatment name.</p>
     </div>
     <p class="jc-footnote">Education, not medical advice. Content reviewed July 2026.</p>
@@ -2150,32 +2169,53 @@ function filterGuideResults(){
   const root=document.getElementById('guide-results'); if(!root) return;
   const q=guideQuery.trim().toLowerCase(), rows=[...root.querySelectorAll('[data-guide-text]')];
   rows.forEach(row=>{ row.hidden=!!q&&!row.dataset.guideText.includes(q); });
+  const guide=root.closest('.jc-guide'), status=guide.querySelector('.mc-search-status');
+  guide.classList.toggle('mc-searching',!!q);
+  if(status){ const count=rows.filter(row=>!row.hidden).length; status.hidden=!q; status.textContent=count+' '+(count===1?'guide':'guides')+' found'; }
   root.querySelectorAll('[data-guide-group]').forEach(group=>{ group.hidden=![...group.querySelectorAll('[data-guide-text]')].some(row=>!row.hidden); });
   const empty=root.querySelector('.jc-no-results'); if(empty) empty.hidden=rows.some(row=>!row.hidden);
 }
 function jcSeverityControl(key,value){
   const labels=['None','Mild','Moderate','Severe','Very severe'];
-  return `<div class="jc-check-row"><div class="jc-check-label">${symptomIcon(key)}<span><b>${esc(symptomName(key))}</b><small>${value==null?'Choose 0–4':labels[Math.min(4,value)]}</small></span></div><div class="jc-scale" role="group" aria-label="${esc(symptomName(key))}">${labels.map((label,i)=>`<button data-act="set" data-k="${esc(symptomPath(key))}" data-v="${i}" aria-label="${esc(symptomName(key)+': '+label)}" aria-pressed="${value===i?'true':'false'}"><i></i><span>${i}</span></button>`).join('')}</div></div>`;
+  return `<div class="jc-check-row${value!=null?' mc-rated':''}"><div class="jc-check-label">${symptomIcon(key)}<span><b>${esc(symptomName(key))}</b><small>${value==null?'Not rated yet':labels[Math.min(4,value)]}</small></span></div><div class="jc-scale" role="group" aria-label="${esc(symptomName(key))}">${labels.map((label,i)=>`<button data-act="set" data-k="${esc(symptomPath(key))}" data-v="${i}" aria-label="${esc(symptomName(key)+': '+label)}" aria-pressed="${value===i?'true':'false'}"><span>${i}</span><small class="mc-scale-label">${label}</small></button>`).join('')}</div></div>`;
 }
 function viewCheckin(){
   const t=todayISO(), raw=entry(t), count=entryDates().length, backLabel=returnTab==='journey'?'Journey':'Today';
   if(checkinComplete){
-    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}${jcHeading('Today is confirmed.','Your Journey and appointment report now use this version.',fmtLong(t))}${comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">Back to Journey</button><button class="jc-secondary" data-act="checkin-add-treatment">Add treatment change</button></div>`;
+    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}<div class="mc-complete-mark">${PULSE_IC.check}</div>${jcHeading('Today is confirmed.','Your Journey and appointment report now use this version.',fmtLong(t))}${comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">Back to Journey</button><button class="jc-secondary" data-act="checkin-add-treatment">Add treatment change</button></div>`;
   }
-  const state=dayState(t), keys=focusedKeys();
+  const state=dayState(t), keys=focusedKeys(), context=checkinStep===1;
+  const recordedKeys=[...new Set([...keys,...PINNABLE_SYMPTOMS])].filter(key=>symptomValue(raw,key)!=null);
+  const ratingLabels=['None','Mild','Moderate','Severe','Very severe'];
   return `<div class="view jc-screen jc-checkin">
     ${jcChrome(backLabel)}
     ${jcHeading('Today’s check-in','Nothing counts in your patterns until you confirm.',fmtLong(t))}
+    <nav class="mc-check-steps" aria-label="Check-in steps">
+      <button class="mc-step${context?'':' active'}" aria-label="Step 1: Your symptoms" data-act="checkin-step" data-v="0"${context?'':' aria-current="step"'}><span>1</span><b>Your symptoms</b></button>
+      <button class="mc-step${context?' active':''}" aria-label="Step 2: Context and review (optional)" data-act="checkin-step" data-v="1"${context?' aria-current="step"':''}><span>2</span><b>Context &amp; review<small>Optional</small></b></button>
+    </nav>
     <div class="jc-draft-badge ${state.key}">${state.key==='confirmed'?'Confirmed version on file':state.label}</div>
-    <aside class="jc-scale-guide" aria-label="How to rate symptoms"><b>What does 0–4 mean?</b><p>Rate how much each symptom affected you today.</p><dl><div><dt>0 · None</dt><dd>Did not happen.</dd></div><div><dt>1 · Mild</dt><dd>Noticeable, but easy to carry on.</dd></div><div><dt>2 · Moderate</dt><dd>Sometimes interrupted what you were doing.</dd></div><div><dt>3 · Severe</dt><dd>Made usual activities difficult.</dd></div><div><dt>4 · Very severe</dt><dd>Stopped you doing usual activities.</dd></div></dl><p>For example, choose 2 for brain fog if you sometimes lost your train of thought but could continue. Hot flashes use a count, not this scale.</p></aside>
-    <section class="jc-check-list">
-      ${keys.map(key=>key==='hf'?`<div class="jc-check-row"><div class="jc-check-label">${TWILIGHT_IC.flame}<span><b>Hot flashes</b><small>Actual count today</small></span></div><div class="jc-count"><button data-act="hf" data-n="-1" aria-label="One fewer hot flash">−</button><strong>${raw.hf==null?'—':raw.hf}</strong><button data-act="hf" data-n="1" aria-label="One more hot flash">+</button><button data-act="set" data-k="hf" data-v="0">None</button></div></div>`:jcSeverityControl(key,symptomValue(raw,key))).join('')}
-    </section>
-    <button class="jc-inline-action jc-add-symptom" data-act="open-tracking">Add another symptom ${IC.chev}</button>
-    <section class="jc-section"><div class="jc-section-head"><span>Today’s treatment</span></div><div class="jc-open-list">${todayMedicationRows(true)}</div></section>
-    <label class="jc-note"><span>Anything worth remembering?</span><textarea maxlength="4000" data-act="num" data-k="notes" placeholder="What helped, what changed, or a question for your clinician…">${esc(raw.notes||'')}</textarea></label>
-    <button class="jc-secondary" data-act="more-details">Add more detail</button>
-    <button class="jc-primary jc-confirm" data-act="confirm-log">Confirm today’s log</button>
+    ${context?`
+      <div class="mc-check-intro"><h2 id="mc-check-heading" tabindex="-1">The little details matter.</h2><p>Add anything that may help you remember this day.</p></div>
+      <section class="mc-check-review"><div class="jc-section-head"><span>Your symptoms today</span><button data-act="checkin-step" data-v="0">Edit ratings</button></div>
+        ${recordedKeys.length?`<dl class="mc-check-summary">${recordedKeys.map(key=>{const value=symptomValue(raw,key);return `<div><dt>${esc(symptomName(key))}</dt><dd>${key==='hf'?value+' '+(value===1?'flash':'flashes'):esc(ratingLabels[Math.min(4,value)]||String(value))}</dd></div>`;}).join('')}</dl>`:'<p class="jc-empty-line">No symptom ratings yet. You can still save a note about today.</p>'}
+      </section>
+      <label class="jc-note"><span>Anything worth remembering?</span><textarea maxlength="4000" data-act="num" data-k="notes" placeholder="What helped, what changed, or a question for your clinician…">${esc(raw.notes||'')}</textarea></label>
+      <section class="jc-section"><div class="jc-section-head"><span>Today’s treatment</span></div><div class="jc-open-list">${todayMedicationRows(true)}</div></section>
+      <button class="jc-open-row" data-act="more-details"><span>${PULSE_IC.today}</span><span><b>Add more detail</b><small>Sleep, cycle, body, and lifestyle</small></span>${IC.chev}</button>
+    `:`
+      <div class="mc-check-intro"><h2 id="mc-check-heading" class="sr-only" tabindex="-1">How has today felt?</h2><p>Choose what fits. Skip anything you’re unsure about.</p></div>
+      <aside class="jc-scale-guide" aria-label="How to rate symptoms"><p>Rate how much each symptom affected you today, from 0 (none) to 4 (very severe).</p><details><summary>What does each rating mean?</summary><dl><div><dt>0 · None</dt><dd>Did not happen.</dd></div><div><dt>1 · Mild</dt><dd>Noticeable, but easy to carry on.</dd></div><div><dt>2 · Moderate</dt><dd>Sometimes interrupted what you were doing.</dd></div><div><dt>3 · Severe</dt><dd>Made usual activities difficult.</dd></div><div><dt>4 · Very severe</dt><dd>Stopped you doing usual activities.</dd></div></dl><p>For example, choose 2 for brain fog if you sometimes lost your train of thought but could continue. Hot flashes use a count, not this scale.</p></details></aside>
+      <section class="jc-check-list" aria-label="Today’s symptoms">
+        ${keys.map(key=>key==='hf'?`<div class="jc-check-row${raw.hf!=null?' mc-rated':''}"><div class="jc-check-label">${TWILIGHT_IC.flame}<span><b>Hot flashes</b><small>Actual count today</small></span></div><div class="jc-count"><button data-act="hf" data-n="-1" aria-label="One fewer hot flash">−</button><strong>${raw.hf==null?'—':raw.hf}</strong><button data-act="hf" data-n="1" aria-label="One more hot flash">+</button><button data-act="set" data-k="hf" data-v="0">None</button></div></div>`:jcSeverityControl(key,symptomValue(raw,key))).join('')}
+      </section>
+      <button class="jc-inline-action jc-add-symptom" data-act="open-tracking">Add another symptom ${IC.chev}</button>
+    `}
+    <div class="mc-check-actions">
+      ${context?'':`<button class="jc-secondary" data-act="checkin-step" data-v="1">Add context ${IC.chev}</button>`}
+      <button class="jc-primary jc-confirm" data-act="confirm-log">Confirm today’s log</button>
+      <p class="jc-footnote">${context?'Your confirmed log will update your Journey and appointment report.':'You can confirm now, or add a note and treatment details first.'}</p>
+    </div>
   </div>`;
 }
 function viewAppointmentReport(){
@@ -2192,9 +2232,9 @@ function viewAppointmentReport(){
    RENDER + EVENTS
    ============================================================ */
 function applyTheme(){
-  document.documentElement.setAttribute('data-theme','dark');
+  document.documentElement.setAttribute('data-theme','light');
   const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content','#071416');
+  if(meta) meta.setAttribute('content','#f7f5ef');
 }
 const TAB_TITLES = {today:['Today','What matters now'], journey:['Journey','Symptoms and changes'], care:['Care','Treatment and appointments'], guide:['Guide','Evidence and tools']};
 const ROUTE_ALIASES = {trends:'journey',meds:'care',report:'appointment-report',settings:'profile',you:'profile',learn:'guide'};
@@ -2244,6 +2284,8 @@ function render(preserveScroll){
   const scrollY=preserveScroll ? window.scrollY : 0;
   refreshTriggerStatus();
   applyTheme();
+  document.body.classList.toggle('mc-onboarding',!DB.profile.onboarded);
+  document.body.classList.toggle('mc-primary-route',Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab));
   if(!DB.profile.onboarded){
     $('#app').innerHTML = viewOnboard();
     $('#tabs').style.display='none';
@@ -2272,6 +2314,10 @@ function render(preserveScroll){
     else b.removeAttribute('aria-label');
   });
   window.scrollTo(0,preserveScroll?scrollY:0);
+  if(!preserveScroll&&!sheetStack.length){
+    const heading=document.querySelector('#app h1');
+    if(heading){ heading.setAttribute('tabindex','-1'); heading.focus({preventScroll:true}); }
+  }
   syncNativeNavigationState();
 }
 
@@ -2296,6 +2342,13 @@ window.addEventListener('menocompass-pro-changed',()=>{
   render(true);
 });
 
+function revealCareForm(fieldId){
+  const field=document.getElementById(fieldId);
+  if(!field) return;
+  const form=field.closest('.tw-form-card')||field;
+  form.scrollIntoView({block:'start',behavior:'auto'});
+  field.focus({preventScroll:true});
+}
 function handleAction(el, ev){
   const a = el.dataset.act;
   if(companionAction(el)) return;
@@ -2308,7 +2361,10 @@ function handleAction(el, ev){
     }
     case 'start-checkin':
       returnTab=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab)?curTab:'today';
-      curDate=todayISO(); checkinComplete=false; setRoute('checkin'); render(); return;
+      curDate=todayISO(); checkinComplete=false; checkinStep=0; setRoute('checkin'); render(); return;
+    case 'checkin-step':
+      checkinStep=el.dataset.v==='1'?1:0; render();
+      document.getElementById('mc-check-heading')?.focus({preventScroll:true}); return;
     case 'open-profile':
       if(curTab!=='profile') returnTab=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab)?curTab:(returnTab||'today');
       setRoute('profile'); render(); return;
@@ -2329,7 +2385,7 @@ function handleAction(el, ev){
       return;
     }
     case 'back-journey': checkinComplete=false; setRoute('journey'); render(); return;
-    case 'checkin-add-treatment': checkinComplete=false; medFormOpen=true; setRoute('care'); render(); return;
+    case 'checkin-add-treatment': checkinComplete=false; medFormOpen=true; setRoute('care'); render(); revealCareForm('med-name'); return;
     case 'open-tracking': returnTab='checkin'; setRoute('profile'); render(); return;
     case 'open-report':
       if(requestNativePro('appointment-report')) return;
@@ -2390,7 +2446,7 @@ function handleAction(el, ev){
       else records[m.id]={taken:true,at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
       save(true); render(true); return;
     }
-    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); return;
+    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); revealCareForm('med-name'); return;
     case 'med-cancel': medFormOpen=false; render(true); return;
     case 'med-day': {
       const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort();
@@ -2410,7 +2466,7 @@ function handleAction(el, ev){
       DB.medications.push(med);
       medFormOpen=false; save(true); render(); toast('Medication added'); return;
     }
-    case 'med-change': treatmentChangeTarget=el.dataset.id; treatmentStopTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); return;
+    case 'med-change': treatmentChangeTarget=el.dataset.id; treatmentStopTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); revealCareForm('change-date'); return;
     case 'med-change-cancel': treatmentChangeTarget=null; render(true); return;
     case 'med-change-save': {
       const med=DB.medications.find(m=>m.id===el.dataset.id), date=document.getElementById('change-date'), label=document.getElementById('change-label');
@@ -2421,7 +2477,7 @@ function handleAction(el, ev){
       med.changes.push(newTreatmentChange(date.value,label.value.trim(),targets));
       treatmentChangeTarget=null; save(true); render(); toast('Treatment change added to Journey'); return;
     }
-    case 'med-stop': treatmentStopTarget=el.dataset.id; treatmentChangeTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); return;
+    case 'med-stop': treatmentStopTarget=el.dataset.id; treatmentChangeTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); revealCareForm('stop-date'); return;
     case 'med-stop-cancel': treatmentStopTarget=null; render(true); return;
     case 'med-stop-save': {
       const med=DB.medications.find(item=>item.id===el.dataset.id), date=document.getElementById('stop-date'), reason=document.getElementById('stop-reason');
@@ -2453,7 +2509,7 @@ function handleAction(el, ev){
       const item=findTreatmentFollowUp(target);
       if(!item||item.followUp) return;
       if(item.dueDate>todayISO()){ toast('This follow-up is not due yet'); return; }
-      treatmentFollowUpTarget=target; treatmentChangeTarget=null; medFormOpen=false; render(true); return;
+      treatmentFollowUpTarget=target; treatmentChangeTarget=null; treatmentStopTarget=null; medFormOpen=false; render(true); revealCareForm('followup-benefit'); return;
     }
     case 'treatment-followup-cancel': treatmentFollowUpTarget=null; render(true); return;
     case 'treatment-followup-save': {
@@ -2476,8 +2532,8 @@ function handleAction(el, ev){
       if(confirm('Permanently delete '+DB.medications[i].name+' and its treatment history?')){ DB.medications.splice(i,1); save(true); render(); toast('Treatment permanently deleted'); }
       return;
     }
-    case 'appointment-question-add': appointmentQuestionEditId='new'; render(true); return;
-    case 'appointment-question-edit': appointmentQuestionEditId=el.dataset.id; render(true); return;
+    case 'appointment-question-add': appointmentQuestionEditId='new'; render(true); revealCareForm('appointment-question'); return;
+    case 'appointment-question-edit': appointmentQuestionEditId=el.dataset.id; render(true); revealCareForm('appointment-question'); return;
     case 'appointment-question-cancel': appointmentQuestionEditId=null; render(true); return;
     case 'appointment-question-save': {
       const field=document.getElementById('appointment-question'), data=appointmentData();
@@ -2499,8 +2555,8 @@ function handleAction(el, ev){
       if(confirm('Remove this appointment question?')){ data.questions.splice(index,1); if(appointmentQuestionEditId===el.dataset.id) appointmentQuestionEditId=null; save(true); render(); }
       return;
     }
-    case 'after-visit-add': afterVisitPlanEditId='new'; render(true); return;
-    case 'after-visit-edit': afterVisitPlanEditId=el.dataset.id; render(true); return;
+    case 'after-visit-add': afterVisitPlanEditId='new'; render(true); revealCareForm('visit-date'); return;
+    case 'after-visit-edit': afterVisitPlanEditId=el.dataset.id; render(true); revealCareForm('visit-date'); return;
     case 'after-visit-cancel': afterVisitPlanEditId=null; render(true); return;
     case 'after-visit-save': {
       const date=document.getElementById('visit-date'), summary=document.getElementById('visit-summary'), actionField=document.getElementById('visit-actions'), next=document.getElementById('visit-next'), data=appointmentData();
@@ -2529,7 +2585,7 @@ function handleAction(el, ev){
       if(confirm('Remove this after-visit plan?')){ data.plans.splice(index,1); if(afterVisitPlanEditId===el.dataset.id) afterVisitPlanEditId=null; save(true); render(); }
       return;
     }
-    case 'lab-add': labFormOpen=true; render(true); return;
+    case 'lab-add': labFormOpen=true; render(true); revealCareForm('lab-name'); return;
     case 'lab-cancel': labFormOpen=false; render(true); return;
     case 'lab-save': {
       const name=document.getElementById('lab-name'), date=document.getElementById('lab-date'), value=document.getElementById('lab-value'), unit=document.getElementById('lab-unit');
@@ -2882,9 +2938,9 @@ function boot(){
   if(prefilled||window.__MENO_NATIVE__===true) save(true);
   document.body.insertAdjacentHTML('afterbegin',
     '<header class="topbar" id="topbar"></header><main id="app"></main>'
-    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="inner">'
+    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="mc-sidebar-brand"><span class="mc-brand-icon">'+TWILIGHT_IC.sun+'</span><span>MenoCompass<small>YOUR PERSONAL COMPANION</small></span></div><span class="mc-nav-label">YOUR SPACE</span><div class="inner">'
     + Object.entries(TAB_TITLES).map(([k,v])=>h('button',{'data-act':'tab','data-v':k},IC[k]+'<span>'+v[0]+'</span>')).join('')
-    + '</div></nav><div id="sheet-host"></div>');
+    + '</div><div class="mc-sidebar-bottom"><div>'+PULSE_IC.privacy+'<p>Just for you.<br><span>Your health story stays<br>on this device.</span></p></div><button data-act="open-profile">'+PULSE_IC.profile+'<span>Profile &amp; settings</span></button></div></nav><div id="sheet-host"></div>');
   document.addEventListener('click', ev=>{
     const el = ev.target.closest('[data-act]');
     if(!el) return;

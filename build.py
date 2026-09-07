@@ -31,7 +31,7 @@ FONT_FILES = (
     "assets/fonts/OFL.txt",
 )
 NOTICE_FILES = ("assets/icons/LUCIDE_LICENSE.txt",)
-SOURCE_FILES = ("styles.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES)
+SOURCE_FILES = ("styles.css", "redesign.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES)
 
 
 def source_text(name: str) -> str:
@@ -56,7 +56,7 @@ def reset_dist() -> None:
 
 
 def build_html() -> str:
-    css = source_text("styles.css")
+    css = source_text("styles.css") + "\n\n" + source_text("redesign.css")
     icon_license = source_text("assets/icons/LUCIDE_LICENSE.txt")
     javascript = "\n\n".join(
         f"/* ==== {name} ==== */\n{source_text(name)}" for name in JS_ORDER
@@ -73,7 +73,7 @@ def build_html() -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <title>Meno Compass — menopause tracker &amp; guide</title>
 <meta name="description" content="A private daily tracker and evidence-based reference for perimenopause and menopause: symptoms, sleep, weight, movement, diet, skin, mood and sexual health. No account, no server.">
-<meta name="theme-color" content="#071416">
+<meta name="theme-color" content="#f7f5ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MenoCompass">
