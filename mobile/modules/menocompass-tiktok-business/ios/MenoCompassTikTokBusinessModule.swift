@@ -48,6 +48,9 @@ public final class MenoCompassTikTokBusinessModule: Module {
     }
 
     AsyncFunction("trackCommerceEventAsync") { (eventName: String, properties: [String: Any], promise: Promise) in
+      // Project the untyped bridge payload before crossing the actor boundary.
+      // String dictionaries are Sendable; JavaScript's [String: Any] is not.
+      let stringProperties = properties.compactMapValues { $0 as? String }
       Task { @MainActor in
         guard case .initialized = Self.initializationState,
               ATTrackingManager.trackingAuthorizationStatus != .notDetermined else {
@@ -73,13 +76,13 @@ public final class MenoCompassTikTokBusinessModule: Module {
         ]
         var safe: [String: Any] = ["schemaVersion": 2]
         for (key, values) in enums {
-          if let value = properties[key] as? String, values.contains(value) { safe[key] = value }
+          if let value = stringProperties[key], values.contains(value) { safe[key] = value }
         }
         for key in ["offeringId", "productId", "packageType", "runtimeVersion", "updateId"] {
-          if let value = properties[key] as? String,
+          if let value = stringProperties[key],
              value.range(of: "^[a-zA-Z0-9_.$:-]{1,100}$", options: .regularExpression) != nil { safe[key] = value }
         }
-        if let code = properties["errorCode"] as? String,
+        if let code = stringProperties["errorCode"],
            code.range(of: "^[0-9]{1,3}$", options: .regularExpression) != nil { safe["errorCode"] = code }
         TikTokBusiness.trackTTEvent(TikTokBaseEvent(eventName: eventName, properties: safe, eventId: nil))
         promise.resolve()
