@@ -15,15 +15,24 @@ Native runtime: `1.2.0-native-2`. A new binary is required for the TikTok commer
 
 - EAS production already had all AppsFlyer, Meta, TikTok and RevenueCat variables. PostHog token/host added for production and preview.
 - RevenueCat project `50953eca` already had active AppsFlyer and Meta integrations. Added US PostHog forwarding with namespaced subscription event names. Subscriber-to-person properties remain disabled; the sandbox API key is blank so sandbox revenue is not routed to this production destination.
+- Meta revenue has one delivery path: RevenueCat Conversions API to dataset `1087634710465680`. AppsFlyer's Meta in-app postbacks were disabled after finding duplicate initial-purchase and renewal forwarding. Meta install attribution remains active. RevenueCat's option to send without ATT authorization stays unchecked; sandbox destinations are blank.
+- TikTok's AppsFlyer partner remains active for app `7679768878880178197`. Added `rc_trial_started_event` → `StartTrial` without values/revenue and `rc_trial_converted_event` → `Subscribe` with values/revenue. Existing initial purchase and renewal → `Subscribe` mappings remain. All five mappings, including `af_content_view` → `ViewContent` without values/revenue, use all media sources. There are no duplicate `mc_*` partner postbacks.
 - The transport-only PostHog probe is `menocompass.diagnostic_probe`, `validation=true`, `buildChannel=preview`, anonymous ID `menocompass-release-validation`. Never count it as an install, paying user, or device verification. Probe UUID: `0eb936df-ffa4-4ee2-8659-8212b17788dc`.
 
 ## Release evidence
 
-Physical iPhone ATT choices, SDK receipt, real startup timing, sandbox purchase/restore, and OTA adoption/rollback must be observed on the exact binary. Automated checks or an accepted transport request do not establish those results. Record build/update IDs and actual results below when available.
+- The PostHog probe was confirmed in the project's live Activity event list, not only accepted by the ingestion endpoint.
+- Web app and updated privacy page deployed to https://menlopass.vercel.app. Deployment `dpl_51ApHkbMyWaUYrAcpimRKLXGFtEU`; root and privacy page returned HTTP 200 with the new content. The web app does not initialize native analytics SDKs.
+- Full browser/product regression suite, TypeScript checks and Expo Doctor (21/21) passed. Mobile contract suite now has 34 passing tests plus three TikTok ATT checks. iOS Metro export passed.
+- Build 31 (`4dc801f0-e7d2-4dee-a3fe-18b330649a5b`) failed Swift strict concurrency checking. Fixed the bridge by projecting the untyped properties to a Sendable string dictionary before the main-actor hop; privacy allowlisting remains on the native side.
+- Replacement production build 32: `3ee4861e-4df3-4738-8a8f-90954a8e9836`, source commit `c9f1302`, runtime `1.2.0-native-2`. TestFlight submission `461b4ef0-d60a-44e0-8cc3-17844ce5a494` is scheduled; completion is pending.
+
+Physical iPhone ATT choices, SDK receipt, real startup timing, sandbox purchase/restore, and OTA adoption/rollback must be observed on the exact binary. Automated checks or transport probes do not establish those results. No App Store review submission or physical-device QA is claimed.
 
 ## References
 
 - [PostHog React Native SDK](https://posthog.com/docs/libraries/react-native)
 - [RevenueCat PostHog identity and forwarding](https://www.revenuecat.com/docs/integrations/third-party-integrations/posthog)
+- [RevenueCat Meta delivery and duplicate-event guidance](https://www.revenuecat.com/docs/integrations/attribution/meta-ads)
 - [Expo Observe](https://docs.expo.dev/versions/latest/sdk/observe/)
 - [TikTok SDK 1.7.2 source](https://github.com/tiktok/tiktok-business-ios-sdk/tree/1.7.2)

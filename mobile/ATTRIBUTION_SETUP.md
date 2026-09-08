@@ -45,7 +45,7 @@ The SDK is exposed through an explicit Expo native module and is not an app-dele
 2. In Meta for Developers, add the iOS platform to the Meta app, set the same bundle ID, and copy the App ID and client token into EAS.
 3. In TikTok Events Manager, select the existing AppsFlyer-connected iOS app and add the TikTok App Events SDK as a hybrid connection. Confirm app ID `6798018790` matches TikTok App ID `7679768878880178197`.
 4. In AppsFlyer, keep TikTok enabled as an integrated partner and make AppsFlyer the only SDK that updates SKAdNetwork conversion values.
-5. In RevenueCat, enable its AppsFlyer and Meta integrations for server-to-server subscription attribution. Keep automatic Meta and TikTok purchase logging disabled in the app so revenue is not counted twice.
+5. In RevenueCat, enable its AppsFlyer, Meta and PostHog integrations for server-to-server subscription attribution. Keep automatic Meta and TikTok purchase logging disabled. Meta revenue goes directly through RevenueCat Conversions API, so AppsFlyer's Meta in-app postbacks must stay off. TikTok revenue goes through AppsFlyer: map initial purchase, trial conversion and renewal to Subscribe, and trial start to StartTrial without revenue. Do not also forward the direct SDK's `mc_*` events.
 6. Update App Store Connect privacy answers before submitting the new build. The native app now collects limited performance, product-usage, and attribution identifiers; it does not send health-journal content.
 7. Publish the revised privacy policy from `privacy.html` before the new build is reviewed.
 
@@ -104,6 +104,8 @@ Validate on a physical iPhone before release: both ATT choices; slow/offline ana
 Reference: [RevenueCat AppsFlyer integration](https://www.revenuecat.com/docs/integrations/attribution/appsflyer) and [RevenueCat event environments](https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields).
 
 ### Implementation validation, September 5, 2026
+
+This is historical evidence. Current implementation, passing checks and release status are recorded in [Tracking release — September 8, 2026](TRACKING_RELEASE_2026-09-08.md).
 
 - TypeScript check passed; 29 mobile contract tests (including 8 commerce behavior tests) and 3 TikTok tests passed.
 - Commerce tests exercise payload privacy, sandbox and family/trial classification, cancellation/retry, purchase and restore access gating, duplicate callbacks, queued pre-initialization events, SDK timeouts/recovery, and synchronous analytics failures.
