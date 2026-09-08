@@ -1,6 +1,6 @@
 # Tracking release — September 8, 2026
 
-Native runtime: `1.2.0-native-2`. A new binary is required for the TikTok commerce bridge. Do not publish this JavaScript to `1.2.0-native-1` or either 1.1.0 runtime.
+App version: `1.2.1`. Native runtime: `1.2.0-native-2`. A new binary is required for the TikTok commerce bridge. Do not publish this JavaScript to `1.2.0-native-1` or either 1.1.0 runtime. The explicit runtime is independent of the marketing version.
 
 ## Implementation
 
@@ -25,7 +25,9 @@ Native runtime: `1.2.0-native-2`. A new binary is required for the TikTok commer
 - Web app and updated privacy page deployed to https://menlopass.vercel.app. Deployment `dpl_51ApHkbMyWaUYrAcpimRKLXGFtEU`; root and privacy page returned HTTP 200 with the new content. The web app does not initialize native analytics SDKs.
 - Full browser/product regression suite, TypeScript checks and Expo Doctor (21/21) passed. Mobile contract suite now has 34 passing tests plus three TikTok ATT checks. iOS Metro export passed.
 - Build 31 (`4dc801f0-e7d2-4dee-a3fe-18b330649a5b`) failed Swift strict concurrency checking. Fixed the bridge by projecting the untyped properties to a Sendable string dictionary before the main-actor hop; privacy allowlisting remains on the native side.
-- Replacement production build 32: `3ee4861e-4df3-4738-8a8f-90954a8e9836`, source commit `c9f1302`, runtime `1.2.0-native-2`. TestFlight submission `461b4ef0-d60a-44e0-8cc3-17844ce5a494` is scheduled; completion is pending.
+- Build 32 (`3ee4861e-4df3-4738-8a8f-90954a8e9836`) was cancelled while queued after App Store Connect confirmed 1.2.0/build 30 is already `READY_FOR_DISTRIBUTION`. The replacement uses marketing version 1.2.1 so it can upload as a new version. Native runtime stays `1.2.0-native-2`.
+- Observe's iOS event summary contains existing app activity over the last seven days (including 16 app launches and 15 ATT resolutions). This confirms the existing destination receives events, not delivery from the new binary. Its sole initialization failure in that window was AppsFlyer on old 1.1.0/build 14.
+- Native build source-map upload is enabled for Observe. Expo currently documents that OTA error stacks are not symbolicated and native crashes are not captured; these are service limitations, not verified coverage. See [Observe error reporting](https://docs.expo.dev/eas/observe/errors/).
 
 Physical iPhone ATT choices, SDK receipt, real startup timing, sandbox purchase/restore, and OTA adoption/rollback must be observed on the exact binary. Automated checks or transport probes do not establish those results. No App Store review submission or physical-device QA is claimed.
 

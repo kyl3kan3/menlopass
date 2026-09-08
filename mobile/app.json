@@ -2,7 +2,7 @@
   "expo": {
     "name": "MenoCompass",
     "slug": "menlopass",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "runtimeVersion": "1.2.0-native-2",
     "updates": {
       "url": "https://u.expo.dev/e7a9bddc-4193-41a0-81f6-b7c74b59aece"
