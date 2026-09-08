@@ -26,6 +26,8 @@ Notification permission is requested only after a reminder is enabled; locally s
 
 Expo Observe receives startup/interactive measurements, safe route/product events, and sanitized JavaScript error names and stack locations. Original error messages are replaced before automatic or explicitly handled errors are reported. Expo Observe does not capture native crashes. It receives no health entries, Apple Health values, answers, notes, medication/lab content, report text, or other free-form health data.
 
+PostHog receives explicitly allowlisted anonymous product/commerce events and RevenueCat subscription lifecycle events. Session replay, autocapture and geographic enrichment are disabled. Health content and answers are never transmitted.
+
 MenoCompass provides general health education and self-tracking. It does not diagnose, prescribe, or replace qualified care.
 
 ## Submission attachments

@@ -15,11 +15,13 @@ import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import {
   initializeTelemetry,
+  flushTelemetry,
   reportTelemetryError,
   setTelemetryRoute,
   setTelemetrySubscriptionState,
   trackTelemetryEvent,
 } from './telemetry.native';
+import { webViewDiagnosticError, webViewDiagnosticsScript } from './webview-diagnostics';
 import {
   NativeGlassTabs,
   type MenoCompassPrimaryRoute,
@@ -467,6 +469,7 @@ function App() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const autoPaywallAttemptedRef = useRef(false);
   const appLaunchTrackedRef = useRef(false);
+  const interactiveMarkedRef = useRef(false);
   const onboardingStartedRef = useRef(false);
   const onboardingCompletedRef = useRef(false);
   const paywallLoadingRef = useRef(false);
@@ -733,14 +736,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!html) return;
-    if (Platform.OS === 'ios') {
-      if (!subscriptionChecked) return;
-      markInteractive({ routeName: proActive ? 'main' : 'subscription' });
-      return;
-    }
-    markInteractive({ routeName: 'main' });
-  }, [html, markInteractive, proActive, subscriptionChecked]);
+    if (interactiveMarkedRef.current || !html || !privacyReady || !subscriptionChecked || !appIsActive) return;
+    const routeName = appLocked ? 'lock'
+      : Platform.OS === 'ios' && !proActive && telemetrySettled ? 'subscription'
+      : webContentReady ? 'main' : undefined;
+    if (routeName) { markInteractive({ routeName }); interactiveMarkedRef.current = true; }
+  }, [html, privacyReady, subscriptionChecked, appIsActive, appLocked, proActive, telemetrySettled, webContentReady, markInteractive]);
+
+  useEffect(() => {
+    const listener = AppState.addEventListener('change', state => { if (state !== 'active') flushTelemetry(); });
+    return () => listener.remove();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -939,6 +945,15 @@ function App() {
   const handleWebMessage = (event: WebViewMessageEvent) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
+      if (message?.type === 'webview-error') {
+        reportTelemetryError(webViewDiagnosticError(message));
+        return;
+      }
+      if (message?.type === 'webview-ready') {
+        setWebContentReady(true);
+        trackTelemetryEvent('webview_ready');
+        return;
+      }
       if (message?.type === 'navigation-state' && isWebRoute(message.route)) {
         setNativeNavigation({
           route: message.route,
@@ -1220,6 +1235,7 @@ function App() {
         originWhitelist={['*']}
         source={{ html }}
         injectedJavaScriptBeforeContentLoaded={`
+          ${webViewDiagnosticsScript}
           window.__MENO_NATIVE__ = true;
           window.__MENO_NATIVE_TABS__ = ${Platform.OS === 'ios' ? 'true' : 'false'};
           window.__MENO_PRO_ACTIVE__ = ${proActive ? 'true' : 'false'};
@@ -1254,8 +1270,10 @@ function App() {
         allowUniversalAccessFromFileURLs={false}
         mixedContentMode="never"
         setSupportMultipleWindows={false}
+        onLoadStart={() => setWebContentReady(false)}
+        onError={() => { setWebContentReady(false); reportTelemetryError(new Error('Embedded content failed to load.')); }}
+        onContentProcessDidTerminate={() => { setWebContentReady(false); reportTelemetryError(new Error('Embedded content process terminated.')); webViewRef.current?.reload(); }}
         onLoadEnd={() => {
-          setWebContentReady(true);
           syncProStatusToWeb(proActive);
           refreshNativePrivacyStatus();
           webViewRef.current?.injectJavaScript(`

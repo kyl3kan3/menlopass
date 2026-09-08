@@ -46,6 +46,45 @@ public final class MenoCompassTikTokBusinessModule: Module {
       }
       return
     }
+
+    AsyncFunction("trackCommerceEventAsync") { (eventName: String, properties: [String: Any], promise: Promise) in
+      Task { @MainActor in
+        guard case .initialized = Self.initializationState,
+              ATTrackingManager.trackingAuthorizationStatus != .notDetermined else {
+          promise.reject(TikTokTrackingPermissionUnresolvedException())
+          return
+        }
+        let events: Set<String> = [
+          "mc_app_launched", "mc_subscription_status_checked", "mc_subscription_check_failed",
+          "mc_paywall_requested", "mc_paywall_rendered", "mc_paywall_failed", "mc_paywall_dismissed",
+          "mc_purchase_started", "mc_purchase_cancelled", "mc_purchase_failed", "mc_purchase_completed",
+          "mc_restore_started", "mc_restore_completed", "mc_restore_failed"
+        ]
+        guard events.contains(eventName) else { promise.resolve(); return }
+        // Deliberately excludes revenue, identifiers, health content and free text.
+        let enums: [String: Set<String>] = [
+          "access": ["unknown", "active", "inactive"],
+          "storeEnvironment": ["unknown", "sandbox", "production"],
+          "periodType": ["unknown", "NORMAL", "INTRO", "TRIAL", "PREPAID"],
+          "ownershipType": ["unknown", "PURCHASED", "FAMILY_SHARED", "UNKNOWN"],
+          "source": ["automatic", "subscribe_button", "feature", "gate", "paywall"],
+          "reason": ["no_offering", "free_offer", "offerings_error", "render_error", "sdk_error"],
+          "buildChannel": ["development", "preview", "production", "unknown"]
+        ]
+        var safe: [String: Any] = ["schemaVersion": 2]
+        for (key, values) in enums {
+          if let value = properties[key] as? String, values.contains(value) { safe[key] = value }
+        }
+        for key in ["offeringId", "productId", "packageType", "runtimeVersion", "updateId"] {
+          if let value = properties[key] as? String,
+             value.range(of: "^[a-zA-Z0-9_.$:-]{1,100}$", options: .regularExpression) != nil { safe[key] = value }
+        }
+        if let code = properties["errorCode"] as? String,
+           code.range(of: "^[0-9]{1,3}$", options: .regularExpression) != nil { safe["errorCode"] = code }
+        TikTokBusiness.trackTTEvent(TikTokBaseEvent(eventName: eventName, properties: safe, eventId: nil))
+        promise.resolve()
+      }
+    }
   }
 
   @MainActor

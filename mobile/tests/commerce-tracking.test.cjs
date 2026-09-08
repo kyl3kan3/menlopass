@@ -21,6 +21,7 @@ function load(file, mocks = {}, globals = {}) {
   return exports;
 }
 const commerce = load('commerce-events.ts');
+const telemetryEvents = load('telemetry-events.ts', { './commerce-events': commerce });
 const customer = (active = false, sandbox = false, period = 'NORMAL') => ({ entitlements: { active: active ? {
   'MenoCompass Pro': { isActive: true, isSandbox: sandbox, periodType: period, ownershipType: 'PURCHASED' },
 } : {} } });
@@ -111,14 +112,15 @@ test('empty restore and purchase without entitlement leave gate in place; succes
   assert.equal(events.at(-1).event, 'subscription_restore_completed');
 });
 
-function telemetryHarness() {
+function telemetryHarness(options = {}) {
   const sent = [];
+  const meta = [], tiktok = [], product = [], observed = [];
   let sessionReady;
   let deadline;
   let failing = false;
   const failIfRequested = () => { if (failing) throw new Error('SDK unavailable'); };
   const api = load('telemetry.native.ts', {
-    'expo-observe': { Observe: { configure() {}, logEvent: failIfRequested, setGlobalAttributes: failIfRequested, reportError: failIfRequested } },
+    'expo-observe': { Observe: { configure() {}, logEvent: (name, data) => { failIfRequested(); observed.push({ name, data }); }, setGlobalAttributes: failIfRequested, reportError: failIfRequested } },
     'expo-tracking-transparency': { getTrackingPermissionsAsync: async () => ({ status: 'denied' }) },
     'react-native': { Platform: { OS: 'ios' } },
     'expo-updates': { channel: 'production', runtimeVersion: 'test-runtime', updateId: 'test-update' },
@@ -128,13 +130,33 @@ function telemetryHarness() {
       registerConversionListener: async () => {}, start: async () => {},
       getAppsFlyerUID: async () => 'test-uid', logEvent: event => { failIfRequested(); sent.push(event); return Promise.resolve(); },
     } },
-    'react-native-fbsdk-next': { AppEventsLogger: { AppEvents: { ViewedContent: 'view' } }, Settings: {} },
+    'react-native-fbsdk-next': { AppEventsLogger: { AppEvents: { ViewedContent: 'view' }, logEvent: (name, data) => { failIfRequested(); meta.push({ name, data }); } }, Settings: { setAppID() {}, setClientToken() {}, setAppName() {}, setAutoLogAppEventsEnabled() {}, setAdvertiserIDCollectionEnabled() {}, initializeSDK() {}, async setAdvertiserTrackingEnabled() {} } },
     'react-native-purchases': { default: { isConfigured: async () => false } },
-    './modules/menocompass-tiktok-business': { initializeTikTokBusiness: async () => {} },
+    './modules/menocompass-tiktok-business': { initializeTikTokBusiness: async () => {}, trackTikTokCommerceEvent: async (name, data) => { failIfRequested(); tiktok.push({ name, data }); } },
     './commerce-events': commerce,
-  }, { setTimeout: callback => { deadline = callback; return 1; }, clearTimeout: () => {} });
-  return { ...api, sent, sessionReady: () => sessionReady, deadline: () => deadline, fail: () => { failing = true; } };
+    './telemetry-events': telemetryEvents,
+    './posthog.native': { initializeProductAnalytics: async () => {}, getProductAnalyticsId: () => undefined, captureProductEvent: (name, data) => { failIfRequested(); product.push({ name, data }); }, flushProductAnalytics: async () => {} },
+  }, { process: { env: { EXPO_PUBLIC_APPSFLYER_DEV_KEY: 'test-key', ...(options.meta ? { EXPO_PUBLIC_META_APP_ID: 'test', EXPO_PUBLIC_META_CLIENT_TOKEN: 'test' } : {}) } }, setTimeout: callback => { deadline = callback; return 1; }, clearTimeout: () => {} });
+  return { ...api, sent, meta, tiktok, product, observed, sessionReady: () => sessionReady, deadline: () => deadline, fail: () => { failing = true; } };
 }
+
+test('Meta and TikTok flush early commerce once; health-feature events stay in product analytics', async () => {
+  const h = telemetryHarness({ meta: true });
+  h.trackTelemetryEvent('paywall_rendered', { notes: 'private', route: 'checkin' });
+  h.trackTelemetryEvent('checkin_confirmed', { notes: 'private', symptoms: ['private'] });
+  const init = h.initializeTelemetry();
+  for (let i = 0; i < 30 && !h.sessionReady(); i++) await Promise.resolve();
+  h.sessionReady()();
+  await init;
+  assert.equal(h.meta.filter(e => e.name === 'mc_paywall_rendered').length, 1);
+  assert.equal(h.meta.filter(e => e.name === 'view').length, 1);
+  assert.deepEqual(h.tiktok.map(e => e.name), ['mc_paywall_rendered']);
+  assert.deepEqual(h.product.map(e => e.name), ['paywall_rendered', 'checkin_confirmed']);
+  assert.equal(JSON.stringify([h.meta, h.tiktok, h.product, h.observed]).includes('private'), false);
+  h.setTelemetryRoute('checkin'); h.setTelemetryRoute('checkin'); h.setTelemetryRoute('private');
+  assert.equal(h.product.filter(e => e.name === 'screen_viewed').length, 1);
+  assert.equal(h.tiktok.length, 1);
+});
 
 test('early events flush once after SDK readiness with original state and release metadata', async () => {
   const { initializeTelemetry, trackTelemetryEvent, setTelemetrySubscriptionState, sent, sessionReady } = telemetryHarness();

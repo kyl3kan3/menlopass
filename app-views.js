@@ -2983,6 +2983,7 @@ function boot(){
   if(validRoutes.includes(hash)) curTab = hash;
   render();
   if(window.__MENO_NATIVE__===true) setTimeout(()=>{
+    requestAnimationFrame(()=>postNativeEvent('webview-ready'));
     postNativeEvent('get-native-privacy-status');
     postNativeEvent('healthkit-status');
   },0);

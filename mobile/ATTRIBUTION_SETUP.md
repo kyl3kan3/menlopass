@@ -6,13 +6,14 @@ The native app now uses:
   sanitized JavaScript error reports. A privacy wrapper replaces original
   messages before automatic or explicitly handled errors are reported.
 - AppsFlyer for install attribution and deep links.
+- PostHog for explicit, anonymous product and commerce events. No automatic capture, session replay, geolocation enrichment, or client person profiles.
 - Meta App Events for Facebook and Instagram campaign measurement.
-- TikTok App Events SDK for TikTok install, launch, and retention measurement.
+- TikTok App Events SDK for TikTok install, launch, retention, and allowlisted commerce events.
 - Apple's App Tracking Transparency prompt before advertising identifiers are enabled.
 - RevenueCat as the source of subscription lifecycle and revenue events. The client does not duplicate purchase revenue events in AppsFlyer, Meta, or TikTok.
 - RevenueCat's random anonymous App User ID as the optional AppsFlyer customer ID. MenoCompass has no login identity, and no name, email address, phone number, or health value is used as a customer ID.
 
-On iOS, RevenueCat is configured first so its anonymous App User ID is available to the attribution SDKs. The ATT decision then resolves before AppsFlyer, Meta, or TikTok initializes. After that decision, SDK initialization has an eight-second deadline so an unavailable analytics provider cannot hold the automatic hard paywall indefinitely. Initialization continues in the background. Up to 50 sanitized commerce events are buffered in memory until AppsFlyer starts; they retain the access state at event time. The buffer is not durable across process termination. Product events containing health-feature usage stay in Observe.
+On iOS, RevenueCat is configured first so its anonymous App User ID is available to the attribution SDKs. The ATT decision then resolves before AppsFlyer, Meta, or TikTok initializes. After that decision, SDK initialization has an eight-second deadline so an unavailable analytics provider cannot hold the automatic hard paywall indefinitely. Initialization continues in the background. Each marketing destination buffers up to 50 sanitized commerce events before readiness, preserving event-time access state. These early buffers are not durable across termination. PostHog persists its anonymous identity and bounded offline queue using device encryption. Product events containing health-feature usage go only to Observe and PostHog.
 
 Health entries, medications, labs, notes, reports, and other free-form user content must never be added to these events.
 
@@ -25,6 +26,8 @@ Set these values in the EAS `production` environment before creating a productio
 - `EXPO_PUBLIC_META_CLIENT_TOKEN`
 - `TIKTOK_APP_SECRET` (an EAS sensitive variable; never commit a real value)
 - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
+- `EXPO_PUBLIC_POSTHOG_API_KEY`
+- `EXPO_PUBLIC_POSTHOG_HOST` (`https://us.i.posthog.com` for the connected US project)
 
 The TikTok App ID defaults to Apple app ID `6798018790`, and the TikTok Business App ID defaults to `7679768878880178197`. Override them with `TIKTOK_APP_ID` and `TIKTOK_BUSINESS_APP_ID` only if TikTok issues replacements. Use `mobile/.env.example` for local development. Production configuration intentionally fails early if required attribution or subscription values are absent.
 
@@ -34,7 +37,7 @@ The TikTok SDK is linked through CocoaPods by the local Expo module in `mobile/m
 
 TikTokBusinessSDK 1.7.2 also ships an empty collected-data placeholder in its bundled privacy manifest. The local Expo config plugin `plugins/withTikTokPrivacyManifestFix.js` removes only that invalid placeholder during the iOS build, preserves TikTok's declared UserDefaults required-reason API, and fails the build if the upstream manifest shape changes. After every SDK upgrade, inspect the archived app's `TikTokBusinessSDK_Privacy.bundle/PrivacyInfo.xcprivacy` before submission.
 
-The SDK is exposed through an explicit Expo native module and is not an app-delegate subscriber. JavaScript invokes it only after ATT resolves, and the native bridge independently rejects initialization while iOS still reports `.notDetermined`. It auto-logs install, launch, and two-day retention only. TikTok automatic StoreKit purchase tracking and enhanced UIKit data collection are disabled. TikTok SKAdNetwork updates are also disabled because AppsFlyer is the app's single conversion-value writer.
+The SDK is exposed through an explicit Expo native module and is not an app-delegate subscriber. JavaScript invokes it only after ATT resolves, and the native bridge independently rejects initialization while iOS still reports `.notDetermined`. It auto-logs install, launch, and two-day retention; `mc_*` commerce events use a separate native allowlist. TikTok automatic StoreKit purchase tracking and enhanced UIKit data collection are disabled. TikTok SKAdNetwork updates are also disabled because AppsFlyer is the app's single conversion-value writer.
 
 ## Dashboard configuration
 
@@ -64,7 +67,7 @@ A development or production build is required because these SDKs contain native 
 
 The September 5 audit found that AppsFlyer received `af_content_view` but no client purchase-attempt/cancellation/error funnel. The previous `paywall_opened` signal ran before presentation, and `onboarding_started` ran before the subscription gate. Historical installs and active users therefore cannot establish purchases or successful access.
 
-New named events go to AppsFlyer and Observe. `af_content_view` and Meta ViewedContent remain compatibility events at native paywall mount. Do not add them to `mc_paywall_rendered` counts: they represent the same step.
+Named commerce events now go to AppsFlyer, Meta, TikTok, Observe, and PostHog. PostHog uses `menocompass.<client_event>` names; marketing uses the `mc_*` names below. `af_content_view` and Meta ViewedContent remain compatibility events at native paywall mount. Do not add them to `mc_paywall_rendered` counts: they represent the same step.
 
 | AppsFlyer event | Meaning |
 | --- | --- |
@@ -83,7 +86,7 @@ New named events go to AppsFlyer and Observe. `af_content_view` and Meta ViewedC
 
 All commerce events carry `schemaVersion=2`, release channel/runtime/update metadata, and known access state. An active entitlement supplies `storeEnvironment=sandbox/production`, period type, and ownership type; without one, environment is **unknown**, never assumed production. TestFlight can use the production EAS channel. No client attribute alone establishes payment or reliably identifies an unpaid tester. Debug builds suppress these custom AppsFlyer events; existing SDK install/session auto-events are separate. Register test devices in AppsFlyer and exclude them when evaluating acquisition. Use preview builds for routine QA; exclude `buildChannel=preview/development` and known sandbox events when querying custom-event data.
 
-Only explicit commerce fields pass the marketing payload allowlist. Do not add health entries, profile answers, onboarding answers, route names, customer IDs, receipts, or free-text error messages. Generic onboarding/check-in/report events remain Observe-only. Onboarding starts after content is available behind the entitlement gate, and reopening the stage sheet no longer counts as another completion.
+Only explicit commerce fields pass the marketing payload allowlist. Do not add health entries, profile answers, onboarding answers, route names, customer IDs, receipts, or free-text error messages. Generic onboarding/check-in/report events go only to Observe and PostHog. Onboarding starts after content is available behind the entitlement gate, and reopening the stage sheet no longer counts as another completion.
 
 ### Reports to configure after deployment
 

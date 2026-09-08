@@ -40,7 +40,7 @@ Use physical devices for ATT and purchase testing. Simulator results may supplem
 
 | Test | Expected result | Result | Device/evidence | Date |
 |---|---|---|---|---|
-| Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit and runtime `1.2.0-native-1` (isolated from the 1.1.0 native runtime) |  |  |  |
+| Clean source provenance | Commit is pushed; GitHub CI passes; EAS build points to that commit and runtime `1.2.0-native-2` (isolated from the 1.1.0 native runtime) |  |  |  |
 | Production configuration | Required AppsFlyer, Meta, TikTok, and RevenueCat production values are present without logging secrets |  |  |  |
 | Final Info.plist and entitlements | Bundle ID is `com.kyl3kan3.menlopass`; ATT, Face ID, and Health read purpose text; HealthKit entitlement; widget extension/app group; and required privacy manifests are present |  |  |  |
 | Encryption export compliance | Complete Apple's questionnaire for the exact binary based on its CryptoKit AES-GCM, HMAC-SHA256/PBKDF2 backup protection, Keychain, and HTTPS use; attach any declaration Apple requires before review |  |  |  |
@@ -117,7 +117,7 @@ Run the iOS 26 rows from a build produced with Xcode 26. Repeat the fallback row
 | Navigation visibility | Native tabs are hidden during onboarding, subscription/App Lock gates, secondary routes, open sheets, and keyboard entry; content and home indicator remain unobstructed on iPhone and iPad |  |  |  |
 | Expo Observe JavaScript errors | Synthetic handled and unhandled failures appear in EAS Observe with sanitized error names and stacks; original messages, health values, and free text are absent |  |  |  |
 | Expo Observe startup | The exact TestFlight build appears in EAS Observe with startup/interactive measurements and safe route/product events; payloads contain no health values or free text |  |  |  |
-| OTA observability | A preview OTA for runtime `1.2.0-native-1` appears as the correct update/release marker in EAS Observe; OTA JavaScript error stacks may remain unsymbolicated |  |  |  |
+| OTA observability | A preview OTA for runtime `1.2.0-native-2` appears as the correct update/release marker in EAS Observe; OTA JavaScript error stacks may remain unsymbolicated |  |  |  |
 
 ## Native privacy and iOS integrations
 
@@ -172,3 +172,5 @@ The production OTA published on 2026-09-02 (update `01a06467-aac9-775f-b87d-9dd5
 - [ ] Apple export-compliance questionnaire completed in App Store Connect
 - [ ] Automatic public release acknowledged (`store.config.json` currently sets `automaticRelease: true`)
 - Release decision: `[APPROVE / REJECT]`
+
+Current tracking implementation and remote configuration: [September 8 tracking release](TRACKING_RELEASE_2026-09-08.md). Physical-device rows remain unverified until observed on the new binary.

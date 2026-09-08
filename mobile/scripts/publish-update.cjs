@@ -1,5 +1,6 @@
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const projectRoot = path.resolve(__dirname, '..');
 const repositoryRoot = path.resolve(projectRoot, '..');
@@ -30,6 +31,7 @@ if (!['preview', 'production'].includes(channel)) {
 if (!['preview', 'production'].includes(environment)) {
   throw new Error('EAS environment must be preview or production.');
 }
+if (environment !== channel) throw new Error('OTA channel and EAS environment must match.');
 
 const dirty = run('git', ['status', '--porcelain'], repositoryRoot, true);
 if (dirty) {
@@ -38,14 +40,29 @@ if (dirty) {
 
 const shortCommit = run('git', ['rev-parse', '--short=12', 'HEAD'], repositoryRoot, true);
 const appConfig = require(path.join(projectRoot, 'app.json')).expo;
+const npmCli = process.env.npm_execpath || path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+if (!fs.existsSync(npmCli)) throw new Error('Run OTA publishing through npm run ota:preview:ios or ota:production:ios.');
+const npm = commandArgs => run(process.execPath, [npmCli, ...commandArgs]);
+const eas = (commandArgs, capture = false) => run(process.execPath, [npmCli, 'exec', '--yes', '--package=eas-cli@23.2.0', '--', 'eas', ...commandArgs], projectRoot, capture);
+
+// OTA export must use the same required credentials as a native release.
+process.env.EAS_BUILD_PROFILE = 'production';
+require(path.join(projectRoot, 'app.config.js'))({ config: appConfig });
+npm(['run', 'sync:web']);
+npm(['run', 'typecheck']);
+npm(['--prefix', repositoryRoot, 'test']);
+if (run('git', ['status', '--porcelain'], repositoryRoot, true)) {
+  throw new Error('Generated assets changed during validation. Commit and push the synchronized build before publishing.');
+}
+const builds = JSON.parse(eas(['build:list', '--platform', 'ios', '--status', 'finished', '--build-profile', channel, '--runtime-version', appConfig.runtimeVersion, '--limit', '1', '--json', '--non-interactive'], true));
+if (!builds.some(build => build.runtimeVersion === appConfig.runtimeVersion)) {
+  throw new Error(`No finished ${channel} iOS build supports runtime ${appConfig.runtimeVersion}. Build the native app first.`);
+}
 const message = option(
   '--message',
   `MenoCompass ${appConfig.version} (${appConfig.runtimeVersion}) ${shortCommit}`,
 );
-const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-
-run(npx, [
-  'eas-cli@latest',
+eas([
   'update',
   '--channel', channel,
   '--platform', 'ios',

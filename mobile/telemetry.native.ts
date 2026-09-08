@@ -15,8 +15,11 @@ import Purchases from 'react-native-purchases';
 import type { CustomerInfo } from 'react-native-purchases';
 import * as Updates from 'expo-updates';
 import { commerceAttributes, commerceEvents, subscriptionSnapshot } from './commerce-events';
+import { productEvents, telemetryAttributes, telemetryEvents, telemetryRoutes, type TelemetryEvent } from './telemetry-events';
+import { captureProductEvent, flushProductAnalytics, getProductAnalyticsId, initializeProductAnalytics } from './posthog.native';
 import {
   initializeTikTokBusiness,
+  trackTikTokCommerceEvent,
   type TrackingPermission,
 } from './modules/menocompass-tiktok-business';
 
@@ -29,19 +32,12 @@ export type TelemetryInitializationResult = {
   trackingPermission: TrackingPermission;
   promptedForTracking: boolean;
 };
-type TelemetryEvent = keyof typeof commerceEvents
-  | 'onboarding_started'
-  | 'onboarding_step_viewed'
-  | 'onboarding_completed'
-  | 'checkin_confirmed'
-  | 'report_opened'
-  | 'subscription_management_opened';
-
 const eventDefinitions: Record<
   TelemetryEvent,
   { observe: string; appsFlyer?: string; meta?: string }
 > = {
   ...Object.fromEntries(Object.keys(commerceEvents).map(event => [event, { observe: event.replace('_', '.') }])) as Record<keyof typeof commerceEvents, { observe: string }>,
+  ...Object.fromEntries(productEvents.map(event => [event, { observe: event.replace('_', '.') }])) as Record<typeof productEvents[number], { observe: string }>,
   onboarding_started: { observe: 'onboarding.started' },
   onboarding_step_viewed: { observe: 'onboarding.step_viewed' },
   onboarding_completed: { observe: 'onboarding.completed' },
@@ -57,6 +53,8 @@ const eventDefinitions: Record<
 
 let appsFlyerReady = false;
 let metaReady = false;
+let tikTokReady = false;
+let lastRoute: string | undefined;
 let initialization: Promise<TelemetryInitializationResult> | undefined;
 let subscriptionContext = { access: 'unknown', storeEnvironment: 'unknown', periodType: 'unknown', ownershipType: 'unknown' };
 const buildContext = commerceAttributes({
@@ -66,6 +64,22 @@ const buildContext = commerceAttributes({
   updateId: Updates.updateId || 'embedded',
 });
 const pendingCommerce: { eventName: string; eventValues: Record<string, string | number> }[] = [];
+const pendingMeta: { eventName: string; eventValues: Record<string, string | number> }[] = [];
+const pendingTikTok: { eventName: string; eventValues: Record<string, string | number> }[] = [];
+
+function sendMetaCommerce(eventName: string, eventValues: Record<string, string | number>) {
+  try {
+    AppEventsLogger.logEvent(eventName, eventValues);
+    if (eventName === commerceEvents.paywall_rendered) AppEventsLogger.logEvent(AppEventsLogger.AppEvents.ViewedContent, {
+      fb_content_id: 'menocompass_pro', fb_content_type: 'subscription_paywall',
+    });
+  } catch (error) { recordInitializationFailure('meta', error); }
+}
+
+function sendTikTokCommerce(eventName: string, eventValues: Record<string, string | number>) {
+  try { void trackTikTokCommerceEvent(eventName, eventValues).catch(error => recordInitializationFailure('tiktok', error)); }
+  catch (error) { recordInitializationFailure('tiktok', error); }
+}
 
 function sendCommerce(eventName: string, eventValues: Record<string, string | number>) {
   try {
@@ -76,7 +90,7 @@ function sendCommerce(eventName: string, eventValues: Record<string, string | nu
 }
 
 function recordInitializationFailure(
-  service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat' | 'tiktok',
+  service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat' | 'tiktok' | 'posthog',
   error: unknown,
 ) {
   try { Observe.logEvent('telemetry.initialization_failed', {
@@ -155,6 +169,8 @@ async function resolveTrackingPermission(): Promise<TelemetryInitializationResul
 async function initializeTikTok(trackingPermission: TrackingPermission) {
   if (Platform.OS !== 'ios') return;
   await initializeTikTokBusiness(trackingPermission);
+  tikTokReady = true;
+  for (const event of pendingTikTok.splice(0)) sendTikTokCommerce(event.eventName, event.eventValues);
 }
 
 function sendAppsFlyerConversionDataToRevenueCat(data: ConversionData) {
@@ -225,6 +241,7 @@ async function initializeMeta(trackingAuthorized: boolean) {
 
   metaReady = true;
   AppEventsLogger.logEvent('fb_mobile_activate_app');
+  for (const event of pendingMeta.splice(0)) sendMetaCommerce(event.eventName, event.eventValues);
 
   if (trackingAuthorized) {
     const anonymousId = await AppEventsLogger.getAnonymousID();
@@ -242,6 +259,10 @@ export function initializeTelemetry() {
       dispatchInDebug: false,
       sampleRate: 1,
     });
+    const productAnalytics = initializeProductAnalytics().then(async () => {
+      const anonymousId = getProductAnalyticsId();
+      if (anonymousId) await withRevenueCat(() => Purchases.setAttributes({ '$posthogUserId': anonymousId }));
+    }).catch(error => recordInitializationFailure('posthog', error));
 
     const permissionResult = await resolveTrackingPermission();
     const permission = permissionResult.trackingPermission;
@@ -259,6 +280,7 @@ export function initializeTelemetry() {
     });
 
     const tasks = [
+      productAnalytics,
       initializeAppsFlyer().catch(error => recordInitializationFailure('appsflyer', error)),
       initializeMeta(trackingAuthorized).catch(error => recordInitializationFailure('meta', error)),
       initializeTikTok(permission).catch(error => recordInitializationFailure('tiktok', error)),
@@ -302,18 +324,23 @@ export function setTelemetrySubscriptionState(customerInfo: CustomerInfo) {
 }
 
 export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveAttributes) {
+  if (!telemetryEvents.has(event)) return;
   const definition = eventDefinitions[event];
   const commerceName = commerceEvents[event as keyof typeof commerceEvents];
-  const safeAttributes = commerceName
-    ? commerceAttributes({ ...buildContext, ...subscriptionContext, ...attributes })
-    : attributes;
+  const safeAttributes = telemetryAttributes(event, { ...buildContext, ...subscriptionContext, ...attributes });
   try { Observe.logEvent(definition.observe, safeAttributes ? { attributes: safeAttributes } : undefined); } catch { /* Best effort. */ }
+  try { captureProductEvent(event, safeAttributes); } catch (error) { recordInitializationFailure('posthog', error); }
 
   if (commerceName && !__DEV__) {
-    if (appsFlyerReady) sendCommerce(commerceName, safeAttributes as Record<string, string | number>);
+    const marketingAttributes = commerceAttributes(safeAttributes);
+    if (appsFlyerReady) sendCommerce(commerceName, marketingAttributes);
     else if (appsFlyerDevKey && pendingCommerce.length < 50) {
-      pendingCommerce.push({ eventName: commerceName, eventValues: safeAttributes as Record<string, string | number> });
+      pendingCommerce.push({ eventName: commerceName, eventValues: marketingAttributes });
     }
+    if (metaReady) sendMetaCommerce(commerceName, marketingAttributes);
+    else if (metaAppId && metaClientToken && pendingMeta.length < 50) pendingMeta.push({ eventName: commerceName, eventValues: marketingAttributes });
+    if (tikTokReady) sendTikTokCommerce(commerceName, marketingAttributes);
+    else if (Platform.OS === 'ios' && pendingTikTok.length < 50) pendingTikTok.push({ eventName: commerceName, eventValues: marketingAttributes });
   }
 
   if (appsFlyerReady && definition.appsFlyer) {
@@ -327,12 +354,11 @@ export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveA
     } catch (error) { recordInitializationFailure('appsflyer', error); }
   }
 
-  if (metaReady && definition.meta) {
-    try { AppEventsLogger.logEvent(definition.meta, {
-      fb_content_id: 'menocompass_pro',
-      fb_content_type: 'subscription_paywall',
-    }); } catch (error) { recordInitializationFailure('meta', error); }
-  }
+}
+
+export function flushTelemetry() {
+  void flushProductAnalytics().catch(error => recordInitializationFailure('posthog', error));
+  try { if (metaReady) AppEventsLogger.flush(); } catch (error) { recordInitializationFailure('meta', error); }
 }
 
 export function reportTelemetryError(error: unknown) {
@@ -340,5 +366,8 @@ export function reportTelemetryError(error: unknown) {
 }
 
 export function setTelemetryRoute(route: string) {
-  Observe.setGlobalAttributes({ route });
+  if (!telemetryRoutes.has(route) || route === lastRoute) return;
+  lastRoute = route;
+  try { Observe.setGlobalAttributes({ route }); } catch { /* Best effort. */ }
+  trackTelemetryEvent('screen_viewed', { route });
 }

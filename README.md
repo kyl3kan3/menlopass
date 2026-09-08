@@ -102,12 +102,13 @@ The Expo SDK 57 package bundles the generated app and local font into the native
 an offline WebView, so symptom, medication, lab, and report data remain on the device and do not
 depend on the hosted site. Native persistence is encrypted outside WebView browser storage. The
 native shell resolves ATT before initializing AppsFlyer, Meta, or TikTok, and sends only explicitly
-defined, health-data-free events to EAS Observe. Configure the SDK
+defined, health-data-free events to EAS Observe and PostHog. Configure the SDK
 identifiers and client credentials listed in `mobile/.env.example`, then use a development build
 because these packages contain native code. Run `npm --prefix mobile start` for local Expo
 development. EAS configuration lives in `mobile/eas.json`; the linked project is
-`@kyl3kan3/menlopass`. EAS Update uses the app-version runtime policy with separate development,
-preview, and production channels; native module or permission changes still require a new binary.
+`@kyl3kan3/menlopass`. EAS Update uses the explicit native runtime `1.2.0-native-2` with separate development,
+preview, and production channels. Native module or permission changes require a new runtime and binary.
+The OTA helper rebuilds/syncs the embedded app, runs checks, and requires a compatible finished build.
 
 The iOS shell uses a hard RevenueCat paywall. It does not mount the health-record WebView until
 the `MenoCompass Pro` entitlement is active, and dismissing or losing the entitlement returns the

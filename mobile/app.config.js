@@ -77,6 +77,10 @@ function withAppPrivacyDeclarations(privacyManifests = {}) {
 }
 
 module.exports = ({ config }) => {
+  const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST?.trim();
+  if (posthogHost && !['https://us.i.posthog.com', 'https://eu.i.posthog.com'].includes(posthogHost)) {
+    throw new Error('EXPO_PUBLIC_POSTHOG_HOST must be a PostHog Cloud ingestion URL.');
+  }
   const hasMetaConfig = Boolean(metaAppId && metaClientToken);
   if (Boolean(metaAppId) !== Boolean(metaClientToken)) {
     throw new Error('Set both EXPO_PUBLIC_META_APP_ID and EXPO_PUBLIC_META_CLIENT_TOKEN.');
@@ -89,6 +93,8 @@ module.exports = ({ config }) => {
       !metaClientToken && 'EXPO_PUBLIC_META_CLIENT_TOKEN',
       !tiktokAppSecret && 'TIKTOK_APP_SECRET',
       !process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim() && 'EXPO_PUBLIC_REVENUECAT_IOS_API_KEY',
+      !process.env.EXPO_PUBLIC_POSTHOG_API_KEY?.trim() && 'EXPO_PUBLIC_POSTHOG_API_KEY',
+      !process.env.EXPO_PUBLIC_POSTHOG_HOST?.trim() && 'EXPO_PUBLIC_POSTHOG_HOST',
     ].filter(Boolean);
     if (missing.length) {
       throw new Error(`Missing production mobile configuration: ${missing.join(', ')}`);
