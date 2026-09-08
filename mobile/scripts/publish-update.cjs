@@ -62,7 +62,8 @@ if (run('git', ['status', '--porcelain'], repositoryRoot, true)) {
   throw new Error('Generated assets changed during validation. Commit and push the synchronized build before publishing.');
 }
 const builds = JSON.parse(eas(['build:list', '--platform', 'ios', '--status', 'finished', '--build-profile', channel, '--runtime-version', appConfig.runtimeVersion, '--limit', '1', '--json', '--non-interactive'], true));
-if (!builds.some(build => build.runtimeVersion === appConfig.runtimeVersion)) {
+// The server applies --runtime-version; build JSON need not expose that field.
+if (!Array.isArray(builds) || builds.length === 0) {
   throw new Error(`No finished ${channel} iOS build supports runtime ${appConfig.runtimeVersion}. Build the native app first.`);
 }
 const message = option(
