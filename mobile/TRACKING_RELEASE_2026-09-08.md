@@ -1,5 +1,7 @@
 # Tracking release — September 8, 2026
 
+Historical release record. The destination and latest production OTA were superseded by the [September 10 dedicated PostHog project migration](POSTHOG_MIGRATION_2026-09-10.md).
+
 App version: `1.2.1`. Native runtime: `1.2.0-native-2`. A new binary is required for the TikTok commerce bridge. Do not publish this JavaScript to `1.2.0-native-1` or either 1.1.0 runtime. The explicit runtime is independent of the marketing version.
 
 ## Implementation
