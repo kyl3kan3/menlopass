@@ -132,7 +132,7 @@ function visitReminderMarkup(){
 function appointmentCalendar(date){
   if(!validISODate(date)) return null;
   const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z'), day=date.replace(/-/g,'');
-  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MenoCompass//Private appointment//EN','CALSCALE:GREGORIAN','BEGIN:VEVENT','UID:appointment-'+day+'@menocompass.local','DTSTAMP:'+stamp,'DTSTART:'+day+'T090000','DTEND:'+day+'T093000','SUMMARY:Appointment','DESCRIPTION:Review your saved appointment plan.','BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY','DESCRIPTION:Appointment tomorrow','END:VALARM','END:VEVENT','END:VCALENDAR',''].join('\r\n');
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//peri//Private appointment//EN','CALSCALE:GREGORIAN','BEGIN:VEVENT','UID:appointment-'+day+'@menocompass.local','DTSTAMP:'+stamp,'DTSTART:'+day+'T090000','DTEND:'+day+'T093000','SUMMARY:Appointment','DESCRIPTION:Review your saved appointment plan.','BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY','DESCRIPTION:Appointment tomorrow','END:VALARM','END:VEVENT','END:VCALENDAR',''].join('\r\n');
 }
 function companionAction(el){
   const act=el.dataset.act;

@@ -32,9 +32,9 @@ private enum MenoCompassShortcutRouteStore {
 
 @available(iOS 16.0, *)
 struct LogWithMenoCompassIntent: AppIntent {
-  static var title: LocalizedStringResource = "Log with MenoCompass"
+  static var title: LocalizedStringResource = "Log with peri"
   static var description = IntentDescription(
-    "Opens your private MenoCompass daily check-in. It never records anything until you confirm it in the app."
+    "Opens your private peri daily check-in. It never records anything until you confirm it in the app."
   )
   static var openAppWhenRun: Bool = true
 
@@ -47,9 +47,9 @@ struct LogWithMenoCompassIntent: AppIntent {
 
 @available(iOS 16.0, *)
 struct ReviewMenoCompassPatternsIntent: AppIntent {
-  static var title: LocalizedStringResource = "Review MenoCompass patterns"
+  static var title: LocalizedStringResource = "Review peri patterns"
   static var description = IntentDescription(
-    "Opens your private MenoCompass pattern insights. Health details stay inside the app."
+    "Opens your private peri pattern insights. Health details stay inside the app."
   )
   static var openAppWhenRun: Bool = true
 
@@ -70,7 +70,7 @@ struct MenoCompassAppShortcuts: AppShortcutsProvider {
         "Log with \(.applicationName)",
         "Start my check-in in \(.applicationName)"
       ],
-      shortTitle: "Log with MenoCompass",
+      shortTitle: "Log with peri",
       systemImageName: "checkmark.circle"
     )
     AppShortcut(

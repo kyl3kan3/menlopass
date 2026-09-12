@@ -7,9 +7,9 @@ const {
 const packageName = 'menocompass-healthkit';
 const packageVersion = '1.0.0';
 const defaultShareUsageDescription =
-  'MenoCompass reads your steps, sleep, and body weight only when you choose to sync, so you can view those summaries alongside your menopause records. MenoCompass never writes to Apple Health.';
+  'peri reads your steps, sleep, and body weight only when you choose to sync, so you can view those summaries alongside your menopause records. peri never writes to Apple Health.';
 const defaultUpdateUsageDescription =
-  'MenoCompass requests Apple Health access only to read steps, sleep, and body weight when you choose to sync. MenoCompass never writes or updates Apple Health data.';
+  'peri requests Apple Health access only to read steps, sleep, and body weight when you choose to sync. peri never writes or updates Apple Health data.';
 
 function withMenoCompassHealthKit(config, options = {}) {
   config = withInfoPlist(config, nextConfig => {

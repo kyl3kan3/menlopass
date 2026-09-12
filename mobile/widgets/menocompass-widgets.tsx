@@ -43,10 +43,10 @@ const MenoCompassCheckInWidgetView = (
         widgetURL('menlopass://checkin?source=widget'),
         accessibilityLabel(
           completedToday
-            ? `MenoCompass daily check-in complete. ${confirmedDays} of the last 7 days logged.`
-            : `MenoCompass daily check-in ready. ${confirmedDays} of the last 7 days logged.`,
+            ? `peri daily check-in complete. ${confirmedDays} of the last 7 days logged.`
+            : `peri daily check-in ready. ${confirmedDays} of the last 7 days logged.`,
         ),
-        accessibilityHint('Opens the private daily check-in in MenoCompass.'),
+        accessibilityHint('Opens the private daily check-in in peri.'),
       ]}
     >
       <HStack spacing={7} alignment="center">
@@ -111,10 +111,10 @@ const MenoCompassInsightsWidgetView = (
         widgetURL('menlopass://insights?source=widget'),
         accessibilityLabel(
           ready
-            ? `MenoCompass patterns are ready to review. ${confirmedDays} of the last 7 days logged.`
-            : `MenoCompass pattern progress. ${confirmedDays} of the last 7 days logged.`,
+            ? `peri patterns are ready to review. ${confirmedDays} of the last 7 days logged.`
+            : `peri pattern progress. ${confirmedDays} of the last 7 days logged.`,
         ),
-        accessibilityHint('Opens private pattern insights in MenoCompass.'),
+        accessibilityHint('Opens private pattern insights in peri.'),
       ]}
     >
       <HStack spacing={7} alignment="center">

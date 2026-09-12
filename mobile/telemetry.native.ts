@@ -107,11 +107,11 @@ function sanitizedDiagnosticError(error: unknown) {
   const name = error instanceof Error && error.name
     ? error.name
     : 'ApplicationError';
-  const diagnostic = new Error('A MenoCompass operation failed.');
+  const diagnostic = new Error('A peri operation failed.');
   diagnostic.name = name;
   if (error instanceof Error && error.stack) {
     const stackLines = error.stack.split('\n');
-    diagnostic.stack = [`${name}: A MenoCompass operation failed.`, ...stackLines.slice(1)].join('\n');
+    diagnostic.stack = [`${name}: A peri operation failed.`, ...stackLines.slice(1)].join('\n');
   }
   return diagnostic;
 }
@@ -230,7 +230,7 @@ async function initializeMeta(trackingAuthorized: boolean) {
 
   Settings.setAppID(metaAppId);
   Settings.setClientToken(metaClientToken);
-  Settings.setAppName('MenoCompass');
+  Settings.setAppName('peri');
   Settings.setAutoLogAppEventsEnabled(false);
   Settings.setAdvertiserIDCollectionEnabled(trackingAuthorized);
   Settings.initializeSDK();

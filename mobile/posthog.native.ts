@@ -35,7 +35,7 @@ export function initializeProductAnalytics() {
     const next = new PostHog(apiKey, {
       host,
       customStorage: storage,
-      customAppProperties: { $app_name: 'MenoCompass', $app_namespace: 'com.kyl3kan3.menlopass' },
+      customAppProperties: { $app_name: 'peri', $app_namespace: 'com.kyl3kan3.menlopass' },
       captureAppLifecycleEvents: false,
       capturePushNotificationOpened: false,
       capturePushNotificationSubscriptions: false,

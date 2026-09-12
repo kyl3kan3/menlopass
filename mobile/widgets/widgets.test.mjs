@@ -63,7 +63,7 @@ test('app and widget extension declare the App Group UserDefaults privacy reason
   assert.doesNotMatch(widgetPrivacyPluginSource, /filepath: relativePath/);
 });
 
-test('quick entry links accept only allow-listed MenoCompass routes', () => {
+test('quick entry links accept only allow-listed peri routes', () => {
   assert.equal(quickRouteFromUrl('menlopass://checkin?source=widget'), 'checkin');
   assert.equal(quickRouteFromUrl('menlopass:/check-in'), 'checkin');
   assert.equal(quickRouteFromUrl('menlopass://insights'), 'journey');

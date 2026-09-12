@@ -13,13 +13,13 @@ private enum MenoCompassSecurityError: Error, LocalizedError {
   var errorDescription: String? {
     switch self {
     case .invalidCiphertext:
-      return "The encrypted MenoCompass data is invalid or damaged."
+      return "The encrypted peri data is invalid or damaged."
     case .invalidPassword:
-      return "That password could not unlock this MenoCompass backup."
+      return "That password could not unlock this peri backup."
     case .keychain(let status):
-      return "MenoCompass could not access its device encryption key (\(status))."
+      return "peri could not access its device encryption key (\(status))."
     case .randomBytes(let status):
-      return "MenoCompass could not create secure random data (\(status))."
+      return "peri could not create secure random data (\(status))."
     case .weakPassword:
       return "Use a backup password with at least 10 characters."
     }

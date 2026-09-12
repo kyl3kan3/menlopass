@@ -4,7 +4,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 const webUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://menlopass.vercel.app';
 
 export default function App() {
-  return <View style={styles.container}><StatusBar style="dark" /><Text style={styles.title}>MenoCompass</Text><Text style={styles.copy}>The full private tracker is available in the web release.</Text><Pressable accessibilityRole="link" onPress={() => Linking.openURL(webUrl)} style={styles.button}><Text style={styles.buttonText}>Open MenoCompass</Text></Pressable></View>;
+  return <View style={styles.container}><StatusBar style="dark" /><Text style={styles.title}>peri</Text><Text style={styles.copy}>The full private tracker is available in the web release.</Text><Pressable accessibilityRole="link" onPress={() => Linking.openURL(webUrl)} style={styles.button}><Text style={styles.buttonText}>Open peri</Text></Pressable></View>;
 }
 
 const styles = StyleSheet.create({

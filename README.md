@@ -1,4 +1,4 @@
-# MenoCompass
+# peri
 
 A private, offline-capable PWA and Expo app for women in perimenopause and beyond. The product is
 organized around one flow: a welcoming Today journal, focused symptom ratings with optional context,

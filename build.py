@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the source-flat Meno Compass repository into ``dist/``.
+"""Build the source-flat peri repository into ``dist/``.
 
 The editable CSS, JavaScript, PWA files, and icons live at the repository root.
 This script recreates ``dist/`` on every run, inlines the CSS and JavaScript in
@@ -71,12 +71,12 @@ def build_html() -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
-<title>Meno Compass — menopause tracker &amp; guide</title>
+<title>peri — menopause tracker &amp; guide</title>
 <meta name="description" content="A private daily tracker and evidence-based reference for perimenopause and menopause: symptoms, sleep, weight, movement, diet, skin, mood and sexual health. No account, no server.">
 <meta name="theme-color" content="#f7f5ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MenoCompass">
+<meta name="apple-mobile-web-app-title" content="peri">
 <meta name="color-scheme" content="light dark">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -86,7 +86,7 @@ def build_html() -> str:
 </style>
 </head>
 <body>
-<noscript><div style="padding:24px;font-family:system-ui">Meno Compass needs JavaScript. Everything runs locally in your browser — there is no server involved.</div></noscript>
+<noscript><div style="padding:24px;font-family:system-ui">peri needs JavaScript. Everything runs locally in your browser — there is no server involved.</div></noscript>
 <script>
 {javascript}
 </script>

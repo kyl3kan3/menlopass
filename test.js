@@ -90,7 +90,7 @@ async function injectState(context,state){
     check('zero-price App Store offers fail closed',nativeApp.includes('introPrice?.price === 0'));
     check('native persistence refreshes the active snapshot',nativeApp.includes('setPersistedState(canonical)')&&nativeApp.includes('setExperienceReady(persistedStateIsOnboarded(canonical))'));
     check('store copy discloses no free tier or trial',storeDescription.includes('There is no free tier or free trial.'));
-    check('store copy matches Journey and report ranges',storeDescription.includes('ONE COHERENT JOURNEY')&&storeDescription.includes('30-, 90-, or 180-day report')&&!storeDescription.includes('7, 30, and 90 days'));
+    check('store copy matches Journey and report ranges',storeDescription.includes('treatment changes together in Journey')&&storeDescription.includes('30-, 90-, or 180-day report')&&!storeDescription.includes('7, 30, and 90 days'));
     check('support and privacy use the new navigation',supportCopy.includes('In Care, add treatments and lab results')&&supportCopy.includes('open Profile')&&privacyCopy.includes('From Profile under <strong>Account &amp; data</strong>')&&!supportCopy.includes('from Meds')&&!supportCopy.includes('open Settings'));
     check('review prompts follow successful check-ins at milestones 2, 5, and 20',review.includes('appReviewMilestones = [2, 5, 20] as const')&&review.includes('registerSuccessfulMoment')&&!review.includes('registerAppOpening'));
     check('TikTok is initialized only through the ATT-gated native bridge',
@@ -176,12 +176,12 @@ async function injectState(context,state){
       &&releaseQa.includes('iPad (portrait + landscape)')
       &&releaseQa.includes('Restore on fresh install')
       &&releaseQa.includes('OTA smoke test'));
-    check('store screenshot timing matches the 30-second in-app promise',screenshotGenerator.includes('about 30 seconds')&&!screenshotGenerator.includes('about 20 seconds'));
+    check('store screenshots avoid unmeasured timing promises',screenshotGenerator.includes('Private daily symptom log')&&!/about (20|30) seconds/.test(screenshotGenerator));
     const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'manifest.webmanifest'),'utf8'));
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped for the redesign',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v13'));
+    check('offline cache version was bumped for the redesign',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v14'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -400,7 +400,7 @@ async function injectState(context,state){
       window.dispatchEvent(new CustomEvent('menocompass-healthkit-result',{detail:{ok:true,status:{available:true,requestStatus:'shouldRequest',readOnly:true}}}));
     });
     check('native privacy controls explain encryption, Face ID, and in-context reminders',
-      await page.getByText('Your native MenoCompass record is encrypted at rest with a device-bound key.').isVisible()
+      await page.getByText('Your native peri record is encrypted at rest with a device-bound key.').isVisible()
       &&await page.getByRole('button',{name:'Turn on'}).isVisible()
       &&await page.getByRole('button',{name:'Save reminder settings'}).isVisible());
     await page.getByRole('button',{name:'Turn on'}).click();

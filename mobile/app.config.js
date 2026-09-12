@@ -119,7 +119,7 @@ module.exports = ({ config }) => {
     'expo-tracking-transparency',
     {
       userTrackingPermission:
-        'Allow MenoCompass to measure which ads lead to installs and subscriptions. Your symptoms, medications, labs, notes, and reports are never shared.',
+        'Allow peri to measure which ads lead to installs and subscriptions. Your symptoms, medications, labs, notes, and reports are never shared.',
     },
   ]);
   plugins.push('expo-sharing');
@@ -127,23 +127,23 @@ module.exports = ({ config }) => {
   plugins.push([
     'expo-local-authentication',
     {
-      faceIDPermission: 'Use Face ID to unlock your private MenoCompass record.',
+      faceIDPermission: 'Use Face ID to unlock your private peri record.',
     },
   ]);
   plugins.push([
     'expo-secure-store',
     {
       configureAndroidBackup: true,
-      faceIDPermission: 'Use Face ID to unlock your private MenoCompass record.',
+      faceIDPermission: 'Use Face ID to unlock your private peri record.',
     },
   ]);
   plugins.push([
     './modules/menocompass-healthkit/app.plugin.js',
     {
       healthSharePermission:
-        'MenoCompass reads your steps, sleep, and body weight only when you choose to sync, so you can view those summaries alongside your menopause records. MenoCompass never writes to Apple Health.',
+        'peri reads your steps, sleep, and body weight only when you choose to sync, so you can view those summaries alongside your menopause records. peri never writes to Apple Health.',
       healthUpdatePermission:
-        'MenoCompass requests Apple Health access only to read steps, sleep, and body weight when you choose to sync. MenoCompass never writes or updates Apple Health data.',
+        'peri requests Apple Health access only to read steps, sleep, and body weight when you choose to sync. peri never writes or updates Apple Health data.',
     },
   ]);
   plugins.push('./modules/menocompass-shortcuts/app.plugin.js');
@@ -163,7 +163,7 @@ module.exports = ({ config }) => {
       {
         appID: metaAppId,
         clientToken: metaClientToken,
-        displayName: 'MenoCompass',
+        displayName: 'peri',
         scheme: `fb${metaAppId}`,
         advertiserIDCollectionEnabled: false,
         autoLogAppEventsEnabled: false,
@@ -203,7 +203,7 @@ module.exports = ({ config }) => {
       ),
       infoPlist: {
         ...config.ios?.infoPlist,
-        // MenoCompass uses only standard/exempt encryption provided by Apple
+        // peri uses only standard/exempt encryption provided by Apple
         // frameworks (for example HTTPS, Keychain, AES-GCM, and HMAC-SHA256).
         ITSAppUsesNonExemptEncryption: false,
         // The current binary is English-only. This declaration does not add an

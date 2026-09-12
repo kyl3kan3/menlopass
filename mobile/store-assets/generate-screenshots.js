@@ -227,9 +227,9 @@ const STOREFRONT = [
     file: '01-today.png',
     number: '01',
     eyebrow: 'PRIVATE MENOPAUSE TRACKING',
-    headline: 'Clearer patterns.<br>Better appointments.',
-    subhead: 'Log symptoms, medications, and notes in about 30 seconds. Your health entries stay on your device.',
-    badge: 'Daily check-in · about 30 sec',
+    headline: 'Perimenopause.<br>Meet your tracker.',
+    subhead: 'Track hot flashes, sleep, mood, and more. Your health entries stay on your device.',
+    badge: 'Private daily symptom log',
     ipadScale: 1.27,
   },
   {
@@ -245,7 +245,7 @@ const STOREFRONT = [
     file: '03-medications.png',
     number: '03',
     eyebrow: 'TREATMENT + LABS',
-    headline: 'Keep treatment<br>in context.',
+    headline: 'Track HRT.<br>Keep the context.',
     subhead: 'Track schedules, doses, adherence, and lab results alongside how you feel.',
     badge: 'Medications + labs together',
     ipadScale: 1.27,
@@ -254,7 +254,7 @@ const STOREFRONT = [
     file: '04-clinician-report.png',
     number: '04',
     eyebrow: 'CLINICIAN-READY SUMMARY',
-    headline: 'Walk in with<br>a clearer story.',
+    headline: 'Your next visit.<br>Your story, ready.',
     subhead: 'Turn your private log into a focused summary for your next appointment.',
     badge: '90-day clinician summary',
     ipadScale: 1.27,
@@ -421,7 +421,7 @@ function marketingMarkup(asset, device, sourceData) {
     }
   </style></head><body><main class="canvas">
     <div class="grain"></div><div class="night"></div><div class="rings"><i></i></div><div class="ghost">${asset.number}</div>
-    <div class="brand"><span class="mark"></span><span>MenoCompass</span></div>
+    <div class="brand"><span class="mark"></span><span>peri</span></div>
     <div class="subscription">SUBSCRIPTION REQUIRED</div>
     <section class="copy"><div class="eyebrow">${asset.eyebrow}</div><h1>${asset.headline}</h1><p class="subhead">${asset.subhead}</p></section>
     <div class="device"><div class="speaker"></div><div class="screen"><img src="data:image/png;base64,${sourceData}" alt=""></div></div>

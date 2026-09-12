@@ -68,7 +68,7 @@ if (!Array.isArray(builds) || builds.length === 0) {
 }
 const message = option(
   '--message',
-  `MenoCompass ${appConfig.version} (${appConfig.runtimeVersion}) ${shortCommit}`,
+  `peri ${appConfig.version} (${appConfig.runtimeVersion}) ${shortCommit}`,
 );
 eas([
   'update',

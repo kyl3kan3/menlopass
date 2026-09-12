@@ -155,7 +155,7 @@ async function shareTextExport(message: Record<string, unknown>) {
   file.write(message.contents);
 
   await Sharing.shareAsync(file.uri, {
-    dialogTitle: 'Share MenoCompass export',
+    dialogTitle: 'Share peri export',
     mimeType: mime,
     UTI: format.uti,
   });
@@ -192,7 +192,7 @@ async function shareReport(message: Record<string, unknown>) {
   }
 
   await Sharing.shareAsync(shareUri, {
-    dialogTitle: 'Share MenoCompass report',
+    dialogTitle: 'Share peri report',
     mimeType: 'application/pdf',
     UTI: 'com.adobe.pdf',
   });
@@ -201,8 +201,8 @@ async function shareReport(message: Record<string, unknown>) {
 function nativeShareErrorMessage(reason: unknown) {
   if (reason instanceof Error && [
     'Native sharing is unavailable on this device.',
-    'No MenoCompass record was provided.',
-    'The MenoCompass record is invalid.',
+    'No peri record was provided.',
+    'The peri record is invalid.',
     'Use a backup password with at least 10 characters.',
     'This export has no data to share.',
     'This export is too large to share.',
@@ -212,19 +212,19 @@ function nativeShareErrorMessage(reason: unknown) {
   ].includes(reason.message)) {
     return reason.message;
   }
-  return 'MenoCompass could not prepare that export. Please try again.';
+  return 'peri could not prepare that export. Please try again.';
 }
 
 function nativeBackupImportErrorMessage(reason: unknown) {
-  if (!(reason instanceof Error)) return 'MenoCompass could not open that backup.';
+  if (!(reason instanceof Error)) return 'peri could not open that backup.';
   if (reason.message.includes('password') || reason.message.includes('unlock')) {
-    return 'That password could not unlock this MenoCompass backup.';
+    return 'That password could not unlock this peri backup.';
   }
   if (reason.message.includes('too large')) return 'That backup is too large to import.';
-  if (reason.message.includes('valid MenoCompass') || reason.message.includes('invalid or damaged')) {
-    return 'That file is not a valid MenoCompass backup.';
+  if (reason.message.includes('valid peri') || reason.message.includes('invalid or damaged')) {
+    return 'That file is not a valid peri backup.';
   }
-  return 'MenoCompass could not open that backup.';
+  return 'peri could not open that backup.';
 }
 
 function canonicalPersistedState(serialized: string) {
@@ -245,7 +245,7 @@ async function readPersistedState() {
     const encrypted = await encryptedPersistedStateFile.text();
     const cleartext = await decryptForDeviceAsync(encrypted);
     const canonical = canonicalPersistedState(cleartext);
-    if (!canonical) throw new Error('The encrypted MenoCompass record is invalid.');
+    if (!canonical) throw new Error('The encrypted peri record is invalid.');
     return canonical;
   }
 
@@ -288,9 +288,9 @@ function writePersistedState(serialized: string) {
 }
 
 async function shareEncryptedBackup(message: Record<string, unknown>) {
-  if (typeof message.state !== 'string') throw new Error('No MenoCompass record was provided.');
+  if (typeof message.state !== 'string') throw new Error('No peri record was provided.');
   const canonical = canonicalPersistedState(message.state);
-  if (!canonical) throw new Error('The MenoCompass record is invalid.');
+  if (!canonical) throw new Error('The peri record is invalid.');
   if (typeof message.password !== 'string' || message.password.length < 10) {
     throw new Error('Use a backup password with at least 10 characters.');
   }
@@ -306,7 +306,7 @@ async function shareEncryptedBackup(message: Record<string, unknown>) {
   file.create({ overwrite: true, intermediates: true });
   file.write(encrypted);
   await Sharing.shareAsync(file.uri, {
-    dialogTitle: 'Save encrypted MenoCompass backup',
+    dialogTitle: 'Save encrypted peri backup',
     mimeType: 'application/octet-stream',
     UTI: 'public.data',
   });
@@ -330,7 +330,7 @@ async function chooseAndDecryptBackup(password: string) {
   }
   const decrypted = await decryptBackupAsync(payload, password);
   const canonical = canonicalPersistedState(decrypted);
-  if (!canonical) throw new Error('That file is not a valid MenoCompass backup.');
+  if (!canonical) throw new Error('That file is not a valid peri backup.');
   return canonical;
 }
 
@@ -371,12 +371,12 @@ function SubscriptionGate({
         showsVerticalScrollIndicator={false}
       >
         <View accessible={false} importantForAccessibility="no" style={styles.gateMark}>
-          <Text style={styles.gateMarkText}>M</Text>
+          <Text style={styles.gateMarkText}>p</Text>
         </View>
         <Text style={styles.gateEyebrow}>MENOCOMPASS</Text>
         <Text style={styles.gateTitle}>Your menopause record, all in one place.</Text>
         <Text selectable style={styles.gateBody}>
-          An active monthly or annual subscription is required to use MenoCompass. There is no free tier or free trial.
+          An active monthly or annual subscription is required to use peri. There is no free tier or free trial.
         </Text>
         <View style={styles.gateFeatures}>
           <Text selectable style={styles.gateFeature}>•  Daily symptoms, sleep, medications, and labs</Text>
@@ -400,7 +400,7 @@ function SubscriptionGate({
           {purchaseBusy ? <ActivityIndicator color="#fffefa" /> : <Text style={styles.gatePrimaryText}>View subscription plans</Text>}
         </Pressable>
         <Pressable
-          accessibilityHint="Checks this Apple ID for a previous MenoCompass purchase."
+          accessibilityHint="Checks this Apple ID for a previous peri purchase."
           accessibilityLabel="Restore purchases"
           accessibilityRole="button"
           accessibilityState={{ disabled: !revenueCatReady || purchaseBusy, busy: purchaseBusy }}
@@ -415,7 +415,7 @@ function SubscriptionGate({
         </Text>
         <View style={styles.gateLinks}>
           <Pressable
-            accessibilityHint="Opens the MenoCompass privacy policy in your browser."
+            accessibilityHint="Opens the peri privacy policy in your browser."
             accessibilityRole="link"
             onPress={() => void Linking.openURL('https://menlopass.vercel.app/privacy.html')}
           >
@@ -423,7 +423,7 @@ function SubscriptionGate({
           </Pressable>
           <Text accessible={false} style={styles.gateLinkDivider}>·</Text>
           <Pressable
-            accessibilityHint="Opens the MenoCompass terms in your browser."
+            accessibilityHint="Opens the peri terms in your browser."
             accessibilityRole="link"
             onPress={() => void Linking.openURL('https://menlopass.vercel.app/terms.html')}
           >
@@ -557,12 +557,12 @@ function App() {
           setAppLocked(false);
           setUnlockIssue(undefined);
         } else {
-          setUnlockIssue('MenoCompass remains locked. Try Face ID or your device passcode again.');
+          setUnlockIssue('peri remains locked. Try Face ID or your device passcode again.');
         }
       })
       .catch(reason => {
         reportTelemetryError(reason);
-        setUnlockIssue('MenoCompass remains locked. Try Face ID or your device passcode again.');
+        setUnlockIssue('peri remains locked. Try Face ID or your device passcode again.');
       })
       .finally(() => {
         unlockInFlightRef.current = false;
@@ -775,13 +775,13 @@ function App() {
         reportTelemetryError(error);
         trackTelemetryEvent('subscription_check_failed', { reason: 'sdk_error' });
         setSubscriptionChecked(true);
-        setSubscriptionIssue('MenoCompass could not verify your subscription. Check your connection and try again.');
+        setSubscriptionIssue('peri could not verify your subscription. Check your connection and try again.');
       });
     } catch (error) {
       reportTelemetryError(error);
       trackTelemetryEvent('subscription_check_failed', { reason: 'sdk_error' });
       setSubscriptionChecked(true);
-      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen MenoCompass and try again.');
+      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.');
       setRevenueCatReady(false);
     }
 
@@ -899,7 +899,7 @@ function App() {
       if (hasFreeTrial) {
         trackTelemetryEvent('paywall_failed', { source, reason: 'free_offer' });
         setSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.');
-        if (__DEV__) console.error('Remove the free introductory offer from every MenoCompass product in App Store Connect.');
+        if (__DEV__) console.error('Remove the free introductory offer from every peri product in App Store Connect.');
         return;
       }
 
@@ -908,7 +908,7 @@ function App() {
     } catch (reason) {
       trackTelemetryEvent('paywall_failed', { source, reason: 'offerings_error' });
       reportTelemetryError(reason);
-      setSubscriptionIssue('MenoCompass could not reach the App Store. Check your connection and try again.');
+      setSubscriptionIssue('peri could not reach the App Store. Check your connection and try again.');
     } finally {
       paywallLoadingRef.current = false;
       setPurchaseBusy(false);
@@ -918,7 +918,7 @@ function App() {
   const requestPaywall = (source: 'subscribe_button' | 'feature' = 'subscribe_button') => {
     if (purchaseBusy || proActive) return;
     if (!revenueCatReady) {
-      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen MenoCompass and try again.');
+      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.');
       return;
     }
     void openPaywall(source);
@@ -1097,7 +1097,7 @@ function App() {
             notifyWebHealthKitResult({
               action: 'sync',
               ok: false,
-              message: 'Apple Health could not be synced. No MenoCompass data was changed.',
+              message: 'Apple Health could not be synced. No peri data was changed.',
             });
           })
           .finally(() => { healthKitInFlightRef.current = false; });
@@ -1142,7 +1142,7 @@ function App() {
       }
       if (message?.type === 'open-pro-paywall') requestPaywall('feature');
     } catch {
-      // Ignore non-MenoCompass messages from the embedded document.
+      // Ignore non-peri messages from the embedded document.
     }
   };
 
@@ -1155,21 +1155,21 @@ function App() {
       const restored = hasProAccess(customerInfo);
       setProActive(restored);
       setSubscriptionChecked(true);
-      setSubscriptionIssue(restored ? undefined : 'No active MenoCompass subscription was found for this Apple ID.');
+      setSubscriptionIssue(restored ? undefined : 'No active peri subscription was found for this Apple ID.');
       setTelemetrySubscriptionState(customerInfo);
       trackTelemetryEvent('subscription_restore_completed', { source: 'gate', ...subscriptionSnapshot(customerInfo) });
-      Alert.alert(restored ? 'Purchase restored' : 'Nothing to restore', restored ? 'MenoCompass Pro is active.' : 'No MenoCompass Pro purchase was found for this Apple ID.');
+      Alert.alert(restored ? 'Purchase restored' : 'Nothing to restore', restored ? 'peri Pro is active.' : 'No peri Pro purchase was found for this Apple ID.');
     } catch (reason) {
       trackTelemetryEvent('subscription_restore_failed', { source: 'gate' });
       reportTelemetryError(reason);
-      Alert.alert('Restore unavailable', 'MenoCompass could not restore purchases. Please try again later.');
+      Alert.alert('Restore unavailable', 'peri could not restore purchases. Please try again later.');
     } finally {
       setPurchaseBusy(false);
     }
   };
 
   if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked)) {
-    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><ActivityIndicator color="#244b43" /><Text style={styles.loadingText}>{error ? 'Could not open MenoCompass.' : 'Opening MenoCompass…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><ActivityIndicator color="#244b43" /><Text style={styles.loadingText}>{error ? 'Could not open peri.' : 'Opening peri…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
   if (Platform.OS === 'ios' && appLocked) {
@@ -1177,7 +1177,7 @@ function App() {
       <SafeAreaView style={styles.locked}>
         <StatusBar style="dark" />
         <View accessible={false} importantForAccessibility="no" style={styles.lockedMark}>
-          <Text style={styles.lockedMarkText}>M</Text>
+          <Text style={styles.lockedMarkText}>p</Text>
         </View>
         <Text style={styles.lockedEyebrow}>MENOCOMPASS</Text>
         <Text accessibilityRole="header" style={styles.lockedTitle}>Your record is locked.</Text>
@@ -1187,7 +1187,7 @@ function App() {
         {unlockIssue ? <Text accessibilityRole="alert" style={styles.lockedIssue}>{unlockIssue}</Text> : null}
         <Pressable
           accessibilityHint="Opens the secure iOS authentication prompt."
-          accessibilityLabel="Unlock MenoCompass"
+          accessibilityLabel="Unlock peri"
           accessibilityRole="button"
           accessibilityState={{ busy: unlockBusy, disabled: unlockBusy }}
           disabled={unlockBusy}
@@ -1217,7 +1217,7 @@ function App() {
             const active = hasProAccess(customerInfo);
             setProActive(active);
             setSubscriptionChecked(true);
-            setSubscriptionIssue(active ? undefined : 'No active MenoCompass subscription was found for this Apple ID.');
+            setSubscriptionIssue(active ? undefined : 'No active peri subscription was found for this Apple ID.');
             syncProStatusToWeb(active);
           }}
           onClose={() => setPaywall(null)}

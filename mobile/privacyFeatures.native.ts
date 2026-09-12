@@ -171,7 +171,7 @@ export async function configureRemindersAsync(
   if (needsPermission && permissionLabel(permissions) !== 'granted') {
     throw new Error(
       permissionLabel(permissions) === 'denied'
-        ? 'Notifications are off for MenoCompass. Enable them in Settings to use reminders.'
+        ? 'Notifications are off for peri. Enable them in Settings to use reminders.'
         : 'Turn on notifications to schedule reminders.',
     );
   }
@@ -181,7 +181,7 @@ export async function configureRemindersAsync(
     if (preferences.dailyCheckIn.enabled) {
       newNotificationIds.push(await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'MenoCompass check-in',
+          title: 'peri check-in',
           body: 'Take a moment for your daily check-in.',
           data: { route: 'today', reminder: 'daily-check-in' },
           sound: false,
@@ -197,7 +197,7 @@ export async function configureRemindersAsync(
     if (preferences.treatmentFollowUp.enabled) {
       newNotificationIds.push(await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'MenoCompass weekly check-in',
+          title: 'peri weekly check-in',
           body: 'Take a moment to review your week.',
           data: { route: 'care', reminder: 'treatment-follow-up' },
           sound: false,
@@ -264,7 +264,7 @@ export async function getAppLockCapabilityAsync(): Promise<AppLockCapability> {
   return { available: hasHardware && enrolled, enabled: enabled === 'true', label };
 }
 
-export async function authenticateAppUnlockAsync(reason = 'Unlock your private MenoCompass record') {
+export async function authenticateAppUnlockAsync(reason = 'Unlock your private peri record') {
   const capability = await getAppLockCapabilityAsync();
   if (!capability.enabled) return true;
   const result = await LocalAuthentication.authenticateAsync({
@@ -283,12 +283,12 @@ export async function setAppLockEnabledAsync(enabled: boolean): Promise<AppLockC
   }
   if (enabled !== current.enabled) {
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: enabled ? 'Turn on MenoCompass App Lock' : 'Turn off MenoCompass App Lock',
+      promptMessage: enabled ? 'Turn on peri App Lock' : 'Turn off peri App Lock',
       cancelLabel: 'Cancel',
       fallbackLabel: 'Use Passcode',
       disableDeviceFallback: false,
     });
-    if (!result.success) throw new Error('MenoCompass App Lock was not changed.');
+    if (!result.success) throw new Error('peri App Lock was not changed.');
   }
   await SecureStore.setItemAsync(APP_LOCK_KEY, enabled ? 'true' : 'false', secureStoreOptions);
   return { ...current, enabled };
@@ -296,7 +296,7 @@ export async function setAppLockEnabledAsync(enabled: boolean): Promise<AppLockC
 
 function requireSecurityModule() {
   if (!MenoCompassSecurityModule || Platform.OS !== 'ios') {
-    throw new Error('Secure MenoCompass backups require the iOS app.');
+    throw new Error('Secure peri backups require the iOS app.');
   }
   return MenoCompassSecurityModule;
 }

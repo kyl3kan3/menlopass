@@ -466,8 +466,8 @@ function nativePrivacyCard(){
   const daily=reminders.preferences&&reminders.preferences.dailyCheckIn||{}, follow=reminders.preferences&&reminders.preferences.treatmentFollowUp||{};
   const weekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   return `<div class="section-label">Privacy &amp; reminders</div><div class="card jc-native-settings">
-    <div class="jc-native-setting"><div><b>App Lock</b><small>${lock.available?`Use ${esc(lock.label)} or the device passcode whenever MenoCompass returns from the background.`:'Set up Face ID or Touch ID in iOS Settings to make App Lock available.'}</small></div><button class="btn ${lock.enabled?'ghost':'primary'} sm" data-act="app-lock-toggle" data-enabled="${lock.enabled?'false':'true'}"${lock.available?'':' disabled'}>${lock.enabled?'Turn off':'Turn on'}</button></div>
-    <p class="xtiny">${nativePrivacyState.deviceEncrypted?'Your native MenoCompass record is encrypted at rest with a device-bound key.':'Secure native storage is unavailable on this build.'}</p>
+    <div class="jc-native-setting"><div><b>App Lock</b><small>${lock.available?`Use ${esc(lock.label)} or the device passcode whenever peri returns from the background.`:'Set up Face ID or Touch ID in iOS Settings to make App Lock available.'}</small></div><button class="btn ${lock.enabled?'ghost':'primary'} sm" data-act="app-lock-toggle" data-enabled="${lock.enabled?'false':'true'}"${lock.available?'':' disabled'}>${lock.enabled?'Turn off':'Turn on'}</button></div>
+    <p class="xtiny">${nativePrivacyState.deviceEncrypted?'Your native peri record is encrypted at rest with a device-bound key.':'Secure native storage is unavailable on this build.'}</p>
     <hr class="sep">
     <h4>Reminders</h4><p class="tiny">Notifications stay generic and never include symptoms, treatments, or other health details. Permission is requested only when you save an enabled reminder.</p>
     <label class="jc-native-toggle" for="daily-reminder-enabled"><input id="daily-reminder-enabled" type="checkbox"${daily.enabled?' checked':''}><span>Daily check-in</span><input id="daily-reminder-time" type="time" value="${nativeReminderTime(daily,'20:00')}" aria-label="Daily check-in reminder time"></label>
@@ -482,7 +482,7 @@ function healthKitCard(){
   const unavailable=nativeHealthState.loaded&&status.available===false;
   const value=(v,suffix)=>v==null?'Unavailable':r1(v)+suffix;
   return `<div class="section-label">Apple Health</div><div class="card jc-healthkit">
-    <div class="jc-native-setting"><div><b>Read-only summary</b><small>MenoCompass reads only aggregate steps, sleep, and your latest body weight when you tap the button. It never writes to Apple Health.</small></div></div>
+    <div class="jc-native-setting"><div><b>Read-only summary</b><small>peri reads only aggregate steps, sleep, and your latest body weight when you tap the button. It never writes to Apple Health.</small></div></div>
     ${summary?`<div class="jc-health-grid"><div><span>Steps</span><b>${value(summary.steps.dailyAverage,' / day')}</b></div><div><span>Sleep</span><b>${value(summary.sleep.nightlyAverageHours,' h / night')}</b></div><div><span>Latest weight</span><b>${summary.bodyWeight.latestKilograms==null?'Unavailable':r1(U.wOut(summary.bodyWeight.latestKilograms))+' '+U.wLabel()}</b></div></div><p class="xtiny">${summary.lookbackDays}-day aggregate · synced ${esc(new Date(summary.generatedAt).toLocaleString())}. Missing values can mean no matching data or that access was not shared; Apple does not tell apps which read types were denied.</p>`:'<p class="tiny">No Apple Health summary has been saved yet.</p>'}
     <div class="btn-row split"><button class="btn primary" data-act="healthkit-sync"${unavailable||nativeHealthState.busy?' disabled':''}>${summary?'Sync Apple Health':'Connect Apple Health'}</button>${summary?'<button class="btn ghost" data-act="healthkit-clear">Remove summary</button>':''}</div>
     ${unavailable?'<p class="xtiny">Apple Health is unavailable on this device or build.</p>':''}
@@ -503,7 +503,7 @@ function viewYou(){
         <button class="btn ghost" data-act="reset-onboarding">${PULSE_IC.reset}<span>Reset onboarding</span></button>
         <button class="btn danger" data-act="delete-local-data">${PULSE_IC.trash}<span>Delete app profile &amp; data</span></button>
       </div>
-      <p class="xtiny">MenoCompass does not create an online account. Reset onboarding keeps your logs and treatments. Delete permanently erases this app profile and all health data stored on this device. An Apple subscription, if active, is managed separately in App Store settings.</p>
+      <p class="xtiny">peri does not create an online account. Reset onboarding keeps your logs and treatments. Delete permanently erases this app profile and all health data stored on this device. An Apple subscription, if active, is managed separately in App Store settings.</p>
     </div>
 
     ${nativePrivacyCard()}
@@ -597,12 +597,12 @@ function viewYou(){
     <div class="card flat">
       <h4>Privacy, plainly</h4>
       <p class="tiny">${window.__MENO_NATIVE__===true
-        ? 'Your native MenoCompass record stays on this device in an encrypted file protected by a device-bound key; it is not copied into WebView browser storage. Optional encrypted backups use a password you choose. Apple Health access is read-only, happens only when you tap Connect or Sync, and saves only the aggregate summary shown above. Widgets receive only whether today is complete and a seven-day completion count. Generic reminder schedules contain no health details. The app has no account or sync service and does not transmit your health record.'
+        ? 'Your native peri record stays on this device in an encrypted file protected by a device-bound key; it is not copied into WebView browser storage. Optional encrypted backups use a password you choose. Apple Health access is read-only, happens only when you tap Connect or Sync, and saves only the aggregate summary shown above. Widgets receive only whether today is complete and a seven-day completion count. Generic reminder schedules contain no health details. The app has no account or sync service and does not transmit your health record.'
         : "Your health entries stay in this browser's storage on this device. The app has no account, health-data API, or sync service and does not transmit what you log. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices."} The native app sends limited performance and advertising-attribution data—never symptoms, medications, labs, notes, profile answers, Apple Health values, or reports—to Expo, AppsFlyer, Meta, TikTok, and RevenueCat as described in the Privacy Policy. External source links contact those sites only when you open them. Export a backup now and then.</p>
       <h4 style="margin-top:14px">Medical disclaimer</h4>
       <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
     </div>
-    <p class="xtiny center" style="margin-bottom:20px">MenoCompass ${APP_VERSION} · content reviewed July 2026</p>
+    <p class="xtiny center" style="margin-bottom:20px">peri ${APP_VERSION} · content reviewed July 2026</p>
   </div>`;
 }
 
@@ -1054,7 +1054,7 @@ function dataSheet(){
   <div class="section-label">Restore</div>
   <p class="tiny">Paste a previously exported JSON backup. <b>This replaces everything currently stored.</b></p>
   <textarea id="restore" maxlength="5000000" aria-describedby="restore-help" placeholder='{"v":2,"profile":...}'></textarea>
-  <p class="xtiny" id="restore-help">Restore accepts a Meno Compass JSON file up to 5 MB. Unknown fields and invalid values are discarded.</p>
+  <p class="xtiny" id="restore-help">Restore accepts a peri JSON file up to 5 MB. Unknown fields and invalid values are discarded.</p>
   <button class="btn block" data-act="import-json" style="margin-top:8px">Restore from this backup</button>
   <div class="section-label">Account &amp; data controls</div>
   <button class="btn block ghost" data-act="reset-onboarding">Reset onboarding</button>
@@ -1079,7 +1079,7 @@ function deleteLocalDataSheet(){
     <div class="jc-confirm-sheet danger">
       <span class="jc-confirm-icon">${PULSE_IC.trash}</span>
       <h3>This permanently erases this app’s data on this device</h3>
-      <p>MenoCompass has no online account. This deletes your local profile, symptom logs, treatment history, labs, reports, and settings. It cannot be undone unless you exported a backup.</p>
+      <p>peri has no online account. This deletes your local profile, symptom logs, treatment history, labs, reports, and settings. It cannot be undone unless you exported a backup.</p>
       <div class="callout warn"><span class="ctitle">Apple subscriptions are separate</span>Deleting app data does not cancel an Apple subscription. Manage subscriptions in your App Store settings.</div>
       <button class="btn block danger" data-act="confirm-delete-local-data">Delete everything permanently</button>
       <button class="btn block ghost" data-act="close">Cancel</button>
@@ -1137,7 +1137,7 @@ function reportSheet(days){
   return {title:'Report for your clinician', body:`
   <p class="tiny muted">A one-page summary of what you have tracked. Print it, or read from it.</p>
   <div class="report-page">
-  <div class="report-brand"><b>MenoCompass</b><span>Appointment report · ${days} days</span></div>
+  <div class="report-brand"><b>peri</b><span>Appointment report · ${days} days</span></div>
   <div class="card">
     <h3 style="margin-bottom:2px">What changed · symptom summary</h3>
     <p class="xtiny">${p.name?esc(p.name)+' · ':''}${age?age+' years · ':''}Prepared ${fmtLong(todayISO())}</p>
@@ -1556,7 +1556,7 @@ function viewOnboard(){
   const p=DB.profile;
   const step=Math.max(0,Math.min(3,+p.onboardingStep||0));
   const shell=(title,subtitle,body)=>`<div class="view tw-screen tw-onboard jc-onboard">
-    <div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span>MenoCompass</div><span>${step+1} / 4</span></div>
+    <div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span>peri</div><span>${step+1} / 4</span></div>
     <div class="jc-onboard-progress" aria-label="Setup step ${step+1} of 4"><i style="width:${(step+1)*25}%"></i></div>
     ${step?'<button class="jc-back" data-act="ob-back">'+IC.chev+' Back</button>':''}
     <div class="jc-page-head"><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>
@@ -1568,7 +1568,7 @@ function viewOnboard(){
       <div class="jc-onboard-list"><p>Confirm a quick daily check-in.</p><p>See symptoms and treatment changes in one story.</p><p>Bring a focused summary to appointments.</p></div>
       <button class="jc-primary" data-act="ob-next">Set up my compass</button>
       <button class="jc-text-action" data-act="ob-skip">Set up later</button>
-      <details class="jc-disclosure"><summary>Privacy, evidence, and medical limits</summary><div><p>Your health entries remain in this browser on this device. MenoCompass provides education, not diagnosis or treatment, and does not replace a clinician who knows your history.</p><p>Content reviewed July 2026.</p></div></details>`);
+      <details class="jc-disclosure"><summary>Privacy, evidence, and medical limits</summary><div><p>Your health entries remain in this browser on this device. peri provides education, not diagnosis or treatment, and does not replace a clinician who knows your history.</p><p>Content reviewed July 2026.</p></div></details>`);
   }
   if(step===1){
     const intents=[
@@ -1700,7 +1700,7 @@ function viewReport(){
   const dates=entryDates(), logged=dates.length, end=todayISO(), start=addDays(end,-89);
   return `<div class="view tw-screen tw-secondary">${twilightHeader('Doctor report','Turn your private log into a focused appointment summary.')}
     <div class="tw-chips"><span>30d</span><span class="on">90d</span><span>180d</span></div>
-    <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtDay(start))} – ${esc(fmtDay(end))} · ${logged} days logged · prepared with MenoCompass</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
+    <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtDay(start))} – ${esc(fmtDay(end))} · ${logged} days logged · prepared with peri</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
     <div class="tw-observed"><span>Observed</span><p>Patterns become more useful as you log consistently and mark treatment changes.</p><small>Correlation is not causation — bring the report to your clinician.</small></div>
     <button class="btn primary block" data-act="sheet" data-s="report">Generate report</button>
   </div>`;
@@ -1712,7 +1712,7 @@ function viewReport(){
 function jcChrome(backLabel){
   return `<div class="jc-chrome">
     <div class="jc-chrome-main">
-      <div class="jc-wordmark" aria-label="MenoCompass"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span><span>Meno<span class="mc-brand-light">Compass</span></span></div>
+      <div class="jc-wordmark" aria-label="peri"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span><span>peri</span></div>
       <span class="mc-chrome-caption">A little clarity, every day.</span>
       <div class="jc-global-actions">
         <button data-act="sheet" data-s="tools" aria-label="Open tools">${PULSE_IC.grid}</button>
@@ -2313,7 +2313,7 @@ function render(preserveScroll){
     b.setAttribute('aria-current', b.dataset.v===curTab?'page':'false');
     const locked = nativeProLocked(b.dataset.v);
     b.classList.toggle('pro-locked', locked);
-    if(locked) b.setAttribute('aria-label', (TAB_TITLES[b.dataset.v]||[b.dataset.v])[0]+' — MenoCompass Pro');
+    if(locked) b.setAttribute('aria-label', (TAB_TITLES[b.dataset.v]||[b.dataset.v])[0]+' — peri Pro');
     else b.removeAttribute('aria-label');
   });
   window.scrollTo(0,preserveScroll?scrollY:0);
@@ -2337,7 +2337,7 @@ function requestNativePro(area){
       window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-pro-paywall',feature}));
     }
   }catch(e){}
-  toast('MenoCompass Pro unlocks Journey patterns and appointment reports');
+  toast('peri Pro unlocks Journey patterns and appointment reports');
   return true;
 }
 window.addEventListener('menocompass-pro-changed',()=>{
@@ -2427,7 +2427,7 @@ function handleAction(el, ev){
       if(!postNativeEvent('healthkit-sync',{userInitiated:true,lookbackDays:7})){ nativeHealthState.busy=false; render(true); toast('Apple Health is available only in the iPhone app'); }
       return;
     case 'healthkit-clear':
-      if(confirm('Remove the saved Apple Health summary from MenoCompass? Apple Health itself will not be changed.')){ DB.healthKit=null; save(true); render(true); toast('Apple Health summary removed'); }
+      if(confirm('Remove the saved Apple Health summary from peri? Apple Health itself will not be changed.')){ DB.healthKit=null; save(true); render(true); toast('Apple Health summary removed'); }
       return;
     case 'reset-onboarding':
       openSheet('reset-onboarding-confirm'); return;
@@ -2930,7 +2930,7 @@ function download(name, text, mime){
 function printableReportHtml(){
   const clone=document.documentElement.cloneNode(true);
   clone.querySelectorAll('script').forEach(node=>node.remove());
-  clone.querySelector('title').textContent='MenoCompass appointment report';
+  clone.querySelector('title').textContent='peri appointment report';
   return '<!doctype html>'+clone.outerHTML;
 }
 
@@ -2949,7 +2949,7 @@ function boot(){
   if(prefilled||window.__MENO_NATIVE__===true) save(true);
   document.body.insertAdjacentHTML('afterbegin',
     '<header class="topbar" id="topbar"></header><main id="app"></main>'
-    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="mc-sidebar-brand"><span class="mc-brand-icon">'+TWILIGHT_IC.sun+'</span><span>MenoCompass<small>YOUR PERSONAL COMPANION</small></span></div><span class="mc-nav-label">YOUR SPACE</span><div class="inner">'
+    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="mc-sidebar-brand"><span class="mc-brand-icon">'+TWILIGHT_IC.sun+'</span><span>peri<small>YOUR PERSONAL COMPANION</small></span></div><span class="mc-nav-label">YOUR SPACE</span><div class="inner">'
     + Object.entries(TAB_TITLES).map(([k,v])=>h('button',{'data-act':'tab','data-v':k},IC[k]+'<span>'+v[0]+'</span>')).join('')
     + '</div><div class="mc-sidebar-bottom"><div>'+PULSE_IC.privacy+'<p>Just for you.<br><span>Your health story stays<br>on this device.</span></p></div><button data-act="open-profile">'+PULSE_IC.profile+'<span>Profile &amp; settings</span></button></div></nav><div id="sheet-host"></div>');
   document.addEventListener('click', ev=>{
