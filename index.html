@@ -4326,6 +4326,7 @@ let sheetReturnStack = [];
 let lastSheetTrigger = null;
 let checkinComplete = false;
 let checkinStep = 0;
+const checkinAddedSymptoms = new Map();
 let guideQuery = '';
 let reportRange = 90;
 let treatmentChangeTarget = null;
@@ -6410,7 +6411,9 @@ function viewCheckin(){
   if(checkinComplete){
     return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}<div class="mc-complete-mark">${PULSE_IC.check}</div>${jcHeading('Today is confirmed.','Your Journey and appointment report now use this version.',fmtLong(t))}${comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">Back to Journey</button><button class="jc-secondary" data-act="checkin-add-treatment">Add treatment change</button></div>`;
   }
-  const state=dayState(t), keys=focusedKeys(), context=checkinStep===1;
+  const state=dayState(t), context=checkinStep===1;
+  const keys=[...new Set([...focusedKeys(),...(checkinAddedSymptoms.get(t)||[]),...PINNABLE_SYMPTOMS.filter(key=>symptomValue(raw,key)!=null)])];
+  const availableKeys=PINNABLE_SYMPTOMS.filter(key=>!keys.includes(key));
   const recordedKeys=[...new Set([...keys,...PINNABLE_SYMPTOMS])].filter(key=>symptomValue(raw,key)!=null);
   const ratingLabels=['None','Mild','Moderate','Severe','Very severe'];
   return `<div class="view jc-screen jc-checkin">
@@ -6435,7 +6438,7 @@ function viewCheckin(){
       <section class="jc-check-list" aria-label="Today’s symptoms">
         ${keys.map(key=>key==='hf'?`<div class="jc-check-row${raw.hf!=null?' mc-rated':''}"><div class="jc-check-label">${TWILIGHT_IC.flame}<span><b>Hot flashes</b><small>Actual count today</small></span></div><div class="jc-count"><button data-act="hf" data-n="-1" aria-label="One fewer hot flash">−</button><strong>${raw.hf==null?'—':raw.hf}</strong><button data-act="hf" data-n="1" aria-label="One more hot flash">+</button><button data-act="set" data-k="hf" data-v="0">None</button></div></div>`:jcSeverityControl(key,symptomValue(raw,key))).join('')}
       </section>
-      <button class="jc-inline-action jc-add-symptom" data-act="open-tracking">Add another symptom ${IC.chev}</button>
+      ${availableKeys.length?`<details class="mc-disclosure jc-add-symptom"><summary>Add another symptom ${IC.chev}</summary><div class="jc-open-list">${availableKeys.map(key=>`<button class="jc-open-row" data-act="checkin-add-symptom" data-v="${esc(key)}"><span>${symptomIcon(key)}</span><span>${esc(symptomName(key))}</span>${IC.chev}</button>`).join('')}</div></details>`:'<p class="jc-empty-line">All symptoms are shown above.</p>'}
     `}
     <div class="mc-check-actions">
       ${context?'':`<button class="jc-secondary" data-act="checkin-step" data-v="1">Add context ${IC.chev}</button>`}
@@ -6612,7 +6615,15 @@ function handleAction(el, ev){
     }
     case 'back-journey': checkinComplete=false; setRoute('journey'); render(); return;
     case 'checkin-add-treatment': checkinComplete=false; medFormOpen=true; setRoute('care'); render(); revealCareForm('med-name'); return;
-    case 'open-tracking': returnTab='checkin'; setRoute('profile'); render(); return;
+    case 'checkin-add-symptom': {
+      const key=el.dataset.v, date=todayISO();
+      if(curTab!=='checkin'||!PINNABLE_SYMPTOMS.includes(key)) return;
+      const added=checkinAddedSymptoms.get(date)||[];
+      if(!added.includes(key)) checkinAddedSymptoms.set(date,[...added,key]);
+      render(true);
+      document.querySelector('.jc-check-list [data-k="'+symptomPath(key)+'"]')?.focus();
+      return;
+    }
     case 'open-report':
       if(requestNativePro('appointment-report')) return;
       postNativeEvent('report-opened',{rangeDays:reportRange});
