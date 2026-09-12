@@ -942,9 +942,24 @@ function App() {
     void openPaywall('automatic');
   }, [subscriptionChecked, proActive, revenueCatReady, telemetrySettled, purchaseBusy]);
 
+  const openExternalLink = (url: unknown) => {
+    if (typeof url !== 'string') return;
+    try {
+      const parsed = new URL(url);
+      if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) return;
+    } catch { return; }
+    void Linking.openURL(url).catch(() => {
+      Alert.alert('Could not open this link', 'Please check your connection and try again. Your appointment brief is still here.');
+    });
+  };
+
   const handleWebMessage = (event: WebViewMessageEvent) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
+      if (message.type === 'open-external-link') {
+        openExternalLink(message.url);
+        return;
+      }
       if (message?.type === 'webview-error') {
         reportTelemetryError(webViewDiagnosticError(message));
         return;
@@ -1282,9 +1297,10 @@ function App() {
           `);
         }}
         onMessage={handleWebMessage}
+        onOpenWindow={({ nativeEvent }) => openExternalLink(nativeEvent.targetUrl)}
         onShouldStartLoadWithRequest={({ url }) => {
           if (url === 'about:blank' || url.startsWith('data:') || url.startsWith('file:')) return true;
-          if (/^https?:/i.test(url)) { Linking.openURL(url); return false; }
+          if (/^https?:/i.test(url)) { openExternalLink(url); return false; }
           return false;
         }}
         style={styles.webview}

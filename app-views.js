@@ -2942,6 +2942,12 @@ function boot(){
     + Object.entries(TAB_TITLES).map(([k,v])=>h('button',{'data-act':'tab','data-v':k},IC[k]+'<span>'+v[0]+'</span>')).join('')
     + '</div><div class="mc-sidebar-bottom"><div>'+PULSE_IC.privacy+'<p>Just for you.<br><span>Your health story stays<br>on this device.</span></p></div><button data-act="open-profile">'+PULSE_IC.profile+'<span>Profile &amp; settings</span></button></div></nav><div id="sheet-host"></div>');
   document.addEventListener('click', ev=>{
+    const externalLink = ev.target.closest('a[href]');
+    if(externalLink && window.__MENO_NATIVE__===true && window.ReactNativeWebView && /^https?:\/\//i.test(externalLink.href)){
+      ev.preventDefault();
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-external-link',url:externalLink.href}));
+      return;
+    }
     const el = ev.target.closest('[data-act]');
     if(!el) return;
     /* The sheet backdrop carries data-act="bg" and wraps everything inside the
