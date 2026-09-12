@@ -1,5 +1,7 @@
 # peri release — September 12, 2026
 
+Superseded: build 35 was withdrawn to replace its retained legacy logo. See [the logo correction](PERI_LOGO_RELEASE_2026-09-12.md) for build 36 and its release state.
+
 - App Store app: `6798018790`; existing bundle ID `com.kyl3kan3.menlopass`.
 - Version: `1.2.1`, build `35`, runtime `1.2.0-native-2`.
 - Source: `35f709208db2aa6e3881dbb97d96f1f4d555fa79`.
