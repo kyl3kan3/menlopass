@@ -2245,7 +2245,7 @@ const ROUTE_ALIASES = {trends:'journey',meds:'care',report:'appointment-report',
 let lastNativeNavigationState='';
 function normalizeRoute(route){ return ROUTE_ALIASES[route]||route; }
 function syncNativeNavigationState(){
-  if(window.__MENO_NATIVE_TABS__!==true) return;
+  if(window.__MENO_NATIVE__!==true) return;
   const state={
     route:curTab,
     primary:Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab),
@@ -2985,6 +2985,16 @@ function boot(){
   });
   document.addEventListener('keydown', keepFocusInSheet);
   if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
+  window.addEventListener('menocompass-prepare-update', ev=>{
+    const focused=document.activeElement;
+    const safe=DB.profile.onboarded===true && sheetStack.length===0
+      && ['today','journey','guide'].includes(curTab)
+      && !(focused && focused.matches('input,textarea,select,[contenteditable="true"]'));
+    if(safe) flush();
+    postNativeEvent('ota-restart-state',{
+      id:ev.detail?.id, safe, ...(safe?{state:JSON.stringify(DB)}:{})
+    });
+  });
   window.addEventListener('beforeunload', flush);
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flush(); });

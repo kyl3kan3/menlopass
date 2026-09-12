@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Image, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL, type PurchasesOffering } from 'react-native-purchases';
+import { OtaUpdateBanner, useOtaUpdate } from './OtaUpdate.native';
 import { TrackedPaywall } from './TrackedPaywall.native';
 import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -373,7 +374,7 @@ function SubscriptionGate({
         <View accessible={false} importantForAccessibility="no" style={styles.gateMark}>
           <Image source={require('./assets/icon.png')} style={{ width: 52, height: 52, borderRadius: 14 }} />
         </View>
-        <Text style={styles.gateEyebrow}>MENOCOMPASS</Text>
+        <Text style={styles.gateEyebrow}>PERI</Text>
         <Text style={styles.gateTitle}>Your menopause record, all in one place.</Text>
         <Text selectable style={styles.gateBody}>
           An active monthly or annual subscription is required to use peri. There is no free tier or free trial.
@@ -436,6 +437,8 @@ function SubscriptionGate({
 }
 
 function App() {
+  const otaUpdate = useOtaUpdate();
+  const restartRequest = useRef<{ id: string; resolve: () => void; reject: (error: Error) => void } | null>(null);
   const webViewRef = useRef<WebView>(null);
   const { markInteractive } = useObserve();
   const [html, setHtml] = useState<string>();
@@ -480,6 +483,33 @@ function App() {
   const unlockInFlightRef = useRef(false);
   const automaticUnlockAttemptedRef = useRef(false);
   const healthKitInFlightRef = useRef(false);
+
+  const otaRestartIsSafe = () => AppState.currentState === 'active'
+    && webContentReady && experienceReady && !appLocked && !keyboardVisible
+    && nativeNavigation.onboarded && !nativeNavigation.sheetOpen
+    && ['today', 'journey', 'guide'].includes(nativeNavigation.route)
+    && !purchaseBusy && !paywall && !paywallLoadingRef.current
+    && !reviewRequestInFlightRef.current && !nativeShareInFlightRef.current
+    && !nativeBackupImportInFlightRef.current && !privacyChangeInFlightRef.current
+    && !unlockInFlightRef.current && !healthKitInFlightRef.current;
+
+  const prepareOtaRestart = () => new Promise<void>((resolve, reject) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    const timer = setTimeout(() => {
+      if (restartRequest.current?.id !== id) return;
+      restartRequest.current = null;
+      reject(new Error('Timed out saving before update'));
+    }, 10_000);
+    restartRequest.current = {
+      id,
+      resolve: () => { clearTimeout(timer); restartRequest.current = null; resolve(); },
+      reject: error => { clearTimeout(timer); restartRequest.current = null; reject(error); },
+    };
+    webViewRef.current?.injectJavaScript(`
+      window.dispatchEvent(new CustomEvent('menocompass-prepare-update', { detail: ${JSON.stringify({ id })} }));
+      true;
+    `);
+  });
 
   const syncProStatusToWeb = (active: boolean) => {
     webViewRef.current?.injectJavaScript(`
@@ -978,6 +1008,22 @@ function App() {
         setTelemetryRoute(message.route);
         return;
       }
+      if (message?.type === 'ota-restart-state') {
+        const request = restartRequest.current;
+        if (!request || message.id !== request.id) return;
+        if (message.safe !== true || typeof message.state !== 'string' || !otaRestartIsSafe()) {
+          request.reject(new Error('Finish your current activity before restarting'));
+          return;
+        }
+        void writePersistedState(message.state).then(canonical => {
+          if (restartRequest.current !== request) return;
+          if (!canonical) throw new Error('Invalid record');
+          request.resolve();
+        }).catch(reason => {
+          if (restartRequest.current === request) request.reject(reason);
+        });
+        return;
+      }
       if (message?.type === 'persist-state' && typeof message.state === 'string') {
         void writePersistedState(message.state)
           .then(canonical => {
@@ -1179,7 +1225,7 @@ function App() {
         <View accessible={false} importantForAccessibility="no" style={styles.lockedMark}>
           <Image source={require('./assets/icon.png')} style={{ width: 58, height: 58, borderRadius: 15 }} />
         </View>
-        <Text style={styles.lockedEyebrow}>MENOCOMPASS</Text>
+        <Text style={styles.lockedEyebrow}>PERI</Text>
         <Text accessibilityRole="header" style={styles.lockedTitle}>Your record is locked.</Text>
         <Text selectable style={styles.lockedBody}>
           Use Face ID, Touch ID, or your device passcode to continue.
@@ -1245,6 +1291,7 @@ function App() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <StatusBar style="dark" />
+      <OtaUpdateBanner update={otaUpdate} isSafe={otaRestartIsSafe} prepareRestart={prepareOtaRestart} />
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
