@@ -9,7 +9,7 @@ const swift = fs.readFileSync(
   path.join(moduleRoot, 'ios', 'MenoCompassSecurityModule.swift'),
   'utf8',
 );
-const app = fs.readFileSync(path.join(mobileRoot, 'App.native.tsx'), 'utf8');
+const app = fs.readFileSync(path.join(mobileRoot, 'App.native.tsx'), 'utf8').replace(/\r\n/g, '\n');
 const privacy = fs.readFileSync(path.join(mobileRoot, 'privacyFeatures.native.ts'), 'utf8');
 
 test('device state uses authenticated encryption and a non-migrating Keychain key', () => {
