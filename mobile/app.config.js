@@ -180,8 +180,8 @@ module.exports = ({ config }) => {
     const options = plugin[1] || {};
     return [plugin[0], {
       ...options,
-      backgroundColor: '#f7f5ef',
-      dark: { ...options.dark, backgroundColor: '#f7f5ef' },
+      backgroundColor: '#244b43',
+      dark: { ...options.dark, backgroundColor: '#244b43' },
     }];
   });
 
@@ -193,7 +193,7 @@ module.exports = ({ config }) => {
       ...config.android,
       adaptiveIcon: {
         ...config.android?.adaptiveIcon,
-        backgroundColor: '#f7f5ef',
+        backgroundColor: '#244b43',
       },
     },
     ios: {

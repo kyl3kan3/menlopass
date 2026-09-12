@@ -87,3 +87,6 @@ nav.tabs .inner button,.mc-week-mark,.mc-week-mark i,.dc-privacy strong,.dc-priv
 .mc-stat-grid strong small{font:400 16px var(--serif);color:#7a896f}.mc-record-summary .jc-sufficiency{padding:17px;margin:20px 0 0}.mc-record-summary .jc-sufficiency strong{font-size:13px}.mc-record-summary .jc-sufficiency span{font-size:12px}
 @media(max-width:699px){.jc-global-actions button,.jc-global-actions button:last-child{width:40px;height:40px}.jc-chrome-main{gap:9px}.mc-checkin-card>p,.dc-feature-copy p,.mc-support-banner p{font-size:13px}}
 @media(max-width:359px){.jc-chrome .mc-brand-icon{display:none}.jc-global-actions{gap:0}.jc-global-actions button,.jc-global-actions button:last-child{width:40px;height:40px}.mc-checkin-bottom>span{font-size:10px}}
+
+/* Shared peri brand asset in onboarding, app chrome, and desktop navigation. */
+.mc-brand-icon{border-radius:9px;overflow:hidden;background:#244b43!important}.mc-brand-icon img{width:100%;height:100%;display:block;object-fit:cover}

@@ -1,3 +1,4 @@
+const PERI_ICON_DATA = 'data:image/png;base64,' + require('fs').readFileSync(require('path').join(__dirname, '../assets/icon.png')).toString('base64');
 const { chromium } = require('playwright');
 const ffmpegPath = require('ffmpeg-static');
 const { spawn } = require('child_process');
@@ -18,7 +19,7 @@ const SCENES = [
     start: 0,
     end: 5.8,
     file: '01-today.png',
-    eyebrow: 'YOUR DAILY COMPASS',
+    eyebrow: 'YOUR DAILY CHECK-IN',
     headline: 'See the whole pattern',
     subhead: 'Track symptoms, sleep, movement, and treatment context together.',
     accent: '#49d6bd',
@@ -149,9 +150,9 @@ function demoHtml() {
     .progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #49d6bd, #70c9ff); }
   </style></head><body><main class="canvas">
     <div class="grain"></div>
-    <div class="brand"><span class="mark">p</span><span>peri</span></div>
+    <div class="brand"><img class="mark" src="${PERI_ICON_DATA}" alt=""><span>peri</span></div>
     ${sceneMarkup}
-    <section class="outro"><div><span class="mark">p</span><h2>peri</h2><p>Private menopause tracking.<br>Clearer patterns. Better appointments.</p><div class="pill">Private by design</div></div></section>
+    <section class="outro"><div><img class="mark" src="${PERI_ICON_DATA}" alt=""><h2>peri</h2><p>Private menopause tracking.<br>Clearer patterns. Better appointments.</p><div class="pill">Private by design</div></div></section>
     <div class="progress"><span></span></div>
   </main><script>
     const scenes = ${JSON.stringify(SCENES.map(({ start, end }) => ({ start, end })))};

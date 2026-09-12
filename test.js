@@ -140,8 +140,8 @@ async function injectState(context,state){
     const splashPlugin=expoApp.plugins.find(plugin=>Array.isArray(plugin)&&plugin[0]==='expo-splash-screen');
     check('branded native launch screen is explicitly configured',
       !!mobilePackage.dependencies['expo-splash-screen']
-      &&splashPlugin?.[1]?.image==='./assets/icon.png'
-      &&splashPlugin?.[1]?.backgroundColor==='#743D61');
+      &&splashPlugin?.[1]?.image==='./assets/splash-icon.png'
+      &&splashPlugin?.[1]?.backgroundColor==='#244b43');
     check('app and widget declare the App Group UserDefaults privacy reason',
       dynamicAppConfig.includes("APP_GROUP_DEFAULTS_REASON = '1C8F.1'")
       &&dynamicAppConfig.includes("plugins.push('./widgets/withWidgetPrivacyManifest.js')")
@@ -181,7 +181,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped for appointment suggestions',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v15'));
+    check('offline cache version was bumped for appointment suggestions',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v16'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });

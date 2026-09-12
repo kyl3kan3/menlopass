@@ -1,3 +1,4 @@
+const PERI_ICON_DATA = 'data:image/png;base64,' + require('fs').readFileSync(require('path').join(__dirname, '../assets/icon.png')).toString('base64');
 const { chromium } = require('playwright');
 const fs = require('fs');
 const http = require('http');
@@ -360,15 +361,6 @@ function marketingMarkup(asset, device, sourceData) {
       position: relative; width: ${isPhone ? 54 : 58}px; height: ${isPhone ? 54 : 58}px; border-radius: 17px;
       display: grid; place-items: center; background: #132b2e; box-shadow: 0 10px 28px #10242624;
     }
-    .mark::before, .mark::after { content: ""; position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; }
-    .mark::before {
-      width: ${isPhone ? 22 : 24}px; height: ${isPhone ? 22 : 24}px; transform: translate(-50%, -50%) rotate(45deg);
-      border: 2px solid #f6f0e8; border-radius: 5px;
-    }
-    .mark::after {
-      width: 8px; height: ${isPhone ? 28 : 30}px; transform: translate(-50%, -50%) rotate(32deg);
-      border-radius: 999px 999px 3px 3px; background: linear-gradient(to bottom, #e8a552 0 48%, #f6f0e8 48% 100%);
-    }
     .copy {
       position: absolute; z-index: 2; top: ${dimensions.contentTop}px; left: ${dimensions.edge}px;
       width: ${dimensions.copyWidth}px; text-align: left;
@@ -421,7 +413,7 @@ function marketingMarkup(asset, device, sourceData) {
     }
   </style></head><body><main class="canvas">
     <div class="grain"></div><div class="night"></div><div class="rings"><i></i></div><div class="ghost">${asset.number}</div>
-    <div class="brand"><span class="mark"></span><span>peri</span></div>
+    <div class="brand"><img class="mark" src="${PERI_ICON_DATA}" alt=""><span>peri</span></div>
     <div class="subscription">SUBSCRIPTION REQUIRED</div>
     <section class="copy"><div class="eyebrow">${asset.eyebrow}</div><h1>${asset.headline}</h1><p class="subhead">${asset.subhead}</p></section>
     <div class="device"><div class="speaker"></div><div class="screen"><img src="data:image/png;base64,${sourceData}" alt=""></div></div>

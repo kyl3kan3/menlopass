@@ -7,7 +7,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Image, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL, type PurchasesOffering } from 'react-native-purchases';
 import { TrackedPaywall } from './TrackedPaywall.native';
@@ -371,7 +371,7 @@ function SubscriptionGate({
         showsVerticalScrollIndicator={false}
       >
         <View accessible={false} importantForAccessibility="no" style={styles.gateMark}>
-          <Text style={styles.gateMarkText}>p</Text>
+          <Image source={require('./assets/icon.png')} style={{ width: 52, height: 52, borderRadius: 14 }} />
         </View>
         <Text style={styles.gateEyebrow}>MENOCOMPASS</Text>
         <Text style={styles.gateTitle}>Your menopause record, all in one place.</Text>
@@ -1177,7 +1177,7 @@ function App() {
       <SafeAreaView style={styles.locked}>
         <StatusBar style="dark" />
         <View accessible={false} importantForAccessibility="no" style={styles.lockedMark}>
-          <Text style={styles.lockedMarkText}>p</Text>
+          <Image source={require('./assets/icon.png')} style={{ width: 58, height: 58, borderRadius: 15 }} />
         </View>
         <Text style={styles.lockedEyebrow}>MENOCOMPASS</Text>
         <Text accessibilityRole="header" style={styles.lockedTitle}>Your record is locked.</Text>

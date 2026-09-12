@@ -1,4 +1,4 @@
-# MenoCompass product media
+# peri product media
 
 ## Video
 
@@ -7,7 +7,7 @@
 - `menocompass-preview-poster.png` — poster-frame candidate captured at five seconds.
 - `menocompass-demo-contact-sheet.jpg` — visual storyboard showing the complete demo flow.
 
-The demo uses real MenoCompass interface captures and synthetic demonstration data. It does not depict features that are absent from the app.
+The demo uses real peri interface captures and synthetic demonstration data. It does not depict features that are absent from the app.
 
 ## Screenshots
 
@@ -31,3 +31,5 @@ npm run build
 npm run screenshots:store
 npm run demo:product
 ```
+
+Regenerated September 12, 2026 with the peri monogram in the video branding and captured app screens. Legacy filenames remain for compatibility.

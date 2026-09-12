@@ -61,6 +61,8 @@ def build_html() -> str:
     javascript = "\n\n".join(
         f"/* ==== {name} ==== */\n{source_text(name)}" for name in JS_ORDER
     )
+    brand_icon = "data:image/png;base64," + base64.b64encode((ROOT / "icon-192.png").read_bytes()).decode("ascii")
+    javascript = javascript.replace("__PERI_ICON_DATA__", brand_icon)
     favicon = base64.b64encode((ROOT / "favicon-64.png").read_bytes()).decode("ascii")
 
     return f"""<!DOCTYPE html>

@@ -1,3 +1,4 @@
+const PERI_BRAND_ICON = '<img src="__PERI_ICON_DATA__" alt="" width="36" height="36">';
 /* ============================================================
    Views, tools, router
    ============================================================ */
@@ -1556,7 +1557,7 @@ function viewOnboard(){
   const p=DB.profile;
   const step=Math.max(0,Math.min(3,+p.onboardingStep||0));
   const shell=(title,subtitle,body)=>`<div class="view tw-screen tw-onboard jc-onboard">
-    <div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span>peri</div><span>${step+1} / 4</span></div>
+    <div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span>peri</div><span>${step+1} / 4</span></div>
     <div class="jc-onboard-progress" aria-label="Setup step ${step+1} of 4"><i style="width:${(step+1)*25}%"></i></div>
     ${step?'<button class="jc-back" data-act="ob-back">'+IC.chev+' Back</button>':''}
     <div class="jc-page-head"><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>
@@ -1712,7 +1713,7 @@ function viewReport(){
 function jcChrome(backLabel){
   return `<div class="jc-chrome">
     <div class="jc-chrome-main">
-      <div class="jc-wordmark" aria-label="peri"><span class="mc-brand-icon">${TWILIGHT_IC.sun}</span><span>peri</span></div>
+      <div class="jc-wordmark" aria-label="peri"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span><span>peri</span></div>
       <span class="mc-chrome-caption">A little clarity, every day.</span>
       <div class="jc-global-actions">
         <button data-act="sheet" data-s="tools" aria-label="Open tools">${PULSE_IC.grid}</button>
@@ -2949,7 +2950,7 @@ function boot(){
   if(prefilled||window.__MENO_NATIVE__===true) save(true);
   document.body.insertAdjacentHTML('afterbegin',
     '<header class="topbar" id="topbar"></header><main id="app"></main>'
-    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="mc-sidebar-brand"><span class="mc-brand-icon">'+TWILIGHT_IC.sun+'</span><span>peri<small>YOUR PERSONAL COMPANION</small></span></div><span class="mc-nav-label">YOUR SPACE</span><div class="inner">'
+    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="mc-sidebar-brand"><span class="mc-brand-icon">'+PERI_BRAND_ICON+'</span><span>peri<small>YOUR PERSONAL COMPANION</small></span></div><span class="mc-nav-label">YOUR SPACE</span><div class="inner">'
     + Object.entries(TAB_TITLES).map(([k,v])=>h('button',{'data-act':'tab','data-v':k},IC[k]+'<span>'+v[0]+'</span>')).join('')
     + '</div><div class="mc-sidebar-bottom"><div>'+PULSE_IC.privacy+'<p>Just for you.<br><span>Your health story stays<br>on this device.</span></p></div><button data-act="open-profile">'+PULSE_IC.profile+'<span>Profile &amp; settings</span></button></div></nav><div id="sheet-host"></div>');
   document.addEventListener('click', ev=>{
