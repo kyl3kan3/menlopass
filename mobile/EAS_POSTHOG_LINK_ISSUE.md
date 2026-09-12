@@ -23,4 +23,6 @@ The live Expo GraphQL schema was inspected on September 12. `SetupPostHogProject
 
 Please investigate the provisioning mapping for this Expo app and link it to existing PostHog project `602769`, without changing project `599432`, deleting either project, or replacing the working analytics token with the wrong destination.
 
-No tokens or credentials are included in this report. This report has not been submitted to support.
+No tokens or credentials are included in this report.
+
+Submitted September 12, 2026 through https://expo.dev/contact under Expo SDK / CLI, with reply email kyl3kan3@gmail.com. The form confirmed: "Message received" and "We got your message. We'll get back to you as soon as we can." No ticket number was displayed. The submitted message also asks for a supported resolution if linking an existing project is unsupported.
