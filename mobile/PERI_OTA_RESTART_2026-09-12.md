@@ -11,3 +11,7 @@ Restart requests a fresh WebView snapshot with a unique request ID. The web app 
 Validation: mobile TypeScript check, full application/mobile layout/contract suite, plus seven OTA tests covering deduplication, offline/download retry, rollback directives, unsafe editing, save-before-reload ordering, duplicate taps, save failure, safety changes, and Later. Actual Expo download/reload on a signed iOS device still needs device verification; Windows has no iOS simulator.
 
 No new native dependency or runtime change. Runtime remains `1.2.0-native-2`. App Store build 36 is already submitted and does not embed this change; it receives it through the existing OTA startup mechanism. Future native builds embed this flow.
+
+Production iOS OTA published and verified with EAS on 2026-09-12 at 23:54:37 UTC. Source commit `5ed53af2bbbaafd9ed45f94d7c37c3736940489d`; group `e388b33b-40e6-4866-bc7a-94967aadb248`; iOS update `01a0980b-6190-7830-b805-641ac60e1418`. Production branch and runtime `1.2.0-native-2` confirmed by `eas update:view`.
+
+[Published OTA](https://expo.dev/accounts/kyl3kan3/projects/menlopass/updates/e388b33b-40e6-4866-bc7a-94967aadb248)
