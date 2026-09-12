@@ -181,7 +181,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped for the redesign',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v14'));
+    check('offline cache version was bumped for appointment suggestions',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v15'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });

@@ -63,6 +63,15 @@ function supportSheet(kind){
     <button class="jc-inline-action" data-act="sheet" data-s="learn:${option.guide}">Explore related guidance</button><p class="mc-muted">${kind==='fog'?'Practical organization prompts. For broader self-care, see':'Self-care guidance adapted from'} <a href="${source}" target="_blank" rel="noopener noreferrer">NHS guidance</a>. Comfort measures do not replace treatment. If symptoms persist or disrupt your life, discuss them with your clinician.</p><button class="jc-inline-action" data-act="sheet" data-s="redflags">When to get medical help</button></div>`};
 }
 function savedBrief(){ return appointmentData().brief||{concerns:[],goal:'',date:''}; }
+function appointmentSuggestionBrief(){
+  const saved=savedBrief();
+  if(saved.concerns.length) return saved;
+  const rows=weeklyStoryData(PINNABLE_SYMPTOMS).rows;
+  const concerns=rows.filter(row=>row.recent.length>=WEEKLY_MIN_COVERAGE&&row.after>0)
+    .sort((a,b)=>b.recent.filter(x=>x.value>0).length/b.recent.length-a.recent.filter(x=>x.value>0).length/a.recent.length)
+    .slice(0,3).map(row=>({key:row.key,impact:''}));
+  return {...saved,concerns,questions:undefined};
+}
 function briefContextKey(brief){ return JSON.stringify([brief.concerns,brief.goal]); }
 function beginBrief(){ briefDraft=JSON.parse(JSON.stringify(savedBrief())); briefQuestionContext=briefContextKey(briefDraft); briefStep=1; openSheet('appointment-brief'); }
 function captureBriefFields(){

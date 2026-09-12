@@ -36,7 +36,12 @@ function buildAppointmentQuestions(brief, context) {
   };
   concerns.forEach((item,index) => {
     const template=templates[item.key];
-    if(template) add('concern-'+template[0],110-index,template[1],'You chose '+name(item.key)+' as a priority'+(item.impact?': “'+item.impact+'”':'.'));
+    if(template) {
+      const related=concerns.filter(c=>templates[c.key]?.[0]===template[0]);
+      const impacts=related.filter(c=>c.impact?.trim()).map(c=>name(c.key)+': “'+c.impact.trim()+'”').join('; ');
+      add('concern-'+template[0],110-index,(impacts?'In my daily life, '+impacts+'. ':'')+template[1],
+        'Your appointment concerns include '+related.map(c=>name(c.key)).join(' and ')+(impacts?'; the question includes your own description of the impact.':'.'));
+    }
   });
   if ((meaningful('sleepq') || meaningful('ns')) && (keys.has('fog') || keys.has('energy'))) {
     const sleep=meaningful('sleepq')?'trouble sleeping':'night sweats';
@@ -80,7 +85,7 @@ function buildAppointmentQuestions(brief, context) {
   }
   add('next-steps',70,brief.goal
     ?'To work toward “'+brief.goal+'”, what is the first step we can agree today, how will we judge whether it helps, and what should I do if it does not?'
-    :'Before I leave, can we agree which concern to tackle first, what improvement to look for, when to follow up, and who to contact if things worsen?',
+    :'For my '+selectedNames.toLowerCase()+', can we agree what to tackle first, what improvement to look for, when to follow up, and who to contact if things worsen?',
     brief.goal?'This turns your stated goal into an agreed action and review plan.':'A clear action, review date, and contact plan can make the appointment easier to follow through.');
   return [...candidates.filter(item=>item.id!=='next-steps').sort((a,b)=>b.priority-a.priority).slice(0,6),candidates.find(item=>item.id==='next-steps')].map(({priority,...item})=>item);
 }

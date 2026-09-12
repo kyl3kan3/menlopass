@@ -1007,7 +1007,11 @@ function clinicianBody(){
   const bdAvg = avg(series(d30,burden).map(p=>p.v));
   const last = DB.scores.slice(-4).reverse();
   const personalQuestions=appointmentData().questions.filter(item=>!item.asked);
-  return `<p class="tiny muted">Pick the topics that apply. The questions are phrased to get you specific answers rather than reassurance — and they signal that you have read the guidelines, which changes the conversation.</p>
+  const brief=appointmentSuggestionBrief();
+  const questions=(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text);
+  return `<p class="tiny muted">Questions based on your concerns, confirmed symptom logs, and recorded treatment history. Add how symptoms affect your day to make them more specific.</p>
+  <button class="btn primary" data-act="brief-start">${brief.concerns.length?'Personalize my questions':'Choose my concerns'}</button>
+  ${questions.length?`<h3>Questions for your appointment</h3><ol class="mc-saved-questions">${questions.map(q=>`<li><b>${esc(q.text)}</b><p>${esc(q.reason)}</p></li>`).join('')}</ol>`:'<p>Choose what you want help with to build your question list. There is not enough confirmed symptom history to suggest concerns yet.</p>'}
   <div class="callout ok"><span class="ctitle">Bring your numbers</span>
   <ul class="plain tiny" style="margin-bottom:0">
     <li>${dates.length} days logged${dates.length?', from '+fmtDay(dates[0]):''}</li>
@@ -1017,11 +1021,7 @@ function clinicianBody(){
   </ul>
   <div style="margin-top:9px"><button class="btn sm ghost" data-act="sheet" data-s="report">Open the full report</button></div></div>
   ${personalQuestions.length?`<div class="callout info"><span class="ctitle">Your saved questions</span><ul class="tick">${personalQuestions.map(item=>`<li>${esc(item.text)}</li>`).join('')}</ul><p class="xtiny">Edit or mark these asked from Care.</p></div>`:''}
-  ${CLINICIAN_TOPICS.map(t=>`<details class="acc"><summary>${esc(t.l)}</summary><div>
-    <ul class="tick">${t.q.map(q=>'<li>'+esc(q)+'</li>').join('')}</ul></div></details>`).join('')}
-  <div class="callout info"><span class="ctitle">Two things worth saying out loud</span>
-  <p>"Can we talk in absolute risk rather than relative risk?" — a 62% relative increase sounds terrifying, and means 8 extra cases per 1,000 women over five years.</p>
-  <p style="margin-bottom:0">"If hormone therapy is not suitable for me, what else is there?" — there is a real list, and it is longer than most appointments cover.</p></div>`;
+  ${briefQuestionSources()}`;
 }
 
 /* ---------- data sheet ---------- */

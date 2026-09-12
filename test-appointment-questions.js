@@ -34,3 +34,31 @@ test('unknown context produces no invented treatment, trend, or medical-history 
 test('suggestions are deterministic and do not mutate the private record',()=>{
  const b=brief('dry','mood'),before=JSON.stringify([b,context]);assert.deepEqual(build(b,context),build(b,context));assert.equal(JSON.stringify([b,context]),before);
 });
+
+test('questions include individual impacts, including shared-topic concerns',()=>{
+ const b=brief('hf','ns');b.concerns[0].impact='I have to leave meetings';b.concerns[1].impact='I change the sheets twice';
+ const q=build(b,context).find(x=>x.id==='concern-temperature');
+ assert.match(q.text,/I have to leave meetings/);assert.match(q.text,/I change the sheets twice/);
+ assert.ok(!build(brief('hf'),context)[0].text.includes('leave meetings'));
+ assert.match(build(brief('dry'),context).at(-1).text,/dryness/i);
+});
+
+test('appointment entry uses confirmed symptoms and preserves saved question edits',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');
+ const source=fs.readFileSync('app-companion.js','utf8');
+ let saved={concerns:[],goal:'',date:''};
+ let rows=[{key:'hf',recent:[{value:0},{value:0},{value:0},{value:0}],after:0},
+   {key:'fog',recent:[{value:4}],after:4},
+   {key:'dry',recent:[{value:2},{value:2},{value:2},{value:2}],after:2}];
+ const sandbox={savedBrief:()=>saved,weeklyStoryData:()=>({rows}),PINNABLE_SYMPTOMS:[],WEEKLY_MIN_COVERAGE:4};
+ vm.createContext(sandbox);vm.runInContext(source.slice(source.indexOf('function appointmentSuggestionBrief()'),source.indexOf('function briefContextKey')),sandbox);
+ assert.equal(JSON.stringify(sandbox.appointmentSuggestionBrief().concerns),JSON.stringify([{key:'dry',impact:''}]));
+ assert.equal(saved.concerns.length,0);
+ rows=[];assert.equal(sandbox.appointmentSuggestionBrief().concerns.length,0);
+ saved={concerns:[{key:'fog',impact:'Meetings'}],questions:[{id:'edited',text:'My own question',selected:false}]};
+ assert.equal(sandbox.appointmentSuggestionBrief(),saved);
+ const view=fs.readFileSync('app-views.js','utf8');
+ const body=view.slice(view.indexOf('function clinicianBody()'),view.indexOf('function dataSheet()'));
+ assert.ok(body.includes('appointmentSuggestionBrief()'));assert.ok(body.includes('generateBriefQuestions(brief)'));
+ assert.ok(!body.includes('CLINICIAN_TOPICS'));
+});
