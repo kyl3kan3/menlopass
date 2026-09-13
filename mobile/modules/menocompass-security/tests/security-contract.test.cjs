@@ -53,7 +53,7 @@ test('app lock is opt-in and supports system passcode fallback', () => {
 });
 
 test('an imported backup reaches strict web validation before native persistence', () => {
-  const chooser = app.match(/async function chooseAndDecryptBackup[\s\S]*?\n}\n\nfunction persistedStateIsOnboarded/);
+  const chooser = app.match(/async function chooseAndDecryptBackup[\s\S]*?\r?\n}\r?\n\r?\nfunction persistedStateIsOnboarded/);
   assert.ok(chooser, 'backup chooser should be present');
   assert.doesNotMatch(chooser[0], /writePersistedState/);
   assert.match(app, /menocompass-native-backup-import/);
