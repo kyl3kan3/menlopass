@@ -1,5 +1,17 @@
 # EAS PostHog project mapping issue
 
+## Resolution: supported manual setup
+
+Expo support (Sarah) confirmed that `connect` provisions a project and cannot select an existing project. An EAS-side link to project 602769 is unsupported, rather than a prerequisite for analytics. Stop retrying `connect`. Use https://us.posthog.com/project/602769 directly; `integrations:posthog:dashboard` requires the optional EAS-side link.
+
+Applied the support instructions: explicitly set the MenoCompass project token and `https://us.i.posthog.com` in EAS production, preview, and development, and in ignored `mobile/.env.local`. Production and preview were already configured for this destination; development is now covered too. Source-map uploads use Expo Observe, not PostHog, so the conditional `POSTHOG_CLI_*` setup is not applicable.
+
+The local configuration transport test was accepted by PostHog, probe UUID `ecd09d45-1000-46a2-9b2f-2f75bd6e648b`. This is a labeled diagnostic, not evidence of physical-device adoption. No application changes or new release were required to apply this configuration.
+
+Reference: https://docs.expo.dev/guides/using-posthog/#manual-setup
+
+## Historical investigation
+
 Verified September 12, 2026. The EAS dashboard link remains unresolved; application tracking was configured separately and was not changed during this investigation.
 
 ## Support report
