@@ -19,22 +19,21 @@ const server = http.createServer((req,res)=>{const filename=path.join(__dirname,
    await page.goto(base);
    async function fits(label){const result=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,body:document.body.scrollWidth,overflow:[...document.querySelectorAll('#app input,#app select,#app textarea,#app button')].filter(el=>el.getClientRects().length).filter(el=>{const r=el.getBoundingClientRect();return r.left < -1 || r.right > innerWidth+1;}).map(el=>({tag:el.tagName,id:el.id,text:el.textContent.slice(0,40)}))}));assert.ok(result.scroll<=width+1&&result.body<=width+1&&result.overflow.length===0,label+' '+width+': '+JSON.stringify(result));}
    await fits('welcome');
-   await page.getByRole('button',{name:'Set up my compass',exact:true}).click();
-   await page.getByRole('button',{name:'Understand symptoms',exact:true}).click();
-   await page.getByRole('button',{name:'Continue',exact:true}).click();
-   await page.getByLabel('First name (optional)').fill('Test');
-   await fits('onboarding form');
-   assert.equal(await page.getByLabel('First name (optional)').evaluate(el=>getComputedStyle(el).fontSize),'16px');
-   await page.getByRole('button',{name:'Continue',exact:true}).click();
-   await page.getByRole('button',{name:'Hopeful',exact:true}).click();
+   await page.getByRole('button',{name:'Find my starting point',exact:true}).click();
+   await page.getByRole('button',{name:'See all concerns',exact:true}).click();
    for(const label of ['Trouble sleeping','Bloating','Dizziness','Irritability','Feeling overwhelmed'])assert.equal(await page.getByRole('button',{name:label,exact:true}).count(),1);
-   for(const key of ['hf','ns','fog','energy','joint','anx'])await page.locator('[data-act="ob-symptom"][data-v="'+key+'"]').click();
    for(const key of ['sleepq','bloating','dizzy','irritable','overwhelmed'])await page.locator('[data-act="ob-symptom"][data-v="'+key+'"]').click();
    await fits('symptom choices');
-   await page.getByRole('button',{name:'Start my journey',exact:true}).click();
+   await page.getByRole('button',{name:'These matter to me',exact:true}).click();
+   await page.getByRole('radio',{name:'Understand my symptoms',exact:true}).click();
+   await fits('goal selection');
+   await page.getByRole('button',{name:'See my check-in',exact:true}).click();
+   await fits('personal preview');
+   await page.getByRole('button',{name:'Start my first check-in',exact:true}).click();
    await page.reload();
-   assert.equal(await page.evaluate(()=>DB.profile.onboardingFeeling),'hopeful');
+   assert.equal(await page.evaluate(()=>DB.profile.firstCheckinPending),true);
    assert.deepEqual(await page.evaluate(()=>DB.profile.pinnedSymptoms),['sleepq','bloating','dizzy','irritable','overwhelmed']);
+   await page.locator('.jc-back').click();
    for(const tab of ['today','journey','guide','care']){await page.locator('nav [data-v="'+tab+'"]').click();await fits(tab);}
    await page.getByRole('button',{name:'Add a medication',exact:true}).click();
    const today=await page.evaluate(()=>todayISO());

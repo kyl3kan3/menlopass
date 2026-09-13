@@ -86,7 +86,7 @@ async function injectState(context,state){
     const supportCopy=fs.readFileSync(path.join(__dirname,'support.html'),'utf8');
     const privacyCopy=fs.readFileSync(path.join(__dirname,'privacy.html'),'utf8');
     check('inactive iOS entitlement is gated before WebView',nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")>=0&&nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")<nativeApp.lastIndexOf('<WebView'));
-    check('RevenueCat paywall cannot show a close button',fs.readFileSync(path.join(__dirname,'mobile','TrackedPaywall.native.tsx'),'utf8').includes('displayCloseButton: false'));
+    check('new customers can return to their preview while health records remain gated',fs.readFileSync(path.join(__dirname,'mobile','TrackedPaywall.native.tsx'),'utf8').includes('displayCloseButton: allowDismiss')&&nativeApp.includes('allowDismiss={showOnboardingPreview}'));
     check('zero-price App Store offers fail closed',nativeApp.includes('introPrice?.price === 0'));
     check('native persistence refreshes the active snapshot',nativeApp.includes('setPersistedState(canonical)')&&nativeApp.includes('setExperienceReady(persistedStateIsOnboarded(canonical))'));
     check('store copy discloses no free tier or trial',storeDescription.includes('There is no free tier or free trial.'));
@@ -181,7 +181,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped for appointment suggestions',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v17'));
+    check('offline cache version was bumped for personal onboarding',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v18'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -198,22 +198,23 @@ async function injectState(context,state){
     });
     const page=await onboardingContext.newPage(); monitor(page,'onboarding',baseUrl);
     await page.goto(baseUrl+'/index.html');
-    check('onboarding opens with the new promise',await page.getByRole('heading',{name:'Make sense of what’s changing.'}).isVisible());
-    check('onboarding keeps health entries local',await page.getByText('Your health entries stay on this device.').isVisible());
+    check('onboarding opens with the new promise',await page.getByRole('heading',{name:'Let’s make room for you.'}).isVisible());
+    check('onboarding keeps health entries local',(await page.locator('.ob-trust').innerText()).includes('Your health entries stay on this device.'));
     check('bottom navigation is hidden during setup',!(await page.locator('nav.tabs').isVisible()));
-    await page.getByRole('button',{name:'Set up my compass'}).click();
-    check('intent step is shown',await page.getByRole('heading',{name:'What would help most?'}).isVisible());
-    await page.getByRole('button',{name:'See whether treatment helps'}).click();
-    await page.getByRole('button',{name:'Continue'}).click();
-    check('clinical context step is shown',await page.getByRole('heading',{name:'A few details change what guidance applies.'}).isVisible());
-    await page.getByLabel('First name (optional)').fill('Maya');
-    await page.getByLabel('Birth year').fill('1976');
-    await page.getByLabel('Region').selectOption('us');
-    await page.getByRole('button',{name:'Continue'}).click();
-    check('focused symptom step is shown',await page.getByRole('heading',{name:'How have you been feeling?'}).isVisible());
-    check('six focused symptoms are selected by default',await page.locator('.jc-pin-grid [aria-pressed="true"]').count()===6);
-    await page.getByRole('button',{name:'Start my journey'}).click();
-    check('setup finishes on the redesigned Today welcome',await page.getByRole('heading',{name:'Your space to feel more like you.'}).isVisible());
+    await page.getByRole('button',{name:'Find my starting point'}).click();
+    check('concern selection starts empty',await page.locator('.ob-choice[aria-pressed="true"]').count()===0);
+    for(const label of ['Hot flashes','Night sweats','Brain fog','Fatigue']) await page.getByRole('button',{name:label,exact:true}).click();
+    await page.getByRole('button',{name:'See all concerns'}).click();
+    for(const label of ['Joint pain','Anxiety']) await page.getByRole('button',{name:label,exact:true}).click();
+    await page.getByRole('button',{name:'These matter to me'}).click();
+    check('intent step is shown',await page.getByRole('heading',{name:'What would help you most?'}).isVisible());
+    await page.getByRole('radio',{name:'Keep track of treatment'}).click();
+    await page.getByRole('button',{name:'See my check-in'}).click();
+    check('preview has chosen concerns without collecting clinical context',await page.getByRole('heading',{name:'Your check-in, made for you.'}).isVisible()&&await page.locator('.ob-preview li').count()===6&&await page.locator('input,select').count()===0);
+    await page.getByRole('button',{name:'Start my first check-in'}).click();
+    check('setup leads into the first real check-in without inventing a log',await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible()&&await page.evaluate(()=>entryDates().length===0));
+    await page.getByRole('button',{name:'Today',exact:true}).click();
+    check('empty Today reflects the selected starting point',await page.getByRole('heading',{name:'Your check-in is ready.'}).isVisible());
     const onboardingEvents=await page.evaluate(()=>window.__nativeMessages.filter(message=>message.type!=='persist-state'));
     check('native bridge records onboarding steps and completion',
       onboardingEvents.some(message=>message.type==='onboarding-step'&&message.step===1)
@@ -279,16 +280,16 @@ async function injectState(context,state){
     await page.screenshot({path:path.join(TEST_RESULTS,'journey-shell-today.png')});
 
     console.log('\n== Draft, confirmation, and atomic update ==');
-    check('Today starts with one clear Check in action',await page.locator('.mc-checkin-card [data-act="start-checkin"]').count()===1&&await page.getByRole('button',{name:'Check in',exact:true}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
+    check('Today starts with a clear Check in action and an honest starting focus',await page.locator('.mc-checkin-card [data-act="start-checkin"]').count()===1&&await page.getByRole('button',{name:'Check in',exact:true}).isVisible()&&await page.getByRole('heading',{name:'Your check-in is ready.'}).isVisible()&&await page.getByRole('progressbar').count()===0);
     await page.getByRole('button',{name:'Check in',exact:true}).click();
-    check('check-in is focused and hides bottom navigation',await page.getByRole('heading',{name:'Today’s check-in'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
+    check('check-in is focused and hides bottom navigation',await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
     check('check-in explains the confirmation boundary',await page.getByText('Nothing counts in your patterns until you confirm.').isVisible());
     check('focused check-in has six symptom controls',await page.locator('.jc-check-row').count()===6);
     await page.getByRole('button',{name:'One more hot flash'}).click();
     await page.getByRole('button',{name:'One more hot flash'}).click();
     await page.getByRole('button',{name:'Night sweats: Moderate'}).click();
     await page.locator('.jc-add-symptom summary').click();
-    check('adding a symptom opens choices inside check-in',await page.getByRole('heading',{name:'Today’s check-in'}).isVisible()&&await page.locator('[data-act="checkin-add-symptom"]').count()===12);
+    check('adding a symptom opens choices inside check-in',await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible()&&await page.locator('[data-act="checkin-add-symptom"]').count()===12);
     await page.locator('[data-act="checkin-add-symptom"][data-v="head"]').click();
     check('selected symptom adds an unrated field without changing profile or prior ratings',await page.locator('.jc-check-row').count()===7&&await page.locator('.jc-check-list [data-k="sym.head"][aria-pressed="true"]').count()===0&&await page.getByRole('button',{name:'Night sweats: Moderate'}).getAttribute('aria-pressed')==='true'&&await page.evaluate(()=>DB.profile.pinnedSymptoms.length===6&&!DB.profile.pinnedSymptoms.includes('head')));
     await page.locator('.jc-check-list [data-k="sym.head"][data-v="2"]').click();
@@ -308,14 +309,14 @@ async function injectState(context,state){
     await page.getByRole('button',{name:'Edit ratings',exact:true}).click();
     check('moving between check-in steps preserves the autosaved draft',await page.getByRole('button',{name:'Night sweats: Moderate',exact:true}).getAttribute('aria-pressed')==='true'&&await page.evaluate(()=>entry(todayISO()).notes==='A quiet walk helped today.'&&entryDates().length===0));
     await page.locator('.jc-back').click();
-    check('unfinished work returns as a draft',await page.getByRole('button',{name:'Finish check-in'}).isVisible()&&await page.getByText('Log 14 confirmed days to start finding patterns.').isVisible()&&await page.getByRole('progressbar').getAttribute('aria-valuenow')==='0');
+    check('unfinished work returns as a draft without inventing progress',await page.getByRole('button',{name:'Finish check-in'}).isVisible()&&await page.getByRole('heading',{name:'Your check-in is ready.'}).isVisible()&&await page.getByRole('progressbar').count()===0);
     await page.getByRole('button',{name:'Journey',exact:true}).click();
     check('drafts do not count as confirmed',await page.getByText('0 confirmed days').isVisible()&&await page.getByText('Weekly comparisons need at least 4 confirmed days in each window.').isVisible());
     await page.getByRole('button',{name:'Finish check-in'}).click();
     await page.getByRole('button',{name:'Confirm today’s log'}).click();
     check('confirming a check-in emits a native success moment',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='checkin-confirmed')));
-    check('confirmation has an explicit completion state',await page.getByRole('heading',{name:'Today is confirmed.'}).isVisible()&&await page.getByText('1 confirmed day').isVisible());
-    await page.getByRole('button',{name:'Back to Journey'}).click();
+    check('first confirmation celebrates the actual saved record',await page.getByRole('heading',{name:'Your first check-in is saved.'}).isVisible()&&await page.evaluate(()=>entryDates().length===1&&!DB.profile.firstCheckinPending));
+    await page.getByRole('button',{name:'See my first check-in'}).click();
     check('Journey uses the confirmed snapshot',await page.getByText(/Hot flashes: 2 flashes/).isVisible());
     await page.getByRole('button',{name:'Edit today'}).click();
     await page.getByRole('button',{name:'One more hot flash'}).click();
@@ -394,7 +395,7 @@ async function injectState(context,state){
     await page.getByRole('searchbox',{name:'Search Guide'}).fill('sleep');
     check('Guide search filters visible modules',await page.getByRole('button',{name:/^Sleep /}).isVisible()&&!(await page.getByRole('button',{name:/^Treatment options /}).isVisible()));
     await page.getByRole('button',{name:'Open Profile'}).click();
-    check('Profile is global, not a fifth tab',await page.getByRole('heading',{name:'Profile'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
+    check('Profile is global, not a fifth tab',await page.getByRole('heading',{name:'Profile',exact:true}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
     await page.evaluate(()=>{
       window.dispatchEvent(new CustomEvent('menocompass-native-privacy-result',{detail:{ok:true,deviceEncrypted:true,encryptedBackups:true,appLock:{available:true,enabled:false,label:'Face ID'},reminders:{permission:'not-determined',preferences:{dailyCheckIn:{enabled:false,hour:20,minute:0},treatmentFollowUp:{enabled:false,weekday:2,hour:10,minute:0}}}}}));
       window.dispatchEvent(new CustomEvent('menocompass-healthkit-result',{detail:{ok:true,status:{available:true,requestStatus:'shouldRequest',readOnly:true}}}));
@@ -436,7 +437,7 @@ async function injectState(context,state){
     await resetPage.getByRole('dialog').getByRole('button',{name:'Reset onboarding',exact:true}).click();
     const resetState=await resetPage.evaluate(()=>({onboarded:DB.profile.onboarded,step:DB.profile.onboardingStep,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length,name:DB.profile.name}));
     check('reset restarts setup without erasing personal history',!resetState.onboarded&&resetState.step===0&&resetState.entries===3&&resetState.medications===1&&resetState.labs===1&&resetState.name==='Test',JSON.stringify(resetState));
-    check('reset returns to the first onboarding screen',await resetPage.getByRole('heading',{name:'Make sense of what’s changing.'}).isVisible());
+    check('reset returns to the first onboarding screen',await resetPage.getByRole('heading',{name:'Let’s make room for you.'}).isVisible());
 
     const deleteContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(deleteContext,seededState(3));
     const deletePage=await deleteContext.newPage(); monitor(deletePage,'delete-controls',baseUrl); await deletePage.goto(baseUrl+'/index.html#profile');
@@ -447,7 +448,7 @@ async function injectState(context,state){
     await deletePage.getByRole('button',{name:'Delete app profile & data'}).click();
     await deletePage.getByRole('dialog').getByRole('button',{name:'Delete everything permanently'}).click();
     const deletedState=await deletePage.evaluate(()=>({onboarded:DB.profile.onboarded,name:DB.profile.name,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length}));
-    check('delete clears the complete local profile and returns to setup',!deletedState.onboarded&&deletedState.name===''&&deletedState.entries===0&&deletedState.medications===0&&deletedState.labs===0&&await deletePage.getByRole('heading',{name:'Make sense of what’s changing.'}).isVisible(),JSON.stringify(deletedState));
+    check('delete clears the complete local profile and returns to setup',!deletedState.onboarded&&deletedState.name===''&&deletedState.entries===0&&deletedState.medications===0&&deletedState.labs===0&&await deletePage.getByRole('heading',{name:'Let’s make room for you.'}).isVisible(),JSON.stringify(deletedState));
 
     console.log('\n== Confirmed-data core contracts ==');
     const seededContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(seededContext,seededState(16));

@@ -12,6 +12,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL, type PurchasesOffering } from 'react-native-purchases';
 import { OtaUpdateBanner, useOtaUpdate } from './OtaUpdate.native';
 import { TrackedPaywall } from './TrackedPaywall.native';
+import { OnboardingPreview, type PreviewEvent } from './OnboardingPreview';
+import { draftFromProfile, needsPreview, parseState, writeDraft, type OnboardingDraft } from './onboarding-model';
 import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import {
@@ -443,6 +445,9 @@ function App() {
   const { markInteractive } = useObserve();
   const [html, setHtml] = useState<string>();
   const [persistedState, setPersistedState] = useState<string | null>(null);
+  const previewStateRef = useRef<string | null>(null);
+  const [previewIssue, setPreviewIssue] = useState<string>();
+  const [previewWriteCount, setPreviewWriteCount] = useState(0);
   const [error, setError] = useState<string>();
   const [revenueCatReady, setRevenueCatReady] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(Platform.OS !== 'ios');
@@ -452,6 +457,7 @@ function App() {
   const [paywall, setPaywall] = useState<{ offering: PurchasesOffering; source: 'automatic' | 'subscribe_button' | 'feature' } | null>(null);
   const [experienceReady, setExperienceReady] = useState(false);
   const [webContentReady, setWebContentReady] = useState(false);
+  const showOnboardingPreview = Platform.OS === 'ios' && !proActive && needsPreview(persistedState);
   const [pendingReviewMilestone, setPendingReviewMilestone] = useState<
     AppReviewProgress['dueMilestone']
   >(null);
@@ -753,6 +759,7 @@ function App() {
       .then(([source, savedState]) => {
         if (!active) return;
         setPersistedState(savedState);
+        previewStateRef.current = savedState;
         setExperienceReady(persistedStateIsOnboarded(savedState));
         setHtml(source);
         try {
@@ -768,10 +775,11 @@ function App() {
   useEffect(() => {
     if (interactiveMarkedRef.current || !html || !privacyReady || !subscriptionChecked || !appIsActive) return;
     const routeName = appLocked ? 'lock'
+      : showOnboardingPreview ? 'onboarding'
       : Platform.OS === 'ios' && !proActive && telemetrySettled ? 'subscription'
       : webContentReady ? 'main' : undefined;
     if (routeName) { markInteractive({ routeName }); interactiveMarkedRef.current = true; }
-  }, [html, privacyReady, subscriptionChecked, appIsActive, appLocked, proActive, telemetrySettled, webContentReady, markInteractive]);
+  }, [html, privacyReady, subscriptionChecked, appIsActive, appLocked, proActive, telemetrySettled, webContentReady, showOnboardingPreview, markInteractive]);
 
   useEffect(() => {
     const listener = AppState.addEventListener('change', state => { if (state !== 'active') flushTelemetry(); });
@@ -869,7 +877,7 @@ function App() {
     if (!webContentReady || !telemetrySettled || experienceReady || onboardingStartedRef.current) return;
     if (Platform.OS === 'ios' && !proActive) return;
     onboardingStartedRef.current = true;
-    trackTelemetryEvent('onboarding_started');
+    trackTelemetryEvent('onboarding_started', { flowVersion: 2, surface: 'web' });
   }, [webContentReady, telemetrySettled, experienceReady, proActive]);
 
   useEffect(() => {
@@ -954,6 +962,47 @@ function App() {
     void openPaywall(source);
   };
 
+  const trackPreviewEvent = (event: PreviewEvent, attributes?: Record<string, string | number>) => {
+    if (event === 'onboarding_started') {
+      if (onboardingStartedRef.current || persistedStateIsOnboarded(persistedState)) return;
+      onboardingStartedRef.current = true;
+    }
+    trackTelemetryEvent(event, { ...attributes, flowVersion: 2, surface: 'native_preview' });
+  };
+
+  const savePreview = async (draft: OnboardingDraft, complete = false) => {
+    const serialized = writeDraft(previewStateRef.current, draft, complete);
+    previewStateRef.current = serialized;
+    setPreviewWriteCount(count => count + 1);
+    try {
+      const canonical = await writePersistedState(serialized);
+      if (!canonical) throw new Error('Invalid onboarding setup');
+      if (previewStateRef.current === serialized) {
+        setPersistedState(canonical);
+        setExperienceReady(persistedStateIsOnboarded(canonical));
+        setPreviewIssue(undefined);
+      }
+    } finally {
+      setPreviewWriteCount(count => count - 1);
+    }
+  };
+
+  const completePreview = async (draft: OnboardingDraft) => {
+    // Await secure persistence before opening StoreKit; cancellation and restart
+    // must return to the same preview without creating any health entries.
+    const alreadyCompleted = persistedStateIsOnboarded(persistedState);
+    await savePreview(draft, true);
+    if (!alreadyCompleted && !onboardingCompletedRef.current) {
+      onboardingCompletedRef.current = true;
+      trackTelemetryEvent('onboarding_completed', { skipped: false, flowVersion: 2, surface: 'native_preview' });
+    }
+    if (!revenueCatReady) {
+      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.');
+      return;
+    }
+    await openPaywall('subscribe_button');
+  };
+
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
     if (proActive) {
@@ -962,6 +1011,10 @@ function App() {
     }
     if (
       !subscriptionChecked
+      || !html
+      || !privacyReady
+      || appLocked
+      || showOnboardingPreview
       || !revenueCatReady
       || !telemetrySettled
       || purchaseBusy
@@ -970,7 +1023,7 @@ function App() {
 
     autoPaywallAttemptedRef.current = true;
     void openPaywall('automatic');
-  }, [subscriptionChecked, proActive, revenueCatReady, telemetrySettled, purchaseBusy]);
+  }, [subscriptionChecked, proActive, revenueCatReady, telemetrySettled, purchaseBusy, html, privacyReady, appLocked, showOnboardingPreview]);
 
   const openExternalLink = (url: unknown) => {
     if (typeof url !== 'string') return;
@@ -1029,6 +1082,7 @@ function App() {
           .then(canonical => {
             if (!canonical) return;
             setPersistedState(canonical);
+            previewStateRef.current = canonical;
             setExperienceReady(persistedStateIsOnboarded(canonical));
             try {
               syncMenoCompassWidgets(canonical);
@@ -1049,13 +1103,25 @@ function App() {
       if (message?.type === 'onboarding-finished') {
         if (onboardingStartedRef.current && !onboardingCompletedRef.current) {
           onboardingCompletedRef.current = true;
-          trackTelemetryEvent('onboarding_completed', { skipped: message.skipped === true });
+          trackTelemetryEvent('onboarding_completed', { skipped: message.skipped === true, flowVersion: 2, surface: 'web' });
         }
         setExperienceReady(true);
         return;
       }
       if (message?.type === 'onboarding-step' && Number.isInteger(message.step)) {
-        trackTelemetryEvent('onboarding_step_viewed', { step: message.step });
+        if (!onboardingStartedRef.current) {
+          onboardingStartedRef.current = true;
+          trackTelemetryEvent('onboarding_started', { flowVersion: 2, surface: 'web' });
+        }
+        trackTelemetryEvent('onboarding_step_viewed', { step: message.step, flowVersion: 2, surface: 'web' });
+        return;
+      }
+      if (message?.type === 'onboarding-step-left') {
+        trackTelemetryEvent('onboarding_step_left', { step: message.step, durationMs: message.durationMs, flowVersion: 2, surface: 'web' });
+        return;
+      }
+      if (message?.type === 'onboarding-selection-limit') {
+        trackTelemetryEvent('onboarding_selection_limit', { step: 1, flowVersion: 2, surface: 'web' });
         return;
       }
       if (message?.type === 'checkin-confirmed') {
@@ -1214,7 +1280,7 @@ function App() {
     }
   };
 
-  if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked)) {
+  if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked) || (proActive && previewWriteCount > 0)) {
     return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><ActivityIndicator color="#244b43" /><Text style={styles.loadingText}>{error ? 'Could not open peri.' : 'Opening peri…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
@@ -1259,6 +1325,7 @@ function App() {
         <TrackedPaywall
           offering={paywall.offering}
           source={paywall.source}
+          allowDismiss={showOnboardingPreview}
           onCustomer={customerInfo => {
             const active = hasProAccess(customerInfo);
             setProActive(active);
@@ -1274,6 +1341,19 @@ function App() {
         />
       </SafeAreaView>
     );
+  }
+
+  if (showOnboardingPreview) {
+    return <OnboardingPreview
+      initialDraft={draftFromProfile(parseState(persistedState).profile)}
+      busy={purchaseBusy}
+      issue={previewIssue || subscriptionIssue}
+      restoreReady={revenueCatReady}
+      onChange={draft => { void savePreview(draft).catch(() => setPreviewIssue('Your setup could not be saved securely. Please try again.')); }}
+      onFinish={completePreview}
+      onRestore={() => void restorePurchases()}
+      onEvent={trackPreviewEvent}
+    />;
   }
 
   if (Platform.OS === 'ios' && !proActive) {

@@ -100,6 +100,7 @@ let sheetStack = [];
 let sheetReturnStack = [];
 let lastSheetTrigger = null;
 let checkinComplete = false;
+let checkinFirstSaved = false;
 let checkinStep = 0;
 const checkinAddedSymptoms = new Map();
 let guideQuery = '';
@@ -574,7 +575,7 @@ function viewYou(){
     <div class="card jc-profile-tracking">
       <div class="field"><label class="fl" for="profile-intent">What would help most?</label><select id="profile-intent" data-act="prof" data-k="intent">${[['understand','Understand symptoms'],['treatment','See whether treatment helps'],['appointment','Prepare for an appointment'],['record','Keep a private record']].map(([v,l])=>`<option value="${v}"${p.intent===v?' selected':''}>${l}</option>`).join('')}</select></div>
       <div class="field"><label class="fl" for="profile-feeling">Overall feeling during setup (optional)</label><select id="profile-feeling" data-act="prof" data-k="onboardingFeeling"><option value="">Not recorded</option>${Object.entries(ONBOARDING_FEELINGS).map(([v,l])=>`<option value="${v}"${p.onboardingFeeling===v?' selected':''}>${esc(l)}</option>`).join('')}</select><p class="jc-footnote">Your starting point from onboarding. You can update or clear it here.</p></div>
-      <p class="tiny">Focused check-in symptoms · choose 3–6</p>
+      <p class="tiny">Focused check-in symptoms · choose 1–6</p>
       <div class="jc-pin-grid compact">${[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])].map(([k,label])=>`<button data-act="profile-symptom" data-v="${k}" aria-pressed="${(p.pinnedSymptoms||[]).includes(k)?'true':'false'}">${symptomIcon(k)}<span>${esc(label)}</span></button>`).join('')}</div>
     </div>
 
@@ -1553,55 +1554,51 @@ function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
 /* ============================================================
    ONBOARDING
    ============================================================ */
-function viewOnboard(){
-  const p=DB.profile;
-  const step=Math.max(0,Math.min(3,+p.onboardingStep||0));
-  const shell=(title,subtitle,body)=>`<div class="view tw-screen tw-onboard jc-onboard">
-    <div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span>peri</div><span>${step+1} / 4</span></div>
-    <div class="jc-onboard-progress" aria-label="Setup step ${step+1} of 4"><i style="width:${(step+1)*25}%"></i></div>
-    ${step?'<button class="jc-back" data-act="ob-back">'+IC.chev+' Back</button>':''}
-    <div class="jc-page-head"><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>
-    ${body}
-  </div>`;
-  if(step===0){
-    return shell('Make sense of what’s changing.','Track symptoms and treatment changes, see patterns, and prepare for better appointments — privately on this device.',`
-      <div class="jc-trust-line">${TWILIGHT_IC.cycle}<span><b>Your health entries stay on this device.</b><small>No account or health-data server.</small></span></div>
-      <div class="jc-onboard-list"><p>Confirm a quick daily check-in.</p><p>See symptoms and treatment changes in one story.</p><p>Bring a focused summary to appointments.</p></div>
-      <button class="jc-primary" data-act="ob-next">Set up my compass</button>
-      <button class="jc-text-action" data-act="ob-skip">Set up later</button>
-      <details class="jc-disclosure"><summary>Privacy, evidence, and medical limits</summary><div><p>Your health entries remain in this browser on this device. peri provides education, not diagnosis or treatment, and does not replace a clinician who knows your history.</p><p>Content reviewed July 2026.</p></div></details>`);
-  }
-  if(step===1){
-    const intents=[
-      ['understand','Understand symptoms'],['treatment','See whether treatment helps'],
-      ['appointment','Prepare for an appointment'],['record','Keep a private record']
-    ];
-    return shell('What would help most?','This sets the emphasis of your Today and Guide screens.',`
-      <div class="jc-choice-list">${intents.map(([v,label])=>`<button data-act="ob-intent" data-v="${v}" aria-pressed="${p.intent===v?'true':'false'}"><span>${esc(label)}</span>${p.intent===v?PULSE_IC.check:IC.chev}</button>`).join('')}</div>
-      <button class="jc-primary" data-act="ob-next">Continue</button>
-      <p class="jc-footnote">You can change this later in Profile.</p>`);
-  }
-  if(step===2){
-    return shell('A few details change what guidance applies.','Everything is optional and can be changed later in Profile.',`
-      <div class="jc-form-stack">
-        <div class="field"><label class="fl" for="ob-n">First name (optional)</label><input id="ob-n" type="text" maxlength="80" autocomplete="given-name" placeholder="Optional" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
-        <div class="grid2"><div class="field"><label class="fl" for="ob-y">Birth year</label><input id="ob-y" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" placeholder="e.g. 1975" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
-        <div class="field"><label class="fl" for="ob-r">Region</label><select id="ob-r" data-act="prof" data-k="region"><option value="us"${p.region==='us'?' selected':''}>United States</option><option value="uk"${p.region==='uk'?' selected':''}>United Kingdom</option><option value="other"${p.region==='other'?' selected':''}>Elsewhere</option></select></div></div>
-        <div class="field"><label class="fl" for="ob-ut">Uterus (womb)</label><select id="ob-ut" data-act="prof" data-k="uterus">${[['unknown','Prefer not to say'],['intact','Still there'],['hyst','Removed (hysterectomy)'],['ablation','Endometrial ablation']].map(([v,l])=>`<option value="${v}"${p.uterus===v?' selected':''}>${l}</option>`).join('')}</select></div>
-        <div class="field"><label class="fl" for="ob-ov">Ovaries</label><select id="ob-ov" data-act="prof" data-k="ovaries">${[['unknown','Prefer not to say / not sure'],['kept','Both still there'],['one','One removed'],['both','Both removed']].map(([v,l])=>`<option value="${v}"${p.ovaries===v?' selected':''}>${l}</option>`).join('')}</select><p class="jc-footnote">Asked separately because surgery can affect the uterus and ovaries differently.</p></div>
-      </div>
-      <button class="jc-primary" data-act="ob-next">Continue</button>`);
-  }
-  const pins=Array.isArray(p.pinnedSymptoms)?p.pinnedSymptoms:['hf','ns','fog','energy','joint','anx'];
-  const choices=[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])];
-  return shell('How have you been feeling?','Start with how things feel overall, then choose what you want to keep an eye on.',`
-    <fieldset class="jc-feeling-field"><legend>Overall lately (optional)</legend><div class="jc-pin-grid">${Object.entries(ONBOARDING_FEELINGS).map(([value,label])=>`<button data-act="ob-feeling" data-v="${value}" aria-pressed="${p.onboardingFeeling===value?'true':'false'}">${esc(label)}</button>`).join('')}</div><button class="jc-inline-action" data-act="ob-feeling" data-v="">Prefer not to say</button><p class="jc-footnote">This is a starting point, not a daily log or a score. Your answer stays on this device.</p></fieldset>
-    <h2>Symptoms to follow</h2><p class="jc-footnote">Choose 3–6. Tap a selected symptom to swap it for another.</p>
-    <div class="jc-pin-grid">${choices.map(([k,label])=>`<button data-act="ob-symptom" data-v="${k}" aria-pressed="${pins.includes(k)?'true':'false'}">${SYM_IC[k]||(k==='hf'?TWILIGHT_IC.flame:k==='ns'?TWILIGHT_IC.moon:TWILIGHT_IC.cycle)}<span>${esc(label)}</span></button>`).join('')}</div>
-    <p class="jc-footnote"><span id="ob-pin-count">${pins.length}</span> selected · treatments can be added in Care.</p>
-    <button class="jc-primary" data-act="ob-done">Start my journey</button>`);
+let onboardingMore=false, onboardingViewedStep=null, onboardingViewedAt=0;
+function onboardingDraft(){
+  return PeriOnboarding.draftFromProfile(DB.profile);
 }
-
+function leaveOnboardingStep(){
+  if(onboardingViewedStep===null) return;
+  postNativeEvent('onboarding-step-left',{step:onboardingViewedStep,durationMs:Math.min(3600000,Date.now()-onboardingViewedAt)});
+  onboardingViewedStep=null;
+}
+function observeOnboardingStep(step){
+  if(onboardingViewedStep===step || document.visibilityState==='hidden') return;
+  leaveOnboardingStep(); onboardingViewedStep=step; onboardingViewedAt=Date.now();
+  postNativeEvent('onboarding-step',{step});
+}
+function updateOnboarding(patch,focus){
+  const draft=PeriOnboarding.normalizeDraft({...onboardingDraft(),...patch});
+  Object.assign(DB.profile,PeriOnboarding.profilePatch(draft));
+  save(true); render(true);
+  if(focus) document.querySelector(focus)?.focus({preventScroll:true});
+}
+function finishOnboarding(skipped=false){
+  const first=entryDates().length===0;
+  Object.assign(DB.profile,PeriOnboarding.profilePatch(onboardingDraft(),true,skipped));
+  DB.profile.firstCheckinPending=first;
+  leaveOnboardingStep();
+  curDate=todayISO(); checkinComplete=false; checkinStep=0; returnTab='today';
+  setRoute(first?'checkin':'today',true); save(true); render();
+  postNativeEvent('onboarding-finished',{skipped});
+}
+function viewOnboard(){
+  const draft=onboardingDraft(), step=draft.step, pins=draft.symptoms, goal=PeriOnboarding.goalFor(draft.intent);
+  const labels=PeriOnboarding.labelsFor(pins);
+  const titles=['Let’s make room for you.','What’s been bothering you most?','What would help you most?','Your check-in, made for you.'];
+  const subtitles=['A few small choices. A check-in that feels like yours.','Start with 1–3 concerns. You can follow up to six and change them later.','There’s no right answer. Start with what matters to you today.','A small starting point, shaped by what matters to you.'];
+  const selected=(key,label,action,active,radio=false)=>`<button class="ob-choice" data-act="${action}" data-v="${esc(key)}"${radio?` role="radio" aria-checked="${active}" tabindex="${active||!draft.intent&&key===PeriOnboarding.goals[0].key?'0':'-1'}"`:` aria-pressed="${active}"`}><span>${esc(label)}</span><span class="ob-choice-check" aria-hidden="true">${active?PULSE_IC.check:''}</span></button>`;
+  let body='';
+  if(step===0) body=`<div class="ob-preview ob-welcome-preview"><span class="ob-eyebrow">A LITTLE SPACE, JUST FOR YOU</span><h2>Notice how you feel.<br><em>One day at a time.</em></h2><p>Choose what to follow. Build a record you can return to, or bring to an appointment.</p></div><p class="ob-trust">${PULSE_IC.check}<span>Your health entries stay on this device.<br>No account to create.</span></p><details class="jc-disclosure"><summary>Privacy, evidence, and medical limits</summary><div><p>Your health entries stay on this device. peri provides education, not diagnosis or treatment, and does not replace a clinician who knows your history.</p><p>Content reviewed July 2026.</p></div></details>`;
+  if(step===1){
+    const common=PeriOnboarding.symptoms.slice(0,6), more=PeriOnboarding.symptoms.slice(6);
+    body=`<div class="ob-choice-grid" role="group" aria-label="Concerns to follow">${common.map(item=>selected(item.key,item.label,'ob-symptom',pins.includes(item.key))).join('')}</div><button class="jc-inline-action ob-more" data-act="ob-more" aria-expanded="${onboardingMore}" aria-controls="ob-more-concerns">${onboardingMore?'Show fewer concerns':'See all concerns'}</button><div id="ob-more-concerns" class="ob-choice-grid"${onboardingMore?'':' hidden'}>${more.map(item=>selected(item.key,item.label,'ob-symptom',pins.includes(item.key))).join('')}</div><p class="ob-response" aria-live="polite">${labels.length?esc(labels.join(', '))+' — we’ll put these front and center.':'Choose what feels relevant to you.'}</p>`;
+  }
+  if(step===2) body=`<div class="ob-choice-list" role="radiogroup" aria-label="Your main goal">${PeriOnboarding.goals.map(item=>selected(item.key,item.label,'ob-intent',draft.intent===item.key,true)).join('')}</div><p class="ob-response" aria-live="polite">${draft.intent?esc(goal.reply):'Your choice will shape your starting point.'}</p>`;
+  if(step===3) body=`<section class="ob-preview" aria-label="Your starting focus"><span class="ob-eyebrow">YOUR STARTING FOCUS</span><ul>${labels.map(label=>`<li><span>${esc(label)}</span>${PULSE_IC.check}</li>`).join('')}</ul><p class="ob-small">Your selection, ready for your first check-in. Nothing has been rated or logged yet.</p></section><h2 class="ob-goal-title">${esc(goal.label)}</h2><p class="ob-goal-benefit">${esc(goal.benefit)}</p><p class="ob-small">Profile details and reminders can wait. Let’s start with how today feels.</p>`;
+  return `<div class="view jc-onboard ob-v2"><div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span>peri</div><span>${step+1} / 4</span></div><div class="jc-onboard-progress" role="progressbar" aria-label="Setup progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="${step+1}"><i style="width:${(step+1)*25}%"></i></div><div class="ob-body">${step?`<button class="jc-back" data-act="ob-back">${IC.chev} Back</button>`:''}<div class="jc-page-head"><h1 tabindex="-1" id="ob-heading">${esc(titles[step])}</h1><p>${esc(subtitles[step])}</p></div>${body}</div><div class="ob-footer">${step===1?`<p class="ob-selection-count" aria-live="polite">${pins.length} selected</p>`:''}<button class="jc-primary" data-act="${step===3?'ob-done':'ob-next'}"${step===1&&!pins.length||step===2&&!draft.intent?' disabled':''}>${['Find my starting point','These matter to me','See my check-in','Start my first check-in'][step]}</button>${step<3?'<button class="jc-text-action" data-act="ob-starter">Use a starter check-in</button>':'<button class="jc-text-action" data-act="ob-skip">Explore first</button>'}</div></div>`;
+}
 /* ============================================================
    TWILIGHT PRIMARY SCREENS
    These are deliberately shaped to the supplied 384 x 772 reference.
@@ -1744,7 +1741,7 @@ function dayState(date){
 }
 function focusedKeys(){
   const pins=DB.profile&&Array.isArray(DB.profile.pinnedSymptoms)?DB.profile.pinnedSymptoms:[];
-  return pins.length>=3?pins.slice(0,6):['hf','ns','fog','energy','joint','anx'];
+  return pins.length?pins.slice(0,6):[...PeriOnboarding.defaults];
 }
 function symptomName(key){
   if(key==='hf') return 'Hot flashes';
@@ -1889,7 +1886,8 @@ function treatmentFollowUpReport(days){
 }
 function recordSummary(record){
   if(!record) return 'No confirmed entries yet.';
-  const ranked=focusedKeys().map(k=>({k,v:symptomValue(record,k)})).filter(x=>x.v!=null&&x.v>0).sort((a,b)=>b.v-a.v);
+  if(!PINNABLE_SYMPTOMS.some(key=>symptomValue(record,key)!=null)) return 'No symptoms were rated on this day.';
+  const ranked=[...new Set([...focusedKeys(),...PINNABLE_SYMPTOMS])].map(k=>({k,v:symptomValue(record,k)})).filter(x=>x.v!=null&&x.v>0).sort((a,b)=>b.v-a.v);
   if(!ranked.length) return 'Tracked symptoms were quiet on this confirmed day.';
   const first=ranked[0], suffix=first.k==='hf'?(first.v+' '+(first.v===1?'flash':'flashes')):(['none','mild','moderate','severe','very severe'][Math.min(4,first.v)]||first.v);
   const lead=first.k==='hf'?'Hot flashes: '+suffix:symptomName(first.k)+' was '+suffix;
@@ -2005,7 +2003,7 @@ function viewHome(){
     <div class="mc-welcome"><div><p class="mc-eyebrow">${esc(greeting+(name?', '+name:''))}</p><h1>Your space to feel<br><em>more like you.</em></h1><p>One day at a time. We’ll help you see the bigger picture.</p></div><span class="mc-date">${TWILIGHT_IC.calendar}${esc(parseISO(t).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}))}</span></div>
     <div class="mc-home-top">
       <section class="mc-checkin-card"><div class="mc-card-top"><span class="mc-eyebrow">YOUR DAILY CHECK-IN</span><span class="mc-time">${TWILIGHT_IC.sun} About a minute</span></div><h2>How are you<br>feeling today?</h2><p>A small moment to check in with yourself.<br>Your symptoms, your pace, your story.</p><div class="mc-checkin-bottom"><button class="jc-primary dc-checkin" data-act="start-checkin"><span>${esc(cta)}</span>${IC.chev}</button><span>${state.key==='confirmed'?'Today’s check-in is saved':state.key==='draft'?'Your draft is ready to finish':'A little reflection goes a long way'}</span></div></section>
-      <section class="mc-week-card"><div class="mc-card-top"><span class="mc-eyebrow">LITTLE STEPS, BIGGER PICTURE</span>${PULSE_IC.journey}</div><h2>Your week so far</h2><p><strong>${weekCount}</strong> ${weekCount===1?'check-in':'check-ins'} in the last seven days</p><div class="mc-week-marks" aria-label="Your check-ins this week">${dayMarks}</div>${dcProgress(count)}<button class="dc-text-link" data-act="tab" data-v="journey">Explore your journey ${IC.chev}</button></section>
+      ${count?`<section class="mc-week-card"><div class="mc-card-top"><span class="mc-eyebrow">LITTLE STEPS, BIGGER PICTURE</span>${PULSE_IC.journey}</div><h2>Your week so far</h2><p><strong>${weekCount}</strong> ${weekCount===1?'check-in':'check-ins'} in the last seven days</p><div class="mc-week-marks" aria-label="Your check-ins this week">${dayMarks}</div>${dcProgress(count)}<button class="dc-text-link" data-act="tab" data-v="journey">Explore your journey ${IC.chev}</button></section>`:`<section class="mc-week-card"><span class="mc-eyebrow">YOUR STARTING FOCUS</span><h2>Your check-in is ready.</h2><p>${esc(focusedKeys().map(symptomName).join(', '))}</p><p>A little space to notice how today feels. Add more detail whenever you’re ready.</p></section>`}
     </div>
     ${DB.trigger&&DB.trigger.active?triggerBanner():''}
     ${DB.profile.onboardingDeferred?`<button class="jc-open-row jc-setup" data-act="finish-setup"><span>${TWILIGHT_IC.cycle}</span><span><b>Finish your context</b><small>Personalize guidance and the symptoms you watch.</small></span>${IC.chev}</button>`:''}
@@ -2184,7 +2182,7 @@ function jcSeverityControl(key,value){
 function viewCheckin(){
   const t=todayISO(), raw=entry(t), count=entryDates().length, backLabel=returnTab==='journey'?'Journey':'Today';
   if(checkinComplete){
-    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}<div class="mc-complete-mark">${PULSE_IC.check}</div>${jcHeading('Today is confirmed.','Your Journey and appointment report now use this version.',fmtLong(t))}${comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">Back to Journey</button><button class="jc-secondary" data-act="checkin-add-treatment">Add treatment change</button></div>`;
+    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}<div class="mc-complete-mark">${PULSE_IC.check}</div>${jcHeading(checkinFirstSaved?'Your first check-in is saved.':'Today is confirmed.',checkinFirstSaved?'You made a little space for yourself. Here’s what you recorded.':'Your Journey and appointment report now use this version.',fmtLong(t))}${checkinFirstSaved?`<section class="ob-preview"><span class="ob-eyebrow">YOUR STARTING POINT</span><p>${esc(recordSummary(confirmedRecord(t)))}</p><p class="ob-small">One day is a starting point. As you add check-ins, you’ll have more to look back on.</p></section>`:comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">${checkinFirstSaved?'See my first check-in':'Back to Journey'}</button><button class="jc-secondary" data-act="finish-setup">Add optional profile details</button><button class="jc-inline-action" data-act="checkin-add-treatment">Add treatment change</button></div>`;
   }
   const state=dayState(t), context=checkinStep===1;
   const keys=[...new Set([...focusedKeys(),...(checkinAddedSymptoms.get(t)||[]),...PINNABLE_SYMPTOMS.filter(key=>symptomValue(raw,key)!=null)])];
@@ -2193,7 +2191,7 @@ function viewCheckin(){
   const ratingLabels=['None','Mild','Moderate','Severe','Very severe'];
   return `<div class="view jc-screen jc-checkin">
     ${jcChrome(backLabel)}
-    ${jcHeading('Today’s check-in','Nothing counts in your patterns until you confirm.',fmtLong(t))}
+    ${jcHeading(DB.profile.firstCheckinPending?'Your first check-in':'Today’s check-in',DB.profile.firstCheckinPending?'Your chosen concerns are ready. Nothing counts in your patterns until you confirm.':'Nothing counts in your patterns until you confirm.',fmtLong(t))}
     <nav class="mc-check-steps" aria-label="Check-in steps">
       <button class="mc-step${context?'':' active'}" aria-label="Step 1: Your symptoms" data-act="checkin-step" data-v="0"${context?'':' aria-current="step"'}><span>1</span><b>Your symptoms</b></button>
       <button class="mc-step${context?' active':''}" aria-label="Step 2: Context and review (optional)" data-act="checkin-step" data-v="1"${context?' aria-current="step"':''}><span>2</span><b>Context &amp; review<small>Optional</small></b></button>
@@ -2291,11 +2289,14 @@ function render(preserveScroll){
   document.body.classList.toggle('mc-onboarding',!DB.profile.onboarded);
   document.body.classList.toggle('mc-primary-route',Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab));
   if(!DB.profile.onboarded){
+    const nextStep=onboardingDraft().step, changedStep=onboardingViewedStep!==nextStep;
     $('#app').innerHTML = viewOnboard();
+    observeOnboardingStep(nextStep);
+    if(changedStep){ window.scrollTo(0,0); document.getElementById('ob-heading')?.focus({preventScroll:true}); }
     $('#tabs').style.display='none';
     $('#topbar').style.display='none';
     syncNativeNavigationState();
-    window.scrollTo(0,scrollY);
+    window.scrollTo(0,changedStep?0:scrollY);
     return;
   }
   const primary=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab);
@@ -2379,9 +2380,12 @@ function handleAction(el, ev){
     case 'back-checkin': setRoute('checkin'); render(); return;
     case 'more-details': returnTab='checkin'; setRoute('today-details'); render(); return;
     case 'confirm-log': {
+      const wasFirst=entryDates().length===0;
       const ok=typeof confirmEntry==='function'?confirmEntry(curDate):draftHasContent(e());
       if(!ok){ toast('Choose at least one symptom or add a note before confirming'); return; }
       if(typeof confirmEntry!=='function'){ e().confirmed=true; e().draftDirty=false; }
+      checkinFirstSaved=wasFirst;
+      DB.profile.firstCheckinPending=false;
       save(true);
       postNativeEvent('checkin-confirmed',{date:curDate});
       if(curDate===todayISO()){ checkinComplete=true; setRoute('checkin',true); render(); }
@@ -2719,31 +2723,32 @@ function handleAction(el, ev){
       window.print(); return;
     }
     case 'ob-next': {
-      const step=+DB.profile.onboardingStep||0;
-      if(step===1&&!DB.profile.intent){ toast('Choose what would help most'); return; }
-      DB.profile.onboardingStep=Math.min(3,step+1); save(true); render();
-      postNativeEvent('onboarding-step',{step:DB.profile.onboardingStep});
-      setTimeout(()=>document.querySelector('#app input,#app select,#app [aria-pressed]')?.focus(),0);
+      const draft=onboardingDraft();
+      if(draft.step===1&&!draft.symptoms.length || draft.step===2&&!draft.intent) return;
+      updateOnboarding({step:Math.min(3,draft.step+1)});
       return;
     }
     case 'ob-back':
-      DB.profile.onboardingStep=Math.max(0,(+DB.profile.onboardingStep||0)-1); save(true); render();
-      setTimeout(()=>document.querySelector('#app button,#app input')?.focus(),0);
+      updateOnboarding({step:Math.max(0,onboardingDraft().step-1)});
       return;
-    case 'ob-intent': DB.profile.intent=el.dataset.v; save(true); render(); return;
+    case 'ob-intent': updateOnboarding({intent:el.dataset.v},'[data-act="ob-intent"][data-v="'+el.dataset.v+'"]'); return;
+    case 'ob-more': onboardingMore=!onboardingMore; render(true); document.querySelector('[data-act="ob-more"]')?.focus({preventScroll:true}); return;
+    case 'ob-starter': {
+      const draft=onboardingDraft();
+      updateOnboarding({step:3,symptoms:draft.symptoms.length?draft.symptoms:PeriOnboarding.defaults,intent:draft.intent||'understand'}); return;
+    }
     case 'ob-feeling':
       DB.profile.onboardingFeeling=safeEnum(el.dataset.v,Object.keys(ONBOARDING_FEELINGS),''); save(true); render(true); return;
     case 'ob-symptom': {
-      const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:['hf','ns','fog','energy','joint','anx'];
-      if(current.includes(key)) DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
-      else if(current.length<6) DB.profile.pinnedSymptoms=[...current,key];
-      else { toast('Choose up to six symptoms'); return; }
-      save(true); render(true); return;
+      const key=el.dataset.v, current=onboardingDraft().symptoms;
+      if(!PINNABLE_SYMPTOMS.includes(key)) return;
+      if(!current.includes(key)&&current.length>=6){ toast('You can follow up to six. Remove one to make room for another.'); postNativeEvent('onboarding-selection-limit'); return; }
+      updateOnboarding({symptoms:current.includes(key)?current.filter(k=>k!==key):[...current,key]},'[data-act="ob-symptom"][data-v="'+key+'"]'); return;
     }
     case 'profile-symptom': {
       const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:focusedKeys();
       if(current.includes(key)){
-        if(current.length<=3){ toast('Keep at least three focused symptoms'); return; }
+        if(current.length<=1){ toast('Keep at least one focused symptom'); return; }
         DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
       } else {
         if(current.length>=6){ toast('Choose up to six symptoms'); return; }
@@ -2752,21 +2757,13 @@ function handleAction(el, ev){
       save(true); render(true); return;
     }
     case 'ob-done': {
-      const pins=Array.isArray(DB.profile.pinnedSymptoms)?DB.profile.pinnedSymptoms:[];
-      if(pins.length<3){ toast('Choose at least three symptoms'); return; }
-      DB.profile.onboardingStep=3;
-      DB.profile.onboarded=true;
-      DB.profile.onboardingDeferred=false;
-      setRoute('today',true); save(true); render();
-      postNativeEvent('onboarding-finished',{skipped:false});
+      const draft=onboardingDraft();
+      if(!draft.symptoms.length||!draft.intent) return;
+      finishOnboarding();
       return;
     }
     case 'ob-skip':
-      DB.profile.onboarded=true;
-      DB.profile.onboardingDeferred=true;
-      save(true); render();
-      postNativeEvent('onboarding-finished',{skipped:true});
-      setTimeout(()=>document.querySelector('#app button,#tabs button')?.focus(),0);
+      finishOnboarding(true); setRoute('today',true); render();
       return;
   }
 }
@@ -2984,6 +2981,13 @@ function boot(){
     if(el && el.type==='time') handleInput(el);
   });
   document.addEventListener('keydown', keepFocusInSheet);
+  document.addEventListener('keydown', ev=>{
+    if(DB.profile.onboarded || !ev.target.matches('[data-act="ob-intent"]') || !['ArrowDown','ArrowRight','ArrowUp','ArrowLeft','Home','End'].includes(ev.key)) return;
+    ev.preventDefault();
+    const keys=PeriOnboarding.goals.map(goal=>goal.key), current=keys.indexOf(ev.target.dataset.v);
+    const next=ev.key==='Home'?0:ev.key==='End'?keys.length-1:(current+(['ArrowDown','ArrowRight'].includes(ev.key)?1:-1)+keys.length)%keys.length;
+    updateOnboarding({intent:keys[next]},'[data-act="ob-intent"][data-v="'+keys[next]+'"]');
+  });
   if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
   window.addEventListener('menocompass-prepare-update', ev=>{
     const focused=document.activeElement;
@@ -2996,8 +3000,11 @@ function boot(){
     });
   });
   window.addEventListener('beforeunload', flush);
-  window.addEventListener('pagehide', flush);
-  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flush(); });
+  window.addEventListener('pagehide', ()=>{ leaveOnboardingStep(); flush(); });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='hidden'){ leaveOnboardingStep(); flush(); }
+    else if(!DB.profile.onboarded) observeOnboardingStep(onboardingDraft().step);
+  });
   window.addEventListener('storage', ev=>{
     if(ev.key!==Store.key || dirty) return;
     try{
@@ -3009,6 +3016,9 @@ function boot(){
   const validRoutes=['today','journey','care','guide','checkin','profile','appointment-report','today-details'];
   const rawHash=(location.hash||'').replace('#',''), hash=normalizeRoute(rawHash);
   if(validRoutes.includes(hash)) curTab = hash;
+  if(DB.profile.onboarded && DB.profile.firstCheckinPending && !entryDates().length && (!rawHash || hash==='today')){
+    returnTab='today'; curDate=todayISO(); setRoute('checkin',true);
+  }
   render();
   if(window.__MENO_NATIVE__===true) setTimeout(()=>{
     requestAnimationFrame(()=>postNativeEvent('webview-ready'));

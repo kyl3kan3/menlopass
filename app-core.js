@@ -90,8 +90,8 @@ function blankDB(){
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
       theme:'dark', stage:null, stageAnswers:null, onboarded:false,
-      onboardingStep:0, onboardingDeferred:false, intent:'', onboardingFeeling:'',
-      pinnedSymptoms:[...DEFAULT_PINNED_SYMPTOMS]
+      onboardingVersion:2, onboardingStep:0, onboardingDeferred:false, firstCheckinPending:false, intent:'', onboardingFeeling:'',
+      pinnedSymptoms:[]
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
     appointments:{questions:[],plans:[],brief:{concerns:[],goal:'',date:''}}, support:[], healthKit:null,
@@ -136,14 +136,16 @@ function migrate(d){
   p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
   p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
   p.onboarded=rawProfile.onboarded===true;
+  p.onboardingVersion=rawProfile.onboardingVersion===2?2:1;
   p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,3)||0;
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
+  p.firstCheckinPending=rawProfile.firstCheckinPending===true;
   p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
   p.onboardingFeeling=safeEnum(rawProfile.onboardingFeeling,Object.keys(ONBOARDING_FEELINGS),'');
   const pinned=Array.isArray(rawProfile.pinnedSymptoms)
     ? [...new Set(rawProfile.pinnedSymptoms.filter(k=>PINNABLE_SYMPTOMS.includes(k)))].slice(0,6)
     : [];
-  p.pinnedSymptoms=pinned.length>=3?pinned:[...DEFAULT_PINNED_SYMPTOMS];
+  p.pinnedSymptoms=pinned.length?pinned:(p.onboarded?[...DEFAULT_PINNED_SYMPTOMS]:[]);
   const stageAnswers=safeStageAnswers(rawProfile.stageAnswers);
   if(stageAnswers && typeof completeStageAnswers==='function' && completeStageAnswers(stageAnswers)
       && typeof stageResult==='function'){

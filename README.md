@@ -110,9 +110,11 @@ development. EAS configuration lives in `mobile/eas.json`; the linked project is
 preview, and production channels. Native module or permission changes require a new runtime and binary.
 The OTA helper rebuilds/syncs the embedded app, runs checks, and requires a compatible finished build.
 
-The iOS shell uses a hard RevenueCat paywall. It does not mount the health-record WebView until
-the `MenoCompass Pro` entitlement is active, and dismissing or losing the entitlement returns the
-user to the subscription gate. Zero-price introductory or promotional offers fail closed. See
+The iOS shell shows a short native onboarding preview before its RevenueCat paywall. The preview
+lets users choose concerns and a goal, then see their starting focus without creating health entries.
+It does not mount the health-record WebView until the `MenoCompass Pro` entitlement is active.
+New customers can return to their saved preview; returning customers without access remain on the
+subscription gate. The first purchase opens an unrated check-in with the chosen concerns. Zero-price introductory or promotional offers fail closed. See
 `mobile/SUBSCRIPTION_SETUP.md` for the required RevenueCat and App Store Connect configuration.
 
 **Locally, no server:** after `npm run build`, open the generated root `index.html` (or the
@@ -168,7 +170,7 @@ npm test              # rebuild, then test
 ```
 
 `build.py` inlines `styles.css`, then `redesign.css`, and the JavaScript files in this order:
-`content-a.js`, `content-b.js`, `app-core.js`, `appointment-questions.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
+`content-a.js`, `content-b.js`, `mobile/onboarding-model.js`, `app-core.js`, `appointment-questions.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
 matters. It writes identical HTML to the tracked root `index.html` convenience mirror and to
 `dist/index.html`; neither generated file should be edited manually.
 
@@ -190,7 +192,8 @@ local-storage copy:
               ovaries:  'kept'|'one'|'both'|'unknown',
               lastPeriod, surgeryDate, bone,
                proteinGpk, weightGoal, waistGoal, theme, stage, onboarded,
-               intent, pinnedSymptoms, onboardingStep, onboardingDeferred },
+               intent, pinnedSymptoms, onboardingVersion, onboardingStep, onboardingDeferred,
+               firstCheckinPending },
   entries:  { "2026-07-29": { hf, ns, inBedH, sleepH, sym:{…}, wt, waist,
                                bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf},
                                med:{ medicationId:{taken,at} }, notes, prefilledFrom?,

@@ -14,6 +14,13 @@ function load(file, mocks = {}, globals = {}) {
 const commerce = load('commerce-events.ts');
 const events = load('telemetry-events.ts', { './commerce-events': commerce });
 
+test('onboarding analytics retain step timing while dropping concern choices and other health answers', () => {
+  const result = events.telemetryAttributes('onboarding_step_left', { step: 1, durationMs: 12000, flowVersion: 2, surface: 'native_preview', symptoms: ['sleepq'], intent: 'treatment', notes: 'private', name: 'private' });
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), { schemaVersion: 2, step: 1, durationMs: 12000, flowVersion: 2, surface: 'native_preview' });
+  const invalid = events.telemetryAttributes('onboarding_step_left', { step: 30, durationMs: Infinity, surface: 'private', flowVersion: 'private' });
+  assert.deepEqual(JSON.parse(JSON.stringify(invalid)), { schemaVersion: 2 });
+});
+
 test('PostHog keeps anonymous identity, filters all outgoing properties, and preserves queued event-time state', async () => {
   let options, releaseReady;
   const captured = [];
