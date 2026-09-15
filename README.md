@@ -106,9 +106,15 @@ defined, health-data-free events to EAS Observe and PostHog. Configure the SDK
 identifiers and client credentials listed in `mobile/.env.example`, then use a development build
 because these packages contain native code. Run `npm --prefix mobile start` for local Expo
 development. EAS configuration lives in `mobile/eas.json`; the linked project is
-`@kyl3kan3/menlopass`. EAS Update uses the explicit native runtime `1.2.0-native-2` with separate development,
+`@kyl3kan3/menlopass`. EAS Update uses the explicit native runtime `1.2.0-native-3` with separate development,
 preview, and production channels. Native module or permission changes require a new runtime and binary.
 The OTA helper rebuilds/syncs the embedded app, runs checks, and requires a compatible finished build.
+
+`expo-insights` is autolinked for native cold-start usage metrics in EAS Insights → App usage.
+It sends the EAS installation identifier, project identifier, app version, platform, and OS version;
+no health records or onboarding answers are passed to it. Observe continues to handle performance
+and explicitly selected events. Insights requires a new native build using `1.2.0-native-3`;
+the existing `1.2.0-native-2` binaries cannot gain this native module through OTA alone.
 
 The iOS shell shows a short native onboarding preview before its RevenueCat paywall. The preview
 lets users choose concerns and a goal, then see their starting focus without creating health entries.

@@ -101,7 +101,7 @@ async function injectState(context,state){
     check('EAS Update is configured for versioned production releases',
       !!mobilePackage.dependencies['expo-updates']
       &&expoApp.version==='1.2.1'
-      &&expoApp.runtimeVersion==='1.2.0-native-2'
+      &&expoApp.runtimeVersion==='1.2.0-native-3'
       &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
       &&eas.build.production.channel==='production'
       &&eas.build.production.uploadSourceMaps===true
@@ -181,7 +181,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped for personal onboarding',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v18'));
+    check('offline cache version includes the current privacy disclosure',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v19'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
