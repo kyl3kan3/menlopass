@@ -9,8 +9,9 @@ desktop sidebar / mobile bottom navigation. It preserves the local record and na
 
 - **No account, backend health database, or health-data transmission.** Browser entries live in
   local storage. The native wrapper keeps its record in an encrypted file with a device-bound
-  Keychain key and offers Face ID App Lock plus password-protected portable backups. Privacy-gated
-  AppsFlyer, Meta, TikTok, RevenueCat, and EAS Observe integrations never receive health entries.
+  Keychain key and offers Face ID App Lock plus password-protected portable backups. Optional analytics uses a separate installation identity and a first-party event API.
+  PostHog/Observe require analytics consent; AppsFlyer requires Apple ATT. Sentry diagnostics
+  and RevenueCat subscription processing are separate. No provider receives health entries.
 - **Optional native conveniences stay privacy-minimal.** Local reminders use generic copy, widgets
   receive only check-in completion counts, and user-initiated Apple Health sync reads aggregate
   steps/sleep plus the latest body weight without writes or background delivery.
@@ -309,3 +310,9 @@ reviewed for your jurisdiction.
 The brief suggests discussion questions from selected concerns, sufficiently covered confirmed symptom comparisons, recorded treatment changes and follow-up answers, and relevant profile context. Each suggestion includes its reason. These are prompts to discuss with a clinician, not diagnoses or treatment recommendations; the feature makes no network requests. Users can edit or exclude suggestions, and those choices are preserved in the local saved brief, backups, and appointment report. Refreshing suggestions is explicit. The discussion framework links to NICE shared decision-making and menopause guidance and the NHS treatment overview.
 
 Run `node --test test-appointment-questions.js` for question-selection and provenance checks. `npm test` also covers editing, exclusion, reopening, backup validation, and report output. `PLAYWRIGHT_CHANNEL=chrome` can select installed Chrome for local browser checks; `PLAYWRIGHT_BROWSER=webkit node test-mobile-ux.js` checks the phone forms and layouts with Playwright WebKit.
+
+## Tracking implementation
+
+See [TRACKING.md](TRACKING.md) for consent behavior, server migration, provider configuration,
+and the distinction between code tests and required device/provider acceptance. This release
+requires a new native build; it must not be published to an older runtime.

@@ -93,15 +93,14 @@ async function injectState(context,state){
     check('store copy matches Journey and report ranges',storeDescription.includes('treatment changes together in Journey')&&storeDescription.includes('30-, 90-, or 180-day report')&&!storeDescription.includes('7, 30, and 90 days'));
     check('support and privacy use the new navigation',supportCopy.includes('In Care, add treatments and lab results')&&supportCopy.includes('open Profile')&&privacyCopy.includes('From Profile under <strong>Account &amp; data</strong>')&&!supportCopy.includes('from Meds')&&!supportCopy.includes('open Settings'));
     check('review prompts follow successful check-ins at milestones 2, 5, and 20',review.includes('appReviewMilestones = [2, 5, 20] as const')&&review.includes('registerSuccessfulMoment')&&!review.includes('registerAppOpening'));
-    check('TikTok is initialized only through the ATT-gated native bridge',
-      tiktokModuleConfig.apple.modules?.includes('MenoCompassTikTokBusinessModule')
-      &&!tiktokModuleConfig.apple.appDelegateSubscribers
-      &&tiktokSwift.includes('ATTrackingManager.trackingAuthorizationStatus != .notDetermined')
-      &&telemetry.indexOf('await resolveTrackingPermission()')<telemetry.indexOf('initializeTikTok(permission)'));
+    check('direct marketing SDKs are excluded in favor of ATT-gated AppsFlyer',
+      tiktokModuleConfig.platforms.length===0
+      &&!mobilePackage.dependencies['react-native-fbsdk-next']
+      &&!telemetry.includes('initializeTikTok'));
     check('EAS Update is configured for versioned production releases',
       !!mobilePackage.dependencies['expo-updates']
       &&expoApp.version==='1.2.1'
-      &&expoApp.runtimeVersion==='1.2.0-native-3'
+      &&expoApp.runtimeVersion==='1.2.1-native-tracking-1'
       &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
       &&eas.build.production.channel==='production'
       &&eas.build.production.uploadSourceMaps===true
@@ -121,22 +120,15 @@ async function injectState(context,state){
       &&nativeApp.includes('markInteractive')
       &&telemetry.includes('Observe.configure')
       &&telemetry.includes('Observe.logEvent'));
-    check('Expo Observe is the only diagnostics layer and sanitizes handled errors',
-      !mobilePackage.dependencies['@sentry/react-native']
-      &&!dynamicAppConfig.includes('@sentry/react-native')
-      &&metro.includes('getDefaultConfig')
-      &&!nativeApp.includes('Sentry.wrap')
-      &&telemetry.includes('sanitizedDiagnosticError')
-      &&telemetry.includes('installPrivacySafeObserveErrorHandler')
-      &&telemetry.includes('Observe.reportError(sanitizedDiagnosticError(error))')
-      &&!publishUpdate.toLowerCase().includes('sentry'));
-    check('diagnostic privacy declarations cover Expo Observe',
+    check('sanitized Sentry diagnostics and consented Observe have separate gates',
+      !!mobilePackage.dependencies['@sentry/react-native']
+      &&dynamicAppConfig.includes('@sentry/react-native')
+      &&metro.includes('getSentryExpoConfig')
+      &&telemetry.includes('Observe.configure({ dispatchingEnabled: false')
+      &&telemetry.includes('Observe.reportError(safeError(error))'));
+    check('diagnostic privacy declarations and copy cover the new tracking runtime',
       dynamicAppConfig.includes('NSPrivacyCollectedDataTypeCrashData')
-      &&dynamicAppConfig.includes('NSPrivacyCollectedDataTypePerformanceData')
-      &&dynamicAppConfig.includes('NSPrivacyCollectedDataTypeOtherDiagnosticData')
-      &&dynamicAppConfig.includes("NSPrivacyAccessedAPICategorySystemBootTime: ['35F9.1']")
-      &&privacyCopy.includes('EAS Observe does not capture native crashes')
-      &&!privacyCopy.includes('Sentry'));
+      &&privacyCopy.includes('Sentry') && privacyCopy.includes('analytics starts off'));
     const splashPlugin=expoApp.plugins.find(plugin=>Array.isArray(plugin)&&plugin[0]==='expo-splash-screen');
     check('branded native launch screen is explicitly configured',
       !!mobilePackage.dependencies['expo-splash-screen']

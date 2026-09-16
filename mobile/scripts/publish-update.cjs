@@ -45,12 +45,10 @@ if (!fs.existsSync(npmCli)) throw new Error('Run OTA publishing through npm run 
 const npm = commandArgs => run(process.execPath, [npmCli, ...commandArgs]);
 const eas = (commandArgs, capture = false) => run(process.execPath, [npmCli, 'exec', '--yes', '--package=eas-cli@23.2.0', '--', 'eas', ...commandArgs], projectRoot, capture);
 
-// Only JavaScript SDK values belong in OTA exports. TikTok's native credential
-// is already in the compatible signed binary and EAS secret values are not
-// downloadable by env:exec. Native builds still validate that credential.
-const required = ['EXPO_PUBLIC_APPSFLYER_DEV_KEY', 'EXPO_PUBLIC_META_APP_ID',
-  'EXPO_PUBLIC_META_CLIENT_TOKEN', 'EXPO_PUBLIC_REVENUECAT_IOS_API_KEY',
-  'EXPO_PUBLIC_POSTHOG_API_KEY', 'EXPO_PUBLIC_POSTHOG_HOST'];
+// A matching native build must contain replay, Sentry and the consent startup gate.
+const required = ['EXPO_PUBLIC_APPSFLYER_DEV_KEY', 'EXPO_PUBLIC_REVENUECAT_IOS_API_KEY',
+  'EXPO_PUBLIC_POSTHOG_API_KEY', 'EXPO_PUBLIC_POSTHOG_HOST',
+  'EXPO_PUBLIC_ANALYTICS_API_URL', 'EXPO_PUBLIC_ANALYTICS_PRODUCT_IDS'];
 const missing = required.filter(name => !process.env[name]?.trim());
 if (missing.length) throw new Error(`Missing OTA SDK configuration: ${missing.join(', ')}`);
 delete process.env.EAS_BUILD_PROFILE;

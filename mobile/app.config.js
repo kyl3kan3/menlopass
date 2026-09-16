@@ -1,9 +1,3 @@
-const metaAppId = process.env.EXPO_PUBLIC_META_APP_ID?.trim();
-const metaClientToken = process.env.EXPO_PUBLIC_META_CLIENT_TOKEN?.trim();
-const tiktokAppId = process.env.TIKTOK_APP_ID?.trim() || '6798018790';
-const tiktokBusinessAppId =
-  process.env.TIKTOK_BUSINESS_APP_ID?.trim() || '7679768878880178197';
-const tiktokAppSecret = process.env.TIKTOK_APP_SECRET?.trim();
 const { menocompassWidgetsPlugin } = require('./widgets/app-config');
 
 const APP_GROUP_DEFAULTS_API = 'NSPrivacyAccessedAPICategoryUserDefaults';
@@ -81,20 +75,14 @@ module.exports = ({ config }) => {
   if (posthogHost && !['https://us.i.posthog.com', 'https://eu.i.posthog.com'].includes(posthogHost)) {
     throw new Error('EXPO_PUBLIC_POSTHOG_HOST must be a PostHog Cloud ingestion URL.');
   }
-  const hasMetaConfig = Boolean(metaAppId && metaClientToken);
-  if (Boolean(metaAppId) !== Boolean(metaClientToken)) {
-    throw new Error('Set both EXPO_PUBLIC_META_APP_ID and EXPO_PUBLIC_META_CLIENT_TOKEN.');
-  }
-
   if (process.env.EAS_BUILD_PROFILE === 'production') {
     const missing = [
       !process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY?.trim() && 'EXPO_PUBLIC_APPSFLYER_DEV_KEY',
-      !metaAppId && 'EXPO_PUBLIC_META_APP_ID',
-      !metaClientToken && 'EXPO_PUBLIC_META_CLIENT_TOKEN',
-      !tiktokAppSecret && 'TIKTOK_APP_SECRET',
       !process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim() && 'EXPO_PUBLIC_REVENUECAT_IOS_API_KEY',
       !process.env.EXPO_PUBLIC_POSTHOG_API_KEY?.trim() && 'EXPO_PUBLIC_POSTHOG_API_KEY',
       !process.env.EXPO_PUBLIC_POSTHOG_HOST?.trim() && 'EXPO_PUBLIC_POSTHOG_HOST',
+      !process.env.EXPO_PUBLIC_ANALYTICS_API_URL?.trim() && 'EXPO_PUBLIC_ANALYTICS_API_URL',
+      !process.env.EXPO_PUBLIC_ANALYTICS_PRODUCT_IDS?.trim() && 'EXPO_PUBLIC_ANALYTICS_PRODUCT_IDS',
     ].filter(Boolean);
     if (missing.length) {
       throw new Error(`Missing production mobile configuration: ${missing.join(', ')}`);
@@ -157,23 +145,8 @@ module.exports = ({ config }) => {
     },
   ]);
 
-  if (hasMetaConfig) {
-    plugins.push([
-      'react-native-fbsdk-next',
-      {
-        appID: metaAppId,
-        clientToken: metaClientToken,
-        displayName: 'peri',
-        scheme: `fb${metaAppId}`,
-        advertiserIDCollectionEnabled: false,
-        autoLogAppEventsEnabled: false,
-        isAutoInitEnabled: false,
-        iosUserTrackingPermission: false,
-      },
-    ]);
-  }
-
-  plugins.push('./plugins/withTikTokPrivacyManifestFix');
+  plugins.push('./plugins/withObserveConsentDefault');
+  plugins.push(['@sentry/react-native/expo', { organization: process.env.SENTRY_ORG, project: process.env.SENTRY_PROJECT }]);
 
   plugins = plugins.map(plugin => {
     if (!Array.isArray(plugin) || plugin[0] !== 'expo-splash-screen') return plugin;
@@ -206,14 +179,11 @@ module.exports = ({ config }) => {
         // peri uses only standard/exempt encryption provided by Apple
         // frameworks (for example HTTPS, Keychain, AES-GCM, and HMAC-SHA256).
         ITSAppUsesNonExemptEncryption: false,
+        NSAdvertisingAttributionReportEndpoint: 'https://appsflyer-skadnetwork.com/',
         // The current binary is English-only. This declaration does not add an
         // i18n layer or translated resources; add locales only when those exist.
         CFBundleLocalizations: ['en'],
-        MenoCompassTikTokAppID: tiktokAppId,
-        MenoCompassTikTokBusinessAppID: tiktokBusinessAppId,
-        ...(tiktokAppSecret
-          ? { MenoCompassTikTokAppSecret: tiktokAppSecret }
-          : {}),
+
       },
     },
     plugins,

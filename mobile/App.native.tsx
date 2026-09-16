@@ -1,3 +1,6 @@
+import { readAnalyticsConsent } from './analytics-consent';
+import { setAnalyticsConsent, deleteTrackingData, cancelPendingTrackingPermission, suspendAdvertising, telemetryBackground, telemetryForeground, setTelemetryReplay } from './telemetry.native';
+import { PostHogMaskView } from 'posthog-react-native';
 import { Asset } from 'expo-asset';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
@@ -461,6 +464,30 @@ function App() {
   const [pendingReviewMilestone, setPendingReviewMilestone] = useState<
     AppReviewProgress['dueMilestone']
   >(null);
+  const [consentReady, setConsentReady] = useState(false);
+  const [privacyChoiceOpen, setPrivacyChoiceOpen] = useState(false);
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [consentSaving, setConsentSaving] = useState(false);
+  const chooseAnalytics = async (allowed: boolean) => {
+    if (consentSaving) return;
+    setConsentSaving(true);
+    try {
+      await setAnalyticsConsent(allowed);
+      setAnalyticsEnabled(allowed); setPrivacyChoiceOpen(false); setConsentReady(true);
+    } catch {
+      await setAnalyticsConsent(false, false);
+      setAnalyticsEnabled(false); setPrivacyChoiceOpen(false); setConsentReady(true);
+      Alert.alert('Analytics stayed off', 'Your choice could not be saved. You can continue using peri.');
+    } finally { setConsentSaving(false); }
+  };
+  useEffect(() => { let active = true;
+    void readAnalyticsConsent().then(async choice => {
+      if (!active) return;
+      if (choice === null) setPrivacyChoiceOpen(true);
+      else { await setAnalyticsConsent(choice, false); if (active) { setAnalyticsEnabled(choice); setConsentReady(true); } }
+    }).catch(() => { if (active) setPrivacyChoiceOpen(true); });
+    return () => { active = false; };
+  }, []);
   const [telemetrySettled, setTelemetrySettled] = useState(false);
   const [trackingPromptedThisSession, setTrackingPromptedThisSession] = useState(false);
   const [privacyReady, setPrivacyReady] = useState(Platform.OS !== 'ios');
@@ -494,7 +521,7 @@ function App() {
     && webContentReady && experienceReady && !appLocked && !keyboardVisible
     && nativeNavigation.onboarded && !nativeNavigation.sheetOpen
     && ['today', 'journey', 'guide'].includes(nativeNavigation.route)
-    && !purchaseBusy && !paywall && !paywallLoadingRef.current
+    && !privacyChoiceOpen && consentReady && !purchaseBusy && !paywall && !paywallLoadingRef.current
     && !reviewRequestInFlightRef.current && !nativeShareInFlightRef.current
     && !nativeBackupImportInFlightRef.current && !privacyChangeInFlightRef.current
     && !unlockInFlightRef.current && !healthKitInFlightRef.current;
@@ -572,6 +599,7 @@ function App() {
           appLock,
           reminders,
           deviceEncrypted: isDeviceEncryptionAvailable(),
+          analyticsEnabled,
           encryptedBackups: Platform.OS === 'ios',
           healthKitAvailable: isHealthKitAvailable(),
         });
@@ -782,7 +810,7 @@ function App() {
   }, [html, privacyReady, subscriptionChecked, appIsActive, appLocked, proActive, telemetrySettled, webContentReady, showOnboardingPreview, markInteractive]);
 
   useEffect(() => {
-    const listener = AppState.addEventListener('change', state => { if (state !== 'active') flushTelemetry(); });
+    const listener = AppState.addEventListener('change', state => { if (state !== 'active') { telemetryBackground(); flushTelemetry(); } else telemetryForeground(); });
     return () => listener.remove();
   }, []);
 
@@ -830,42 +858,26 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS === 'ios') return;
-    initializeTelemetry()
-      .then(result => {
-        setTrackingPromptedThisSession(result.promptedForTracking);
-        setTelemetrySettled(true);
-      })
-      .catch(error => {
-        reportTelemetryError(error);
-        setTelemetrySettled(true);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios' || !subscriptionChecked) return;
-
+    if (!consentReady || privacyChoiceOpen || !privacyReady || appLocked || !appIsActive || paywall || purchaseBusy || nativeNavigation.sheetOpen || keyboardVisible) {
+      if (!appIsActive || appLocked) suspendAdvertising();
+      return;
+    }
+    telemetryForeground();
     let active = true;
     const timer = setTimeout(() => {
-      initializeTelemetry()
-        .then(result => {
-          if (!active) return;
-          setTrackingPromptedThisSession(result.promptedForTracking);
-          setTelemetrySettled(true);
-        })
-        .catch(error => {
-          reportTelemetryError(error);
-          if (active) {
-            setTelemetrySettled(true);
-          }
-        });
+      void initializeTelemetry().then(result => {
+        if (!active) return;
+        setTrackingPromptedThisSession(result.promptedForTracking);
+        setTelemetrySettled(true);
+      }).catch(() => { if (active) setTelemetrySettled(true); });
     }, 300);
+    return () => { active = false; clearTimeout(timer); cancelPendingTrackingPermission(); };
+  }, [consentReady, privacyChoiceOpen, privacyReady, appLocked, appIsActive, paywall, purchaseBusy, nativeNavigation.sheetOpen, keyboardVisible]);
 
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [proActive, revenueCatReady, subscriptionChecked]);
+  useEffect(() => {
+    setTelemetryReplay(analyticsEnabled && consentReady && !privacyChoiceOpen && !appLocked && appIsActive && showOnboardingPreview && !paywall);
+    return () => setTelemetryReplay(false);
+  }, [analyticsEnabled, consentReady, privacyChoiceOpen, appLocked, appIsActive, showOnboardingPreview, paywall]);
 
   useEffect(() => {
     if (!html || !telemetrySettled || appLaunchTrackedRef.current) return;
@@ -1154,6 +1166,15 @@ function App() {
         importEncryptedBackup(message.password);
         return;
       }
+      if (message?.type === 'analytics-settings') { setPrivacyChoiceOpen(true); return; }
+      if (message?.type === 'advertising-settings') { void Linking.openSettings(); return; }
+      if (message?.type === 'erase-analytics') {
+        void deleteTrackingData().then(accepted => {
+          setAnalyticsEnabled(false);
+          Alert.alert('Analytics turned off', accepted ? 'Your analytics deletion request was accepted. Provider erasure runs asynchronously. Restart peri before enabling analytics again.' : 'Deletion is saved on this device and will retry when you reopen peri online.');
+        }).catch(() => Alert.alert('Deletion could not be saved', 'Analytics is off. Please try deleting again.'));
+        return;
+      }
       if (message?.type === 'get-native-privacy-status') {
         refreshNativePrivacyStatus();
         return;
@@ -1161,6 +1182,8 @@ function App() {
       if (message?.type === 'clear-native-private-data') {
         if (privacyChangeInFlightRef.current) return;
         privacyChangeInFlightRef.current = true;
+        void deleteTrackingData().catch(() => false);
+        setAnalyticsEnabled(false);
         void clearNativePrivateDataAsync()
           .then(({ appLock, reminders }) => {
             setAppLockEnabled(false);
@@ -1318,6 +1341,16 @@ function App() {
     );
   }
 
+  if (privacyChoiceOpen || !consentReady) {
+    return <SafeAreaView style={styles.gate}><ScrollView contentContainerStyle={styles.gateContent}>
+      <Text accessibilityRole="header" style={styles.gateTitle}>Help improve peri?</Text>
+      <Text style={styles.gateBody}>Optional analytics shares feature-use events and performance with peri and PostHog/Expo, plus fully masked recordings of the native onboarding preview. Your health entries, answers, notes, and reports stay private. Sanitized crash diagnostics are separate.</Text>
+      <Text style={styles.gateBody}>This choice is separate from Apple's advertising permission. Every feature remains available with analytics off. Change your choice or request analytics deletion in Profile.</Text>
+      <Pressable disabled={consentSaving} accessibilityRole="button" style={styles.gatePrimary} onPress={() => void chooseAnalytics(false)}><Text style={styles.gatePrimaryText}>Continue without analytics</Text></Pressable>
+      <Pressable disabled={consentSaving} accessibilityRole="button" style={[styles.gatePrimary, { marginTop: 12 }]} onPress={() => void chooseAnalytics(true)}><Text style={styles.gatePrimaryText}>Allow optional analytics</Text></Pressable>
+    </ScrollView></SafeAreaView>;
+  }
+
   if (Platform.OS === 'ios' && paywall) {
     return (
       <SafeAreaView style={styles.container}>
@@ -1451,7 +1484,7 @@ function App() {
 }
 
 function AppWithSafeArea() {
-  return <SafeAreaProvider><App /></SafeAreaProvider>;
+  return <SafeAreaProvider><PostHogMaskView style={{ flex: 1 }}><App /></PostHogMaskView></SafeAreaProvider>;
 }
 
 export default ObserveRoot.wrap(AppWithSafeArea);

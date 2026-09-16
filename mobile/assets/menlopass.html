@@ -4483,6 +4483,7 @@ function nativeReminderTime(value,fallback){
 function handleNativePrivacyResult(event){
   const detail=event&&event.detail;
   if(!detail||typeof detail!=='object') return;
+  if(typeof detail.analyticsEnabled==='boolean') nativePrivacyState.analyticsEnabled=detail.analyticsEnabled;
   if(detail.appLock) nativePrivacyState.appLock=detail.appLock;
   if(detail.reminders) nativePrivacyState.reminders=detail.reminders;
   if(typeof detail.deviceEncrypted==='boolean') nativePrivacyState.deviceEncrypted=detail.deviceEncrypted;
@@ -4790,6 +4791,9 @@ function nativePrivacyCard(){
   const daily=reminders.preferences&&reminders.preferences.dailyCheckIn||{}, follow=reminders.preferences&&reminders.preferences.treatmentFollowUp||{};
   const weekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   return `<div class="section-label">Privacy &amp; reminders</div><div class="card jc-native-settings">
+    <div class="jc-native-setting"><div><b>Optional analytics</b><small>Feature-use events, performance, and masked onboarding replay. Separate from Apple advertising permission.</small></div><button class="btn ghost sm" data-act="analytics-settings">Review choice</button></div>
+    <button class="btn ghost sm" data-act="advertising-settings">Apple tracking settings</button>
+    <button class="btn ghost sm" data-act="erase-analytics">Delete analytics data</button>
     <div class="jc-native-setting"><div><b>App Lock</b><small>${lock.available?`Use ${esc(lock.label)} or the device passcode whenever peri returns from the background.`:'Set up Face ID or Touch ID in iOS Settings to make App Lock available.'}</small></div><button class="btn ${lock.enabled?'ghost':'primary'} sm" data-act="app-lock-toggle" data-enabled="${lock.enabled?'false':'true'}"${lock.available?'':' disabled'}>${lock.enabled?'Turn off':'Turn on'}</button></div>
     <p class="xtiny">${nativePrivacyState.deviceEncrypted?'Your native peri record is encrypted at rest with a device-bound key.':'Secure native storage is unavailable on this build.'}</p>
     <hr class="sep">
@@ -4922,7 +4926,7 @@ function viewYou(){
       <h4>Privacy, plainly</h4>
       <p class="tiny">${window.__MENO_NATIVE__===true
         ? 'Your native peri record stays on this device in an encrypted file protected by a device-bound key; it is not copied into WebView browser storage. Optional encrypted backups use a password you choose. Apple Health access is read-only, happens only when you tap Connect or Sync, and saves only the aggregate summary shown above. Widgets receive only whether today is complete and a seven-day completion count. Generic reminder schedules contain no health details. The app has no account or sync service and does not transmit your health record.'
-        : "Your health entries stay in this browser's storage on this device. The app has no account, health-data API, or sync service and does not transmit what you log. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices."} The native app sends limited performance and advertising-attribution data—never symptoms, medications, labs, notes, profile answers, Apple Health values, or reports—to Expo, AppsFlyer, Meta, TikTok, and RevenueCat as described in the Privacy Policy. External source links contact those sites only when you open them. Export a backup now and then.</p>
+        : "Your health entries stay in this browser's storage on this device. The app has no account, health-data API, or sync service and does not transmit what you log. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices."} The native app offers optional analytics and masked onboarding replay, separate from Apple advertising permission. Health entries never enter these services. Sanitized crash diagnostics and subscription processing are separate; see the Privacy Policy. External source links contact those sites only when you open them. Export a backup now and then.</p>
       <h4 style="margin-top:14px">Medical disclaimer</h4>
       <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
     </div>
@@ -6737,6 +6741,9 @@ function handleAction(el, ev){
       return;
     case 'manage-subscription':
       postNativeEvent('open-subscription-management'); return;
+    case 'analytics-settings': postNativeEvent('analytics-settings'); break;
+    case 'advertising-settings': postNativeEvent('advertising-settings'); break;
+    case 'erase-analytics': if(confirm('Turn off analytics and request deletion of this installation’s analytics events and recordings? Your health record is unaffected.')) postNativeEvent('erase-analytics'); break;
     case 'app-lock-toggle':
       postNativeEvent('set-app-lock',{enabled:el.dataset.enabled==='true'}); return;
     case 'save-native-reminders': {

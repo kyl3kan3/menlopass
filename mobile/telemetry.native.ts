@@ -1,373 +1,201 @@
 import { Observe, type ObserveAttributes } from 'expo-observe';
-import {
-  getTrackingPermissionsAsync,
-  requestTrackingPermissionsAsync,
-} from 'expo-tracking-transparency';
-import { Platform } from 'react-native';
-import {
-  AFInAppEventType,
-  AppsFlyer,
-  ConversionData,
-  DeepLinkData,
-} from 'react-native-appsflyer';
-import { AppEventsLogger, Settings } from 'react-native-fbsdk-next';
+import { getTrackingPermissionsAsync, requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
+import { AppState, Platform } from 'react-native';
+import { AppsFlyer } from 'react-native-appsflyer';
 import Purchases from 'react-native-purchases';
 import type { CustomerInfo } from 'react-native-purchases';
-import * as Updates from 'expo-updates';
-import { commerceAttributes, commerceEvents, subscriptionSnapshot } from './commerce-events';
-import { productEvents, telemetryAttributes, telemetryEvents, telemetryRoutes, type TelemetryEvent } from './telemetry-events';
-import { captureProductEvent, flushProductAnalytics, getProductAnalyticsId, initializeProductAnalytics } from './posthog.native';
-import {
-  initializeTikTokBusiness,
-  trackTikTokCommerceEvent,
-  type TrackingPermission,
-} from './modules/menocompass-tiktok-business';
+import { subscriptionSnapshot } from './commerce-events';
+import { telemetryAttributes, telemetryEvents, telemetryRoutes, type TelemetryEvent } from './telemetry-events';
+import { captureProductEvent, initializeProductAnalytics, stopProductAnalytics, setReplayRoute, canRestartAnalytics, getReplaySessionId } from './posthog.native';
+import { analyticsAllowed, changeConsent, persistAnalyticsConsent } from './analytics-consent';
+import { cancelAnalyticsRequests, eraseAnalytics, retryAnalyticsErasure, sendInstallObservation, prepareAnalyticsIdentity } from './analytics-transport';
+import { resetAnalyticsSession, sessionContext } from './analytics-session';
+import { reportCrash, safeError } from './error-reporting';
 
-const appleAppId = process.env.EXPO_PUBLIC_APPLE_APP_ID?.trim() || '6798018790';
-const appsFlyerDevKey = process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY?.trim();
-const metaAppId = process.env.EXPO_PUBLIC_META_APP_ID?.trim();
-const metaClientToken = process.env.EXPO_PUBLIC_META_CLIENT_TOKEN?.trim();
-
-export type TelemetryInitializationResult = {
-  trackingPermission: TrackingPermission;
-  promptedForTracking: boolean;
-};
-const eventDefinitions: Record<
-  TelemetryEvent,
-  { observe: string; appsFlyer?: string; meta?: string }
-> = {
-  ...Object.fromEntries(Object.keys(commerceEvents).map(event => [event, { observe: event.replace('_', '.') }])) as Record<keyof typeof commerceEvents, { observe: string }>,
-  ...Object.fromEntries(productEvents.map(event => [event, { observe: event.replace('_', '.') }])) as Record<typeof productEvents[number], { observe: string }>,
-  onboarding_started: { observe: 'onboarding.started' },
-  onboarding_step_viewed: { observe: 'onboarding.step_viewed' },
-  onboarding_completed: { observe: 'onboarding.completed' },
-  checkin_confirmed: { observe: 'checkin.confirmed' },
-  report_opened: { observe: 'report.opened' },
-  paywall_rendered: {
-    observe: 'paywall.rendered',
-    appsFlyer: AFInAppEventType.CONTENT_VIEW,
-    meta: AppEventsLogger.AppEvents.ViewedContent,
-  },
-  subscription_management_opened: { observe: 'subscription.management_opened' },
-};
-
-let appsFlyerReady = false;
-let metaReady = false;
-let tikTokReady = false;
+Observe.configure({ dispatchingEnabled: false, dispatchInDebug: false });
+// Observe's automatic JS handler must see the same sanitized error as Sentry.
+const runtime = globalThis as typeof globalThis & { ErrorUtils?: { getGlobalHandler: () => ((error: Error, fatal?: boolean) => void); setGlobalHandler: (handler: (error: Error, fatal?: boolean) => void) => void } };
+if (runtime.ErrorUtils) {
+  const original = runtime.ErrorUtils.getGlobalHandler();
+  runtime.ErrorUtils.setGlobalHandler((error, fatal) => original(safeError(error), fatal));
+}
+export type TelemetryInitializationResult = { trackingPermission: string; promptedForTracking: boolean };
 let lastRoute: string | undefined;
-let initialization: Promise<TelemetryInitializationResult> | undefined;
+let lastSession: string | undefined;
+let backgroundAt: number | undefined;
 let subscriptionContext = { access: 'unknown', storeEnvironment: 'unknown', periodType: 'unknown', ownershipType: 'unknown' };
-const buildContext = commerceAttributes({
-  buildChannel: __DEV__ ? 'development'
-    : ['development', 'preview', 'production'].includes(Updates.channel || '') ? Updates.channel : 'unknown',
-  runtimeVersion: Updates.runtimeVersion || 'unknown',
-  updateId: Updates.updateId || 'embedded',
-});
-const pendingCommerce: { eventName: string; eventValues: Record<string, string | number> }[] = [];
-const pendingMeta: { eventName: string; eventValues: Record<string, string | number> }[] = [];
-const pendingTikTok: { eventName: string; eventValues: Record<string, string | number> }[] = [];
-
-function sendMetaCommerce(eventName: string, eventValues: Record<string, string | number>) {
-  try {
-    AppEventsLogger.logEvent(eventName, eventValues);
-    if (eventName === commerceEvents.paywall_rendered) AppEventsLogger.logEvent(AppEventsLogger.AppEvents.ViewedContent, {
-      fb_content_id: 'menocompass_pro', fb_content_type: 'subscription_paywall',
+let advertisingEpoch = 0;
+let authorized = false;
+let ready = false;
+let initialized = false;
+let adOperations = Promise.resolve();
+let bridgeOperations = Promise.resolve();
+const pending: { eventName: string; eventValues: Record<string, string | number> }[] = [];
+const adNames: Partial<Record<TelemetryEvent, string>> = {
+  app_launched: 'af_app_opened', onboarding_started: 'onboarding_started',
+  onboarding_step_viewed: 'onboarding_step_viewed', onboarding_completed: 'af_complete_registration',
+  paywall_rendered: 'af_content_view', purchase_started: 'af_initiated_checkout',
+  purchase_cancelled: 'purchase_cancelled', purchase_failed: 'purchase_failed',
+};
+const swallow = () => {};
+function bridge(id: string | null, epoch: number) {
+  bridgeOperations = bridgeOperations.catch(swallow).then(async () => {
+    if (!await Purchases.isConfigured()) return;
+    if (id && (!authorized || epoch !== advertisingEpoch)) return;
+    await Purchases.setAppsflyerID(id);
+  });
+  return bridgeOperations;
+}
+export function cancelPendingTrackingPermission() { if (!authorized) advertisingEpoch++; }
+export function suspendAdvertising() {
+  authorized = false; ready = false; advertisingEpoch++; pending.length = 0;
+  void bridge(null, advertisingEpoch).catch(swallow);
+  if (initialized) {
+    // Do not wait behind a pending start response to stop native collection.
+    try { void AppsFlyer.stop({ shouldStop: true }).catch(swallow); } catch { /* Best effort. */ }
+    try { void AppsFlyer.anonymizeUser({ shouldAnonymize: true }).catch(swallow); } catch { /* Best effort. */ }
+    adOperations = adOperations.catch(swallow).then(async () => {
+      await AppsFlyer.stop({ shouldStop: true });
+      await AppsFlyer.anonymizeUser({ shouldAnonymize: true });
     });
-  } catch (error) { recordInitializationFailure('meta', error); }
-}
-
-function sendTikTokCommerce(eventName: string, eventValues: Record<string, string | number>) {
-  try { void trackTikTokCommerceEvent(eventName, eventValues).catch(error => recordInitializationFailure('tiktok', error)); }
-  catch (error) { recordInitializationFailure('tiktok', error); }
-}
-
-function sendCommerce(eventName: string, eventValues: Record<string, string | number>) {
-  try {
-    void AppsFlyer.logEvent({ eventName, eventValues }).catch(error => recordInitializationFailure('appsflyer', error));
-  } catch (error) {
-    recordInitializationFailure('appsflyer', error);
+    void adOperations.catch(swallow);
   }
 }
-
-function recordInitializationFailure(
-  service: 'appsflyer' | 'meta' | 'permissions' | 'revenuecat' | 'tiktok' | 'posthog',
-  error: unknown,
-) {
-  try { Observe.logEvent('telemetry.initialization_failed', {
-    severity: 'warn',
-    attributes: {
-      service,
-      errorType: error instanceof Error ? error.name : 'UnknownError',
-    },
-  }); } catch { /* Diagnostics cannot interrupt purchases. */ }
-  if (__DEV__) console.warn(`${service} telemetry setup failed`, error);
-}
-
-function sanitizedDiagnosticError(error: unknown) {
-  const name = error instanceof Error && error.name
-    ? error.name
-    : 'ApplicationError';
-  const diagnostic = new Error('A peri operation failed.');
-  diagnostic.name = name;
-  if (error instanceof Error && error.stack) {
-    const stackLines = error.stack.split('\n');
-    diagnostic.stack = [`${name}: A peri operation failed.`, ...stackLines.slice(1)].join('\n');
-  }
-  return diagnostic;
-}
-
-function installPrivacySafeObserveErrorHandler() {
-  type ErrorHandler = (error: Error, isFatal?: boolean) => void;
-  type ErrorUtilsShape = {
-    getGlobalHandler: () => ErrorHandler | undefined;
-    setGlobalHandler: (handler: ErrorHandler) => void;
-  };
-  const runtime = globalThis as typeof globalThis & {
-    ErrorUtils?: ErrorUtilsShape;
-    __MENO_OBSERVE_ERROR_SANITIZED__?: boolean;
-  };
-  if (runtime.__MENO_OBSERVE_ERROR_SANITIZED__ || !runtime.ErrorUtils) return;
-  const observeHandler = runtime.ErrorUtils.getGlobalHandler();
-  if (!observeHandler) return;
-  runtime.ErrorUtils.setGlobalHandler((error, isFatal) => {
-    observeHandler(sanitizedDiagnosticError(error), isFatal);
-  });
-  runtime.__MENO_OBSERVE_ERROR_SANITIZED__ = true;
-}
-
-installPrivacySafeObserveErrorHandler();
-
-async function withRevenueCat(action: () => Promise<void>) {
-  if (await Purchases.isConfigured()) await action();
-}
-
-async function getRevenueCatCustomerId() {
-  if (!(await Purchases.isConfigured())) return undefined;
-  return Purchases.getAppUserID();
-}
-
-async function resolveTrackingPermission(): Promise<TelemetryInitializationResult> {
-  if (Platform.OS !== 'ios') {
-    return { trackingPermission: 'granted', promptedForTracking: false };
-  }
-
-  try {
-    const current = await getTrackingPermissionsAsync();
-    if (current.status !== 'undetermined') {
-      return { trackingPermission: current.status, promptedForTracking: false };
+function startAdvertising(epoch: number) {
+  const current = () => authorized && epoch === advertisingEpoch && AppState.currentState === 'active';
+  adOperations = adOperations.catch(swallow).then(async () => {
+    if (!current()) return;
+    await AppsFlyer.setDisableIDFVCollection({ disable: true });
+    if (!current()) return;
+    await AppsFlyer.anonymizeUser({ shouldAnonymize: false });
+    if (!current()) return;
+    await AppsFlyer.stop({ shouldStop: false });
+    if (!current()) return;
+    await AppsFlyer.start({ awaitResponse: true });
+    if (!current()) { await AppsFlyer.stop({ shouldStop: true }); return; }
+    ready = true;
+    for (const event of pending.splice(0)) {
+      if (!current()) break;
+      await AppsFlyer.logEvent(event);
     }
-    return {
-      trackingPermission: (await requestTrackingPermissionsAsync()).status,
-      promptedForTracking: true,
-    };
-  } catch (error) {
-    recordInitializationFailure('permissions', error);
-    return { trackingPermission: 'unavailable', promptedForTracking: false };
+    const id = await AppsFlyer.getAppsFlyerUID();
+    if (id && current()) await bridge(id, epoch);
+  });
+  void adOperations.catch(() => { ready = false; pending.length = 0; });
+}
+export async function initializeTelemetry(prompt = true): Promise<TelemetryInitializationResult> {
+  const epoch = ++advertisingEpoch;
+  authorized = false; ready = false;
+  if (Platform.OS !== 'ios' || AppState.currentState !== 'active') {
+    suspendAdvertising(); return { trackingPermission: 'unavailable', promptedForTracking: false };
   }
-}
-
-async function initializeTikTok(trackingPermission: TrackingPermission) {
-  if (Platform.OS !== 'ios') return;
-  await initializeTikTokBusiness(trackingPermission);
-  tikTokReady = true;
-  for (const event of pendingTikTok.splice(0)) sendTikTokCommerce(event.eventName, event.eventValues);
-}
-
-function sendAppsFlyerConversionDataToRevenueCat(data: ConversionData) {
-  void withRevenueCat(() => Purchases.setAppsFlyerConversionData({ status: 'success', data })).catch(error => {
-    recordInitializationFailure('revenuecat', error);
-  });
-}
-
-async function initializeAppsFlyer() {
-  if (!appsFlyerDevKey) return;
-
-  const revenueCatCustomerId = await getRevenueCatCustomerId().catch(error => {
-    recordInitializationFailure('revenuecat', error);
-    return undefined;
-  });
-
-  await AppsFlyer.registerDeepLinkListener({
-    onDeepLinking: (data: DeepLinkData) => {
-      Observe.logEvent('attribution.deep_link_resolved', {
-        attributes: { status: data.status },
-      });
-    },
-  });
-
-  const initialized = AppsFlyer.init({ devKey: appsFlyerDevKey, appId: appleAppId });
-  const started = new Promise<void>((resolve, reject) => {
-    const registration = AppsFlyer.registerSessionReadyListener(() => {
+  let prompted = false;
+  try {
+    let permission = await getTrackingPermissionsAsync();
+    if (epoch !== advertisingEpoch || AppState.currentState !== 'active') return { trackingPermission: 'unavailable', promptedForTracking: false };
+    if (permission.status === 'undetermined' && prompt) {
+      prompted = true;
+      permission = await requestTrackingPermissionsAsync();
+    }
+    if (epoch !== advertisingEpoch || AppState.currentState !== 'active') return { trackingPermission: 'unavailable', promptedForTracking: prompted };
+    if (permission.status !== 'granted') { suspendAdvertising(); return { trackingPermission: permission.status, promptedForTracking: prompted }; }
+    authorized = true;
+    const devKey = process.env.EXPO_PUBLIC_APPSFLYER_DEV_KEY;
+    if (!__DEV__ && devKey) {
+      // SDK 7 uses manual start from the session-ready listener.
       void (async () => {
-        if (revenueCatCustomerId) {
-          try {
-            await AppsFlyer.setCustomerUserId({ customerId: revenueCatCustomerId });
-          } catch (error) {
-            recordInitializationFailure('appsflyer', error);
-          }
-        }
-        await AppsFlyer.start({ awaitResponse: true });
-      })().then(resolve, reject);
-    });
-    void registration.catch(reject);
-  });
-  const conversionListener = AppsFlyer.registerConversionListener({
-    onConversionDataSuccess: sendAppsFlyerConversionDataToRevenueCat,
-    onConversionDataFail: error => recordInitializationFailure('appsflyer', error),
-  });
-
-  await Promise.all([initialized, conversionListener]);
-  await started;
-  appsFlyerReady = true;
-  for (const event of pendingCommerce.splice(0)) sendCommerce(event.eventName, event.eventValues);
-
-  const appsFlyerId = await AppsFlyer.getAppsFlyerUID();
-  if (appsFlyerId) await withRevenueCat(() => Purchases.setAppsflyerID(appsFlyerId));
-}
-
-async function initializeMeta(trackingAuthorized: boolean) {
-  if (!metaAppId || !metaClientToken) return;
-
-  Settings.setAppID(metaAppId);
-  Settings.setClientToken(metaClientToken);
-  Settings.setAppName('peri');
-  Settings.setAutoLogAppEventsEnabled(false);
-  Settings.setAdvertiserIDCollectionEnabled(trackingAuthorized);
-  Settings.initializeSDK();
-
-  if (Platform.OS === 'ios') {
-    await Settings.setAdvertiserTrackingEnabled(trackingAuthorized);
-  }
-
-  metaReady = true;
-  AppEventsLogger.logEvent('fb_mobile_activate_app');
-  for (const event of pendingMeta.splice(0)) sendMetaCommerce(event.eventName, event.eventValues);
-
-  if (trackingAuthorized) {
-    const anonymousId = await AppEventsLogger.getAnonymousID();
-    if (anonymousId) await withRevenueCat(() => Purchases.setFBAnonymousID(anonymousId));
-  }
-}
-
-export function initializeTelemetry() {
-  if (initialization) return initialization;
-
-  initialization = (async () => {
-    installPrivacySafeObserveErrorHandler();
-    Observe.configure({
-      environment: String(buildContext.buildChannel),
-      dispatchInDebug: false,
-      sampleRate: 1,
-    });
-    const productAnalytics = initializeProductAnalytics().then(async () => {
-      const anonymousId = getProductAnalyticsId();
-      if (anonymousId) await withRevenueCat(() => Purchases.setAttributes({ '$posthogUserId': anonymousId }));
-    }).catch(error => recordInitializationFailure('posthog', error));
-
-    const permissionResult = await resolveTrackingPermission();
-    const permission = permissionResult.trackingPermission;
-    Observe.logEvent('tracking.permission_resolved', {
-      attributes: {
-        status: permission,
-        prompted: permissionResult.promptedForTracking,
-      },
-    });
-    const trackingAuthorized = permission === 'granted';
-    Observe.setGlobalAttributes({
-      trackingPermission: permission,
-      ...buildContext,
-      ...subscriptionContext,
-    });
-
-    const tasks = [
-      productAnalytics,
-      initializeAppsFlyer().catch(error => recordInitializationFailure('appsflyer', error)),
-      initializeMeta(trackingAuthorized).catch(error => recordInitializationFailure('meta', error)),
-      initializeTikTok(permission).catch(error => recordInitializationFailure('tiktok', error)),
-    ];
-
-    if (trackingAuthorized) {
-      tasks.push(
-        withRevenueCat(() => Purchases.collectDeviceIdentifiers()).catch(error => {
-          recordInitializationFailure('revenuecat', error);
-        }),
-      );
+        await AppsFlyer.registerSessionReadyListener(() => startAdvertising(advertisingEpoch));
+        if (epoch !== advertisingEpoch || !authorized) return;
+        if (!initialized) {
+          initialized = true;
+          await AppsFlyer.setDisableIDFVCollection({ disable: true });
+          if (epoch !== advertisingEpoch || !authorized) return;
+          await AppsFlyer.init({ devKey, appId: process.env.EXPO_PUBLIC_APPLE_APP_ID || '6798018790' });
+        } else if (await AppsFlyer.isSessionReady()) startAdvertising(epoch);
+      })().catch(() => { initialized = false; ready = false; pending.length = 0; });
     }
-
-    // Analytics must not indefinitely hold the automatic subscription screen.
-    // SDK initialization continues in the background and flushes queued events
-    // if it recovers. ATT itself is resolved before starting this deadline.
-    let deadline: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      Promise.all(tasks),
-      new Promise<void>(resolve => {
-        deadline = setTimeout(() => {
-          try { Observe.logEvent('telemetry.initialization_timed_out'); } catch { /* Best effort. */ }
-          resolve();
-        }, 8_000);
-      }),
-    ]).finally(() => { if (deadline) clearTimeout(deadline); });
-    return permissionResult;
-  })();
-
-  return initialization;
+    return { trackingPermission: permission.status, promptedForTracking: prompted };
+  } catch { suspendAdvertising(); return { trackingPermission: 'unavailable', promptedForTracking: prompted }; }
 }
-
+let consentTransition = 0;
+export async function setAnalyticsConsent(allowed: boolean, persist = true) {
+  const transition = ++consentTransition;
+  if (!allowed) {
+    changeConsent(false); resetAnalyticsSession(); lastRoute = undefined; lastSession = undefined;
+    Observe.configure({ dispatchingEnabled: false, dispatchInDebug: false });
+    cancelAnalyticsRequests(); void stopProductAnalytics().catch(swallow);
+    if (persist) await persistAnalyticsConsent(false);
+    return;
+  }
+  if (!canRestartAnalytics()) throw new Error('Restart required after analytics deletion');
+  await prepareAnalyticsIdentity();
+  if (transition !== consentTransition) return;
+  if (persist) await persistAnalyticsConsent(true);
+  if (transition !== consentTransition) return;
+  // With dispatch disabled this advances Observe's cursors without uploading.
+  // Pre-consent native launch/error metrics must never be replayed after opt-in.
+  await Observe.dispatchEvents();
+  if (transition !== consentTransition) return;
+  changeConsent(true); resetAnalyticsSession(); lastRoute = undefined;
+  Observe.configure({ dispatchingEnabled: true, dispatchInDebug: false });
+  void initializeProductAnalytics().catch(swallow);
+  void sendInstallObservation().catch(swallow);
+  trackTelemetryEvent('analytics_enabled');
+}
+export async function deleteTrackingData() {
+  await setAnalyticsConsent(false);
+  await stopProductAnalytics(true);
+  return eraseAnalytics();
+}
+export function telemetryBackground() {
+  backgroundAt ??= Date.now(); suspendAdvertising(); setReplayRoute(false);
+}
+export function telemetryForeground() {
+  void retryAnalyticsErasure().catch(swallow);
+  if (backgroundAt !== undefined && Date.now() - backgroundAt >= 30000) trackTelemetryEvent('app_launched');
+  backgroundAt = undefined;
+}
+export function setTelemetryReplay(onboarding: boolean) { setReplayRoute(onboarding && analyticsAllowed()); }
 export function setTelemetrySubscriptionState(customerInfo: CustomerInfo) {
+  // Remove bridges used by older releases; dashboard integrations must also be disabled.
+  try { void Purchases.setAttributes({ '$posthogUserId': '', '$fbAnonId': '', '$idfa': '', '$idfv': '' }).catch(swallow); } catch { /* Subscription access remains available. */ }
+  if (!authorized) void bridge(null, advertisingEpoch).catch(swallow);
   const next = subscriptionSnapshot(customerInfo);
   const changed = JSON.stringify(next) !== JSON.stringify(subscriptionContext);
   subscriptionContext = next;
-  try { Observe.setGlobalAttributes({
-    ...subscriptionContext,
-  }); } catch { /* Access checks must survive unavailable diagnostics. */ }
   if (changed) trackTelemetryEvent('subscription_status_checked');
 }
-
-export function trackTelemetryEvent(event: TelemetryEvent, attributes?: ObserveAttributes) {
+export function trackTelemetryEvent(event: TelemetryEvent, attributes?: Record<string, unknown>) {
   if (!telemetryEvents.has(event)) return;
-  const definition = eventDefinitions[event];
-  const commerceName = commerceEvents[event as keyof typeof commerceEvents];
-  const safeAttributes = telemetryAttributes(event, { ...buildContext, ...subscriptionContext, ...attributes });
-  try { Observe.logEvent(definition.observe, safeAttributes ? { attributes: safeAttributes } : undefined); } catch { /* Best effort. */ }
-  try { captureProductEvent(event, safeAttributes); } catch (error) { recordInitializationFailure('posthog', error); }
-
-  if (commerceName && !__DEV__) {
-    const marketingAttributes = commerceAttributes(safeAttributes);
-    if (appsFlyerReady) sendCommerce(commerceName, marketingAttributes);
-    else if (appsFlyerDevKey && pendingCommerce.length < 50) {
-      pendingCommerce.push({ eventName: commerceName, eventValues: marketingAttributes });
+  const safe = telemetryAttributes(event, { ...subscriptionContext, ...attributes });
+  if (analyticsAllowed()) {
+    const fallback = sessionContext();
+    const context = { ...fallback, sessionId: getReplaySessionId() || fallback.sessionId };
+    if (lastSession !== context.sessionId) {
+      lastSession = context.sessionId;
+      if (event !== 'session_started') {
+        try { captureProductEvent('session_started', {}); Observe.logEvent('session.started', { attributes: context }); } catch { /* Best effort. */ }
+      }
     }
-    if (metaReady) sendMetaCommerce(commerceName, marketingAttributes);
-    else if (metaAppId && metaClientToken && pendingMeta.length < 50) pendingMeta.push({ eventName: commerceName, eventValues: marketingAttributes });
-    if (tikTokReady) sendTikTokCommerce(commerceName, marketingAttributes);
-    else if (Platform.OS === 'ios' && pendingTikTok.length < 50) pendingTikTok.push({ eventName: commerceName, eventValues: marketingAttributes });
+    try { Observe.logEvent(event.replace('_', '.'), { attributes: { ...safe, ...context } }); } catch { /* Best effort. */ }
+    try { captureProductEvent(event, safe); } catch { /* Checkout must remain available. */ }
   }
-
-  if (appsFlyerReady && definition.appsFlyer) {
-    try { void AppsFlyer.logEvent({
-      eventName: definition.appsFlyer,
-      eventValues: {
-        af_content_id: 'menocompass_pro',
-        af_content_type: 'subscription_paywall',
-      },
-    }).catch(error => recordInitializationFailure('appsflyer', error));
-    } catch (error) { recordInitializationFailure('appsflyer', error); }
-  }
-
+  const eventName = adNames[event];
+  if (!eventName || !authorized || __DEV__ || AppState.currentState !== 'active') return;
+  const eventValues: Record<string, string | number> = {};
+  if (typeof safe.step === 'number') eventValues.step_index = safe.step;
+  if (safe.packageType === 'MONTHLY' || safe.packageType === 'ANNUAL') eventValues.plan = safe.packageType;
+  if (event === 'paywall_rendered') eventValues.af_content_type = 'paywall';
+  if (ready) { try { void AppsFlyer.logEvent({ eventName, eventValues }).catch(swallow); } catch { /* Best effort. */ } }
+  else if (pending.length < 50) pending.push({ eventName, eventValues });
 }
-
-export function flushTelemetry() {
-  void flushProductAnalytics().catch(error => recordInitializationFailure('posthog', error));
-  try { if (metaReady) AppEventsLogger.flush(); } catch (error) { recordInitializationFailure('meta', error); }
-}
-
+export function flushTelemetry() { /* API has no process-dependent flush queue. */ }
 export function reportTelemetryError(error: unknown) {
-  try { Observe.reportError(sanitizedDiagnosticError(error)); } catch { /* Best effort. */ }
+  try { reportCrash(error); } catch { /* Best effort. */ }
+  if (analyticsAllowed()) { try { Observe.reportError(safeError(error)); } catch { /* Best effort. */ } }
 }
-
 export function setTelemetryRoute(route: string) {
   if (!telemetryRoutes.has(route) || route === lastRoute) return;
   lastRoute = route;
-  try { Observe.setGlobalAttributes({ route }); } catch { /* Best effort. */ }
   trackTelemetryEvent('screen_viewed', { route });
 }

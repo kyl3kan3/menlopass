@@ -6,12 +6,11 @@ const test = require('node:test');
 const moduleRoot = path.resolve(__dirname, '..');
 const mobileRoot = path.resolve(moduleRoot, '..', '..');
 
-test('TikTok is an explicit native module, not an app-delegate subscriber', () => {
+test('legacy TikTok module is excluded from native autolinking', () => {
   const config = JSON.parse(
     fs.readFileSync(path.join(moduleRoot, 'expo-module.config.json'), 'utf8'),
   );
-  assert.deepEqual(config.apple.modules, ['MenoCompassTikTokBusinessModule']);
-  assert.equal(config.apple.appDelegateSubscribers, undefined);
+  assert.deepEqual(config.platforms, []);
 
   const swift = fs.readFileSync(
     path.join(moduleRoot, 'ios', 'MenoCompassTikTokBusinessModule.swift'),
@@ -34,20 +33,9 @@ test('native initialization is guarded by resolved ATT state', () => {
   assert.doesNotMatch(swift, /setDelayForATTUserAuthorizationInSeconds/);
 });
 
-test('JavaScript records and forwards ATT only after awaiting its result', () => {
+test('active telemetry and native configuration contain no direct TikTok initialization or credentials', () => {
   const telemetry = fs.readFileSync(path.join(mobileRoot, 'telemetry.native.ts'), 'utf8');
-  const permissionResolution = telemetry.indexOf(
-    'const permissionResult = await resolveTrackingPermission();',
-  );
-  const permissionObservation = telemetry.indexOf(
-    "Observe.logEvent('tracking.permission_resolved'",
-  );
-  const initialization = telemetry.indexOf('initializeTikTok(permission)');
-
-  assert.notEqual(permissionResolution, -1);
-  assert.notEqual(permissionObservation, -1);
-  assert.notEqual(initialization, -1);
-  assert.ok(permissionResolution < permissionObservation);
-  assert.ok(permissionObservation < initialization);
-  assert.ok(permissionResolution < initialization);
+  const config = fs.readFileSync(path.join(mobileRoot, 'app.config.js'), 'utf8');
+  assert.doesNotMatch(telemetry, /initializeTikTok|trackTikTokCommerceEvent/);
+  assert.doesNotMatch(config, /MenoCompassTikTokAppSecret|TIKTOK_APP_SECRET/);
 });
