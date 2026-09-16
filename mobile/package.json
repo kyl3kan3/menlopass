@@ -1,6 +1,6 @@
 {
   "name": "menlopass-mobile",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "main": "index",
   "dependencies": {
     "@expo/ui": "~57.0.16",

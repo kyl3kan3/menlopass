@@ -54,7 +54,9 @@ function providerConfig() {
 async function jsonRequest(url, options) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error('Provider request failed');
-  return response.status === 204 ? null : response.json();
+  // PostHog deletion can succeed with an empty 200/202 response, not just 204.
+  const body = await response.text();
+  return body.trim() ? JSON.parse(body) : null;
 }
 async function deliver(job, client) {
   const config = providerConfig();

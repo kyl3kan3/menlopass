@@ -1,0 +1,7 @@
+test-results/
+node_modules/
+mobile/node_modules/
+.env
+.env.*
+mobile/.env
+mobile/.env.*

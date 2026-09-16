@@ -2,8 +2,8 @@
   "expo": {
     "name": "peri",
     "slug": "menlopass",
-    "version": "1.2.1",
-    "runtimeVersion": "1.2.1-native-tracking-1",
+    "version": "1.2.2",
+    "runtimeVersion": "1.2.2-native-tracking-1",
     "updates": {
       "url": "https://u.expo.dev/e7a9bddc-4193-41a0-81f6-b7c74b59aece"
     },

@@ -28,6 +28,39 @@ test('pseudonym has the same deterministic namespace as mobile and never exposes
   assert.equal(analytics.pseudonym(id), 'peri_' + analytics.hash(`peri:analytics:v1:${id}`));
   assert.equal(analytics.pseudonym(id).includes(token), false);
 });
+
+test('provider erasure completes after an empty successful HTTP response', async t => {
+  const pg = new PGlite();
+  await pg.exec(fs.readFileSync(require('node:path').join(__dirname, 'migrations/001_analytics.sql'), 'utf8'));
+  await pg.exec(`CREATE FUNCTION pg_advisory_xact_lock(bigint) RETURNS void LANGUAGE SQL AS 'SELECT';
+    CREATE FUNCTION pg_try_advisory_xact_lock(bigint) RETURNS boolean LANGUAGE SQL AS 'SELECT true';`);
+  const db = { connect: async () => ({ query: (sql, args) => pg.query(sql, args), release() {} }) };
+  const config = { POSTHOG_HOST: 'https://us.i.posthog.com', POSTHOG_API_KEY: 'synthetic', POSTHOG_PROJECT_ID: '1', POSTHOG_PERSONAL_API_KEY: 'synthetic' };
+  const previous = Object.fromEntries(Object.keys(config).map(key => [key, process.env[key]]));
+  Object.assign(process.env, config);
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push({ url, method: options?.method || 'GET' });
+    if (!options?.method) return new Response(JSON.stringify({ results: [{ id: '6763e5d5-1499-52b5-b12c-29c0b858f5ed' }] }));
+    return new Response('', { status: 200 });
+  });
+  try {
+    await analytics.erase(analytics.hash('synthetic-erasure'), db);
+    await pg.query("UPDATE analytics_jobs SET stage='person_pending'");
+    await analytics.flush(db);
+    const job = (await pg.query('SELECT stage, attempts FROM analytics_jobs')).rows[0];
+    assert.equal(job.stage, 'done');
+    assert.equal(job.attempts, 0);
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].method, 'DELETE');
+    assert.ok(requests[1].url.endsWith('?delete_events=true&delete_recordings=true'));
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    await pg.close();
+  }
+});
 test('SQL transactions deduplicate, persist retry jobs, enforce quotas and erase records with a permanent tombstone', async () => {
   const pg = new PGlite();
   await pg.exec(fs.readFileSync(require('node:path').join(__dirname, 'migrations/001_analytics.sql'), 'utf8'));

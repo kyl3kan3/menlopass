@@ -141,3 +141,59 @@ Before release, record evidence for:
 
 References: [Observe dispatch gating](https://docs.expo.dev/versions/latest/sdk/observe/),
 [PostHog person/event/recording deletion](https://posthog.com/docs/data/persons).
+
+## Connected-service rollout — September 16, 2026
+
+- Production API: `https://menlopass.vercel.app`; Vercel project `menlopass`.
+  Dedicated Neon project `peri-analytics` (`square-union-01878777`), PostgreSQL 17,
+  database `peri_analytics`. Migration applied using the direct endpoint; Vercel
+  uses the pooled endpoint with full TLS certificate verification. Secrets are
+  stored in Vercel, not the repository or native bundle.
+- Vercel's daily authenticated cron is deployed. A published firewall rule limits
+  `/api/analytics` to 120 requests per IP per 60 seconds, in addition to database
+  quotas. This can throttle devices sharing an IP during a burst.
+- PostHog project `MenoCompass` (602769): replay enabled, 30-day recording
+  retention, total masking, console/network capture disabled, client IP discard
+  enabled. The erasure credential has only `person:write` access to this project.
+- RevenueCat project `MenoCompass` (`50953eca`): verified products
+  `com.kyl3kan3.menlopass.pro.monthly` and `com.kyl3kan3.menlopass.pro.annual`.
+  Both server and EAS use this exact allowlist. Removed direct PostHog and Meta
+  integrations. AppsFlyer is the sole remaining active integration. Initial paid
+  purchase, trial conversion, renewal and non-subscription purchase map to
+  `af_purchase`; other lifecycle names remain `rc_*`.
+- AppsFlyer iOS app `id6798018790`: Meta maps `af_purchase` to
+  `fb_mobile_purchase`; TikTok maps it to `Purchase`. Removed old paid lifecycle
+  rows to avoid duplicate reporting. Event postbacks use partner-attributed users
+  only. TikTok retains `af_content_view` → `ViewContent` and trial-start mapping,
+  without values/revenue. Advanced matching is disabled on both partners.
+  Actual purchase receipts through these routes still require device testing.
+- Sentry project `decent4/peri` created and DSN/build configuration saved in EAS.
+  The build upload credential is an EAS secret. Source maps and seven native
+  debug information files uploaded successfully for
+  `com.kyl3kan3.menlopass@1.2.1+37`.
+- EAS iOS build `950ebde7-6896-4efb-b2cb-7df61f2872d0` finished successfully:
+  version 1.2.1, build 37, runtime `1.2.1-native-tracking-1`.
+  Apple rejected upload `c31a396b-a827-447d-98dc-ff534163e03f` because the
+  already-released 1.2.1 version train is closed. The next build uses version
+  1.2.2 and runtime `1.2.2-native-tracking-1`.
+  No public App Store release or OTA to older binaries was performed.
+
+Live synthetic acceptance (`node server/acceptance.cjs`, explicit server
+environment plus `ANALYTICS_API_URL` required) passed authentication, strict
+payload validation, eight concurrent duplicate requests, one persisted event,
+PostHog delivery, first-party-only event exclusion, concurrent capture/deletion,
+and permanent tombstone rejection. PostHog Activity showed the expected event,
+pseudonym and `buildChannel=acceptance`. The synthetic erasure job completed and
+the PostHog person lookup returned no results at 10:19 UTC. An empty successful
+provider deletion response initially caused an unnecessary retry; response
+handling now accepts empty success bodies, with a passing regression test.
+Run `node server/acceptance.cjs --check-erasure` after the ten-minute ingestion
+delay to verify subsequent synthetic checks. Event-store deletion is asynchronous;
+recording erasure remains untested because this check created no recording.
+Local test state is ignored
+under `test-results/` and contains no bearer credential.
+
+The downloaded IPA confirms the intended app/build, ATT purpose string,
+AppsFlyer attribution endpoint, API URL and Sentry project. Private PostHog and
+Sentry credentials are absent from the JavaScript bundle. This is archive
+inspection, not proof of runtime masking, permission gating or device behavior.
