@@ -1,7 +1,7 @@
 # peri tracking: implementation and release acceptance
 
 This supersedes the earlier mobile tracking notes for runtime
-`1.2.1-native-tracking-1`. Older binaries retain their earlier SDK behavior.
+`1.2.2-native-tracking-1`. Older binaries retain their earlier SDK behavior.
 The blueprint was adapted to an offline app: there are no accounts or health API.
 Analytics uses a random installation credential stored in SecureStore. The server
 stores its SHA-256 digest, and PostHog uses `peri_` + SHA-256 of
@@ -123,10 +123,12 @@ PostgreSQL tests execute the migration, atomic insert/dedup, provider failure re
 quotas, first-party deletion and tombstone rejection. PGlite uses single-connection
 advisory-lock shims, so hosted PostgreSQL concurrency is **not** verified by that test.
 
-The full `npm test` suite, mobile TypeScript check, iOS JavaScript bundle export, and web export passed. iOS native prebuild cannot run on this Windows host and was not verified.
+The full `npm test` suite, mobile TypeScript check, iOS JavaScript bundle export,
+and web export passed. Native iOS compilation subsequently passed on EAS; see
+the connected-service evidence below.
 
-No physical device or receiving provider was verified in this implementation run.
-Before release, record evidence for:
+No physical device was verified in this implementation run. Receiving-provider
+synthetic checks are recorded below. Before release, record evidence for:
 
 - All analytics on/off × ATT granted/denied/unavailable combinations, upgrade
   review, Settings revocation, background/foreground, and opt-out during startup.
@@ -171,11 +173,25 @@ References: [Observe dispatch gating](https://docs.expo.dev/versions/latest/sdk/
   The build upload credential is an EAS secret. Source maps and seven native
   debug information files uploaded successfully for
   `com.kyl3kan3.menlopass@1.2.1+37`.
+  Server-side IP scrubbing is enabled; minidump attachment storage inherits the
+  organization's disabled setting. A synthetic sanitized diagnostic was accepted
+  and appeared as issue `7735384879` in the `acceptance` environment. This checks
+  the receiving project, not crash capture on a device.
 - EAS iOS build `950ebde7-6896-4efb-b2cb-7df61f2872d0` finished successfully:
   version 1.2.1, build 37, runtime `1.2.1-native-tracking-1`.
   Apple rejected upload `c31a396b-a827-447d-98dc-ff534163e03f` because the
-  already-released 1.2.1 version train is closed. The next build uses version
-  1.2.2 and runtime `1.2.2-native-tracking-1`.
+  already-released 1.2.1 version train is closed. Replacement build
+  `82dd0850-473e-4f9c-8c54-9d29f56cb025` finished at 10:29 UTC: version 1.2.2,
+  build 38, runtime `1.2.2-native-tracking-1`, source revision `4a03acf`.
+  Apple upload `b39c25ce-f2b8-48e7-83c3-d9cf01969a4d` reported Apple's
+  `UNEXPECTED_ERROR` after transferring the binary; retry
+  `2ab3ee52-4f38-497f-87ec-8f0734a932f6` also has an errored EAS summary.
+  Nevertheless, a subsequent authenticated App Store Connect status check
+  confirmed **1.2.2 (38): VALID, IN_BETA_TESTING**, uploaded at 10:32:51 UTC.
+  External state is `READY_FOR_BETA_SUBMISSION`. This verifies Apple acceptance
+  and internal beta state, not access for any particular tester.
+  The downloaded build 38 archive independently confirms the bundle ID,
+  version/build, ATT purpose string and runtime.
   No public App Store release or OTA to older binaries was performed.
 
 Live synthetic acceptance (`node server/acceptance.cjs`, explicit server
@@ -190,10 +206,17 @@ handling now accepts empty success bodies, with a passing regression test.
 Run `node server/acceptance.cjs --check-erasure` after the ten-minute ingestion
 delay to verify subsequent synthetic checks. Event-store deletion is asynchronous;
 recording erasure remains untested because this check created no recording.
+The synthetic event still appeared in Activity at 10:24 UTC; provider acceptance
+and disappearance of the person do not prove completed event-store erasure.
 Local test state is ignored
 under `test-results/` and contains no bearer credential.
 
-The downloaded IPA confirms the intended app/build, ATT purpose string,
+The downloaded build 37 IPA confirms the intended app/build, ATT purpose string,
 AppsFlyer attribution endpoint, API URL and Sentry project. Private PostHog and
 Sentry credentials are absent from the JavaScript bundle. This is archive
 inspection, not proof of runtime masking, permission gating or device behavior.
+
+ChatGPT Ads remains pending: the account has only a generic web data source.
+Creating a dedicated peri source requires accepting OpenAI Conversion Terms;
+that approval was requested. No existing source was reused, no campaign was
+changed, and no website pixel was enabled.
