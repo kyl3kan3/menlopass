@@ -220,3 +220,21 @@ ChatGPT Ads remains pending: the account has only a generic web data source.
 Creating a dedicated peri source requires accepting OpenAI Conversion Terms;
 that approval was requested. No existing source was reused, no campaign was
 changed, and no website pixel was enabled.
+
+## Startup crash correction — September 17, 2026
+
+Sentry issue `PERI-2` (`7738588936`) reports a fatal native AppsFlyer exception
+in TestFlight 1.2.2 (38): `devKey and appleAppID must be set before calling
+registerSessionReadyListener:`. The embedded update was running. The startup
+path registered that listener before calling `init`, which cannot be recovered
+by a JavaScript promise catch.
+
+The corrected path awaits native initialization before listener registration,
+sets the initialized flag only after success, and rechecks advertising permission
+before registering. Session start remains in the readiness callback. Regression
+tests cover the native initialization precondition, delayed initialization,
+cancellation during initialization, and background/foreground reuse.
+This JavaScript change is compatible with runtime `1.2.2-native-tracking-1`.
+Device recovery and OTA deployment are not yet verified.
+
+ChatGPT Ads and website pixel work is paused at the user's request.

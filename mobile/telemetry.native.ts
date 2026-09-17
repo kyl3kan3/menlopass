@@ -104,14 +104,15 @@ export async function initializeTelemetry(prompt = true): Promise<TelemetryIniti
     if (!__DEV__ && devKey) {
       // SDK 7 uses manual start from the session-ready listener.
       void (async () => {
-        await AppsFlyer.registerSessionReadyListener(() => startAdvertising(advertisingEpoch));
-        if (epoch !== advertisingEpoch || !authorized) return;
         if (!initialized) {
-          initialized = true;
           await AppsFlyer.setDisableIDFVCollection({ disable: true });
           if (epoch !== advertisingEpoch || !authorized) return;
           await AppsFlyer.init({ devKey, appId: process.env.EXPO_PUBLIC_APPLE_APP_ID || '6798018790' });
-        } else if (await AppsFlyer.isSessionReady()) startAdvertising(epoch);
+          initialized = true;
+        }
+        if (epoch !== advertisingEpoch || !authorized) return;
+        // iOS throws a fatal native exception if this precedes init().
+        await AppsFlyer.registerSessionReadyListener(() => startAdvertising(advertisingEpoch));
       })().catch(() => { initialized = false; ready = false; pending.length = 0; });
     }
     return { trackingPermission: permission.status, promptedForTracking: prompted };

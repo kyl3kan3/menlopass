@@ -17,7 +17,7 @@ function load(file, mocks, globals = {}) {
 const settle = async () => { for (let i = 0; i < 80; i++) await Promise.resolve(); };
 function harness(permission = 'denied', platform = 'ios') {
   const calls = [], events = [], observe = [], bridges = [];
-  let allowed = false, ready, pendingPermission, pendingStart;
+  let allowed = false, ready, pendingPermission, pendingStart, pendingInit, configured = false;
   const appState = { currentState: 'active' };
   const contract = require('../../shared/tracking-contract');
   const commerce = load('commerce-events.ts', {});
@@ -27,8 +27,12 @@ function harness(permission = 'denied', platform = 'ios') {
     'expo-tracking-transparency': { getTrackingPermissionsAsync: async () => pendingPermission ? await pendingPermission : ({ status: permission }), requestTrackingPermissionsAsync: async () => ({ status: permission }) },
     'react-native': { Platform: { OS: platform }, AppState: appState },
     'react-native-appsflyer': { AppsFlyer: {
-      registerSessionReadyListener: async callback => { ready = callback; },
-      init: async () => calls.push('init'), isSessionReady: async () => true,
+      registerSessionReadyListener: async callback => {
+        calls.push('listener');
+        assert.ok(configured, 'native iOS requires init before registering the session listener');
+        ready = callback;
+      },
+      init: async () => { calls.push('init'); if (pendingInit) await pendingInit; configured = true; }, isSessionReady: async () => true,
       start: async () => { calls.push('start'); if (pendingStart) await pendingStart; }, stop: async p => calls.push(p.shouldStop ? 'stop' : 'resume'),
       setDisableIDFVCollection: async () => calls.push('disableIDFV'), anonymizeUser: async () => {},
       getAppsFlyerUID: async () => 'af-generated', logEvent: async e => calls.push(e),
@@ -41,7 +45,7 @@ function harness(permission = 'denied', platform = 'ios') {
     './analytics-session': { resetAnalyticsSession: () => {}, sessionContext: () => ({ sessionId: crypto.randomUUID() }) },
     './error-reporting': { reportCrash: () => {}, safeError: () => new Error('safe') },
   });
-  return { ...api, calls, events, observe, bridges, appState, ready: () => ready?.(), deferStart: () => { let resolve; pendingStart = new Promise(r => resolve = r); return resolve; }, deferPermission: () => { let resolve; pendingPermission = new Promise(r => resolve = r); return resolve; } };
+  return { ...api, calls, events, observe, bridges, appState, ready: () => ready?.(), deferInit: () => { let resolve; pendingInit = new Promise(r => resolve = r); return resolve; }, deferStart: () => { let resolve; pendingStart = new Promise(r => resolve = r); return resolve; }, deferPermission: () => { let resolve; pendingPermission = new Promise(r => resolve = r); return resolve; } };
 }
 for (const permission of ['denied', 'undetermined', 'restricted', 'unavailable']) {
   test(`ATT ${permission} never initializes advertising, even with analytics on`, async () => {
@@ -67,6 +71,31 @@ test('analytics and advertising are independent, queue is bounded to approved ev
   await h.setAnalyticsConsent(false); const before = h.events.length;
   h.trackTelemetryEvent('paywall_rendered'); assert.equal(h.events.length, before);
   assert.equal(h.calls.filter(x => x.eventName === 'af_content_view').length, 2);
+});
+test('cold launch initializes AppsFlyer before registering its native session listener', async () => {
+  const h = harness('granted');
+  await h.initializeTelemetry(); await settle();
+  assert.deepEqual(h.calls.slice(0, 3), ['disableIDFV', 'init', 'listener']);
+  assert.equal(h.calls.includes('start'), false);
+  h.ready(); await settle();
+  assert.equal(h.calls.filter(call => call === 'start').length, 1);
+  h.suspendAdvertising(); await settle();
+  await h.initializeTelemetry(false); await settle();
+  assert.equal(h.calls.filter(call => call === 'init').length, 1);
+  h.ready(); await settle();
+  assert.equal(h.calls.filter(call => call === 'start').length, 2);
+});
+test('session listener waits for native initialization and respects cancellation during init', async () => {
+  const h = harness('granted'), resolve = h.deferInit();
+  await h.initializeTelemetry(); await settle();
+  assert.equal(h.calls.includes('listener'), false);
+  resolve(); await settle();
+  assert.equal(h.calls.includes('listener'), true);
+  const cancelled = harness('granted'), finish = cancelled.deferInit();
+  await cancelled.initializeTelemetry(); await settle();
+  cancelled.suspendAdvertising(); finish(); await settle();
+  assert.equal(cancelled.calls.includes('listener'), false);
+  assert.equal(cancelled.calls.includes('start'), false);
 });
 test('background cancellation defeats both a late permission result and SDK-ready callback', async () => {
   const h = harness('granted'); const resolve = h.deferPermission();
