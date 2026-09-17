@@ -99,8 +99,8 @@ async function injectState(context,state){
       &&!telemetry.includes('initializeTikTok'));
     check('EAS Update is configured for versioned production releases',
       !!mobilePackage.dependencies['expo-updates']
-      &&expoApp.version==='1.2.1'
-      &&expoApp.runtimeVersion==='1.2.1-native-tracking-1'
+      &&expoApp.version===mobilePackage.version
+      &&expoApp.runtimeVersion===`${expoApp.version}-native-tracking-1`
       &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
       &&eas.build.production.channel==='production'
       &&eas.build.production.uploadSourceMaps===true
