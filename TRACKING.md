@@ -235,6 +235,12 @@ before registering. Session start remains in the readiness callback. Regression
 tests cover the native initialization precondition, delayed initialization,
 cancellation during initialization, and background/foreground reuse.
 This JavaScript change is compatible with runtime `1.2.2-native-tracking-1`.
-Device recovery and OTA deployment are not yet verified.
+Published the authorized iOS OTA to production with EAS production configuration:
+group `90c166a4-45ae-41b1-9432-2c0fd3aa904c`, update
+`01a0b0bc-1d9c-77a3-9a10-577390533af1`, source `6fca0ce`.
+The full publish validation suite and TypeScript check passed. The update endpoint
+returned HTTP 200 and this exact update ID for production/iOS/runtime
+`1.2.2-native-tracking-1`. Actual recovery on the affected device remains unverified;
+the native crash may interrupt download before the fix can be cached.
 
 ChatGPT Ads and website pixel work is paused at the user's request.
