@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.2.1",
+    "version": "1.2.2",
     "copyright": "2026 peri",
     "categories": [
       "HEALTH_AND_FITNESS",
@@ -15,7 +15,7 @@
         "keywords": [
           "hrt,hot,flashes,night,sweats,sleep,mood,hormone,medication,journal,doctor,report,health,weight,diary"
         ],
-        "releaseNotes": "MenoCompass is now peri.\n• A new name and logo throughout the app\n• Your existing on-device record and subscription continue to work\n• Includes the latest reliability and navigation improvements",
+        "releaseNotes": "• Improved startup reliability\n• Clearer controls for optional analytics, separate from Apple's advertising permission\n• A personal setup preview before choosing a subscription",
         "promoText": "Track symptoms, follow HRT changes, and bring a clearer record to your next appointment. Private, on-device tracking for perimenopause and menopause.",
         "privacyPolicyUrl": "https://menlopass.vercel.app/privacy.html",
         "supportUrl": "https://menlopass.vercel.app/support.html",
