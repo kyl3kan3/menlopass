@@ -1,0 +1,15 @@
+{
+  "app": "peri",
+  "version": "1.2.2",
+  "productionBuild": "40",
+  "productionSource": "5bb2dae4e4acefa8491a9e0b48225443d4adb560",
+  "captureSource": "7e0a0e0",
+  "runtime": "1.2.2-native-tracking-2",
+  "method": "Native iOS simulator captures using the production HTML, NativeGlassTabs, and OnboardingPreview without renderer changes. Separate capture-only root provides fictional records and inert service callbacks.",
+  "data": "Fictional Morgan record, 60 days ending September 26, 2026. No real health or customer data.",
+  "billing": "No purchase, entitlement change, analytics event, or production update is performed by the capture harness.",
+  "privacyScreen": "Build 40 inline consent presentation mirrored verbatim in a capture-only component; callbacks are inert.",
+  "captureStatus": "pending",
+  "sourceScreensUncropped": true,
+  "storeUploadStatus": "Not uploaded; current App Review submission remains unchanged."
+}

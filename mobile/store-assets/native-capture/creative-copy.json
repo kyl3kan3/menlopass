@@ -1,0 +1,49 @@
+{
+  "brand": "peri",
+  "subscriptionNote": "Paid subscription required to use the app.",
+  "screens": [
+    {
+      "id": "today",
+      "label": "PERIMENOPAUSE & MENOPAUSE",
+      "headline": ["Your symptoms.", "One clear record."],
+      "description": "Follow symptoms, sleep and how you feel."
+    },
+    {
+      "id": "journey",
+      "label": "YOUR JOURNEY",
+      "headline": ["See symptoms and", "treatment together."],
+      "description": "Keep your changes and patterns in view."
+    },
+    {
+      "id": "report",
+      "label": "APPOINTMENT READY",
+      "headline": ["Your next visit.", "Your story, ready."],
+      "description": "Share a summary with your care team."
+    },
+    {
+      "id": "care",
+      "label": "CARE, TOGETHER",
+      "headline": ["Track HRT.", "Keep the context."],
+      "description": "Medications, reminders and health records."
+    },
+    {
+      "id": "setup",
+      "label": "MADE FOR YOU",
+      "headline": ["A starting point", "that feels like you."],
+      "description": "Choose your focus before picking a plan."
+    },
+    {
+      "id": "guide",
+      "label": "ROOM TO LEARN",
+      "headline": ["Evidence, with", "room for questions."],
+      "description": "Explore sources, options and uncertainty."
+    },
+    {
+      "id": "privacy",
+      "optional": true,
+      "label": "YOUR CHOICES",
+      "headline": ["Your health.", "Your choices."],
+      "description": "Decide whether to share optional analytics."
+    }
+  ]
+}
