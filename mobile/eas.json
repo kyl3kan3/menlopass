@@ -1,6 +1,13 @@
 {
   "cli": { "version": ">= 23.0.0", "appVersionSource": "remote" },
   "build": {
+    "store-capture": {
+      "distribution": "internal",
+      "environment": "preview",
+      "channel": "store-capture",
+      "autoIncrement": false,
+      "ios": { "simulator": true, "buildConfiguration": "Release" }
+    },
     "development": {
       "developmentClient": true,
       "distribution": "internal",

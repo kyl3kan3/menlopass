@@ -163,6 +163,10 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    ...(process.env.EAS_BUILD_PROFILE === 'store-capture' ? {
+      scheme: 'peri-capture',
+      updates: { ...config.updates, enabled: false },
+    } : {}),
     backgroundColor: '#f7f5ef',
     userInterfaceStyle: 'light',
     android: {
