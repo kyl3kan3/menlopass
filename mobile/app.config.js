@@ -60,7 +60,10 @@ function withAppPrivacyDeclarations(privacyManifests = {}) {
       ),
       ...DIAGNOSTIC_DATA_TYPES.map(dataType => ({
         NSPrivacyCollectedDataType: dataType,
-        NSPrivacyCollectedDataTypeLinked: false,
+        // Observe metrics share session context with pseudonymous analytics.
+        // Sanitized Sentry crash reports omit that identifying context.
+        NSPrivacyCollectedDataTypeLinked:
+          dataType !== 'NSPrivacyCollectedDataTypeCrashData',
         NSPrivacyCollectedDataTypeTracking: false,
         NSPrivacyCollectedDataTypePurposes: [
           'NSPrivacyCollectedDataTypePurposeAppFunctionality',

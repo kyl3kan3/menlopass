@@ -100,7 +100,7 @@ async function injectState(context,state){
     check('EAS Update is configured for versioned production releases',
       !!mobilePackage.dependencies['expo-updates']
       &&expoApp.version===mobilePackage.version
-      &&expoApp.runtimeVersion===`${expoApp.version}-native-tracking-1`
+      &&expoApp.runtimeVersion===`${expoApp.version}-native-tracking-2`
       &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
       &&eas.build.production.channel==='production'
       &&eas.build.production.uploadSourceMaps===true
