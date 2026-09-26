@@ -1,6 +1,6 @@
 {
   "brand": "peri",
-  "subscriptionNote": "Paid subscription required to use the app.",
+  "subscriptionNote": "Paid subscription required.",
   "screens": [
     {
       "id": "today",

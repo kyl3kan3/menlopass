@@ -96,7 +96,7 @@ function layout(device, source) {
   const tablet = width > 1500;
   const margin = tablet ? 126 : 94;
   const top = tablet ? 630 : 625;
-  const bottom = height - (tablet ? 140 : 146);
+  const bottom = height - (tablet ? 186 : 146);
   const availableWidth = width - (tablet ? 230 : 170);
   const availableHeight = bottom - top;
   const scale = Math.min(availableWidth / source.width, availableHeight / source.height);
@@ -136,7 +136,7 @@ function background(device, frame, screen, index, copy) {
     <rect x="${panelX}" y="${panelY}" width="${panelWidth}" height="${imageHeight + padding * 2}" rx="${radius + 44}" fill="${PALETTE.sage}"/>
     <rect x="${imageX - outline - 10}" y="${imageY - outline + 22}" width="${imageWidth + outline * 2 + 20}" height="${imageHeight + outline * 2 + 10}" rx="${radius + 12}" fill="${PALETTE.forest}" opacity="0.06"/>
     <rect x="${imageX - outline}" y="${imageY - outline}" width="${imageWidth + outline * 2}" height="${imageHeight + outline * 2}" rx="${radius}" fill="${PALETTE.frame}"/>
-    ${text(width / 2, height - 47, copy.subscriptionNote, tablet ? 28 : 26, { color: PALETTE.muted, anchor: 'middle', spacing: 0.2 })}
+    ${text(width / 2, height - 47, copy.subscriptionNote, tablet ? 60 : 42, { color: PALETTE.muted, anchor: 'middle', spacing: 0.2 })}
   `);
 }
 
