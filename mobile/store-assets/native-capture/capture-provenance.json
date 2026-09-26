@@ -3,13 +3,28 @@
   "version": "1.2.2",
   "productionBuild": "40",
   "productionSource": "5bb2dae4e4acefa8491a9e0b48225443d4adb560",
-  "captureSource": "7e0a0e0",
+  "captureSource": "072915d81f9789ea24d23da28b3e906d5d715366",
+  "captureBuildId": "cdea1163-1927-4972-908f-f37415e80e96",
   "runtime": "1.2.2-native-tracking-2",
   "method": "Native iOS simulator captures using the production HTML, NativeGlassTabs, and OnboardingPreview without renderer changes. Separate capture-only root provides fictional records and inert service callbacks.",
   "data": "Fictional Morgan record, 60 days ending September 26, 2026. No real health or customer data.",
   "billing": "No purchase, entitlement change, analytics event, or production update is performed by the capture harness.",
   "privacyScreen": "Build 40 inline consent presentation mirrored verbatim in a capture-only component; callbacks are inert.",
-  "captureStatus": "pending",
+  "captureStatus": "complete",
+  "capturedAtUtc": "2026-09-26T12:51:46Z",
+  "simulatorSessionId": "01a0ddb3-a3e5-71fb-b784-39a71c00816e",
+  "controller": "agent-device 0.21.15 through EAS Simulator",
+  "devices": [
+    { "name": "iPhone 17 Pro Max", "kind": "iOS simulator", "width": 1320, "height": 2868, "pixelDensity": 3, "screens": 7 },
+    { "name": "iPad Pro 13-inch (M5)", "kind": "iPadOS simulator", "width": 2064, "height": 2752, "pixelDensity": 2, "screens": 7 }
+  ],
+  "statusBar": "Normalized to 9:41 by the simulator; the fictional in-app clock remains afternoon.",
+  "captureNotes": [
+    "iPhone Care is scrolled to Your everyday care; iPad Care is captured at the top with both treatment records visible.",
+    "Guide shows the genuine Hot flashes & night sweats sheet, including evidence and limitations; iPhone is scrolled within the sheet.",
+    "The current production left gutter on primary iPad screens is preserved.",
+    "All fourteen native screenshots were visually checked before marketing composition."
+  ],
   "sourceScreensUncropped": true,
   "storeUploadStatus": "Not uploaded; current App Review submission remains unchanged."
 }

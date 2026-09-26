@@ -21,19 +21,23 @@
         "supportUrl": "https://menlopass.vercel.app/support.html",
         "marketingUrl": "https://menlopass.vercel.app",
         "screenshots": {
-          "APP_IPHONE_65": [
-            "./store-assets/iphone-6.5/01-today.png",
-            "./store-assets/iphone-6.5/02-trends.png",
-            "./store-assets/iphone-6.5/04-clinician-report.png",
-            "./store-assets/iphone-6.5/03-medications.png",
-            "./store-assets/iphone-6.5/05-evidence-guide.png"
+          "APP_IPHONE_67": [
+            "./store-assets/current-build/iphone-6.9/01-today.png",
+            "./store-assets/current-build/iphone-6.9/02-journey.png",
+            "./store-assets/current-build/iphone-6.9/03-report.png",
+            "./store-assets/current-build/iphone-6.9/04-care.png",
+            "./store-assets/current-build/iphone-6.9/05-setup.png",
+            "./store-assets/current-build/iphone-6.9/06-guide.png",
+            "./store-assets/current-build/iphone-6.9/07-privacy.png"
           ],
           "APP_IPAD_PRO_3GEN_129": [
-            "./store-assets/ipad-12.9/01-today.png",
-            "./store-assets/ipad-12.9/02-trends.png",
-            "./store-assets/ipad-12.9/04-clinician-report.png",
-            "./store-assets/ipad-12.9/03-medications.png",
-            "./store-assets/ipad-12.9/05-evidence-guide.png"
+            "./store-assets/current-build/ipad-13/01-today.png",
+            "./store-assets/current-build/ipad-13/02-journey.png",
+            "./store-assets/current-build/ipad-13/03-report.png",
+            "./store-assets/current-build/ipad-13/04-care.png",
+            "./store-assets/current-build/ipad-13/05-setup.png",
+            "./store-assets/current-build/ipad-13/06-guide.png",
+            "./store-assets/current-build/ipad-13/07-privacy.png"
           ]
         }
       }
