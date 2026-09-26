@@ -6,6 +6,7 @@
       "environment": "preview",
       "channel": "store-capture",
       "autoIncrement": false,
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
       "ios": { "simulator": true, "buildConfiguration": "Release" }
     },
     "development": {

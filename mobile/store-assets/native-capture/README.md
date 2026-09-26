@@ -29,13 +29,26 @@ Opening a link again resets that view and its temporary fictional state. There i
 - No inner content is hidden, deleted, rewritten, scaled or truncated. Capture whole native screenshots; any marketing framing happens afterward. No app security, encryption, telemetry or billing behavior is being tested by this harness.
 - No active update banner is shown, matching the normal up-to-date state. No diagnostic SDK wrappers are mounted.
 
-## Six-slide plan (same sequence on iPhone and iPad)
+## Artwork sequence (same on iPhone and iPad)
 
-1. **Perimenopause. Meet your tracker.** Today dashboard, native tabs visible.
-2. **Start with what matters to you.** Shared native setup concern picker (`setup?step=1`), three concerns selected.
-3. **See symptoms and treatment together.** Journey timeline; use actual scrolling if necessary.
-4. **Keep treatment in context.** Care treatment list, fictional medication entries.
-5. **Your next visit. Your story, ready.** Appointment report with real report headings and sample history.
-6. **Know the evidence. Understand its limits.** Guide: open Symptoms → Hot flushes/night sweats, scroll the genuine sheet to its evidence section without deleting surrounding content.
+1. **Your symptoms. One clear record.** Today dashboard, native tabs visible.
+2. **See symptoms and treatment together.** Journey timeline.
+3. **Your next visit. Your story, ready.** Appointment report with real report headings and sample history.
+4. **Track HRT. Keep the context.** Scroll Care to the real treatment list and fictional medication entries.
+5. **A starting point that feels like you.** Shared native setup summary (`setup`), three concerns selected.
+6. **Evidence, with room for questions.** Guide: open Symptoms → Hot flashes & night sweats, then scroll the genuine sheet to its evidence section without deleting surrounding content.
+7. **Your health. Your choices.** Optional analytics consent screen.
 
 Retain a legible “Subscription required” caption in the marketing frame. Use device-specific native screenshots, not a stretched phone screen or browser-generated tablet sidebar. Privacy consent is an optional supplementary screenshot, not a replacement for a core feature unless the creative plan changes.
+
+## Reproduce
+
+From `mobile`, build the unsigned simulator profile with `npx eas-cli@latest build --platform ios --profile store-capture`. Wait for the artifact before starting a bounded EAS simulator session. Use a real iPhone 17 Pro Max and iPad Pro 13-inch simulator and inspect each screen before capturing. `agent-device screenshot` currently defaults to logical pixels; explicitly request `--pixel-density 3` on iPhone and `--pixel-density 2` on iPad, plus `--normalize-status-bar`.
+
+Save whole PNGs under the ignored `native-capture/raw/iphone` and `native-capture/raw/ipad` folders with the route names above. Update `capture-provenance.json` with the completed build/device/capture details. From the repository root, run:
+
+```sh
+node mobile/store-assets/compose-native-store.cjs --provenance mobile/store-assets/native-capture/capture-provenance.json
+```
+
+The compositor needs `sharp`; in this workspace it is available through the bundled Codex runtime's `NODE_PATH`. It creates 1320×2868 iPhone and 2064×2752 iPad RGB PNGs, a contact sheet, a local HTML preview, and a manifest with input/output hashes. Those dimensions follow [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/). Inspect the outputs before uploading. Creating this pack does not change the screenshots on a pending App Review submission.
