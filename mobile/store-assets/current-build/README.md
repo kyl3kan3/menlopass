@@ -13,7 +13,7 @@ Upload the device-specific PNGs only. `contact-sheet.png` is an overview; `previ
 
 The images have **not been uploaded to App Store Connect**. The pending App Review submission remains unchanged.
 
-`mobile/store.config.json` now selects this set for a future metadata upload. Apple's API retains the display-type names `APP_IPHONE_67` for these iPhone images and `APP_IPAD_PRO_3GEN_129` for these iPad images.
+This initial creative direction was superseded by `../bold-modern/` on September 27, 2026. `mobile/store.config.json` selects that replacement set. These older exports are retained for comparison.
 
 ## Source and fidelity
 
