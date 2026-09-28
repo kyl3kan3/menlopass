@@ -1,0 +1,105 @@
+{
+  "generatedAt": "2026-09-28T10:18:21.726Z",
+  "editor": "tools/app-store-studio",
+  "theme": "peri-bold",
+  "locale": "en",
+  "exportMethod": "Unmodified PNGs from the skill editor Export bundle button",
+  "files": [
+    {
+      "file": "iphone-6.9/01-today.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "501d7aba33b19a528f5b41ccca792b5c5f0aef4ddea82f4451ae41981c52e831"
+    },
+    {
+      "file": "iphone-6.9/02-journey.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "b41e2213f2ffd888f7de497de6f751482be2eb5954ace8a423f5702044400125"
+    },
+    {
+      "file": "iphone-6.9/03-care.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "4c1cb89b4a7fab8976f45a8d62035f4799088ea84d458b8062db1ee3531ebc0d"
+    },
+    {
+      "file": "iphone-6.9/04-report.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "750054a964de934fc41affb3557f898c019d49208f12e659fdbd5c123dd1e1f9"
+    },
+    {
+      "file": "iphone-6.9/05-guide.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "56217f229fb7ca8d5106eb1c2c97b84063656b7167dfe7ec56fe8b0fd7ae4848"
+    },
+    {
+      "file": "iphone-6.9/06-overview.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "aa9e3a83c8e2204dbdf04a03e2ef6d865b3ccf377f8acd20824c033647035e2b"
+    },
+    {
+      "file": "ipad-13/01-today.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "2bd1b75ecc862270a8ba0838c1fd09938882610d5eaa9f2226ae80b12349e3b3"
+    },
+    {
+      "file": "ipad-13/02-journey.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "0dbe5b956134acb64fae287ccd7c23a0408d78e7d24b7a4427321b6afd2f5959"
+    },
+    {
+      "file": "ipad-13/03-care.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "ac82a04cc8d39e935f25a2bfe68be9c3e1a4c2c2b631d986e7d87ad0f363c89a"
+    },
+    {
+      "file": "ipad-13/04-report.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "d9d29ca2ac345f6e5bbc1b936ffc2d708e017915ed6e262d2dfdb2a32b82ec89"
+    },
+    {
+      "file": "ipad-13/05-guide.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "7303bc98abeb3067424b3f3158720acc5f0696fd06b0d4f8a76df0b4f4320a32"
+    },
+    {
+      "file": "ipad-13/06-overview.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "space": "srgb",
+      "sha256": "625b3890f699fcb3ad6398241672624d9431ce5701971322c1b118dc529f51f2"
+    }
+  ]
+}

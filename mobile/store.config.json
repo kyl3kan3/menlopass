@@ -22,20 +22,20 @@
         "marketingUrl": "https://menlopass.vercel.app",
         "screenshots": {
           "APP_IPHONE_67": [
-            "./store-assets/bold-modern/iphone-6.9/01-today.png",
-            "./store-assets/bold-modern/iphone-6.9/02-journey.png",
-            "./store-assets/bold-modern/iphone-6.9/03-care.png",
-            "./store-assets/bold-modern/iphone-6.9/04-report.png",
-            "./store-assets/bold-modern/iphone-6.9/05-setup.png",
-            "./store-assets/bold-modern/iphone-6.9/06-guide.png"
+            "./store-assets/skill-studio/iphone-6.9/01-today.png",
+            "./store-assets/skill-studio/iphone-6.9/02-journey.png",
+            "./store-assets/skill-studio/iphone-6.9/03-care.png",
+            "./store-assets/skill-studio/iphone-6.9/04-report.png",
+            "./store-assets/skill-studio/iphone-6.9/05-guide.png",
+            "./store-assets/skill-studio/iphone-6.9/06-overview.png"
           ],
           "APP_IPAD_PRO_3GEN_129": [
-            "./store-assets/bold-modern/ipad-13/01-today.png",
-            "./store-assets/bold-modern/ipad-13/02-journey.png",
-            "./store-assets/bold-modern/ipad-13/03-care.png",
-            "./store-assets/bold-modern/ipad-13/04-report.png",
-            "./store-assets/bold-modern/ipad-13/05-setup.png",
-            "./store-assets/bold-modern/ipad-13/06-guide.png"
+            "./store-assets/skill-studio/ipad-13/01-today.png",
+            "./store-assets/skill-studio/ipad-13/02-journey.png",
+            "./store-assets/skill-studio/ipad-13/03-care.png",
+            "./store-assets/skill-studio/ipad-13/04-report.png",
+            "./store-assets/skill-studio/ipad-13/05-guide.png",
+            "./store-assets/skill-studio/ipad-13/06-overview.png"
           ]
         }
       }
