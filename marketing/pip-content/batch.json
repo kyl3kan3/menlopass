@@ -1,0 +1,43 @@
+{
+  "createdAt": "2026-10-02T09:44:29.448Z",
+  "brand": "peri",
+  "mascotRevision": "crisp-v2",
+  "concepts": [
+    {
+      "id": "pip-night-notes",
+      "title": "The 3 a.m. brain",
+      "directory": "../pip-night-notes",
+      "caption": "My brain at 3 a.m.: suddenly available for every meeting. 🌙\n\nA small note can save the details for later. Track sleep, mood and how the day felt in peri.\n\nLeave future-you a little context.\n\nPaid subscription required.\n\n#Perimenopause #Menopause #SleepJournal #PeriApp",
+      "alt": [
+        "Pip looks puzzled at a phone on a soft blue background. Text reads: me at 3 a.m. remembering everything. Except how I slept yesterday.",
+        "Pip presents an illustrated sleep check-in with sleep, fatigue and mood ratings and a note about waking in the night. Text reads: leave future-you a little note."
+      ]
+    },
+    {
+      "id": "pip-appointment-notes",
+      "title": "The “I’m fine” appointment",
+      "directory": "../pip-appointment-notes",
+      "caption": "Everything I wanted to say: a whole novel.\nWhat came out: “I’m fine.” 🫠\n\nWrite down your concerns, how they affect your day, and what you want to discuss. peri helps you prepare an appointment brief you can bring with you.\n\nYour appointment. Your questions. Your notes.\n\nPaid subscription required.\n\n#Perimenopause #Menopause #AppointmentPrep #PeriApp",
+      "alt": [
+        "Pip holds a phone with a puzzled expression. Text reads: me at my appointment: I’m fine. The things I meant to say: loading.",
+        "An illustrated appointment card lists sleep concerns, impact on daily life and a discussion goal. Pip smiles beneath it. Text reads: bring the version with details."
+      ]
+    },
+    {
+      "id": "pip-room-for-you",
+      "title": "The to-do list with a to-do list",
+      "directory": "../pip-room-for-you",
+      "caption": "The list has a list. The list’s list has a reminder. 🙃\n\nA little space for how you feel belongs on it, too. Check in with your symptoms and add a note in peri.\n\nStart with today.\n\nPaid subscription required.\n\n#Perimenopause #Menopause #MentalLoad #PeriApp",
+      "alt": [
+        "Pip holds a phone on a warm cream background. Text reads: my to-do list has a to-do list. Somewhere on it: check in with me.",
+        "Pip smiles below an illustrated daily check-in with mood, fatigue and brain fog ratings. Text reads: put yourself on the list, too."
+      ]
+    }
+  ],
+  "dimensions": [
+    1080,
+    1920
+  ],
+  "audio": "silent",
+  "published": false
+}

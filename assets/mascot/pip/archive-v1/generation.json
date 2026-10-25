@@ -1,0 +1,87 @@
+{
+  "project_id": "85304a1f-62d0-4800-950f-e7fd23b0ea07",
+  "collection_id": "64acb896-bc5f-4409-8b7b-ae24c970f5b1",
+  "reference_asset_id": "1b245614-c9ff-4992-9a3a-b61aecdf982c",
+  "created_at": "2026-10-02",
+  "provider": "Masko",
+  "brand": "peri",
+  "name": "Pip",
+  "canonical_prompt": "Create an original lovable 2D hand-drawn cartoon mascot named Pip for peri, an adult perimenopause journal and care companion. Pip is a small upright pear-shaped sage-green sprout creature, not a human or existing animal, with a plump soft rounded body and two large asymmetrical botanical leaves as a tuft on its head (one long leaf curves left, one shorter leaf curves right). Cream oval face-and-belly patch, dark forest-green slightly wobbly thick outlines, simple expressive oval eyes with eyebrows, a small curved smiling mouth, subtle peach cheek blush, short mitten hands and small rounded feet. No clothing. Gentle, knowing, slightly cheeky and comforting, adult-friendly rather than babyish. Flat matte ink-and-paper illustration with minimal warm shading, no shiny 3D, no photorealism. Color palette sage #ABC79F, deep forest #244B43, warm cream #FFFEFA, peach #E9B69F. Full-body single character facing three-quarter front, warm curious smile, one small hand raised in welcome. Entire body visible, generous clear margin around leaf tuft, hands and feet. Isolated on plain ivory. No text, letters, logos, badges, scenery, containers or icon tile. Strong simple silhouette for transparent PNGs and playful social videos. Not a cat, pig, fox, or rabbit, no bows.",
+  "reference_file": "reference.png",
+  "jobs": {
+    "phone": {
+      "job_id": "60b6bab7-397c-45f0-a2a1-c23d2201f045",
+      "status": "completed",
+      "type": "image",
+      "item_id": "bb057075-d245-4270-9ae7-ab1709cabbc1",
+      "item_name": "Pip — full brain phone reaction",
+      "estimated_cost": 1,
+      "asset_ids": {
+        "image": "530f07ff-5f70-4f7e-873a-4e51ca70035b"
+      },
+      "urls": {},
+      "poll_url": "/api/v1/jobs/60b6bab7-397c-45f0-a2a1-c23d2201f045"
+    },
+    "guide": {
+      "job_id": "7b041143-6e49-4213-b3b9-19a8bae0756e",
+      "status": "completed",
+      "type": "image",
+      "item_id": "1309ca8e-c8dc-45ab-94a8-5e3039d6af44",
+      "item_name": "Pip — warm check-in companion",
+      "estimated_cost": 1,
+      "asset_ids": {
+        "image": "8e5ffbbb-d64c-4ce9-b0c6-39d895a525ba"
+      },
+      "urls": {},
+      "poll_url": "/api/v1/jobs/7b041143-6e49-4213-b3b9-19a8bae0756e"
+    },
+    "animation": {
+      "job_id": "82675e25-9c0d-4665-aab1-f46b4761556d",
+      "status": "completed",
+      "type": "animation",
+      "item_id": "8f9cea15-cbdf-4291-aec7-787af290e98a",
+      "cost_credits": 10,
+      "model": "standard",
+      "duration_seconds": 5,
+      "source_image_asset_id": "530f07ff-5f70-4f7e-873a-4e51ca70035b",
+      "asset_ids": {
+        "video": "798ad402-aea3-4a7b-b7b0-6b323f28ed91",
+        "webm_720": "e1d19025-8a64-4f8e-b533-c3a4fb420e62"
+      }
+    }
+  },
+  "source_references": "User examples used for pacing and layout only; character is original. App branding: assets/brand/peri-icon-master.png and redesign.css.",
+  "settings": {
+    "cdn_enabled": false,
+    "animation_sizes": [
+      720,
+      480
+    ]
+  },
+  "assets": {
+    "reference": {
+      "asset_id": "1b245614-c9ff-4992-9a3a-b61aecdf982c",
+      "file": "reference.png",
+      "transparent": false
+    },
+    "phone": {
+      "asset_id": "01fa1c33-fd8e-48c3-b74a-f3095c740991",
+      "file": "phone.png",
+      "transparent": true
+    },
+    "guide": {
+      "asset_id": "5303154b-3ce2-496f-9cca-ef5f022c8e29",
+      "file": "guide.png",
+      "transparent": true
+    },
+    "animation": {
+      "asset_id": "e1d19025-8a64-4f8e-b533-c3a4fb420e62",
+      "file": "check-in.webm",
+      "transparent": true,
+      "size": 720
+    }
+  },
+  "animation_prompt": "Animate the exact Pip sprout character holding the small blank phone in the supplied source image. Five-second continuous gentle cartoon performance: start with puzzled upturned eyes and mitten resting at cheek, blink once, tilt head left and right as if trying to remember, two unequal leaf tufts sway softly. At about three seconds Pip looks down to the phone, moves the cheek hand to tap the screen once, then relaxes into a tiny relieved smile and soft satisfied bounce. Preserve exact sage pear body, cream face/belly, forest outline, peach cheeks, two unequal leaves, feet and phone. Fixed camera, full-body entire character within safe margins throughout. Flat hand-drawn 2D, no 3D, no morphs, no changing phone shape, no new props, no text, no logos, no symbols, no scenery. Stationary isolated plain background for clean transparent extraction. Warm, restrained and playful adult-friendly reaction. Do not rotate or crop camera.",
+  "total_generation_credits": 13,
+  "animation_source_note": "Transparent image asset ID was rejected with HTTP 404. The accepted job uses the original image asset ID. No duplicate animation job was submitted."
+}

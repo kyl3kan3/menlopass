@@ -1,3 +1,4 @@
+import { uuid } from './analytics-session';
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
@@ -31,7 +32,9 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, onCusto
   const [storeBusy, setStoreBusy] = useState(false);
   const storeBusyRef = useRef(false);
   const setStoreOperationBusy = (busy: boolean) => { storeBusyRef.current = busy; setStoreBusy(busy); };
-  const selectedProduct = useRef<{ productId: string; packageType: string } | undefined>(undefined);
+  const selectedProduct = useRef<{ productId: string; packageType: string; price: number; currency: string } | undefined>(undefined);
+  const attempt = useRef<{ attemptId: string; started: number } | undefined>(undefined);
+  const attemptFields = () => attempt.current ? { attemptId: attempt.current.attemptId, durationMs: Math.max(0, Date.now() - attempt.current.started) } : {};
   const context = { offeringId: offering.identifier, source };
   useEffect(() => {
     if (mounted.current) return;
@@ -46,13 +49,14 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, onCusto
     setTelemetrySubscriptionState(customerInfo);
     trackTelemetryEvent(restoring ? 'subscription_restore_completed' : 'purchase_completed', {
       ...context,
-      ...(!restoring ? selectedProduct.current : {}),
+      ...(!restoring ? { ...selectedProduct.current, ...attemptFields() } : {}),
       ...subscriptionSnapshot(customerInfo),
       source: 'paywall',
     });
     onCustomer(customerInfo);
     // A completed store operation without the entitlement must remain gated.
     if (customerInfo.entitlements.active['MenoCompass Pro']) {
+      if (!restoring) trackTelemetryEvent('purchase_access_confirmed', { ...context, ...selectedProduct.current, ...attemptFields() });
       finished.current = true;
       onClose();
     }
@@ -74,20 +78,23 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, onCusto
           options={{ offering, displayCloseButton: allowDismiss }}
           onPurchaseStarted={({ packageBeingPurchased }) => {
             setStoreOperationBusy(true);
+            attempt.current = { attemptId: uuid(), started: Date.now() };
             selectedProduct.current = {
               productId: packageBeingPurchased.product.identifier,
               packageType: packageBeingPurchased.packageType,
+              price: packageBeingPurchased.product.price,
+              currency: packageBeingPurchased.product.currencyCode,
             };
-            trackTelemetryEvent('purchase_started', { ...context, ...selectedProduct.current });
+            trackTelemetryEvent('purchase_started', { ...context, ...selectedProduct.current, ...attemptFields() });
           }}
           onPurchaseCancelled={() => {
             setStoreOperationBusy(false);
-            trackTelemetryEvent('purchase_cancelled', { ...context, ...selectedProduct.current });
+            trackTelemetryEvent('purchase_cancelled', { ...context, ...selectedProduct.current, ...attemptFields() });
             selectedProduct.current = undefined;
           }}
           onPurchaseError={({ error }) => {
             setStoreOperationBusy(false);
-            trackTelemetryEvent('purchase_failed', { ...context, ...selectedProduct.current, errorCode: error.code });
+            trackTelemetryEvent('purchase_failed', { ...context, ...selectedProduct.current, ...attemptFields(), errorCode: error.code });
             selectedProduct.current = undefined;
             reportTelemetryError(error);
           }}

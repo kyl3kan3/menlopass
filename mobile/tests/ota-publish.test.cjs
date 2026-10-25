@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.join(__dirname, '../scripts/publish-update.c
 function publish({ args = [], dirty = ['', ''], builds = [{ runtime: { version: '1.2.0-native-2' } }], missingKey = false } = {}) {
   const calls = [];
   let statusReads = 0;
-  const env = Object.fromEntries(['APPSFLYER_DEV_KEY', 'META_APP_ID', 'META_CLIENT_TOKEN', 'REVENUECAT_IOS_API_KEY', 'POSTHOG_API_KEY', 'POSTHOG_HOST'].map(name => [`EXPO_PUBLIC_${name}`, 'configured']));
+  const env = Object.fromEntries(['APPSFLYER_DEV_KEY', 'ANALYTICS_API_URL', 'ANALYTICS_PRODUCT_IDS', 'REVENUECAT_IOS_API_KEY', 'POSTHOG_API_KEY', 'POSTHOG_HOST'].map(name => [`EXPO_PUBLIC_${name}`, 'configured']));
   if (missingKey) delete env.EXPO_PUBLIC_POSTHOG_API_KEY;
   env.npm_execpath = '/npm-cli.js';
   const run = () => vm.runInNewContext(source, {

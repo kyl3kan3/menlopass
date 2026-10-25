@@ -1,0 +1,21 @@
+{
+  "request": {
+    "type": "edit",
+    "name": "Pip — crisp guide v2",
+    "source_image_asset_id": "8e5ffbbb-d64c-4ce9-b0c6-39d895a525ba",
+    "edit_instructions": "Crisp production-art cleanup of this exact Pip mascot. Preserve the exact pose, expression, framing, proportions, silhouette, two unequal leaves, face shape, eyes, cream face/belly, peach cheeks and hand positions. Redraw with extremely clean smooth vector-like contours, a consistent solid dark forest-green outline (#173F35), precise sharp anti-aliased edges and bold legible facial details. Flat solid sage-green fills (#ABC79F), flat warm ivory patch (#FFFEFA), flat peach cheeks (#E9B69F). Remove ALL paper grain, watercolor texture, mottling, cloudy shading, soft gradients, blur, hazy edges, shadow inside the character, and washed-out coloration. Only very small hard-edged flat cel-shading accents if necessary; mostly completely uniform solid fills. Clear separation of hands and body. Maintain friendly soft rounded shape, do not redesign the character. One complete full-body character isolated with clear margins, no added items, no typography, no background scenery, no icon tile. Transparent background in the final PNG. Highest available native image quality; sharp modern 2D mascot artwork suitable for a mobile app. Preserve the calm smile and presenting gesture exactly."
+  },
+  "result": {
+    "job_id": "bedfeeb1-62a1-4047-949f-af6aa327330c",
+    "status": "completed",
+    "type": "edit",
+    "item_id": "3783bd02-71a1-41b0-9081-743937f32c6a",
+    "item_name": "Pip — crisp guide v2",
+    "estimated_cost": 1,
+    "asset_ids": {
+      "image": "737e4689-0fb9-404a-bf24-53ffae709794"
+    },
+    "urls": {},
+    "poll_url": "/api/v1/jobs/bedfeeb1-62a1-4047-949f-af6aa327330c"
+  }
+}
