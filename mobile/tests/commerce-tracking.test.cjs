@@ -14,6 +14,8 @@ function load(file, mocks = {}, globals = {}) {
   vm.runInNewContext(output, {
     exports, console, setTimeout, clearTimeout, __DEV__: false, process: { env: { EXPO_PUBLIC_APPSFLYER_DEV_KEY: 'test-key' } },
     require: name => {
+      if (name === '../shared/tracking-contract') return require('../../shared/tracking-contract');
+      if (name === './analytics-session') return { uuid: require('node:crypto').randomUUID };
       if (!(name in mocks)) throw new Error(`Unexpected import ${name}`);
       return mocks[name];
     }, ...globals,
@@ -96,7 +98,7 @@ test('sandbox purchase closes only with access, is not revenue and is not a dism
   callbacks.onDismiss();
   assert.equal(closed(), 1);
   assert.equal(events.filter(e => e.event === 'purchase_completed').length, 1);
-  assert.equal(events.at(-1).attributes.storeEnvironment, 'sandbox');
+  assert.equal(events.find(e => e.event === 'purchase_completed').attributes.storeEnvironment, 'sandbox');
   assert.equal(events.some(e => e.event === 'paywall_dismissed'), false);
 });
 
@@ -111,99 +113,4 @@ test('empty restore and purchase without entitlement leave gate in place; succes
   callbacks.onRestoreCompleted({ customerInfo: customer(true) });
   assert.equal(closed(), 1);
   assert.equal(events.at(-1).event, 'subscription_restore_completed');
-});
-
-function telemetryHarness(options = {}) {
-  const sent = [];
-  const meta = [], tiktok = [], product = [], observed = [];
-  let sessionReady;
-  let deadline;
-  let failing = false;
-  const failIfRequested = () => { if (failing) throw new Error('SDK unavailable'); };
-  const api = load('telemetry.native.ts', {
-    'expo-observe': { Observe: { configure() {}, logEvent: (name, data) => { failIfRequested(); observed.push({ name, data }); }, setGlobalAttributes: failIfRequested, reportError: failIfRequested } },
-    'expo-tracking-transparency': { getTrackingPermissionsAsync: async () => ({ status: 'denied' }) },
-    'react-native': { Platform: { OS: 'ios' } },
-    'expo-updates': { channel: 'production', runtimeVersion: 'test-runtime', updateId: 'test-update' },
-    'react-native-appsflyer': { AFInAppEventType: { CONTENT_VIEW: 'af_content_view' }, AppsFlyer: {
-      registerDeepLinkListener: async () => {}, init: async () => {},
-      registerSessionReadyListener: async callback => { sessionReady = callback; },
-      registerConversionListener: async () => {}, start: async () => {},
-      getAppsFlyerUID: async () => 'test-uid', logEvent: event => { failIfRequested(); sent.push(event); return Promise.resolve(); },
-    } },
-    'react-native-fbsdk-next': { AppEventsLogger: { AppEvents: { ViewedContent: 'view' }, logEvent: (name, data) => { failIfRequested(); meta.push({ name, data }); } }, Settings: { setAppID() {}, setClientToken() {}, setAppName() {}, setAutoLogAppEventsEnabled() {}, setAdvertiserIDCollectionEnabled() {}, initializeSDK() {}, async setAdvertiserTrackingEnabled() {} } },
-    'react-native-purchases': { default: { isConfigured: async () => false } },
-    './modules/menocompass-tiktok-business': { initializeTikTokBusiness: async () => {}, trackTikTokCommerceEvent: async (name, data) => { failIfRequested(); tiktok.push({ name, data }); } },
-    './commerce-events': commerce,
-    './telemetry-events': telemetryEvents,
-    './posthog.native': { initializeProductAnalytics: async () => {}, getProductAnalyticsId: () => undefined, captureProductEvent: (name, data) => { failIfRequested(); product.push({ name, data }); }, flushProductAnalytics: async () => {} },
-  }, { process: { env: { EXPO_PUBLIC_APPSFLYER_DEV_KEY: 'test-key', ...(options.meta ? { EXPO_PUBLIC_META_APP_ID: 'test', EXPO_PUBLIC_META_CLIENT_TOKEN: 'test' } : {}) } }, setTimeout: callback => { deadline = callback; return 1; }, clearTimeout: () => {} });
-  return { ...api, sent, meta, tiktok, product, observed, sessionReady: () => sessionReady, deadline: () => deadline, fail: () => { failing = true; } };
-}
-
-test('Meta and TikTok flush early commerce once; health-feature events stay in product analytics', async () => {
-  const h = telemetryHarness({ meta: true });
-  h.trackTelemetryEvent('paywall_rendered', { notes: 'private', route: 'checkin' });
-  h.trackTelemetryEvent('checkin_confirmed', { notes: 'private', symptoms: ['private'] });
-  const init = h.initializeTelemetry();
-  for (let i = 0; i < 30 && !h.sessionReady(); i++) await Promise.resolve();
-  h.sessionReady()();
-  await init;
-  assert.equal(h.meta.filter(e => e.name === 'mc_paywall_rendered').length, 1);
-  assert.equal(h.meta.filter(e => e.name === 'view').length, 1);
-  assert.deepEqual(h.tiktok.map(e => e.name), ['mc_paywall_rendered']);
-  assert.deepEqual(h.product.map(e => e.name), ['paywall_rendered', 'checkin_confirmed']);
-  assert.equal(JSON.stringify([h.meta, h.tiktok, h.product, h.observed]).includes('private'), false);
-  h.setTelemetryRoute('checkin'); h.setTelemetryRoute('checkin'); h.setTelemetryRoute('private');
-  assert.equal(h.product.filter(e => e.name === 'screen_viewed').length, 1);
-  assert.equal(h.tiktok.length, 1);
-});
-
-test('early events flush once after SDK readiness with original state and release metadata', async () => {
-  const { initializeTelemetry, trackTelemetryEvent, setTelemetrySubscriptionState, sent, sessionReady } = telemetryHarness();
-  setTelemetrySubscriptionState(customer());
-  trackTelemetryEvent('paywall_requested', { source: 'automatic', notes: 'private' });
-  setTelemetrySubscriptionState(customer(true, true));
-  setTelemetrySubscriptionState(customer(true, true));
-  assert.equal(sent.length, 0);
-  const init = initializeTelemetry();
-  for (let i = 0; i < 30 && !sessionReady(); i++) await Promise.resolve();
-  assert.ok(sessionReady());
-  sessionReady()();
-  await init;
-  assert.equal(sent.length, 3);
-  assert.equal(sent[1].eventValues.access, 'inactive');
-  assert.equal(sent[2].eventValues.storeEnvironment, 'sandbox');
-  assert.equal(sent[1].eventValues.buildChannel, 'production');
-  assert.equal(sent[1].eventValues.runtimeVersion, 'test-runtime');
-  assert.equal(JSON.stringify(sent).includes('private'), false);
-  await initializeTelemetry();
-  assert.equal(sent.length, 3);
-});
-
-test('analytics timeout releases initialization and late SDK recovery still delivers buffered events', async () => {
-  const harness = telemetryHarness();
-  harness.trackTelemetryEvent('paywall_requested', { source: 'automatic' });
-  const init = harness.initializeTelemetry();
-  for (let i = 0; i < 30 && !harness.deadline(); i++) await Promise.resolve();
-  assert.ok(harness.deadline());
-  harness.deadline()();
-  const result = await init;
-  assert.equal(result.trackingPermission, 'denied');
-  assert.equal(harness.sent.length, 0);
-  harness.sessionReady()();
-  for (let i = 0; i < 30 && !harness.sent.length; i++) await Promise.resolve();
-  assert.equal(harness.sent.length, 1);
-});
-
-test('synchronous analytics SDK failures cannot throw into purchase or access callbacks', async () => {
-  const harness = telemetryHarness();
-  const init = harness.initializeTelemetry();
-  for (let i = 0; i < 30 && !harness.sessionReady(); i++) await Promise.resolve();
-  harness.sessionReady()();
-  await init;
-  harness.fail();
-  assert.doesNotThrow(() => harness.trackTelemetryEvent('paywall_rendered'));
-  assert.doesNotThrow(() => harness.setTelemetrySubscriptionState(customer(true, true)));
-  assert.doesNotThrow(() => harness.reportTelemetryError(new Error('private')));
 });

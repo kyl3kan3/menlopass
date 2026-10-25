@@ -1,6 +1,14 @@
 {
   "cli": { "version": ">= 23.0.0", "appVersionSource": "remote" },
   "build": {
+    "store-capture": {
+      "distribution": "internal",
+      "environment": "preview",
+      "channel": "store-capture",
+      "autoIncrement": false,
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
+      "ios": { "simulator": true, "buildConfiguration": "Release" }
+    },
     "development": {
       "developmentClient": true,
       "distribution": "internal",
