@@ -1,0 +1,55 @@
+{
+  "brand": "peri",
+  "mascot": "Pip",
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "palette": {
+    "paper": "#F7F5EF",
+    "ivory": "#FFFEFA",
+    "forest": "#244B43",
+    "sage": "#DCE7D1",
+    "sageDark": "#76926F",
+    "peach": "#EFBCA3",
+    "peachLight": "#F2D7C7"
+  },
+  "slides": [
+    {
+      "id": "01-hook",
+      "headline": ["a tiny check-in", "for a very", "full brain"],
+      "footer": "A little space to notice how today feels.",
+      "asset": "phone.png"
+    },
+    {
+      "id": "02-check-in",
+      "headline": ["save how today", "feels in peri"],
+      "footer": "Your symptoms. Your pace.",
+      "asset": "guide.png"
+    }
+  ],
+  "card": {
+    "eyebrow": "A LITTLE SPACE FOR YOU",
+    "title": "Today’s check-in",
+    "rows": [
+      { "label": "Sleep", "filled": 3 },
+      { "label": "Mood", "filled": 2 },
+      { "label": "Hot flashes", "filled": 3 }
+    ],
+    "noteLabel": "One thing to remember",
+    "note": "Tired today. Taking it slowly.",
+    "caption": "Illustrated example"
+  },
+  "video": {
+    "hook": ["me trying to remember", "how I’ve felt all week"],
+    "thoughts": ["sleep?", "mood?", "hot flashes?"],
+    "payoff": ["one small check-in.", "one less thing", "to remember."],
+    "close": "Your symptoms. Your pace.",
+    "durationSeconds": 10.5,
+    "hookSeconds": 5.25,
+    "payoffSeconds": 5.75,
+    "crossfadeSeconds": 0.5,
+    "animationAsset": "check-in.webm"
+  },
+  "slideshow": { "durationSeconds": 8, "slideSeconds": 4.25, "crossfadeSeconds": 0.5 },
+  "subscriptionNote": "Paid subscription required."
+}

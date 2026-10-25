@@ -1,0 +1,33 @@
+{
+  "request": {
+    "type": "animation",
+    "name": "Pip — crisp check-in v2",
+    "source_image_asset_id": "7c30a46a-b9d1-4b57-b0ed-07dbb82b3833",
+    "animation_model": "standard",
+    "duration": 5,
+    "loop": false,
+    "sizes": [
+      1080,
+      720
+    ],
+    "animation_prompt": "Animate this exact cleaned-up Pip mascot with crisp high-contrast 2D vector-like linework. Keep sharp solid forest outlines, smooth precise contours and flat sage, ivory and peach fills throughout. No grain, watercolor, texture, glow, soft focus, motion blur, fuzzy edges, gradients or 3D shading. Preserve source face, body, two uneven leaves, hands, feet and phone design. Five seconds: puzzled eyes glance gently left then right, blink once, at three seconds lower the cheek hand to tap the phone, then a small relieved smile and subtle bounce. Keep all movement restrained to preserve the clean line art. Fixed camera and generous framing, full body and leaf tips always visible. Single isolated character on completely plain uniform white for transparent extraction, NO checkerboard pattern, no background pattern, no scene, no shadow, no text, no extra props or icons."
+  },
+  "result": {
+    "job_id": "580e2931-62c2-41b1-8e5e-cdbdeba93fe0",
+    "status": "completed",
+    "type": "animation",
+    "item_id": "dee72cf5-c773-4538-b27d-5a5676198d4d",
+    "item_name": "Pip — crisp check-in v2",
+    "estimated_cost": 10,
+    "asset_ids": {
+      "video": "437fbbeb-1e44-4271-85b1-4ac07c709034",
+      "webm_720": "2997a60d-4aee-4b0e-ac8d-d9c15f0c3419",
+      "hevc_720": "01dac1fa-674a-432c-936a-3d413058d2ad",
+      "stacked_video_720": "993a83f8-17a0-456e-b8a3-bf46e3ce46f4",
+      "webm_native": "a6d7135e-f828-40f3-bfa1-9f28f93c9df1"
+    },
+    "urls": {},
+    "poll_url": "/api/v1/jobs/580e2931-62c2-41b1-8e5e-cdbdeba93fe0",
+    "cost_credits": 10
+  }
+}

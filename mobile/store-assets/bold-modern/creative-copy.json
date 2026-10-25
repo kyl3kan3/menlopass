@@ -1,0 +1,12 @@
+{
+  "brand": "peri",
+  "subscriptionNote": "Paid subscription required.",
+  "screens": [
+    { "id": "today", "theme": "forest", "label": "PERIMENOPAUSE & MENOPAUSE", "headline": ["Meet your", "next chapter."], "description": "Symptoms. HRT. Your story, in one place." },
+    { "id": "journey", "theme": "lime", "label": "YOUR JOURNEY", "headline": ["See what’s", "changing."], "description": "Your symptoms, week by week." },
+    { "id": "care", "theme": "forest", "label": "YOUR TREATMENT RECORD", "headline": ["Keep HRT", "in view."], "description": "Doses, schedules and changes. Together." },
+    { "id": "report", "theme": "lime", "label": "YOUR NEXT APPOINTMENT", "headline": ["Walk in", "prepared."], "description": "Bring your story to the conversation." },
+    { "id": "setup", "theme": "forest", "label": "YOUR STARTING POINT", "headline": ["Start", "with you."], "description": "A check-in shaped by what matters to you." },
+    { "id": "guide", "theme": "lime", "label": "YOUR MENOPAUSE GUIDE", "headline": ["Evidence.", "Explained."], "description": "Explore options, sources and uncertainty." }
+  ]
+}
