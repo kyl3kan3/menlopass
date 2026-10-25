@@ -1,0 +1,146 @@
+{
+  "generatedAt": "2026-09-28T10:16:50.234Z",
+  "capture": {
+    "app": "peri",
+    "version": "1.2.2",
+    "productionBuild": "40",
+    "productionSource": "5bb2dae4e4acefa8491a9e0b48225443d4adb560",
+    "captureSource": "072915d81f9789ea24d23da28b3e906d5d715366",
+    "captureBuildId": "cdea1163-1927-4972-908f-f37415e80e96",
+    "runtime": "1.2.2-native-tracking-2",
+    "method": "Native iOS simulator captures using the production HTML, NativeGlassTabs, and OnboardingPreview without renderer changes. Separate capture-only root provides fictional records and inert service callbacks.",
+    "data": "Fictional Morgan record, 60 days ending September 26, 2026. No real health or customer data.",
+    "billing": "No purchase, entitlement change, analytics event, or production update is performed by the capture harness.",
+    "privacyScreen": "Build 40 inline consent presentation mirrored verbatim in a capture-only component; callbacks are inert.",
+    "captureStatus": "complete",
+    "capturedAtUtc": "2026-09-26T12:51:46Z",
+    "simulatorSessionId": "01a0ddb3-a3e5-71fb-b784-39a71c00816e",
+    "controller": "agent-device 0.21.15 through EAS Simulator",
+    "devices": [
+      {
+        "name": "iPhone 17 Pro Max",
+        "kind": "iOS simulator",
+        "width": 1320,
+        "height": 2868,
+        "pixelDensity": 3,
+        "screens": 7
+      },
+      {
+        "name": "iPad Pro 13-inch (M5)",
+        "kind": "iPadOS simulator",
+        "width": 2064,
+        "height": 2752,
+        "pixelDensity": 2,
+        "screens": 7
+      }
+    ],
+    "statusBar": "Normalized to 9:41 by the simulator; the fictional in-app clock remains afternoon.",
+    "captureNotes": [
+      "iPhone Care is scrolled to Your everyday care; iPad Care is captured at the top with both treatment records visible.",
+      "Guide shows the genuine Hot flashes & night sweats sheet, including evidence and limitations; iPhone is scrolled within the sheet.",
+      "The current production left gutter on primary iPad screens is preserved.",
+      "All fourteen native screenshots were visually checked before marketing composition."
+    ],
+    "sourceScreensUncropped": true,
+    "storeUploadStatus": "Not uploaded; current App Review submission remains unchanged."
+  },
+  "notes": "All app content is genuine capture pixels. Detail assets are contiguous crops. Source files are copied unchanged; default template frames perform uniform cover-scaling.",
+  "assets": [
+    {
+      "output": "screenshots/apple/iphone/en/today.png",
+      "source": "mobile/store-assets/native-capture/raw/iphone/today.png",
+      "sha256": "cf00328a2abbcfb3a1378ad1cc7296ac8ea1749ca0c33169171c1c7d5035aa61"
+    },
+    {
+      "output": "screenshots/apple/iphone/en/journey.png",
+      "source": "mobile/store-assets/native-capture/raw/iphone/journey.png",
+      "sha256": "488bd91c036aa79c30588d492e69673b20be7574b0a38ac476304d1ff11479f8"
+    },
+    {
+      "output": "screenshots/apple/iphone/en/care.png",
+      "source": "mobile/store-assets/native-capture/raw/iphone/care.png",
+      "sha256": "02d9daf88059180ad5ff693bfbdefee4d950f547e2bd9b910ae1a2131100440f"
+    },
+    {
+      "output": "screenshots/apple/iphone/en/report.png",
+      "source": "mobile/store-assets/native-capture/raw/iphone/report.png",
+      "sha256": "6d975a6265819f74646f5ce78c34968f61f816f1fec6453302c73be0eeb63dd7"
+    },
+    {
+      "output": "screenshots/apple/iphone/en/setup.png",
+      "source": "mobile/store-assets/native-capture/raw/iphone/setup.png",
+      "sha256": "f966e56032651bf19f44e217111df4afe81ec3b8e13c6c6004a4592b572a9513"
+    },
+    {
+      "output": "screenshots/apple/iphone/en/guide.png",
+      "source": "mobile/store-assets/native-capture/raw/iphone/guide.png",
+      "sha256": "5e1f8fd17981b1e904b3bf9d02d277bf857f315a8ba9ddae14b805b205d85d10"
+    },
+    {
+      "output": "screenshots/apple/ipad/en/today.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/today.png",
+      "sha256": "45f19a301fec82e076fc97400a617706eea4b687f2225d275e67ba0580c3eb05"
+    },
+    {
+      "output": "screenshots/apple/ipad/en/journey.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/journey.png",
+      "sha256": "287f2f58f310e1734f6f2ac43f52bcf2b197034b14e61ef9bf4b213dae6604ac"
+    },
+    {
+      "output": "screenshots/apple/ipad/en/care.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/care.png",
+      "sha256": "28acf748c3b587f061a3fc5fbd9da01bdac1b95d42b7e208b2bc3a43eed0a58f"
+    },
+    {
+      "output": "screenshots/apple/ipad/en/report.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/report.png",
+      "sha256": "16f73e67b20f353eb292fd2cb711f958a0108c075ea5b4547259d1ab3ad1ed37"
+    },
+    {
+      "output": "screenshots/apple/ipad/en/setup.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/setup.png",
+      "sha256": "de83fcd7232b643fd2e3c425eb8350249018a6efbeae344777c89ccbff2e7f5a"
+    },
+    {
+      "output": "screenshots/apple/ipad/en/guide.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/guide.png",
+      "sha256": "e7600f6907b747a24541ee7d04000a4472a41c5920f832c784557610ddf10dfa"
+    },
+    {
+      "output": "art/iphone-report-detail.png",
+      "source": "mobile/store-assets/native-capture/raw/iphone/report.png",
+      "sourceSha256": "6d975a6265819f74646f5ce78c34968f61f816f1fec6453302c73be0eeb63dd7",
+      "sha256": "82befb985ce53789a9f92f92926e4788a26e1ce5a88d4557e2b16826523e9472",
+      "crop": {
+        "left": 64,
+        "top": 1454,
+        "width": 1192,
+        "height": 1414
+      }
+    },
+    {
+      "output": "art/ipad-report-detail.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/report.png",
+      "sourceSha256": "16f73e67b20f353eb292fd2cb711f958a0108c075ea5b4547259d1ab3ad1ed37",
+      "sha256": "ebca3778427683a07500b0e139e9a664d88edea6c0b76fd4d713fba3746c5f16",
+      "crop": {
+        "left": 240,
+        "top": 944,
+        "width": 1580,
+        "height": 1490
+      }
+    },
+    {
+      "output": "art/ipad-care-detail.png",
+      "source": "mobile/store-assets/native-capture/raw/ipad/care.png",
+      "sourceSha256": "28acf748c3b587f061a3fc5fbd9da01bdac1b95d42b7e208b2bc3a43eed0a58f",
+      "sha256": "5fb4da91f28a6bc1172c5685c7e7432bf11fb5ad7e893d63c42435c7067e6152",
+      "crop": {
+        "left": 1260,
+        "top": 2000,
+        "width": 770,
+        "height": 565
+      }
+    }
+  ]
+}

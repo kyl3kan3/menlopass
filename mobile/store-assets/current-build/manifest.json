@@ -1,0 +1,529 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-26T12:52:06.885Z",
+  "compositor": "compose-native-store.cjs",
+  "composition": "Complete native screenshot, uniformly resized inside marketing artwork. No screenshot clipping, reconstruction, retouching or simulated app UI.",
+  "color": "8-bit sRGB, three channels, no alpha",
+  "copy": {
+    "file": "../native-capture/creative-copy.json",
+    "sha256": "31779647479ae21924f569b28063f95be79b031be3bc2ef23324446d36755718"
+  },
+  "captureProvenance": {
+    "app": "peri",
+    "version": "1.2.2",
+    "productionBuild": "40",
+    "productionSource": "5bb2dae4e4acefa8491a9e0b48225443d4adb560",
+    "captureSource": "072915d81f9789ea24d23da28b3e906d5d715366",
+    "captureBuildId": "cdea1163-1927-4972-908f-f37415e80e96",
+    "runtime": "1.2.2-native-tracking-2",
+    "method": "Native iOS simulator captures using the production HTML, NativeGlassTabs, and OnboardingPreview without renderer changes. Separate capture-only root provides fictional records and inert service callbacks.",
+    "data": "Fictional Morgan record, 60 days ending September 26, 2026. No real health or customer data.",
+    "billing": "No purchase, entitlement change, analytics event, or production update is performed by the capture harness.",
+    "privacyScreen": "Build 40 inline consent presentation mirrored verbatim in a capture-only component; callbacks are inert.",
+    "captureStatus": "complete",
+    "capturedAtUtc": "2026-09-26T12:51:46Z",
+    "simulatorSessionId": "01a0ddb3-a3e5-71fb-b784-39a71c00816e",
+    "controller": "agent-device 0.21.15 through EAS Simulator",
+    "devices": [
+      {
+        "name": "iPhone 17 Pro Max",
+        "kind": "iOS simulator",
+        "width": 1320,
+        "height": 2868,
+        "pixelDensity": 3,
+        "screens": 7
+      },
+      {
+        "name": "iPad Pro 13-inch (M5)",
+        "kind": "iPadOS simulator",
+        "width": 2064,
+        "height": 2752,
+        "pixelDensity": 2,
+        "screens": 7
+      }
+    ],
+    "statusBar": "Normalized to 9:41 by the simulator; the fictional in-app clock remains afternoon.",
+    "captureNotes": [
+      "iPhone Care is scrolled to Your everyday care; iPad Care is captured at the top with both treatment records visible.",
+      "Guide shows the genuine Hot flashes & night sweats sheet, including evidence and limitations; iPhone is scrolled within the sheet.",
+      "The current production left gutter on primary iPad screens is preserved.",
+      "All fourteen native screenshots were visually checked before marketing composition."
+    ],
+    "sourceScreensUncropped": true,
+    "storeUploadStatus": "Not uploaded; current App Review submission remains unchanged."
+  },
+  "captureProvenanceFile": "../native-capture/capture-provenance.json",
+  "screens": [
+    "today",
+    "journey",
+    "report",
+    "care",
+    "setup",
+    "guide",
+    "privacy"
+  ],
+  "artwork": [
+    {
+      "device": "iphone",
+      "screen": "today",
+      "headline": [
+        "Your symptoms.",
+        "One clear record."
+      ],
+      "output": "iphone-6.9/01-today.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "f20a8196c625264adf96c20c6c9a9c3709fcf3282d86eacce79ba319d93e4c0c",
+      "source": {
+        "file": "../native-capture/raw/iphone/today.png",
+        "width": 1320,
+        "height": 2868,
+        "sha256": "cf00328a2abbcfb3a1378ad1cc7296ac8ea1749ca0c33169171c1c7d5035aa61"
+      },
+      "screenshotBounds": {
+        "x": 178,
+        "y": 625,
+        "width": 965,
+        "height": 2097
+      },
+      "typography": {
+        "headlinePx": 108,
+        "descriptionPx": 35,
+        "labelPx": 27,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "iphone",
+      "screen": "journey",
+      "headline": [
+        "See symptoms and",
+        "treatment together."
+      ],
+      "output": "iphone-6.9/02-journey.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "bbdd2f01343432d5abe74268e6aa498b97bd8a0273bf5cdcc91d4c516e90a847",
+      "source": {
+        "file": "../native-capture/raw/iphone/journey.png",
+        "width": 1320,
+        "height": 2868,
+        "sha256": "488bd91c036aa79c30588d492e69673b20be7574b0a38ac476304d1ff11479f8"
+      },
+      "screenshotBounds": {
+        "x": 178,
+        "y": 625,
+        "width": 965,
+        "height": 2097
+      },
+      "typography": {
+        "headlinePx": 108,
+        "descriptionPx": 35,
+        "labelPx": 27,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "iphone",
+      "screen": "report",
+      "headline": [
+        "Your next visit.",
+        "Your story, ready."
+      ],
+      "output": "iphone-6.9/03-report.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "670e7ad41f4fe0814810472938177047cf64f9f2321b95899b0d4ba95d62bf5d",
+      "source": {
+        "file": "../native-capture/raw/iphone/report.png",
+        "width": 1320,
+        "height": 2868,
+        "sha256": "6d975a6265819f74646f5ce78c34968f61f816f1fec6453302c73be0eeb63dd7"
+      },
+      "screenshotBounds": {
+        "x": 178,
+        "y": 625,
+        "width": 965,
+        "height": 2097
+      },
+      "typography": {
+        "headlinePx": 108,
+        "descriptionPx": 35,
+        "labelPx": 27,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "iphone",
+      "screen": "care",
+      "headline": [
+        "Track HRT.",
+        "Keep the context."
+      ],
+      "output": "iphone-6.9/04-care.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "8012946775ba1edffebb8098b3a24c539f4e3d5eaf40ff9b848fc3e87b7fdde6",
+      "source": {
+        "file": "../native-capture/raw/iphone/care.png",
+        "width": 1320,
+        "height": 2868,
+        "sha256": "02d9daf88059180ad5ff693bfbdefee4d950f547e2bd9b910ae1a2131100440f"
+      },
+      "screenshotBounds": {
+        "x": 178,
+        "y": 625,
+        "width": 965,
+        "height": 2097
+      },
+      "typography": {
+        "headlinePx": 108,
+        "descriptionPx": 35,
+        "labelPx": 27,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "iphone",
+      "screen": "setup",
+      "headline": [
+        "A starting point",
+        "that feels like you."
+      ],
+      "output": "iphone-6.9/05-setup.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "6aab59b18e65450d1f5eaf0f491117a4ca132a048bc7ed7c74b9dfc05ff8ba2f",
+      "source": {
+        "file": "../native-capture/raw/iphone/setup.png",
+        "width": 1320,
+        "height": 2868,
+        "sha256": "f966e56032651bf19f44e217111df4afe81ec3b8e13c6c6004a4592b572a9513"
+      },
+      "screenshotBounds": {
+        "x": 178,
+        "y": 625,
+        "width": 965,
+        "height": 2097
+      },
+      "typography": {
+        "headlinePx": 108,
+        "descriptionPx": 35,
+        "labelPx": 27,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "iphone",
+      "screen": "guide",
+      "headline": [
+        "Evidence, with",
+        "room for questions."
+      ],
+      "output": "iphone-6.9/06-guide.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "fc56e780c6166a3f64cc237ee817b8bb651b7711d329115c7f3eac6c36a0b776",
+      "source": {
+        "file": "../native-capture/raw/iphone/guide.png",
+        "width": 1320,
+        "height": 2868,
+        "sha256": "5e1f8fd17981b1e904b3bf9d02d277bf857f315a8ba9ddae14b805b205d85d10"
+      },
+      "screenshotBounds": {
+        "x": 178,
+        "y": 625,
+        "width": 965,
+        "height": 2097
+      },
+      "typography": {
+        "headlinePx": 108,
+        "descriptionPx": 35,
+        "labelPx": 27,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "iphone",
+      "screen": "privacy",
+      "headline": [
+        "Your health.",
+        "Your choices."
+      ],
+      "output": "iphone-6.9/07-privacy.png",
+      "width": 1320,
+      "height": 2868,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "e3362ccc8ab3e73729728e4278c6b6d1dfdd0906b1088195f2d23eb95e541839",
+      "source": {
+        "file": "../native-capture/raw/iphone/privacy.png",
+        "width": 1320,
+        "height": 2868,
+        "sha256": "76f1ea3b4a4eef4faadead85a08456cae339540d0099a832f22e8f5e27b5b08e"
+      },
+      "screenshotBounds": {
+        "x": 178,
+        "y": 625,
+        "width": 965,
+        "height": 2097
+      },
+      "typography": {
+        "headlinePx": 108,
+        "descriptionPx": 35,
+        "labelPx": 27,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "ipad",
+      "screen": "today",
+      "headline": [
+        "Your symptoms.",
+        "One clear record."
+      ],
+      "output": "ipad-13/01-today.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "5159e4ec66c5ca3479d1d2a3afa17b2730e22860389841df1bf7e5022d153f43",
+      "source": {
+        "file": "../native-capture/raw/ipad/today.png",
+        "width": 2064,
+        "height": 2752,
+        "sha256": "45f19a301fec82e076fc97400a617706eea4b687f2225d275e67ba0580c3eb05"
+      },
+      "screenshotBounds": {
+        "x": 306,
+        "y": 630,
+        "width": 1452,
+        "height": 1936
+      },
+      "typography": {
+        "headlinePx": 128,
+        "descriptionPx": 39,
+        "labelPx": 30,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "ipad",
+      "screen": "journey",
+      "headline": [
+        "See symptoms and",
+        "treatment together."
+      ],
+      "output": "ipad-13/02-journey.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "df63d70b9816bc51a9f65547ce9dfaffb0836d8282daf89f5f029e89cb78c2eb",
+      "source": {
+        "file": "../native-capture/raw/ipad/journey.png",
+        "width": 2064,
+        "height": 2752,
+        "sha256": "287f2f58f310e1734f6f2ac43f52bcf2b197034b14e61ef9bf4b213dae6604ac"
+      },
+      "screenshotBounds": {
+        "x": 306,
+        "y": 630,
+        "width": 1452,
+        "height": 1936
+      },
+      "typography": {
+        "headlinePx": 128,
+        "descriptionPx": 39,
+        "labelPx": 30,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "ipad",
+      "screen": "report",
+      "headline": [
+        "Your next visit.",
+        "Your story, ready."
+      ],
+      "output": "ipad-13/03-report.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "a0d5348ed276b2134af79cb2f88c529314b8b78f75c5c642c76b17f41f8db6bd",
+      "source": {
+        "file": "../native-capture/raw/ipad/report.png",
+        "width": 2064,
+        "height": 2752,
+        "sha256": "16f73e67b20f353eb292fd2cb711f958a0108c075ea5b4547259d1ab3ad1ed37"
+      },
+      "screenshotBounds": {
+        "x": 306,
+        "y": 630,
+        "width": 1452,
+        "height": 1936
+      },
+      "typography": {
+        "headlinePx": 128,
+        "descriptionPx": 39,
+        "labelPx": 30,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "ipad",
+      "screen": "care",
+      "headline": [
+        "Track HRT.",
+        "Keep the context."
+      ],
+      "output": "ipad-13/04-care.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "a654805591f37a76f8c80f863c0f8a7d03d8838936bd29e6267647e4ba50f007",
+      "source": {
+        "file": "../native-capture/raw/ipad/care.png",
+        "width": 2064,
+        "height": 2752,
+        "sha256": "28acf748c3b587f061a3fc5fbd9da01bdac1b95d42b7e208b2bc3a43eed0a58f"
+      },
+      "screenshotBounds": {
+        "x": 306,
+        "y": 630,
+        "width": 1452,
+        "height": 1936
+      },
+      "typography": {
+        "headlinePx": 128,
+        "descriptionPx": 39,
+        "labelPx": 30,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "ipad",
+      "screen": "setup",
+      "headline": [
+        "A starting point",
+        "that feels like you."
+      ],
+      "output": "ipad-13/05-setup.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "afb18c30a366bc829319b88b770abd31f009a7926a0815440288468963a8d673",
+      "source": {
+        "file": "../native-capture/raw/ipad/setup.png",
+        "width": 2064,
+        "height": 2752,
+        "sha256": "de83fcd7232b643fd2e3c425eb8350249018a6efbeae344777c89ccbff2e7f5a"
+      },
+      "screenshotBounds": {
+        "x": 306,
+        "y": 630,
+        "width": 1452,
+        "height": 1936
+      },
+      "typography": {
+        "headlinePx": 128,
+        "descriptionPx": 39,
+        "labelPx": 30,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "ipad",
+      "screen": "guide",
+      "headline": [
+        "Evidence, with",
+        "room for questions."
+      ],
+      "output": "ipad-13/06-guide.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "4147176b4aaadfb26dbbed28d5afa4cfae5d9fdb93c6cb7f8ca30558e548bb81",
+      "source": {
+        "file": "../native-capture/raw/ipad/guide.png",
+        "width": 2064,
+        "height": 2752,
+        "sha256": "e7600f6907b747a24541ee7d04000a4472a41c5920f832c784557610ddf10dfa"
+      },
+      "screenshotBounds": {
+        "x": 306,
+        "y": 630,
+        "width": 1452,
+        "height": 1936
+      },
+      "typography": {
+        "headlinePx": 128,
+        "descriptionPx": 39,
+        "labelPx": 30,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    },
+    {
+      "device": "ipad",
+      "screen": "privacy",
+      "headline": [
+        "Your health.",
+        "Your choices."
+      ],
+      "output": "ipad-13/07-privacy.png",
+      "width": 2064,
+      "height": 2752,
+      "channels": 3,
+      "hasAlpha": false,
+      "sha256": "9e0d241d0bbe43702bbf7e40e0eb73a84669c26a88cd317d02674d88c4673adb",
+      "source": {
+        "file": "../native-capture/raw/ipad/privacy.png",
+        "width": 2064,
+        "height": 2752,
+        "sha256": "0b5fabc616f05276a4bc6aadd53a4d74c52710fc7de0a55325f3267d0f7905da"
+      },
+      "screenshotBounds": {
+        "x": 306,
+        "y": 630,
+        "width": 1452,
+        "height": 1936
+      },
+      "typography": {
+        "headlinePx": 128,
+        "descriptionPx": 39,
+        "labelPx": 30,
+        "headlineFamily": "Georgia",
+        "supportingFamily": "Arial"
+      }
+    }
+  ]
+}

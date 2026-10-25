@@ -1,0 +1,1913 @@
+{
+  "schemaVersion": 2,
+  "appName": "peri",
+  "themeId": "peri-bold",
+  "fontId": "template-default",
+  "connectedCanvas": true,
+  "locales": [
+    "en"
+  ],
+  "locale": "en",
+  "device": "iphone",
+  "orientation": "portrait",
+  "appIcon": "/app-icon.png",
+  "slidesByDevice": {
+    "iphone": [
+      {
+        "id": "iphone-today",
+        "layout": "hero",
+        "label": {
+          "en": "MENOPAUSE TRACKING"
+        },
+        "headline": {
+          "en": "Your symptoms.\nIn one place."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/today.png",
+        "inverted": true,
+        "typography": {
+          "headlineScale": 0.93
+        },
+        "transforms": {
+          "caption": {
+            "x": 72,
+            "y": 240,
+            "width": 1176,
+            "height": 420,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 112,
+            "y": 830,
+            "width": 1120,
+            "height": 2281.6438356164385,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 58,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 90,
+            "fontWeight": 800,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "01 / 06"
+            },
+            "transform": {
+              "x": 1023,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 29,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subline",
+            "text": {
+              "en": "A daily check-in for perimenopause and menopause."
+            },
+            "transform": {
+              "x": 58,
+              "y": 678,
+              "width": 1196,
+              "height": 102,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 41,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 60,
+              "y": 2784,
+              "width": 1176,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2782,
+              "width": 1320,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          }
+        ]
+      },
+      {
+        "id": "iphone-journey",
+        "layout": "device-top",
+        "label": {
+          "en": "YOUR WEEKLY STORY"
+        },
+        "headline": {
+          "en": "Your week.\nIn perspective."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/journey.png",
+        "inverted": false,
+        "transforms": {
+          "caption": {
+            "x": 72,
+            "y": 2210,
+            "width": 1176,
+            "height": 420,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 112,
+            "y": -175,
+            "width": 1120,
+            "height": 2281.6438356164385,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "subline",
+            "text": {
+              "en": "See your symptom record over time."
+            },
+            "transform": {
+              "x": 58,
+              "y": 2670,
+              "width": 1196,
+              "height": 102,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 41,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 60,
+              "y": 2784,
+              "width": 1176,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2782,
+              "width": 1320,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          }
+        ]
+      },
+      {
+        "id": "iphone-care",
+        "layout": "device-bottom",
+        "label": {
+          "en": "YOUR HRT RECORD"
+        },
+        "headline": {
+          "en": "Keep HRT\nin view."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/care.png",
+        "inverted": true,
+        "transforms": {
+          "caption": {
+            "x": 72,
+            "y": 240,
+            "width": 1176,
+            "height": 420,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 172,
+            "y": 830,
+            "width": 1120,
+            "height": 2281.6438356164385,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 58,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 90,
+            "fontWeight": 800,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "03 / 06"
+            },
+            "transform": {
+              "x": 1023,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 29,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subline",
+            "text": {
+              "en": "Doses, schedules and changes. Together."
+            },
+            "transform": {
+              "x": 58,
+              "y": 678,
+              "width": 1196,
+              "height": 102,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 41,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 60,
+              "y": 2784,
+              "width": 1176,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2782,
+              "width": 1320,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          }
+        ]
+      },
+      {
+        "id": "iphone-report",
+        "layout": "no-device",
+        "label": {
+          "en": "YOUR NEXT VISIT"
+        },
+        "headline": {
+          "en": "Walk in\nprepared."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/report.png",
+        "inverted": false,
+        "transforms": {
+          "caption": {
+            "x": 72,
+            "y": 240,
+            "width": 1176,
+            "height": 420,
+            "rotation": 0,
+            "zIndex": 6
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 58,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 90,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "04 / 06"
+            },
+            "transform": {
+              "x": 1023,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 29,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subline",
+            "text": {
+              "en": "Bring your tracked history to the conversation."
+            },
+            "transform": {
+              "x": 58,
+              "y": 678,
+              "width": 1196,
+              "height": 102,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 41,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 60,
+              "y": 2784,
+              "width": 1176,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "report-note",
+            "text": {
+              "en": "Your history, ready to share."
+            },
+            "transform": {
+              "x": 58,
+              "y": 2470,
+              "width": 1176,
+              "height": 110,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 48,
+            "fontWeight": 600,
+            "color": "#092D25",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2782,
+              "width": 1320,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          },
+          {
+            "id": "report-paper",
+            "src": "/art/iphone-report-detail.png",
+            "transform": {
+              "x": 85,
+              "y": 1030,
+              "width": 1150,
+              "height": 1364.1778523489934,
+              "rotation": 0,
+              "zIndex": 3
+            },
+            "fit": "contain"
+          }
+        ]
+      },
+      {
+        "id": "iphone-guide",
+        "layout": "device-top",
+        "label": {
+          "en": "YOUR MENOPAUSE GUIDE"
+        },
+        "headline": {
+          "en": "Evidence.\nExplained."
+        },
+        "screenshot": "/screenshots/apple/iphone/en/guide.png",
+        "inverted": true,
+        "transforms": {
+          "caption": {
+            "x": 72,
+            "y": 2210,
+            "width": 1176,
+            "height": 420,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 112,
+            "y": -175,
+            "width": 1120,
+            "height": 2281.6438356164385,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "subline",
+            "text": {
+              "en": "Explore options, sources and uncertainty."
+            },
+            "transform": {
+              "x": 58,
+              "y": 2670,
+              "width": 1196,
+              "height": 102,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 41,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 60,
+              "y": 2784,
+              "width": 1176,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "connecting-rule",
+            "src": "/art/rule-cream.svg",
+            "transform": {
+              "x": 998,
+              "y": 2165,
+              "width": 500,
+              "height": 4,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          }
+        ]
+      },
+      {
+        "id": "iphone-overview",
+        "layout": "no-device",
+        "label": {
+          "en": "BUILT AROUND YOU"
+        },
+        "headline": {
+          "en": "Your record.\nYour way."
+        },
+        "screenshot": "",
+        "inverted": false,
+        "transforms": {
+          "caption": {
+            "x": 72,
+            "y": 240,
+            "width": 1176,
+            "height": 420,
+            "rotation": 0,
+            "zIndex": 6
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 58,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 90,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "06 / 06"
+            },
+            "transform": {
+              "x": 1023,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 29,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 60,
+              "y": 2784,
+              "width": 1176,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "feature-0",
+            "text": {
+              "en": "Check-ins"
+            },
+            "transform": {
+              "x": 182,
+              "y": 980,
+              "width": 1051,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 91,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-0",
+            "text": {
+              "en": "01"
+            },
+            "transform": {
+              "x": 58,
+              "y": 1010,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 31,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-1",
+            "text": {
+              "en": "Symptom history"
+            },
+            "transform": {
+              "x": 182,
+              "y": 1236,
+              "width": 1051,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 91,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-1",
+            "text": {
+              "en": "02"
+            },
+            "transform": {
+              "x": 58,
+              "y": 1266,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 31,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-2",
+            "text": {
+              "en": "HRT log"
+            },
+            "transform": {
+              "x": 182,
+              "y": 1492,
+              "width": 1051,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 91,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-2",
+            "text": {
+              "en": "03"
+            },
+            "transform": {
+              "x": 58,
+              "y": 1522,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 31,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-3",
+            "text": {
+              "en": "Visit reports"
+            },
+            "transform": {
+              "x": 182,
+              "y": 1748,
+              "width": 1051,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 91,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-3",
+            "text": {
+              "en": "04"
+            },
+            "transform": {
+              "x": 58,
+              "y": 1778,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 31,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-4",
+            "text": {
+              "en": "Evidence guide"
+            },
+            "transform": {
+              "x": 182,
+              "y": 2004,
+              "width": 1051,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 91,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-4",
+            "text": {
+              "en": "05"
+            },
+            "transform": {
+              "x": 58,
+              "y": 2034,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 31,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-5",
+            "text": {
+              "en": "Your priorities"
+            },
+            "transform": {
+              "x": 182,
+              "y": 2260,
+              "width": 1051,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 91,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-5",
+            "text": {
+              "en": "06"
+            },
+            "transform": {
+              "x": 58,
+              "y": 2290,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 31,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2782,
+              "width": 1320,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          },
+          {
+            "id": "rule-0",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 72,
+              "y": 1167,
+              "width": 1176,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-1",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 72,
+              "y": 1423,
+              "width": 1176,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-2",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 72,
+              "y": 1679,
+              "width": 1176,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-3",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 72,
+              "y": 1935,
+              "width": 1176,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-4",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 72,
+              "y": 2191,
+              "width": 1176,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-5",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 72,
+              "y": 2447,
+              "width": 1176,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          }
+        ]
+      }
+    ],
+    "android": [],
+    "ipad": [
+      {
+        "id": "ipad-today",
+        "layout": "hero",
+        "label": {
+          "en": "MENOPAUSE TRACKING"
+        },
+        "headline": {
+          "en": "Your symptoms.\nIn one place."
+        },
+        "screenshot": "/screenshots/apple/ipad/en/today.png",
+        "inverted": true,
+        "typography": {
+          "headlineScale": 0.93
+        },
+        "transforms": {
+          "caption": {
+            "x": 112,
+            "y": 205,
+            "width": 1840,
+            "height": 570,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 158,
+            "y": 910,
+            "width": 1730,
+            "height": 2246.753246753247,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 98,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 108,
+            "fontWeight": 800,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "01 / 06"
+            },
+            "transform": {
+              "x": 1727,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subline",
+            "text": {
+              "en": "A daily check-in for perimenopause and menopause."
+            },
+            "transform": {
+              "x": 98,
+              "y": 770,
+              "width": 1860,
+              "height": 104,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 48,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 100,
+              "y": 2668,
+              "width": 1840,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 40,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2666,
+              "width": 2064,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          }
+        ]
+      },
+      {
+        "id": "ipad-journey",
+        "layout": "device-top",
+        "label": {
+          "en": "YOUR WEEKLY STORY"
+        },
+        "headline": {
+          "en": "Your week.\nIn perspective."
+        },
+        "screenshot": "/screenshots/apple/ipad/en/journey.png",
+        "inverted": false,
+        "transforms": {
+          "caption": {
+            "x": 112,
+            "y": 1970,
+            "width": 1840,
+            "height": 570,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 158,
+            "y": -340,
+            "width": 1730,
+            "height": 2246.753246753247,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "subline",
+            "text": {
+              "en": "See your symptom record over time."
+            },
+            "transform": {
+              "x": 98,
+              "y": 2570,
+              "width": 1860,
+              "height": 104,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 48,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 100,
+              "y": 2668,
+              "width": 1840,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 40,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2666,
+              "width": 2064,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          }
+        ]
+      },
+      {
+        "id": "ipad-care",
+        "layout": "device-bottom",
+        "label": {
+          "en": "YOUR HRT RECORD"
+        },
+        "headline": {
+          "en": "Keep HRT\nin view."
+        },
+        "screenshot": "/screenshots/apple/ipad/en/care.png",
+        "inverted": true,
+        "transforms": {
+          "caption": {
+            "x": 112,
+            "y": 205,
+            "width": 1840,
+            "height": 570,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 120,
+            "y": 910,
+            "width": 1730,
+            "height": 2246.753246753247,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 98,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 108,
+            "fontWeight": 800,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "03 / 06"
+            },
+            "transform": {
+              "x": 1727,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subline",
+            "text": {
+              "en": "Doses, schedules and changes. Together."
+            },
+            "transform": {
+              "x": 98,
+              "y": 770,
+              "width": 1860,
+              "height": 104,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 48,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 100,
+              "y": 2668,
+              "width": 1840,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 40,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2666,
+              "width": 2064,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          },
+          {
+            "id": "hrt-detail",
+            "src": "/art/ipad-care-detail.png",
+            "transform": {
+              "x": 476,
+              "y": 1430,
+              "width": 1450,
+              "height": 1063.9610389610389,
+              "rotation": 0,
+              "zIndex": 8
+            },
+            "fit": "contain"
+          }
+        ]
+      },
+      {
+        "id": "ipad-report",
+        "layout": "no-device",
+        "label": {
+          "en": "YOUR NEXT VISIT"
+        },
+        "headline": {
+          "en": "Walk in\nprepared."
+        },
+        "screenshot": "/screenshots/apple/ipad/en/report.png",
+        "inverted": false,
+        "transforms": {
+          "caption": {
+            "x": 112,
+            "y": 205,
+            "width": 1840,
+            "height": 570,
+            "rotation": 0,
+            "zIndex": 6
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 98,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 108,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "04 / 06"
+            },
+            "transform": {
+              "x": 1727,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subline",
+            "text": {
+              "en": "Bring your tracked history to the conversation."
+            },
+            "transform": {
+              "x": 98,
+              "y": 770,
+              "width": 1860,
+              "height": 104,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 48,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 100,
+              "y": 2668,
+              "width": 1840,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 40,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "report-note",
+            "text": {
+              "en": "Your history, ready to share."
+            },
+            "transform": {
+              "x": 98,
+              "y": 2515,
+              "width": 1840,
+              "height": 110,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 47,
+            "fontWeight": 600,
+            "color": "#092D25",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2666,
+              "width": 2064,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          },
+          {
+            "id": "report-paper",
+            "src": "/art/ipad-report-detail.png",
+            "transform": {
+              "x": 197,
+              "y": 920,
+              "width": 1670,
+              "height": 1574.873417721519,
+              "rotation": 0,
+              "zIndex": 3
+            },
+            "fit": "contain"
+          }
+        ]
+      },
+      {
+        "id": "ipad-guide",
+        "layout": "device-top",
+        "label": {
+          "en": "YOUR MENOPAUSE GUIDE"
+        },
+        "headline": {
+          "en": "Evidence.\nExplained."
+        },
+        "screenshot": "/screenshots/apple/ipad/en/guide.png",
+        "inverted": true,
+        "transforms": {
+          "caption": {
+            "x": 112,
+            "y": 1970,
+            "width": 1840,
+            "height": 570,
+            "rotation": 0,
+            "zIndex": 6
+          },
+          "device": {
+            "x": 192,
+            "y": -260,
+            "width": 1680,
+            "height": 2181.818181818182,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "subline",
+            "text": {
+              "en": "Explore options, sources and uncertainty."
+            },
+            "transform": {
+              "x": 98,
+              "y": 2570,
+              "width": 1860,
+              "height": 104,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 48,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 100,
+              "y": 2668,
+              "width": 1840,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 40,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "connecting-rule",
+            "src": "/art/rule-cream.svg",
+            "transform": {
+              "x": 1702,
+              "y": 1940,
+              "width": 500,
+              "height": 4,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          }
+        ]
+      },
+      {
+        "id": "ipad-overview",
+        "layout": "no-device",
+        "label": {
+          "en": "BUILT AROUND YOU"
+        },
+        "headline": {
+          "en": "Your record.\nYour way."
+        },
+        "screenshot": "",
+        "inverted": false,
+        "transforms": {
+          "caption": {
+            "x": 112,
+            "y": 205,
+            "width": 1840,
+            "height": 570,
+            "rotation": 0,
+            "zIndex": 6
+          }
+        },
+        "textElements": [
+          {
+            "id": "brand",
+            "text": {
+              "en": "peri"
+            },
+            "transform": {
+              "x": 98,
+              "y": 52,
+              "width": 500,
+              "height": 135,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 108,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "edition",
+            "text": {
+              "en": "06 / 06"
+            },
+            "transform": {
+              "x": 1727,
+              "y": 86,
+              "width": 220,
+              "height": 65,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 36,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "subscription",
+            "text": {
+              "en": "Paid subscription required."
+            },
+            "transform": {
+              "x": 100,
+              "y": 2668,
+              "width": 1840,
+              "height": 64,
+              "rotation": 0,
+              "zIndex": 10
+            },
+            "fontSize": 40,
+            "fontWeight": 500,
+            "color": "#F5F5E9",
+            "align": "left"
+          },
+          {
+            "id": "feature-0",
+            "text": {
+              "en": "Check-ins"
+            },
+            "transform": {
+              "x": 222,
+              "y": 1010,
+              "width": 1715,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 104,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-0",
+            "text": {
+              "en": "01"
+            },
+            "transform": {
+              "x": 98,
+              "y": 1040,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 37,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-1",
+            "text": {
+              "en": "Symptom history"
+            },
+            "transform": {
+              "x": 222,
+              "y": 1247,
+              "width": 1715,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 104,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-1",
+            "text": {
+              "en": "02"
+            },
+            "transform": {
+              "x": 98,
+              "y": 1277,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 37,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-2",
+            "text": {
+              "en": "HRT log"
+            },
+            "transform": {
+              "x": 222,
+              "y": 1484,
+              "width": 1715,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 104,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-2",
+            "text": {
+              "en": "03"
+            },
+            "transform": {
+              "x": 98,
+              "y": 1514,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 37,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-3",
+            "text": {
+              "en": "Visit reports"
+            },
+            "transform": {
+              "x": 222,
+              "y": 1721,
+              "width": 1715,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 104,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-3",
+            "text": {
+              "en": "04"
+            },
+            "transform": {
+              "x": 98,
+              "y": 1751,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 37,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-4",
+            "text": {
+              "en": "Evidence guide"
+            },
+            "transform": {
+              "x": 222,
+              "y": 1958,
+              "width": 1715,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 104,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-4",
+            "text": {
+              "en": "05"
+            },
+            "transform": {
+              "x": 98,
+              "y": 1988,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 37,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "feature-5",
+            "text": {
+              "en": "Your priorities"
+            },
+            "transform": {
+              "x": 222,
+              "y": 2195,
+              "width": 1715,
+              "height": 150,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 104,
+            "fontWeight": 800,
+            "color": "#092D25",
+            "align": "left"
+          },
+          {
+            "id": "number-5",
+            "text": {
+              "en": "06"
+            },
+            "transform": {
+              "x": 98,
+              "y": 2225,
+              "width": 100,
+              "height": 80,
+              "rotation": 0,
+              "zIndex": 7
+            },
+            "fontSize": 37,
+            "fontWeight": 500,
+            "color": "#092D25",
+            "align": "left"
+          }
+        ],
+        "imageElements": [
+          {
+            "id": "disclosure-band",
+            "src": "/art/disclosure-band.svg",
+            "transform": {
+              "x": 0,
+              "y": 2666,
+              "width": 2064,
+              "height": 86,
+              "rotation": 0,
+              "zIndex": 9
+            },
+            "fit": "cover"
+          },
+          {
+            "id": "rule-0",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 112,
+              "y": 1197,
+              "width": 1840,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-1",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 112,
+              "y": 1434,
+              "width": 1840,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-2",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 112,
+              "y": 1671,
+              "width": 1840,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-3",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 112,
+              "y": 1908,
+              "width": 1840,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-4",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 112,
+              "y": 2145,
+              "width": 1840,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          },
+          {
+            "id": "rule-5",
+            "src": "/art/rule-forest.svg",
+            "transform": {
+              "x": 112,
+              "y": 2382,
+              "width": 1840,
+              "height": 3,
+              "rotation": 0,
+              "zIndex": 4
+            },
+            "fit": "contain"
+          }
+        ]
+      }
+    ],
+    "tvos": [],
+    "watchos": [],
+    "carplay": [],
+    "mac": [],
+    "android-7": [],
+    "android-10": [],
+    "feature-graphic": []
+  }
+}

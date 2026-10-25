@@ -1,0 +1,89 @@
+{
+  "gallery": {
+    "desktop": {
+      "images": 7,
+      "videos": [
+        {
+          "width": 1080,
+          "height": 1920,
+          "duration": 10.5
+        },
+        {
+          "width": 1080,
+          "height": 1920,
+          "duration": 10.5
+        },
+        {
+          "width": 1080,
+          "height": 1920,
+          "duration": 10.5
+        }
+      ],
+      "overflow": false,
+      "missingLinks": 0
+    },
+    "mobile": {
+      "overflow": false
+    },
+    "errors": []
+  },
+  "media": [
+    {
+      "id": "pip-night-notes",
+      "outputs": [
+        {
+          "file": "marketing/pip-night-notes/pip-check-in-social.mp4",
+          "duration": 10.5,
+          "width": 1080,
+          "height": 1920,
+          "decoded": true
+        },
+        {
+          "file": "marketing/pip-night-notes/pip-two-slide-slideshow.mp4",
+          "duration": 8,
+          "width": 1080,
+          "height": 1920,
+          "decoded": true
+        }
+      ]
+    },
+    {
+      "id": "pip-appointment-notes",
+      "outputs": [
+        {
+          "file": "marketing/pip-appointment-notes/pip-check-in-social.mp4",
+          "duration": 10.5,
+          "width": 1080,
+          "height": 1920,
+          "decoded": true
+        },
+        {
+          "file": "marketing/pip-appointment-notes/pip-two-slide-slideshow.mp4",
+          "duration": 8,
+          "width": 1080,
+          "height": 1920,
+          "decoded": true
+        }
+      ]
+    },
+    {
+      "id": "pip-room-for-you",
+      "outputs": [
+        {
+          "file": "marketing/pip-room-for-you/pip-check-in-social.mp4",
+          "duration": 10.5,
+          "width": 1080,
+          "height": 1920,
+          "decoded": true
+        },
+        {
+          "file": "marketing/pip-room-for-you/pip-two-slide-slideshow.mp4",
+          "duration": 8,
+          "width": 1080,
+          "height": 1920,
+          "decoded": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "request": {
+    "type": "edit",
+    "name": "Pip — crisp phone v2",
+    "source_image_asset_id": "530f07ff-5f70-4f7e-873a-4e51ca70035b",
+    "edit_instructions": "Crisp production-art cleanup of this exact Pip mascot. Preserve the exact pose, expression, framing, proportions, silhouette, two unequal leaves, face shape, eyes, cream face/belly, peach cheeks and hand positions. Redraw with extremely clean smooth vector-like contours, a consistent solid dark forest-green outline (#173F35), precise sharp anti-aliased edges and bold legible facial details. Flat solid sage-green fills (#ABC79F), flat warm ivory patch (#FFFEFA), flat peach cheeks (#E9B69F). Remove ALL paper grain, watercolor texture, mottling, cloudy shading, soft gradients, blur, hazy edges, shadow inside the character, and washed-out coloration. Only very small hard-edged flat cel-shading accents if necessary; mostly completely uniform solid fills. Clear separation of hands and body. Maintain friendly soft rounded shape, do not redesign the character. One complete full-body character isolated with clear margins, no added items, no typography, no background scenery, no icon tile. Transparent background in the final PNG. Highest available native image quality; sharp modern 2D mascot artwork suitable for a mobile app. Preserve the existing phone and puzzled glance exactly; give the phone a crisp rectangular forest border and a solid pale sage screen."
+  },
+  "result": {
+    "job_id": "2fffd8e7-5c70-4cde-b794-7e96e1279092",
+    "status": "completed",
+    "type": "edit",
+    "item_id": "2bfc13ca-04b7-42c1-b731-85258b7ff178",
+    "item_name": "Pip — crisp phone v2",
+    "estimated_cost": 1,
+    "asset_ids": {
+      "image": "7c30a46a-b9d1-4b57-b0ed-07dbb82b3833"
+    },
+    "urls": {},
+    "poll_url": "/api/v1/jobs/2fffd8e7-5c70-4cde-b794-7e96e1279092"
+  }
+}
