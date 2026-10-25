@@ -15,6 +15,7 @@ export async function readAnalyticsConsent(): Promise<boolean | null> {
 }
 let writes = Promise.resolve();
 export function persistAnalyticsConsent(accepted: boolean) {
-  writes = writes.catch(() => {}).then(() => SecureStore.setItemAsync(key, JSON.stringify({ version: DISCLOSURE_VERSION, allowed: accepted })));
+  const record = { version: DISCLOSURE_VERSION, allowed: accepted, updatedAt: new Date().toISOString() };
+  writes = writes.catch(() => {}).then(() => SecureStore.setItemAsync(key, JSON.stringify(record)));
   return writes;
 }

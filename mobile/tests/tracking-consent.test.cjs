@@ -118,11 +118,27 @@ test('background stop does not wait behind an unresolved AppsFlyer start respons
   resolve(); await settle(); h.trackTelemetryEvent('paywall_rendered');
   assert.equal(h.calls.some(x => x.eventName), false);
 });
+test('profile review pauses analytics until the user explicitly allows again', async () => {
+  const h = harness('denied');
+  await h.setAnalyticsConsent(true);
+  h.trackTelemetryEvent('checkin_confirmed');
+  assert.ok(h.events.some(e => e.product));
+  await h.setAnalyticsConsent(false, false);
+  const before = h.events.length;
+  h.trackTelemetryEvent('checkin_confirmed');
+  assert.equal(h.events.length, before);
+  await h.setAnalyticsConsent(true);
+  h.trackTelemetryEvent('checkin_confirmed');
+  assert.ok(h.events.some(e => e.product && e.name === 'checkin_confirmed'));
+});
 test('consent migration is off until current disclosure is explicitly saved', async () => {
   let value = JSON.stringify({ version: 0, allowed: true });
   const consent = load('analytics-consent.ts', { 'expo-secure-store': { getItemAsync: async () => value, setItemAsync: async (_k, v) => { value = v; } } });
   assert.equal(consent.analyticsAllowed(), false); assert.equal(await consent.readAnalyticsConsent(), null);
   await consent.persistAnalyticsConsent(false); assert.equal(await consent.readAnalyticsConsent(), false);
+  const saved = JSON.parse(value);
+  assert.equal(typeof saved.updatedAt, 'string');
+  assert.ok(!Number.isNaN(Date.parse(saved.updatedAt)));
 });
 test('fallback sessions rotate on idle, maximum age and clock rollback', () => {
   const session = load('analytics-session.ts', { 'expo-crypto': { randomUUID: crypto.randomUUID }, 'expo-application': {}, 'expo-updates': {}, 'react-native': { Platform: { OS: 'ios', Version: 18 } } });

@@ -1,4 +1,5 @@
 import { readAnalyticsConsent } from './analytics-consent';
+import { consentGatePhase } from './consent-gate';
 import { setAnalyticsConsent, deleteTrackingData, cancelPendingTrackingPermission, suspendAdvertising, telemetryBackground, telemetryForeground, setTelemetryReplay } from './telemetry.native';
 import { PostHogMaskView } from 'posthog-react-native';
 import { Asset } from 'expo-asset';
@@ -464,6 +465,7 @@ function App() {
   const [pendingReviewMilestone, setPendingReviewMilestone] = useState<
     AppReviewProgress['dueMilestone']
   >(null);
+  const [consentHydrating, setConsentHydrating] = useState(true);
   const [consentReady, setConsentReady] = useState(false);
   const [privacyChoiceOpen, setPrivacyChoiceOpen] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
@@ -480,12 +482,29 @@ function App() {
       Alert.alert('Analytics stayed off', 'Your choice could not be saved. You can continue using peri.');
     } finally { setConsentSaving(false); }
   };
+  const openAnalyticsReview = () => {
+    setAnalyticsEnabled(false);
+    void setAnalyticsConsent(false, false).finally(() => setPrivacyChoiceOpen(true));
+  };
   useEffect(() => { let active = true;
     void readAnalyticsConsent().then(async choice => {
       if (!active) return;
-      if (choice === null) setPrivacyChoiceOpen(true);
-      else { await setAnalyticsConsent(choice, false); if (active) { setAnalyticsEnabled(choice); setConsentReady(true); } }
-    }).catch(() => { if (active) setPrivacyChoiceOpen(true); });
+      if (choice === null) {
+        setPrivacyChoiceOpen(true);
+        setConsentHydrating(false);
+        return;
+      }
+      await setAnalyticsConsent(choice, false);
+      if (active) {
+        setAnalyticsEnabled(choice);
+        setConsentReady(true);
+        setConsentHydrating(false);
+      }
+    }).catch(() => {
+      if (!active) return;
+      setPrivacyChoiceOpen(true);
+      setConsentHydrating(false);
+    });
     return () => { active = false; };
   }, []);
   const [telemetrySettled, setTelemetrySettled] = useState(false);
@@ -1166,7 +1185,7 @@ function App() {
         importEncryptedBackup(message.password);
         return;
       }
-      if (message?.type === 'analytics-settings') { setPrivacyChoiceOpen(true); return; }
+      if (message?.type === 'analytics-settings') { openAnalyticsReview(); return; }
       if (message?.type === 'advertising-settings') { void Linking.openSettings(); return; }
       if (message?.type === 'erase-analytics') {
         void deleteTrackingData().then(accepted => {
@@ -1341,7 +1360,14 @@ function App() {
     );
   }
 
-  if (privacyChoiceOpen || !consentReady) {
+  const consentGate = consentGatePhase(consentHydrating, privacyChoiceOpen, consentReady);
+  if (consentGate === 'loading') {
+    return <SafeAreaView style={styles.gate}><View style={styles.gateContent}>
+      <ActivityIndicator size="large" color="#244b43" />
+      <Text style={[styles.gateBody, { marginTop: 16 }]}>Loading your privacy settings…</Text>
+    </View></SafeAreaView>;
+  }
+  if (consentGate === 'choice') {
     return <SafeAreaView style={styles.gate}><ScrollView contentContainerStyle={styles.gateContent}>
       <Text accessibilityRole="header" style={styles.gateTitle}>Help improve peri?</Text>
       <Text style={styles.gateBody}>Optional analytics shares feature-use events and performance with peri and PostHog/Expo, plus fully masked recordings of the native onboarding preview. Your health entries, answers, notes, and reports stay private. Sanitized crash diagnostics are separate.</Text>
