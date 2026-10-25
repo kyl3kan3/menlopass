@@ -1,0 +1,86 @@
+{
+  "brand": "peri",
+  "mascot": "Pip",
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "palette": {
+    "paper": "#F7F5EF",
+    "ivory": "#FFFEFA",
+    "forest": "#244B43",
+    "sage": "#F0E5D5",
+    "sageDark": "#76926F",
+    "peach": "#EFBCA3",
+    "peachLight": "#E2ECD8"
+  },
+  "slides": [
+    {
+      "id": "01-hook",
+      "headline": [
+        "my to-do list",
+        "has a",
+        "to-do list"
+      ],
+      "footer": "Somewhere on it: check in with me.",
+      "asset": "phone.png"
+    },
+    {
+      "id": "02-check-in",
+      "headline": [
+        "put yourself on",
+        "the list, too"
+      ],
+      "footer": "Start with a small check-in in peri.",
+      "asset": "guide.png"
+    }
+  ],
+  "card": {
+    "eyebrow": "A LITTLE SPACE FOR YOU",
+    "title": "Today, in a few words",
+    "rows": [
+      {
+        "label": "Mood",
+        "filled": 2
+      },
+      {
+        "label": "Fatigue",
+        "filled": 4
+      },
+      {
+        "label": "Brain fog",
+        "filled": 3
+      }
+    ],
+    "noteLabel": "One thing to remember",
+    "note": "A lot going on. One thing at a time.",
+    "caption": "Illustrated example"
+  },
+  "video": {
+    "hook": [
+      "me remembering everyone",
+      "except myself"
+    ],
+    "thoughts": [
+      "reply to that",
+      "book the thing",
+      "and me?"
+    ],
+    "payoff": [
+      "a little room",
+      "for how",
+      "you feel."
+    ],
+    "close": "Your symptoms. Your pace.",
+    "durationSeconds": 10.5,
+    "hookSeconds": 5.25,
+    "payoffSeconds": 5.75,
+    "crossfadeSeconds": 0.5,
+    "animationAsset": "check-in.webm"
+  },
+  "slideshow": {
+    "durationSeconds": 8,
+    "slideSeconds": 4.25,
+    "crossfadeSeconds": 0.5
+  },
+  "subscriptionNote": "Paid subscription required."
+}

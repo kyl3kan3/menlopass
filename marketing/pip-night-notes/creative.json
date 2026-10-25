@@ -1,0 +1,86 @@
+{
+  "brand": "peri",
+  "mascot": "Pip",
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "palette": {
+    "paper": "#F7F5EF",
+    "ivory": "#FFFEFA",
+    "forest": "#244B43",
+    "sage": "#E0E6ED",
+    "sageDark": "#76926F",
+    "peach": "#EFBCA3",
+    "peachLight": "#EEE4DC"
+  },
+  "slides": [
+    {
+      "id": "01-hook",
+      "headline": [
+        "me at 3 a.m.",
+        "remembering",
+        "everything"
+      ],
+      "footer": "Except how I slept yesterday.",
+      "asset": "phone.png"
+    },
+    {
+      "id": "02-check-in",
+      "headline": [
+        "leave future-you",
+        "a little note"
+      ],
+      "footer": "Track sleep and add context in peri.",
+      "asset": "guide.png"
+    }
+  ],
+  "card": {
+    "eyebrow": "A NOTE FOR LATER",
+    "title": "My sleep check-in",
+    "rows": [
+      {
+        "label": "Sleep",
+        "filled": 4
+      },
+      {
+        "label": "Fatigue",
+        "filled": 3
+      },
+      {
+        "label": "Mood",
+        "filled": 2
+      }
+    ],
+    "noteLabel": "What I noticed",
+    "note": "Awake again. Tired by lunchtime.",
+    "caption": "Illustrated example"
+  },
+  "video": {
+    "hook": [
+      "my brain at 3 a.m.:",
+      "let’s review everything"
+    ],
+    "thoughts": [
+      "that email",
+      "2009",
+      "tomorrow’s list"
+    ],
+    "payoff": [
+      "how did you sleep?",
+      "save the details",
+      "in peri."
+    ],
+    "close": "Your symptoms. Your pace.",
+    "durationSeconds": 10.5,
+    "hookSeconds": 5.25,
+    "payoffSeconds": 5.75,
+    "crossfadeSeconds": 0.5,
+    "animationAsset": "check-in.webm"
+  },
+  "slideshow": {
+    "durationSeconds": 8,
+    "slideSeconds": 4.25,
+    "crossfadeSeconds": 0.5
+  },
+  "subscriptionNote": "Paid subscription required."
+}
