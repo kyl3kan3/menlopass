@@ -43,7 +43,7 @@ export function OnboardingPreview(props: Props) {
   const goal = goalFor(draft.intent);
   const selectedLabels = labelsFor(draft.symptoms);
   const titles = ['Let’s make room for you.', 'What’s been bothering you most?', 'What would help you most?', 'Your check-in, made for you.'];
-  const [fontsReady] = useFonts(BRICOLAGE);
+  const [fontsReady, fontError] = useFonts(BRICOLAGE);
   // Each instance is its own family, so the weight lives in the family name and fontWeight is reset to avoid iOS face matching.
   const font = (family: keyof typeof BRICOLAGE) => (fontsReady ? { fontFamily: family, fontWeight: 'normal' as const } : null);
   const display = font('Bricolage-ExtraBold'), bold = font('Bricolage-Bold'), semibold = font('Bricolage-SemiBold'), regular = font('Bricolage-Regular');
@@ -107,6 +107,9 @@ export function OnboardingPreview(props: Props) {
       <Text style={[styles.choiceLabel, semibold]}>{label}</Text><Text accessible={false} style={[styles.check, bold]}>{selected ? '✓' : ''}</Text>
     </Pressable>
   );
+
+  // Hold the first paint until Bricolage is in, so text is not drawn twice (system font, then the brand font).
+  if (!fontsReady && !fontError) return <SafeAreaView style={styles.screen}><StatusBar style="dark" /></SafeAreaView>;
 
   return <SafeAreaView style={styles.screen}>
     <StatusBar style="dark" />

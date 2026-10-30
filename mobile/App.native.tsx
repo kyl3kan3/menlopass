@@ -1323,7 +1323,7 @@ function App() {
   };
 
   if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked) || (proActive && previewWriteCount > 0)) {
-    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><ActivityIndicator color="#244b43" /><Text style={styles.loadingText}>{error ? 'Could not open peri.' : 'Opening peri…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><Image source={require('./assets/pip-guide.webp')} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingPip} resizeMode="contain" /><ActivityIndicator color="#244b43" /><Text style={styles.loadingText}>{error ? 'Could not open peri.' : 'Opening peri…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
   if (Platform.OS === 'ios' && appLocked) {
@@ -1538,8 +1538,9 @@ const styles = StyleSheet.create({
   gateLinks: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
   gateLink: { color: '#244b43', fontSize: 12, textDecorationLine: 'underline' },
   gateLinkDivider: { color: '#68756d', fontSize: 12 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#f7f5ef' },
-  loadingText: { color: '#263e37', fontSize: 16 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#f8f4ed' },
+  loadingPip: { width: 92, height: 139, marginBottom: 6 },
+  loadingText: { color: '#244b43', fontSize: 16 },
   error: { color: '#a76149', textAlign: 'center', fontSize: 12 },
   locked: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, backgroundColor: '#f7f5ef' },
   lockedMark: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#e6eee7' },
