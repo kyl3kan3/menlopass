@@ -15,7 +15,8 @@
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:export:web": "npm --prefix mobile run export:web",
     "test:mobile-ux": "npm run build && node test-mobile-ux.js",
-    "analytics:migrate": "node server/migrate.cjs"
+    "analytics:migrate": "node server/migrate.cjs",
+    "shots": "npm run build && node tools/shots.cjs"
   },
   "engines": {
     "node": ">=20"

@@ -31,7 +31,18 @@ FONT_FILES = (
     "assets/fonts/OFL.txt",
 )
 NOTICE_FILES = ("assets/icons/LUCIDE_LICENSE.txt",)
-SOURCE_FILES = ("styles.css", "redesign.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES)
+# Pip, the peri sprout companion. The poses are inlined as WebP data URIs so the
+# single-file bundle (and the native WebView copy) stays self-contained.
+PIP_IMAGES = {
+    "__PIP_GUIDE_LEAVES_DATA__": "assets/mascot/pip/app/pip-guide-leaves.webp",
+    "__PIP_GUIDE_BODY_DATA__": "assets/mascot/pip/app/pip-guide-body.webp",
+    "__PIP_PHONE_DATA__": "assets/mascot/pip/app/pip-phone.webp",
+}
+# The transparent check-in clip is a web-only enhancement (relative URL); the
+# native bundle falls back to the still pose because it has no base URL.
+PIP_VIDEO_FILES = ("assets/mascot/pip/crisp-v2/check-in.webm",)
+PIP_CLIP_MOV = "assets/mascot/pip/crisp-v2/check-in.mov"
+SOURCE_FILES = ("styles.css", "redesign.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES, *PIP_IMAGES.values(), *PIP_VIDEO_FILES)
 
 
 def source_text(name: str) -> str:
@@ -53,6 +64,7 @@ def reset_dist() -> None:
         shutil.rmtree(DIST)
     (DIST / "icons").mkdir(parents=True)
     (DIST / "assets" / "fonts").mkdir(parents=True)
+    (DIST / "assets" / "mascot").mkdir(parents=True)
 
 
 def build_html() -> str:
@@ -63,6 +75,12 @@ def build_html() -> str:
     )
     brand_icon = "data:image/png;base64," + base64.b64encode((ROOT / "icon-192.png").read_bytes()).decode("ascii")
     javascript = javascript.replace("__PERI_ICON_DATA__", brand_icon)
+    for marker, path in PIP_IMAGES.items():
+        data = "data:image/webp;base64," + base64.b64encode((ROOT / path).read_bytes()).decode("ascii")
+        javascript = javascript.replace(marker, data)
+    # Optional HEVC-with-alpha render of the same clip (Safari/WebKit). Export it
+    # from the Masko job listed in assets/mascot/pip/crisp-v2/animation-job.json.
+    javascript = javascript.replace("__PIP_CLIP_MOV__", "assets/mascot/check-in.mov" if (ROOT / PIP_CLIP_MOV).is_file() else "")
     favicon = base64.b64encode((ROOT / "favicon-64.png").read_bytes()).decode("ascii")
 
     return f"""<!DOCTYPE html>
@@ -115,12 +133,19 @@ def main() -> None:
         shutil.copyfile(ROOT / name, DIST / "icons" / name)
     for name in FONT_FILES:
         shutil.copyfile(ROOT / name, DIST / name)
+    for name in PIP_VIDEO_FILES:
+        shutil.copyfile(ROOT / name, DIST / "assets" / "mascot" / Path(name).name)
+    # Public install page artwork (the app itself uses the inlined poses).
+    shutil.copyfile(ROOT / "assets/mascot/pip/app/pip-guide.webp", DIST / "assets" / "mascot" / "pip-guide.webp")
+    if (ROOT / PIP_CLIP_MOV).is_file():
+        shutil.copyfile(ROOT / PIP_CLIP_MOV, DIST / "assets" / "mascot" / Path(PIP_CLIP_MOV).name)
 
     size_kib = len(html.encode("utf-8")) / 1024
     print(f"Built index.html and dist/index.html ({size_kib:.0f} KiB each)")
     print(f"Copied {len(PWA_FILES)} PWA files and {len(ICONS)} icons")
     print(f"Copied {len(PUBLIC_PAGES)} public policy/support pages")
     print(f"Copied {len(FONT_FILES)} local font files")
+    print(f"Inlined {len(PIP_IMAGES)} Pip images and copied {len(PIP_VIDEO_FILES)} Pip clip(s)")
 
 
 if __name__ == "__main__":

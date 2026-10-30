@@ -173,7 +173,7 @@ async function injectState(context,state){
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version includes the current privacy disclosure',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v19'));
+    check('offline cache version includes the current privacy disclosure',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v20'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -323,7 +323,7 @@ async function injectState(context,state){
 
     console.log('\n== Care, treatment events, report, Guide, and Profile ==');
     await page.getByRole('button',{name:'Care',exact:true}).click();
-    check('Care uses the selected hierarchy',await page.getByRole('heading',{name:'Care',exact:true}).isVisible()&&await page.getByText('Today’s care').isVisible()&&await page.getByText('Appointments',{exact:true}).isVisible());
+    check('Care uses the selected hierarchy',await page.getByRole('heading',{name:'Your care',exact:true}).isVisible()&&await page.getByText('Today’s care').isVisible()&&await page.getByText('Appointment report',{exact:true}).isVisible());
     await page.getByRole('button',{name:'Add a medication'}).click();
     await page.getByLabel('Medication and dose').fill('Estradiol patch');
     await page.getByLabel('Starting details (optional)').fill('Started 25 mcg');
@@ -357,7 +357,7 @@ async function injectState(context,state){
       &&nativeFileShare?.contents==='{"ok":true}');
     await page.getByRole('button',{name:'Back to Care'}).click();
     await page.getByRole('button',{name:'Guide',exact:true}).click();
-    check('Guide starts with search and a recommendation',await page.getByRole('searchbox',{name:'Search Guide'}).isVisible()&&await page.getByText('For you',{exact:true}).isVisible());
+    check('Guide starts with search and a recommendation',await page.getByRole('searchbox',{name:'Search Guide'}).isVisible()&&await page.getByText('Matched to your focus',{exact:true}).isVisible());
     const guideToolkit=page.getByRole('region',{name:'Tools for right now'});
     const guideToolLabels=await guideToolkit.locator('.jc-tool-card b').allTextContents();
     const guideToolkitPlacement=await guideToolkit.evaluate(el=>{
@@ -366,7 +366,7 @@ async function injectState(context,state){
       const before=node=>!!node&&!!(el.compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING);
       return {top:el.getBoundingClientRect().top,viewport:window.innerHeight,beforeRecommendation:before(recommendation),beforeResults:before(results)};
     });
-    check('Guide places four direct tools high on the page before education groups',
+    check('Guide places four direct tools high on the page, after the matched recommendation and before education groups',
       await guideToolkit.isVisible()
       &&await guideToolkit.locator('.jc-tool-card').count()===4
       &&JSON.stringify(guideToolLabels)===JSON.stringify(['Breathe','Release tension','Plan sleep','Test a trigger'])
@@ -376,7 +376,7 @@ async function injectState(context,state){
       &&await guideToolkit.getByRole('button',{name:'Test a trigger — open 28-day trigger test'}).isVisible()
       &&await guideToolkit.getByRole('button',{name:'See all 8 tools',exact:true}).isVisible()
       &&guideToolkitPlacement.top<guideToolkitPlacement.viewport
-      &&guideToolkitPlacement.beforeRecommendation
+      &&!guideToolkitPlacement.beforeRecommendation
       &&guideToolkitPlacement.beforeResults,
       JSON.stringify({labels:guideToolLabels,placement:guideToolkitPlacement}));
     const guideSleepTrigger=guideToolkit.getByRole('button',{name:'Plan sleep — open Sleep window calculator'});

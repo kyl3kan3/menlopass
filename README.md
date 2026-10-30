@@ -4,8 +4,11 @@ A private, offline-capable PWA and Expo app for women in perimenopause and beyon
 organized around one flow: a welcoming Today journal, focused symptom ratings with optional context,
 a weekly story and dated activity in Journey, appointment-first Care, and a searchable Guide.
 
-The warm paper redesign uses deep teal actions, sage surfaces, serif headings, and a responsive
-desktop sidebar / mobile bottom navigation. It preserves the local record and native security model.
+The Pip paper design system shares one voice with the Pip social content: Bricolage Grotesque at
+every size, forest-ink actions and outlines, paper surfaces with pastel scenes (sand, night, sage,
+blush), a floating bottom navigation on phones and a left rail on desktop. Pip, the sprout
+companion, reacts to state on Today, the check-in, Journey, Care, Guide, support and onboarding
+(see `design-reference/pip-paper-spec.md`). It preserves the local record and native security model.
 
 - **No account, backend health database, or health-data transmission.** Browser entries live in
   local storage. The native wrapper keeps its record in an encrypted file with a device-bound
@@ -29,8 +32,10 @@ The editable sources are intentionally flat at the repository root:
 
 ```text
 styles.css                 base components, tools, reports and legacy detailed-log styles
-redesign.css               warm paper design system and responsive app layouts
+redesign.css               Pip paper design system and responsive app layouts
 assets/fonts/              local Bricolage Grotesque webfont + OFL license
+assets/mascot/pip/app/     Pip poses inlined into the bundle at build time (WebP)
+tools/shots.cjs            seeded phone-size captures of the built app for design review
 content-a.js               symptom library, treatment landscape, supplements
 content-b.js               staging, diet, exercise, weight, skin, sleep, mind,
                            sexual health, screening, red flags, sources
