@@ -135,6 +135,8 @@ def main() -> None:
         shutil.copyfile(ROOT / name, DIST / name)
     for name in PIP_VIDEO_FILES:
         shutil.copyfile(ROOT / name, DIST / "assets" / "mascot" / Path(name).name)
+    # Public install page artwork (the app itself uses the inlined poses).
+    shutil.copyfile(ROOT / "assets/mascot/pip/app/pip-guide.webp", DIST / "assets" / "mascot" / "pip-guide.webp")
     if (ROOT / PIP_CLIP_MOV).is_file():
         shutil.copyfile(ROOT / PIP_CLIP_MOV, DIST / "assets" / "mascot" / Path(PIP_CLIP_MOV).name)
 
