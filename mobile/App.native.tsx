@@ -11,7 +11,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Image, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, AppState, Image, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL, type PurchasesOffering } from 'react-native-purchases';
 import { OtaUpdateBanner, useOtaUpdate } from './OtaUpdate.native';
@@ -439,6 +439,53 @@ function SubscriptionGate({
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// Pip's opening loop (Masko, "Pip — opening hello"): idle breath, blink, small wave. Bundled as a GIF because
+// React Native's Image plays animated GIFs on iOS without extra native modules, so it ships with OTA updates too.
+const PIP_OPENING = require('./assets/pip-opening.gif');
+const PIP_STILL = require('./assets/pip-guide.webp');
+
+let reduceMotionCache: boolean | null = null;
+
+function useReduceMotion() {
+  const [reduceMotion, setReduceMotion] = useState(reduceMotionCache === true);
+  useEffect(() => {
+    let alive = true;
+    if (reduceMotionCache === null) {
+      AccessibilityInfo.isReduceMotionEnabled()
+        .then((enabled) => {
+          reduceMotionCache = Boolean(enabled);
+          if (alive) setReduceMotion(reduceMotionCache);
+        })
+        .catch(() => {});
+    }
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      reduceMotionCache = Boolean(enabled);
+      if (alive) setReduceMotion(reduceMotionCache);
+    });
+    return () => {
+      alive = false;
+      subscription.remove();
+    };
+  }, []);
+  return reduceMotion;
+}
+
+function PipWaiting({ label }: { label: string }) {
+  const reduceMotion = useReduceMotion();
+  return (
+    <>
+      <Image
+        source={reduceMotion ? PIP_STILL : PIP_OPENING}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={reduceMotion ? styles.loadingPipStill : styles.loadingPip}
+        resizeMode="contain"
+      />
+      <Text style={styles.loadingText}>{label}</Text>
+    </>
   );
 }
 
@@ -1323,7 +1370,7 @@ function App() {
   };
 
   if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked) || (proActive && previewWriteCount > 0)) {
-    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><Image source={require('./assets/pip-guide.webp')} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingPip} resizeMode="contain" /><ActivityIndicator color="#244b43" /><Text style={styles.loadingText}>{error ? 'Could not open peri.' : 'Opening peri…'}</Text>{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><PipWaiting label={error ? 'Could not open peri.' : 'Opening peri…'} />{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
   if (Platform.OS === 'ios' && appLocked) {
@@ -1362,10 +1409,7 @@ function App() {
 
   const consentGate = consentGatePhase(consentHydrating, privacyChoiceOpen, consentReady);
   if (consentGate === 'loading') {
-    return <SafeAreaView style={styles.gate}><View style={styles.gateContent}>
-      <ActivityIndicator size="large" color="#244b43" />
-      <Text style={[styles.gateBody, { marginTop: 16 }]}>Loading your privacy settings…</Text>
-    </View></SafeAreaView>;
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><PipWaiting label="Loading your privacy settings…" /></SafeAreaView>;
   }
   if (consentGate === 'choice') {
     return <SafeAreaView style={styles.gate}><ScrollView contentContainerStyle={styles.gateContent}>
@@ -1539,7 +1583,8 @@ const styles = StyleSheet.create({
   gateLink: { color: '#244b43', fontSize: 12, textDecorationLine: 'underline' },
   gateLinkDivider: { color: '#68756d', fontSize: 12 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#f8f4ed' },
-  loadingPip: { width: 92, height: 139, marginBottom: 6 },
+  loadingPip: { width: 168, height: 168, marginBottom: -10 },
+  loadingPipStill: { width: 92, height: 139, marginBottom: 6 },
   loadingText: { color: '#244b43', fontSize: 16 },
   error: { color: '#a76149', textAlign: 'center', fontSize: 12 },
   locked: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, backgroundColor: '#f7f5ef' },

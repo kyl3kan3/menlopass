@@ -1,0 +1,42 @@
+{
+  "request": {
+    "type": "animation",
+    "name": "Pip — opening hello",
+    "mascot_id": "64acb896-bc5f-4409-8b7b-ae24c970f5b1",
+    "source_image_asset_id": "737e4689-0fb9-404a-bf24-53ffae709794",
+    "animation_model": "standard",
+    "duration": 4,
+    "loop": true,
+    "animation_prompt": "App-opening greeting, calm and small. Pip stands centered and fully in frame, exactly this character design: round sage-green sprout body with a solid dark forest-green outline, cream face and belly patch, peach cheeks, two unequal leaves on top, flat clean fills, no texture. Motion: a gentle idle breathing bob (body rises and settles about two percent), one slow relaxed blink, then one small friendly wave with the raised hand (two short side-to-side wags) before the hand settles back into the original presenting gesture. The two leaves sway softly and settle. Expression stays the same calm smile. Camera locked, no zoom, no pan, no rotation, no squash beyond the breathing bob. Transparent background, no shadow, no text, no props, nothing else in frame. Smooth easing, a seamless loop that ends in exactly the starting pose."
+  },
+  "result": {
+    "job_id": "1704de0d-42a8-48ce-905d-c13447fc9124",
+    "status": "completed",
+    "type": "item_generation",
+    "item_id": "515a967c-8586-48f1-8f2a-4a2f8109bda3",
+    "item_name": "Pip — opening hello",
+    "cost_credits": 8,
+    "rendered": { "width": 768, "height": 768, "fps": 24, "frames": 90, "seconds": 3.75 },
+    "asset_ids": {
+      "video": "3964cf87-337c-4cdb-9418-e55adfc1e4d7"
+    },
+    "variants": ["video", "webm", "hevc", "stacked_video", "stacked_video_av1"],
+    "size_variants": [720, 480]
+  },
+  "exports": [
+    {
+      "format": "gif",
+      "size": 480,
+      "job_id": "85cc1396-4330-4dcc-80db-0bb89aef4cd2",
+      "asset_id": "f92ca6a8-9120-4667-8795-3f6acaaa859b",
+      "cost_credits": 0,
+      "frames": 90,
+      "loop": "infinite",
+      "bytes": 3070967,
+      "used_as": "mobile/assets/pip-opening.gif"
+    }
+  ],
+  "files": {
+    "opening.webm": "transparent VP9 720x720 from the same job (web use; WebKit needs the hevc variant)"
+  }
+}
