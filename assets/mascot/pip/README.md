@@ -16,4 +16,10 @@ Reuse collection `64acb896-bc5f-4409-8b7b-ae24c970f5b1` for future poses so Pip 
 
 Keep Pip’s full leaf tuft and feet visible. Scale uniformly. Preserve the forest outline, asymmetrical leaves, sage body, cream patch and peach cheeks.
 
-The social pack is in `marketing/pip-social/preview.html`. Its copy is editable in `marketing/pip-social/creative.json`; reproduce it with `node tools/mascot-studio/render.cjs` from the repository root. These assets have not been installed into the app UI.
+The social pack is in `marketing/pip-social/preview.html`. Its copy is editable in `marketing/pip-social/creative.json`; reproduce it with `node tools/mascot-studio/render.cjs` from the repository root.
+
+## In the app
+
+`app/` holds the production cuts: `pip-phone.webp` (waiting pose), and the guide pose split at the stem into `pip-guide-leaves.webp` and `pip-guide-body.webp` so the leaves can sway in CSS. `build.py` inlines all three as data URIs (about 110 KB) and `app-views.js` places them through `pip()` and `pipSays()`. Rules: one Pip per screen, full body always, phone pose while a check-in is waiting, guide pose once it is saved and on stories, care, support and welcome; never on the printable report, detailed log, settings or legal pages. Motion (breathing, leaf sway, bubble pop) is CSS only and respects reduced motion.
+
+`check-in.webm` plays once on the check-in confirmation screen in the web build. WebKit does not play VP9 transparency, so Safari and the native WebView keep the still pose until `crisp-v2/check-in.mov` (the HEVC-with-alpha render from the same Masko job, asset `hevc_720`) is added; `build.py` picks it up automatically and the native bundle would additionally need the file inlined or served from a base URL.

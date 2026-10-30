@@ -1,4 +1,28 @@
 const PERI_BRAND_ICON = '<img src="__PERI_ICON_DATA__" alt="" width="36" height="36">';
+/* Pip, the peri sprout companion (assets/mascot/pip). The build inlines the
+   poses as WebP data URIs so the single-file bundle stays self-contained.
+   Pip is decorative: screen readers skip him and the copy carries the meaning. */
+const PIP_ART = {guideLeaves:'__PIP_GUIDE_LEAVES_DATA__', guideBody:'__PIP_GUIDE_BODY_DATA__', phone:'__PIP_PHONE_DATA__'};
+const PIP_CLIP = 'assets/mascot/check-in.webm';
+function pip(pose, size, extraClass){
+  const cls='pip pip-'+(pose==='phone'?'phone':'guide')+(extraClass?' '+extraClass:'');
+  if(pose==='phone') return `<span class="${cls}" style="--pip-h:${size}px" aria-hidden="true"><img src="${PIP_ART.phone}" alt="" draggable="false"></span>`;
+  return `<span class="${cls}" style="--pip-h:${size}px" aria-hidden="true"><img class="pip-body" src="${PIP_ART.guideBody}" alt="" draggable="false"><img class="pip-leaves" src="${PIP_ART.guideLeaves}" alt="" draggable="false"></span>`;
+}
+function pipSays(pose, size, text, extraClass){
+  return `<div class="pip-says${extraClass?' '+extraClass:''}">${pip(pose,size)}<p class="pip-bubble">${text}</p></div>`;
+}
+/* Rating dots (0–4) used by the Today note card and summaries. */
+function ratingDots(value, max){
+  const total=max||4, n=value==null?-1:Math.max(0,Math.min(total,Math.round(value)));
+  return `<span class="jc-dots" aria-hidden="true">${Array.from({length:total+1},(_,i)=>`<i${i<=n&&n>=0?' class="on"':''}></i>`).join('')}</span>`;
+}
+const PIP_IC = {
+  arrowRight:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>',
+  arrowDown:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg>',
+  arrowUp:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>',
+  edit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1L19 8.5l-3.5-3.5L5 15.5zM13.5 7l3.5 3.5"></path></svg>'
+};
 /* ============================================================
    Views, tools, router
    ============================================================ */
@@ -1601,7 +1625,7 @@ function viewOnboard(){
   }
   if(step===2) body=`<div class="ob-choice-list" role="radiogroup" aria-label="Your main goal">${PeriOnboarding.goals.map(item=>selected(item.key,item.label,'ob-intent',draft.intent===item.key,true)).join('')}</div><p class="ob-response" aria-live="polite">${draft.intent?esc(goal.reply):'Your choice will shape your starting point.'}</p>`;
   if(step===3) body=`<section class="ob-preview" aria-label="Your starting focus"><span class="ob-eyebrow">YOUR STARTING FOCUS</span><ul>${labels.map(label=>`<li><span>${esc(label)}</span>${PULSE_IC.check}</li>`).join('')}</ul><p class="ob-small">Your selection, ready for your first check-in. Nothing has been rated or logged yet.</p></section><h2 class="ob-goal-title">${esc(goal.label)}</h2><p class="ob-goal-benefit">${esc(goal.benefit)}</p><p class="ob-small">Profile details and reminders can wait. Let’s start with how today feels.</p>`;
-  return `<div class="view jc-onboard ob-v2"><div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span>peri</div><span>${step+1} / 4</span></div><div class="jc-onboard-progress" role="progressbar" aria-label="Setup progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="${step+1}"><i style="width:${(step+1)*25}%"></i></div><div class="ob-body">${step?`<button class="jc-back" data-act="ob-back">${IC.chev} Back</button>`:''}<div class="jc-page-head"><h1 tabindex="-1" id="ob-heading">${esc(titles[step])}</h1><p>${esc(subtitles[step])}</p></div>${body}</div><div class="ob-footer">${step===1?`<p class="ob-selection-count" aria-live="polite">${pins.length} selected</p>`:''}<button class="jc-primary" data-act="${step===3?'ob-done':'ob-next'}"${step===1&&!pins.length||step===2&&!draft.intent?' disabled':''}>${['Find my starting point','These matter to me','See my check-in','Start my first check-in'][step]}</button>${step<3?'<button class="jc-text-action" data-act="ob-starter">Use a starter check-in</button>':'<button class="jc-text-action" data-act="ob-skip">Explore first</button>'}</div></div>`;
+  return `<div class="view jc-onboard ob-v2"><div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span>peri</div><span>${step+1} / 4</span></div><div class="jc-onboard-progress" role="progressbar" aria-label="Setup progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="${step+1}"><i style="width:${(step+1)*25}%"></i></div><div class="ob-body">${step?`<button class="jc-back" data-act="ob-back">${IC.chev} Back</button>`:`<div class="ob-scene" aria-hidden="true"><span class="ob-ring"></span><span class="pip-petal" style="left:34px;top:120px"></span><span class="pip-petal g" style="right:42px;top:96px;transform:rotate(20deg)"></span><span class="pip-petal" style="right:30px;top:210px;transform:rotate(-60deg)"></span>${pip('guide',236)}<p class="pip-bubble">Hi, I’m Pip. I’ll keep the notes.</p></div>`}<div class="jc-page-head"><h1 tabindex="-1" id="ob-heading">${esc(titles[step])}</h1><p>${esc(subtitles[step])}</p></div>${body}</div><div class="ob-footer">${step===1?`<p class="ob-selection-count" aria-live="polite">${pins.length} selected</p>`:''}<button class="jc-primary" data-act="${step===3?'ob-done':'ob-next'}"${step===1&&!pins.length||step===2&&!draft.intent?' disabled':''}>${['Find my starting point','These matter to me','See my check-in','Start my first check-in'][step]}</button>${step<3?'<button class="jc-text-action" data-act="ob-starter">Use a starter check-in</button>':'<button class="jc-text-action" data-act="ob-skip">Explore first</button>'}</div></div>`;
 }
 /* ============================================================
    TWILIGHT PRIMARY SCREENS
@@ -1712,14 +1736,15 @@ function viewReport(){
    JOURNEY COMPASS — SELECTED PRODUCT FLOW
    ============================================================ */
 function jcChrome(backLabel){
+  const name=safeText(DB.profile.name,80).trim(), initial=name?name[0].toLocaleUpperCase():'';
   return `<div class="jc-chrome">
     <div class="jc-chrome-main">
       <div class="jc-wordmark" aria-label="peri"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span><span>peri</span></div>
-      <span class="mc-chrome-caption">A little clarity, every day.</span>
+      <span class="mc-chrome-caption">Leave future-you a little note.</span>
       <div class="jc-global-actions">
         <button data-act="sheet" data-s="tools" aria-label="Open tools">${PULSE_IC.grid}</button>
         <button data-act="sheet" data-s="redflags" aria-label="Safety guidance">${PULSE_IC.safety}</button>
-        <button data-act="open-profile" aria-label="Open Profile">${PULSE_IC.profile}</button>
+        <button data-act="open-profile" aria-label="Open Profile">${initial?`<span class="jc-avatar" aria-hidden="true">${esc(initial)}</span>`:PULSE_IC.profile}</button>
       </div>
     </div>
     ${backLabel?`<button class="jc-back" data-act="go-back">${IC.chev}<span>${esc(backLabel)}</span></button>`:''}
@@ -1990,6 +2015,21 @@ function jcTimelineEvent(kind,meta,title,body,extra){
   const icon={treatment:PULSE_IC.task,pattern:PULSE_IC.journey,confirmed:PULSE_IC.today,draft:PULSE_IC.check,waiting:PULSE_IC.recap}[kind]||PULSE_IC.check;
   return `<article class="jc-timeline-event ${esc(kind)}"><div class="jc-node" aria-hidden="true">${icon}</div><div class="jc-event-copy"><span class="jc-event-meta">${esc(meta)}</span><h2>${esc(title)}</h2><p>${esc(body)}</p>${extra||''}</div></article>`;
 }
+function todayNoteCard(record,keys){
+  const rows=keys.map(key=>{
+    const value=symptomValue(record,key); if(value==null) return '';
+    const val=key==='hf'?`<span class="mc-note-val">${value} ${value===1?'flash':'flashes'}</span>`:ratingDots(value,4)+`<span class="sr-only">${esc(['None','Mild','Moderate','Severe','Very severe'][Math.min(4,value)]||String(value))}</span>`;
+    return `<div class="mc-note-row"><span>${esc(symptomName(key))}</span>${val}</div>`;
+  }).filter(Boolean).join('');
+  const note=safeText(record.notes,4000).trim();
+  if(!rows&&!note) return '';
+  return `<section class="mc-note mc-today-note" aria-labelledby="today-note-title">
+    <div class="mc-note-head"><span class="mc-eyebrow">Today, in a few words</span><button class="pip-chip soft" data-act="start-checkin" aria-label="Edit today’s check-in">${PIP_IC.edit}Edit</button></div>
+    <h2 id="today-note-title">My check-in</h2>
+    ${rows?`<div class="mc-note-rows">${rows}</div>`:''}
+    ${note?`<div class="mc-note-text"><small>What I noticed</small><span>${esc(note.length>160?note.slice(0,157).trimEnd()+'…':note)}</span></div>`:''}
+  </section>`;
+}
 function viewHome(){
   const t=todayISO(), state=dayState(t), count=entryDates().length;
   const dates=entryDates(), latestDate=dates.length?dates[dates.length-1]:null, latest=latestDate?confirmedRecord(latestDate):null;
@@ -1999,22 +2039,30 @@ function viewHome(){
   const recapBody=pattern?weeklyCoverageText(pattern):latestDate?'From your latest confirmed day, '+fmtDay(latestDate)+'.':'Confirm a few quick check-ins and your first recap will appear here.';
   const name=safeText(DB.profile.name,80).trim(), hour=new Date().getHours();
   const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+  const dateLabel=parseISO(t).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
   const weekDates=Array.from({length:7},(_,i)=>addDays(t,i-6));
   const weekCount=weekDates.filter(date=>confirmedRecord(date)).length;
-  const dayMarks=weekDates.map(date=>`<div class="mc-week-mark${confirmedRecord(date)?' logged':''}${date===t?' current':''}"><span>${parseISO(date).toLocaleDateString(undefined,{weekday:'narrow'})}</span><i>${confirmedRecord(date)?PULSE_IC.check:parseISO(date).getDate()}</i></div>`).join('');
+  const dayMarks=weekDates.map(date=>`<div class="mc-week-mark${confirmedRecord(date)?' logged':''}${date===t?' current':''}"><i>${confirmedRecord(date)?PULSE_IC.check:''}</i><span>${parseISO(date).toLocaleDateString(undefined,{weekday:'narrow'})}</span></div>`).join('');
+  const rawToday=DB.entries[t], prefilled=state.key==='draft'&&rawToday&&rawToday.prefilledFrom&&!rawToday.draftDirty;
+  const hero={
+    confirmed:{eyebrow:'Today’s check-in · saved',title:'Noted. Future-you says thanks.',body:'Your Journey and appointment report use this version.',pose:'guide'},
+    draft:prefilled?{eyebrow:'Today’s check-in',title:'How are you feeling today?',body:'Yesterday’s answers are filled in as a starting point. Adjust what changed, then confirm.',pose:'phone'}:{eyebrow:'Today’s check-in',title:'Pick up where you left off.',body:'Your draft is saved. Nothing counts until you confirm it.',pose:'phone'},
+    empty:{eyebrow:'Today’s check-in',title:'How are you feeling today?',body:'About a minute. Three ratings, and a note if you like.',pose:'phone'}
+  }[state.key];
   return `<div class="view jc-screen jc-home">
     ${jcChrome()}
-    <div class="mc-welcome"><div><p class="mc-eyebrow">${esc(greeting+(name?', '+name:''))}</p><h1>Your space to feel<br><em>more like you.</em></h1><p>One day at a time. We’ll help you see the bigger picture.</p></div><span class="mc-date">${TWILIGHT_IC.calendar}${esc(parseISO(t).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}))}</span></div>
+    <div class="mc-welcome"><div><p class="mc-eyebrow">${esc(greeting)} · ${esc(dateLabel)}</p><h1>Hello${name?', '+esc(name):''}.</h1></div></div>
     <div class="mc-home-top">
-      <section class="mc-checkin-card"><div class="mc-card-top"><span class="mc-eyebrow">YOUR DAILY CHECK-IN</span><span class="mc-time">${TWILIGHT_IC.sun} About a minute</span></div><h2>How are you<br>feeling today?</h2><p>A small moment to check in with yourself.<br>Your symptoms, your pace, your story.</p><div class="mc-checkin-bottom"><button class="jc-primary dc-checkin" data-act="start-checkin"><span>${esc(cta)}</span>${IC.chev}</button><span>${state.key==='confirmed'?'Today’s check-in is saved':state.key==='draft'?'Your draft is ready to finish':'A little reflection goes a long way'}</span></div></section>
-      ${count?`<section class="mc-week-card"><div class="mc-card-top"><span class="mc-eyebrow">LITTLE STEPS, BIGGER PICTURE</span>${PULSE_IC.journey}</div><h2>Your week so far</h2><p><strong>${weekCount}</strong> ${weekCount===1?'check-in':'check-ins'} in the last seven days</p><div class="mc-week-marks" aria-label="Your check-ins this week">${dayMarks}</div>${dcProgress(count)}<button class="dc-text-link" data-act="tab" data-v="journey">Explore your journey ${IC.chev}</button></section>`:`<section class="mc-week-card"><span class="mc-eyebrow">YOUR STARTING FOCUS</span><h2>Your check-in is ready.</h2><p>${esc(focusedKeys().map(symptomName).join(', '))}</p><p>A little space to notice how today feels. Add more detail whenever you’re ready.</p></section>`}
+      <section class="mc-checkin-card is-${state.key}" aria-labelledby="today-hero-title"><div class="mc-checkin-copy"><div class="mc-card-top"><span class="mc-eyebrow">${esc(hero.eyebrow)}</span></div><h2 id="today-hero-title">${esc(hero.title)}</h2><p>${esc(hero.body)}</p><div class="mc-checkin-bottom"><button class="jc-primary dc-checkin" data-act="start-checkin"><span>${esc(cta)}</span>${PIP_IC.arrowRight}</button>${state.key!=='confirmed'?`<span class="mc-time">${TWILIGHT_IC.sun} About a minute</span>`:''}</div></div>${pip(hero.pose,state.key==='empty'?158:150)}</section>
+      ${state.key==='confirmed'?todayNoteCard(state.confirmed,[...new Set([...focusedKeys(),...PINNABLE_SYMPTOMS])]):''}
+      ${count?`<section class="mc-week-card" aria-labelledby="week-card-title"><div class="mc-week-stat"><h2 id="week-card-title">Your week so far</h2><span><strong>${weekCount}</strong> of 7 days</span></div><div class="mc-week-marks" aria-label="Your check-ins this week">${dayMarks}</div>${dcProgress(count)}</section>`:`<section class="mc-week-card"><span class="mc-eyebrow">YOUR STARTING FOCUS</span><h2 style="font-size:20px;margin:6px 0 4px">Your check-in is ready.</h2><p>${esc(focusedKeys().map(symptomName).join(', '))}</p><p class="mc-muted">A little space to notice how today feels. Add more detail whenever you’re ready.</p></section>`}
     </div>
     ${DB.trigger&&DB.trigger.active?triggerBanner():''}
     ${DB.profile.onboardingDeferred?`<button class="jc-open-row jc-setup" data-act="finish-setup"><span>${TWILIGHT_IC.cycle}</span><span><b>Finish your context</b><small>Personalize guidance and the symptoms you watch.</small></span>${IC.chev}</button>`:''}
-    <div class="mc-section-heading"><h2>A little more understanding</h2><span>Here for the everyday</span></div>
-    <div class="mc-home-middle"><section class="dc-feature dc-recap"><div class="dc-orb">${PULSE_IC.recap}</div><div class="dc-feature-copy"><span>Today’s recap</span><h2>${esc(latestDate?recapTitle:'Your story starts with you.')}</h2><p>${esc(recapBody)}</p><button class="dc-text-link" data-act="tab" data-v="journey">See why ${IC.chev}</button></div></section>${dcTodayTask(t)}</div>
-    <div class="mc-support-banner"><span class="mc-support-icon">${PULSE_IC.wind}</span><div><h2>Some days ask a little more of you.</h2><p>Find a moment of support, whenever you need it.</p></div><button class="jc-secondary" data-act="sheet" data-s="support">I’m struggling right now ${IC.chev}</button></div>
-    <div class="mc-section-heading"><h2>Make room for yourself</h2><button class="dc-text-link" data-act="tab" data-v="guide">Visit your guide ${IC.chev}</button></div>
+    <button class="mc-support-banner" data-act="sheet" data-s="support" aria-label="I’m struggling right now"><span class="mc-support-icon">${TWILIGHT_IC.heart}</span><div><h2>I’m struggling right now</h2><p>Sleep · overwhelm · hot flash · fog</p></div>${IC.chev}</button>
+    <div class="mc-section-heading"><h2>A little more understanding</h2><button class="dc-text-link" data-act="tab" data-v="journey">See your journey ${IC.chev}</button></div>
+    <div class="mc-home-middle"><section class="dc-feature dc-recap"><div class="dc-orb">${PULSE_IC.recap}</div><div class="dc-feature-copy"><span>Today’s recap</span><h2>${esc(latestDate?recapTitle:'Your story starts with you.')}</h2><p>${esc(recapBody)}</p></div></section>${dcTodayTask(t)}</div>
+    <div class="mc-section-heading"><h2>Make room for yourself</h2><button class="dc-text-link" data-act="tab" data-v="guide">Open the guide ${IC.chev}</button></div>
     <div class="mc-home-resources"><button data-act="sheet" data-s="tool:breath"><span class="mc-resource-icon">${PULSE_IC.wind}</span><span><b>A moment to breathe</b><small>A guided pause for your day</small></span>${IC.chev}</button><button data-act="sheet" data-s="learn:sleep"><span class="mc-resource-icon lilac">${PULSE_IC.moon}</span><span><b>Make sense of sleep</b><small>Understand what’s changing</small></span>${IC.chev}</button><button data-act="sheet" data-s="tool:phq9"><span class="mc-resource-icon peach">${PULSE_IC.heartPulse}</span><span><b>Check in with your mood</b><small>Make space for how you feel</small></span>${IC.chev}</button></div>
     <div class="dc-privacy">${PULSE_IC.privacy}<p><strong>Your data stays on this device.</strong><span>Always personal. Always yours.</span></p></div>
   </div>`;
@@ -2036,11 +2084,11 @@ function viewJourney(){
   }
   return `<div class="view jc-screen jc-journey">
     ${jcChrome()}
-    ${jcHeading('Your journey','A little perspective on how you have been feeling.','YOUR PERSONAL RECORD')}
+    ${jcHeading('Your journey','A little perspective on how you’ve been feeling.')}
     <div class="mc-journey-overview">
       ${weeklyStoryMarkup()}
       <aside class="mc-record-summary" aria-labelledby="record-summary-title">
-        <span class="mc-eyebrow">The bigger picture</span><h2 id="record-summary-title">One day at a time.</h2>
+        <h2 id="record-summary-title">The bigger picture</h2>
         <div class="mc-stat-grid"><div><strong>${count}</strong><span>confirmed ${count===1?'day':'days'}</span></div><div><strong>${windows.recentCount}<small>/7</small></strong><span>past 7 days</span></div><div><strong>${focusedKeys().length}</strong><span>symptoms you watch</span></div></div>
         <p>${pattern?esc(pattern.text):'Your confirmed check-ins build a clearer picture over time. Start with how you feel today.'}</p>
         ${pattern?`<p class="mc-muted">${esc(weeklyCoverageText(pattern))}</p>`:''}
@@ -2124,11 +2172,12 @@ function viewCare(){
   const pendingFollowUps=followUps.filter(item=>!item.followUp&&daysBetween(todayISO(),item.dueDate)<=0).length;
   return `<div class="view jc-screen jc-care">
     ${jcChrome()}
-    ${jcHeading('Care','Feel prepared for the next conversation.','YOUR CARE, CONNECTED')}
+    ${jcHeading('Your care','Prepare the conversation, then follow through.')}
     ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
     <div class="mc-care-prep">
       ${appointmentCompanionCard()}
-      <section class="jc-context jc-appointment"><span>Appointments</span><h2>Your story, ready to share.</h2><p>Bring your symptoms, treatment changes, and questions into one appointment report.</p><p class="mc-muted">Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
+      ${pipSays('guide',84,savedBrief().concerns.length?'Bring the version with details. I’ll keep the notes.':'Everything you meant to say, written down before you’re in the room.')}
+      <section class="jc-context jc-appointment"><span class="mc-eyebrow">Appointment report</span><h2>Your story, ready to share.</h2><p>Symptoms, treatment changes and questions in one printable summary.</p><p class="mc-muted">Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
     </div>
     ${!plannerOpen?'<div class="mc-care-actions"><button class="jc-secondary" data-act="appointment-question-add">Add question</button><button class="jc-secondary" data-act="after-visit-add">Add plan</button></div>':''}
     <details class="mc-disclosure mc-care-planner"${plannerOpen?' open':''}><summary><span><b>Questions &amp; after-visit plans</b><small>${appointments.questions.filter(item=>!item.asked).length} open questions · ${appointments.plans.length} saved ${appointments.plans.length===1?'plan':'plans'}</small></span>${IC.chev}</summary>${appointmentPlannerSection()}</details>
@@ -2153,12 +2202,12 @@ function viewGuide(){
   const recommendation=LEARN_MODULES.find(m=>m.id===rec)||LEARN_MODULES[0];
   return `<div class="view jc-screen jc-guide">
     ${jcChrome()}
-    ${jcHeading('A little more clarity.','Explore at your pace. Start with what matters to you.','THE MENOCOMPASS GUIDE')}
-    <label class="jc-search"><span class="sr-only">Search Guide</span><input type="search" data-act="guide-search" value="${esc(guideQuery)}" placeholder="Search symptoms, treatments, and questions"></label>
+    ${jcHeading('Guide','Evidence and tools, at your pace.')}
+    <label class="jc-search"><span class="sr-only">Search Guide</span><input type="search" data-act="guide-search" value="${esc(guideQuery)}" placeholder="Search symptoms, treatments, tools"></label>
     <p class="mc-search-status" role="status" aria-live="polite" hidden></p>
+    <section class="jc-context jc-for-you mc-guide-feature"><div><span class="mc-eyebrow">Matched to your focus</span><h2>${esc(recommendation.n)}</h2><p>${esc(recommendation.s)}</p><button class="jc-inline-action" data-act="sheet" data-s="learn:${esc(recommendation.id)}">Open guide ${IC.chev}</button></div>${pip('guide',128)}</section>
     ${quickToolsMarkup('guide')}
-    <section class="jc-context jc-for-you mc-guide-feature"><div><span class="mc-eyebrow">For you</span><h2>${esc(recommendation.n)}</h2><p>${esc(recommendation.s)}</p><button class="jc-inline-action" data-act="sheet" data-s="learn:${esc(recommendation.id)}">Open guide ${IC.chev}</button></div><div class="mc-guide-feature-art" aria-hidden="true"><span>${recommendation.i}</span><i></i><i></i></div></section>
-    <div class="mc-section-intro"><div><span class="mc-eyebrow">The library</span><h2>Find your starting point</h2></div><p>Clear information for each part of your journey.</p></div>
+    <div class="mc-section-intro"><div><h2>Library</h2></div><p>Clear information for each part of your journey.</p></div>
     <div id="guide-results" class="mc-guide-library">
       ${guideGroup('Understand',['stage','symptoms'],'01','Make sense of the changes.')}
       ${guideGroup('Treat',['treatment','supplements'],'02','Know the options to discuss.')}
@@ -2181,12 +2230,30 @@ function filterGuideResults(){
 }
 function jcSeverityControl(key,value){
   const labels=['None','Mild','Moderate','Severe','Very severe'];
-  return `<div class="jc-check-row${value!=null?' mc-rated':''}"><div class="jc-check-label">${symptomIcon(key)}<span><b>${esc(symptomName(key))}</b><small>${value==null?'Not rated yet':labels[Math.min(4,value)]}</small></span></div><div class="jc-scale" role="group" aria-label="${esc(symptomName(key))}">${labels.map((label,i)=>`<button data-act="set" data-k="${esc(symptomPath(key))}" data-v="${i}" aria-label="${esc(symptomName(key)+': '+label)}" aria-pressed="${value===i?'true':'false'}"><span>${i}</span><small class="mc-scale-label">${label}</small></button>`).join('')}</div></div>`;
+  return `<div class="jc-check-row${value!=null?' mc-rated':''}"><div class="jc-check-label">${symptomIcon(key)}<span><b>${esc(symptomName(key))}</b><small>${value==null?'Tap a number':labels[Math.min(4,value)]}</small></span></div><div class="jc-scale" role="group" aria-label="${esc(symptomName(key))}">${labels.map((label,i)=>`<button${value!=null&&i<value?' class="below"':''} data-act="set" data-k="${esc(symptomPath(key))}" data-v="${i}" aria-label="${esc(symptomName(key)+': '+label)}" aria-pressed="${value===i?'true':'false'}"><span>${i}</span><small class="mc-scale-label">${label}</small></button>`).join('')}</div></div>`;
+}
+/* The confirmed moment: Pip's check-in clip (puzzled glance, phone tap, smile)
+   on the web build, with the still guide pose underneath. Safari/WebKit only
+   plays transparent video as HEVC, so the webm is offered to other engines and
+   the .mov only when the build shipped one. The native bundle has no base URL
+   for relative media, so it keeps the still pose. */
+const PIP_CLIP_MOV='__PIP_CLIP_MOV__';
+function pipClipSources(){
+  if(window.__MENO_NATIVE__===true||typeof navigator==='undefined') return '';
+  const ua=navigator.userAgent||'', webkitOnly=/AppleWebKit/.test(ua)&&!/Chrome|Chromium|CriOS|Edg|Android|Firefox/.test(ua);
+  if(webkitOnly) return PIP_CLIP_MOV&&!PIP_CLIP_MOV.startsWith('__')?`<source src="${PIP_CLIP_MOV}" type='video/quicktime; codecs="hvc1.1.6.H120.b0"'>`:'';
+  return `<source src="${PIP_CLIP}" type='video/webm; codecs="vp09.00.41.08"'>`;
+}
+function pipCelebration(text){
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sources=reduced?'':pipClipSources();
+  const clip=sources?`<video class="pip-clip" autoplay muted playsinline disablepictureinpicture aria-hidden="true" onplaying="this.parentNode.classList.add('is-playing')" onended="this.parentNode.classList.remove('is-playing');this.remove()" onerror="this.parentNode.classList.remove('is-playing');this.remove()">${sources}</video>`:'';
+  return `<div class="pip-says"><span class="pip-swap">${pip('guide',112)}${clip}</span><p class="pip-bubble">${text}</p></div>`;
 }
 function viewCheckin(){
   const t=todayISO(), raw=entry(t), count=entryDates().length, backLabel=returnTab==='journey'?'Journey':'Today';
   if(checkinComplete){
-    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}<div class="mc-complete-mark">${PULSE_IC.check}</div>${jcHeading(checkinFirstSaved?'Your first check-in is saved.':'Today is confirmed.',checkinFirstSaved?'You made a little space for yourself. Here’s what you recorded.':'Your Journey and appointment report now use this version.',fmtLong(t))}${checkinFirstSaved?`<section class="ob-preview"><span class="ob-eyebrow">YOUR STARTING POINT</span><p>${esc(recordSummary(confirmedRecord(t)))}</p><p class="ob-small">One day is a starting point. As you add check-ins, you’ll have more to look back on.</p></section>`:comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">${checkinFirstSaved?'See my first check-in':'Back to Journey'}</button><button class="jc-secondary" data-act="finish-setup">Add optional profile details</button><button class="jc-inline-action" data-act="checkin-add-treatment">Add treatment change</button></div>`;
+    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}${pipCelebration(checkinFirstSaved?'Your first note. Future-you says thanks.':'Noted. Future-you says thanks.')}${jcHeading(checkinFirstSaved?'Your first check-in is saved.':'Today is confirmed.',checkinFirstSaved?'You made a little space for yourself. Here’s what you recorded.':'Your Journey and appointment report now use this version.',fmtLong(t))}${checkinFirstSaved?`<section class="ob-preview"><span class="ob-eyebrow">YOUR STARTING POINT</span><p>${esc(recordSummary(confirmedRecord(t)))}</p><p class="ob-small">One day is a starting point. As you add check-ins, you’ll have more to look back on.</p></section>`:comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">${checkinFirstSaved?'See my first check-in':'Back to Journey'}</button><button class="jc-secondary" data-act="finish-setup">Add optional profile details</button><button class="jc-inline-action" data-act="checkin-add-treatment">Add treatment change</button></div>`;
   }
   const state=dayState(t), context=checkinStep===1;
   const keys=[...new Set([...focusedKeys(),...(checkinAddedSymptoms.get(t)||[]),...PINNABLE_SYMPTOMS.filter(key=>symptomValue(raw,key)!=null)])];
@@ -2195,6 +2262,7 @@ function viewCheckin(){
   const ratingLabels=['None','Mild','Moderate','Severe','Very severe'];
   return `<div class="view jc-screen jc-checkin">
     ${jcChrome(backLabel)}
+    ${pipSays('phone',84,context?'Anything worth remembering? One line is plenty.':'Take your time. “Rough” is a fine answer.')}
     ${jcHeading(DB.profile.firstCheckinPending?'Your first check-in':'Today’s check-in',DB.profile.firstCheckinPending?'Your chosen concerns are ready. Nothing counts in your patterns until you confirm.':'Nothing counts in your patterns until you confirm.',fmtLong(t))}
     <nav class="mc-check-steps" aria-label="Check-in steps">
       <button class="mc-step${context?'':' active'}" aria-label="Step 1: Your symptoms" data-act="checkin-step" data-v="0"${context?'':' aria-current="step"'}><span>1</span><b>Your symptoms</b></button>
