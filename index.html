@@ -3501,6 +3501,8 @@ peri is intended for education, self-reflection and preparing for a clinical con
 /* Shared by the native preview and the bundled web app. No health events or SDKs. */
 const PeriOnboarding = (() => {
   const version = 2;
+  const versionV2Flow = 3;
+  const finalStepFor = flowVersion => (flowVersion === versionV2Flow ? 11 : 3);
   const symptoms = [
     ['sleepq', 'Trouble sleeping'], ['energy', 'Fatigue'], ['hf', 'Hot flashes'],
     ['fog', 'Brain fog'], ['ns', 'Night sweats'], ['mood', 'Low mood'],
@@ -3517,26 +3519,32 @@ const PeriOnboarding = (() => {
   ];
   const defaults = ['sleepq', 'energy', 'hf'];
   const keys = new Set(symptoms.map(item => item.key));
-  function normalizeDraft(value) {
+  function normalizeDraft(value, flowVersion = version) {
     const source = value && typeof value === 'object' ? value : {};
+    const maxStep = finalStepFor(flowVersion);
     return {
-      step: Number.isInteger(source.step) ? Math.max(0, Math.min(3, source.step)) : 0,
+      step: Number.isInteger(source.step) ? Math.max(0, Math.min(maxStep, source.step)) : 0,
       symptoms: Array.isArray(source.symptoms) ? [...new Set(source.symptoms.filter(key => keys.has(key)))].slice(0, 6) : [],
       intent: goals.some(goal => goal.key === source.intent) ? source.intent : '',
     };
   }
   function draftFromProfile(profile) {
-    if (!profile || profile.onboardingVersion !== version) return normalizeDraft({ intent: profile?.intent });
+    if (!profile) return normalizeDraft({});
+    if (profile.onboardingVersion === versionV2Flow) {
+      return normalizeDraft({ step: profile.onboardingStep, symptoms: profile.pinnedSymptoms, intent: profile.intent }, versionV2Flow);
+    }
+    if (profile.onboardingVersion !== version) return normalizeDraft({ intent: profile?.intent });
     return normalizeDraft({ step: profile.onboardingStep, symptoms: profile.pinnedSymptoms, intent: profile.intent });
   }
   function goalFor(intent) { return goals.find(goal => goal.key === intent) || goals[0]; }
   function labelsFor(selected) { return selected.map(key => symptoms.find(item => item.key === key)?.label).filter(Boolean); }
-  function profilePatch(value, complete = false, skipped = false) {
-    const draft = normalizeDraft(value);
-    if (complete && !skipped && (!draft.symptoms.length || !draft.intent || draft.step !== 3)) throw new Error('Finish choosing your starting point first.');
+  function profilePatch(value, complete = false, skipped = false, flowVersion = version) {
+    const draft = normalizeDraft(value, flowVersion);
+    const finalStep = finalStepFor(flowVersion);
+    if (complete && !skipped && (!draft.symptoms.length || !draft.intent || draft.step !== finalStep)) throw new Error('Finish choosing your starting point first.');
     return {
-      onboardingVersion: version,
-      onboardingStep: complete ? 3 : draft.step,
+      onboardingVersion: flowVersion,
+      onboardingStep: complete ? finalStep : draft.step,
       pinnedSymptoms: complete && !draft.symptoms.length ? [...defaults] : draft.symptoms,
       intent: complete && !draft.intent ? 'understand' : draft.intent,
       ...(complete ? { onboarded: true, onboardingDeferred: skipped, firstCheckinPending: true } : {}),
@@ -3548,17 +3556,19 @@ const PeriOnboarding = (() => {
     if (!value || !Number.isInteger(value.v) || !value.profile || typeof value.profile !== 'object' || Array.isArray(value.profile) || !value.entries || typeof value.entries !== 'object' || Array.isArray(value.entries)) throw new Error('Invalid local record.');
     return value;
   }
-  function writeDraft(serialized, draft, complete = false, skipped = false) {
+  function writeDraft(serialized, draft, complete = false, skipped = false, flowVersion = version) {
     const state = parseState(serialized);
     // Preview never writes entries, treatments, ratings, or medical context.
-    state.profile = { ...state.profile, ...profilePatch(draft, complete, skipped) };
+    state.profile = { ...state.profile, ...profilePatch(draft, complete, skipped, flowVersion) };
     return JSON.stringify(state);
   }
   function needsPreview(serialized) {
     const profile = parseState(serialized).profile;
-    return profile.onboarded !== true || (profile.onboardingVersion === version && profile.firstCheckinPending === true);
+    const pendingFirstCheckin = profile.firstCheckinPending === true
+      && (profile.onboardingVersion === version || profile.onboardingVersion === versionV2Flow);
+    return profile.onboarded !== true || pendingFirstCheckin;
   }
-  return { version, symptoms, goals, defaults, normalizeDraft, draftFromProfile, goalFor, labelsFor, profilePatch, parseState, writeDraft, needsPreview };
+  return { version, versionV2Flow, symptoms, goals, defaults, normalizeDraft, draftFromProfile, goalFor, labelsFor, profilePatch, parseState, writeDraft, needsPreview };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PeriOnboarding;
 

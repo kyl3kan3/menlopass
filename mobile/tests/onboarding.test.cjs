@@ -50,6 +50,15 @@ test('preview inputs are allowlisted, bounded and cannot complete a partial setu
   assert.deepEqual(skipped.entries, {});
 });
 
+test('v2 flow completes only on the final step and persists version 3', () => {
+  const draft = { step: 11, symptoms: ['hf', 'sleepq'], intent: 'understand' };
+  const saved = model.writeDraft(null, draft, true, false, model.versionV2Flow);
+  const profile = JSON.parse(saved).profile;
+  assert.equal(profile.onboardingVersion, 3);
+  assert.equal(profile.onboardingStep, 11);
+  assert.throws(() => model.writeDraft(null, { step: 9, symptoms: ['hf'], intent: 'understand' }, true, false, model.versionV2Flow));
+});
+
 test('after the first confirmed check-in, an expired entitlement should lead to the subscription gate', () => {
   const state = JSON.parse(model.writeDraft(null, { step: 3, symptoms: ['energy'], intent: 'understand' }, true));
   state.profile.firstCheckinPending = false;

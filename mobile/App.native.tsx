@@ -17,7 +17,13 @@ import Purchases, { CustomerInfo, LOG_LEVEL, type PurchasesOffering } from 'reac
 import { OtaUpdateBanner, useOtaUpdate } from './OtaUpdate.native';
 import { TrackedPaywall } from './TrackedPaywall.native';
 import { OnboardingPreview, type PreviewEvent } from './OnboardingPreview';
-import { draftFromProfile, needsPreview, parseState, writeDraft, type OnboardingDraft } from './onboarding-model';
+import { OnboardingPreviewV2 } from './OnboardingPreviewV2';
+import { draftFromProfile, labelsFor, needsPreview, parseState, writeDraft, versionV2Flow, type OnboardingDraft } from './onboarding-model';
+import {
+  flowVersionForVariant,
+  onboardingVariantFromOffering,
+  type OnboardingVariant,
+} from './onboarding-variant';
 import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import {
@@ -505,7 +511,13 @@ function App() {
   const [subscriptionIssue, setSubscriptionIssue] = useState<string>();
   const [proActive, setProActive] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
-  const [paywall, setPaywall] = useState<{ offering: PurchasesOffering; source: 'automatic' | 'subscribe_button' | 'feature' } | null>(null);
+  const [paywall, setPaywall] = useState<{
+    offering: PurchasesOffering;
+    source: 'automatic' | 'subscribe_button' | 'feature';
+    personalizedSymptoms?: string[];
+  } | null>(null);
+  const [onboardingVariant, setOnboardingVariant] = useState<OnboardingVariant>('control');
+  const onboardingVariantResolvedRef = useRef(false);
   const [experienceReady, setExperienceReady] = useState(false);
   const [webContentReady, setWebContentReady] = useState(false);
   const showOnboardingPreview = Platform.OS === 'ios' && !proActive && needsPreview(persistedState);
@@ -909,6 +921,21 @@ function App() {
         setSubscriptionChecked(true);
         setSubscriptionIssue('peri could not verify your subscription. Check your connection and try again.');
       });
+      Purchases.getOfferings()
+        .then(offerings => {
+          if (!active) return;
+          const variant = onboardingVariantFromOffering(offerings.current);
+          setOnboardingVariant(variant);
+          if (!onboardingVariantResolvedRef.current) {
+            onboardingVariantResolvedRef.current = true;
+            trackTelemetryEvent('onboarding_variant_assigned', {
+              variant,
+              offeringId: offerings.current?.identifier ?? 'none',
+              flowVersion: flowVersionForVariant(variant),
+            });
+          }
+        })
+        .catch(reportTelemetryError);
     } catch (error) {
       reportTelemetryError(error);
       trackTelemetryEvent('subscription_check_failed', { reason: 'sdk_error' });
@@ -994,7 +1021,10 @@ function App() {
     webContentReady,
   ]);
 
-  const openPaywall = async (source: 'automatic' | 'subscribe_button' | 'feature') => {
+  const openPaywall = async (
+    source: 'automatic' | 'subscribe_button' | 'feature',
+    personalizedSymptoms?: string[],
+  ) => {
     if (!revenueCatReady || purchaseBusy || paywall || paywallLoadingRef.current) return;
     paywallLoadingRef.current = true;
     setPurchaseBusy(true);
@@ -1020,7 +1050,11 @@ function App() {
       }
 
       setSubscriptionIssue(undefined);
-      setPaywall({ offering: offerings.current, source });
+      setPaywall({
+        offering: offerings.current,
+        source,
+        personalizedSymptoms: personalizedSymptoms?.length ? personalizedSymptoms : undefined,
+      });
     } catch (reason) {
       trackTelemetryEvent('paywall_failed', { source, reason: 'offerings_error' });
       reportTelemetryError(reason);
@@ -1045,11 +1079,17 @@ function App() {
       if (onboardingStartedRef.current || persistedStateIsOnboarded(persistedState)) return;
       onboardingStartedRef.current = true;
     }
-    trackTelemetryEvent(event, { ...attributes, flowVersion: 2, surface: 'native_preview' });
+    trackTelemetryEvent(event, {
+      ...attributes,
+      flowVersion: flowVersionForVariant(onboardingVariant),
+      onboardingVariant,
+      surface: 'native_preview',
+    });
   };
 
   const savePreview = async (draft: OnboardingDraft, complete = false) => {
-    const serialized = writeDraft(previewStateRef.current, draft, complete);
+    const flowVersion = onboardingVariant === 'v2' ? versionV2Flow : 2;
+    const serialized = writeDraft(previewStateRef.current, draft, complete, false, flowVersion);
     previewStateRef.current = serialized;
     setPreviewWriteCount(count => count + 1);
     try {
@@ -1072,13 +1112,21 @@ function App() {
     await savePreview(draft, true);
     if (!alreadyCompleted && !onboardingCompletedRef.current) {
       onboardingCompletedRef.current = true;
-      trackTelemetryEvent('onboarding_completed', { skipped: false, flowVersion: 2, surface: 'native_preview' });
+      trackTelemetryEvent('onboarding_completed', {
+        skipped: false,
+        flowVersion: flowVersionForVariant(onboardingVariant),
+        onboardingVariant,
+        surface: 'native_preview',
+      });
     }
     if (!revenueCatReady) {
       setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.');
       return;
     }
-    await openPaywall('subscribe_button');
+    const personalizedSymptoms = onboardingVariant === 'v2'
+      ? labelsFor(draft.symptoms).slice(0, 3)
+      : undefined;
+    await openPaywall('subscribe_button', personalizedSymptoms);
   };
 
   useEffect(() => {
@@ -1428,6 +1476,7 @@ function App() {
         <TrackedPaywall
           offering={paywall.offering}
           source={paywall.source}
+          personalizedSymptoms={paywall.personalizedSymptoms}
           allowDismiss={showOnboardingPreview}
           onCustomer={customerInfo => {
             const active = hasProAccess(customerInfo);
@@ -1447,16 +1496,20 @@ function App() {
   }
 
   if (showOnboardingPreview) {
-    return <OnboardingPreview
-      initialDraft={draftFromProfile(parseState(persistedState).profile)}
-      busy={purchaseBusy}
-      issue={previewIssue || subscriptionIssue}
-      restoreReady={revenueCatReady}
-      onChange={draft => { void savePreview(draft).catch(() => setPreviewIssue('Your setup could not be saved securely. Please try again.')); }}
-      onFinish={completePreview}
-      onRestore={() => void restorePurchases()}
-      onEvent={trackPreviewEvent}
-    />;
+    const previewProps = {
+      initialDraft: draftFromProfile(parseState(persistedState).profile),
+      busy: purchaseBusy,
+      issue: previewIssue || subscriptionIssue,
+      restoreReady: revenueCatReady,
+      onChange: (draft: OnboardingDraft) => { void savePreview(draft).catch(() => setPreviewIssue('Your setup could not be saved securely. Please try again.')); },
+      onFinish: completePreview,
+      onRestore: () => void restorePurchases(),
+      onEvent: trackPreviewEvent,
+    };
+    if (onboardingVariant === 'v2') {
+      return <OnboardingPreviewV2 {...previewProps} />;
+    }
+    return <OnboardingPreview {...previewProps} />;
   }
 
   if (Platform.OS === 'ios' && !proActive) {

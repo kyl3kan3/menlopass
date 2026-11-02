@@ -3,7 +3,7 @@ import { commerceAttributes, commerceEvents } from './commerce-events';
 
 export const productEvents = [
   'onboarding_started', 'onboarding_step_viewed', 'onboarding_completed',
-  'onboarding_step_left', 'onboarding_selection_limit',
+  'onboarding_step_left', 'onboarding_selection_limit', 'onboarding_variant_assigned',
   'checkin_confirmed', 'report_opened', 'subscription_management_opened',
   'screen_viewed', 'webview_ready', 'diagnostic_probe', 'Application Installed', 'analytics_enabled', 'session_started', 'purchase_access_confirmed',
 ] as const;

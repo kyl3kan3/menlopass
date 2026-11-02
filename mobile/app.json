@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kyl3kan3.menlopass",
+      "buildNumber": "41",
       "appStoreUrl": "https://apps.apple.com/app/id6798018790"
     },
     "android": {

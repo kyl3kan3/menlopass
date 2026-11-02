@@ -10,6 +10,8 @@ type Props = {
   offering: PurchasesOffering;
   source: 'automatic' | 'subscribe_button' | 'feature';
   allowDismiss?: boolean;
+  /** Shown above RevenueCat paywall when onboarding supplied symptom focus (A/B variant). */
+  personalizedSymptoms?: string[];
   onCustomer: (customerInfo: CustomerInfo) => void;
   onClose: () => void;
   onFailure: () => void;
@@ -26,7 +28,7 @@ class PaywallBoundary extends Component<{ children: ReactNode; onFailure: () => 
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-export function TrackedPaywall({ offering, source, allowDismiss = false, onCustomer, onClose, onFailure }: Props) {
+export function TrackedPaywall({ offering, source, allowDismiss = false, personalizedSymptoms, onCustomer, onClose, onFailure }: Props) {
   const mounted = useRef(false);
   const finished = useRef(false);
   const [storeBusy, setStoreBusy] = useState(false);
@@ -69,10 +71,25 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, onCusto
     onClose();
   };
 
+  const focusLabels = personalizedSymptoms?.filter(Boolean).slice(0, 3) ?? [];
+
   return (
     <PaywallBoundary onFailure={onFailure}>
       <View style={{ flex: 1 }}>
         {allowDismiss && <Pressable accessibilityRole="button" accessibilityLabel="Back to my preview" accessibilityState={{ disabled: storeBusy }} disabled={storeBusy} onPress={dismiss} style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 24, backgroundColor: '#f7f5ef' }}><Text style={{ fontSize: 15, color: '#244b43' }}>Back to my preview</Text></Pressable>}
+        {focusLabels.length > 0 && (
+          <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8, backgroundColor: '#f7f3f8', borderBottomWidth: 1, borderBottomColor: '#e2d8ea' }}>
+            <Text style={{ fontSize: 11, letterSpacing: 1.2, color: '#8b6fa8', fontWeight: '700', marginBottom: 6 }}>YOUR PLAN FOCUS</Text>
+            <Text accessibilityRole="header" style={{ fontSize: 22, lineHeight: 26, color: '#3d2f4a', fontWeight: '800', marginBottom: 8 }}>Built around what you shared</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {focusLabels.map(label => (
+                <View key={label} style={{ backgroundColor: '#ece4f3', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: '#ddd0eb' }}>
+                  <Text style={{ fontSize: 14, color: '#3d2f4a', fontWeight: '600' }}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
         <RevenueCatUI.Paywall
           style={{ flex: 1 }}
           options={{ offering, displayCloseButton: allowDismiss }}

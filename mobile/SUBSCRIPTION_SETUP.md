@@ -1,6 +1,8 @@
 # Hard-paywall subscription setup
 
-The iOS app offers a native, four-step setup preview before purchase: welcome, concerns, goal, and personal starting focus. It stores only setup preferences in the existing encrypted device-local record; it does not create ratings or confirmed check-ins. The RevenueCat entitlement `MenoCompass Pro` is still required before the health-record WebView mounts.
+The iOS app offers a native setup preview before purchase. **Control (flow version 2)** is the existing four-step preview. **Variant (flow version 3)** is the redesigned lavender-toned flow with six animated “show, don’t tell” demos, a symptom quiz, a building-your-plan moment, sample reminder previews, and a personalized paywall header. RevenueCat Experiments should set offering metadata **`onboarding_variant` = `v2`** on the treatment offering; any other value (or missing key) keeps control. Telemetry records `onboarding_variant_assigned` once per install when offerings load.
+
+It stores only setup preferences in the existing encrypted device-local record; it does not create ratings or confirmed check-ins. The RevenueCat entitlement `MenoCompass Pro` is still required before the health-record WebView mounts.
 
 New users can return from the paywall to their saved preview. Existing users who have finished their first check-in return to the subscription gate when their entitlement expires or cannot be verified. Neither dismissing a paywall nor completing a preview unlocks health features. Restore, Privacy, and Terms are available during setup.
 
