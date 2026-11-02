@@ -124,6 +124,19 @@ public class MenoCompassSecurityModule: Module {
         throw MenoCompassSecurityError.invalidPassword
       }
     }
+
+    AsyncFunction("usesSandboxAppStoreReceiptAsync") { () -> Bool in
+      Self.usesSandboxAppStoreReceipt()
+    }
+  }
+
+  /// True for TestFlight and Xcode installs (StoreKit sandbox receipt), false for App Store production.
+  private static func usesSandboxAppStoreReceipt() -> Bool {
+    #if targetEnvironment(simulator)
+    return true
+    #else
+    return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+    #endif
   }
 
   private static func deviceKey() throws -> SymmetricKey {

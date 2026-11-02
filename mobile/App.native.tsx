@@ -10,6 +10,7 @@ import * as Notifications from 'expo-notifications';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Alert, AppState, Image, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -21,9 +22,19 @@ import { OnboardingPreviewV2 } from './OnboardingPreviewV2';
 import { draftFromProfile, labelsFor, needsPreview, parseState, writeDraft, versionV2Flow, type OnboardingDraft } from './onboarding-model';
 import {
   flowVersionForVariant,
-  onboardingVariantFromOffering,
   type OnboardingVariant,
 } from './onboarding-variant';
+import {
+  allowsOnboardingTesterOverride,
+  readOnboardingTesterOverride,
+  resetPersistedOnboardingForTester,
+  resolveOnboardingVariant,
+  writeOnboardingTesterOverride,
+  type StoreEnvironment,
+} from './onboarding-tester-override';
+import { subscribeToOnboardingTesterLinks } from './onboarding-tester-link.native';
+import type { OnboardingTesterRoute } from './onboarding-tester-route';
+import MenoCompassSecurity from './modules/menocompass-security';
 import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import {
@@ -518,6 +529,13 @@ function App() {
   } | null>(null);
   const [onboardingVariant, setOnboardingVariant] = useState<OnboardingVariant>('control');
   const onboardingVariantResolvedRef = useRef(false);
+  const [onboardingTesterOverride, setOnboardingTesterOverride] = useState<OnboardingVariant | null>(null);
+  const onboardingTesterOverrideRef = useRef<OnboardingVariant | null>(null);
+  const [onboardingTesterGateReady, setOnboardingTesterGateReady] = useState(Platform.OS !== 'ios');
+  const currentOfferingRef = useRef<PurchasesOffering | null>(null);
+  const storeEnvironmentRef = useRef<StoreEnvironment>('unknown');
+  const usesSandboxReceiptRef = useRef(false);
+  const persistedStateRef = useRef<string | null>(null);
   const [experienceReady, setExperienceReady] = useState(false);
   const [webContentReady, setWebContentReady] = useState(false);
   const showOnboardingPreview = Platform.OS === 'ios' && !proActive && needsPreview(persistedState);
@@ -628,6 +646,66 @@ function App() {
       window.dispatchEvent(new Event('menocompass-pro-changed'));
       true;
     `);
+  };
+
+  const onboardingTesterOverrideAllowed = () => allowsOnboardingTesterOverride({
+    isDev: __DEV__,
+    buildChannel: Updates.channel,
+    storeEnvironment: storeEnvironmentRef.current,
+    usesSandboxAppStoreReceipt: usesSandboxReceiptRef.current,
+  });
+
+  const syncOnboardingVariant = (trackAssignment = false) => {
+    const variant = resolveOnboardingVariant(
+      currentOfferingRef.current,
+      onboardingTesterOverrideRef.current,
+      onboardingTesterOverrideAllowed(),
+    );
+    setOnboardingVariant(variant);
+    if (trackAssignment && !onboardingVariantResolvedRef.current) {
+      onboardingVariantResolvedRef.current = true;
+      trackTelemetryEvent('onboarding_variant_assigned', {
+        variant,
+        offeringId: currentOfferingRef.current?.identifier ?? 'none',
+        flowVersion: flowVersionForVariant(variant),
+        testerOverride: onboardingTesterOverrideRef.current === 'v2'
+          && onboardingTesterOverrideAllowed(),
+      });
+    }
+  };
+
+  const handleOnboardingTesterRoute = async (route: OnboardingTesterRoute) => {
+    if (Platform.OS !== 'ios' || !onboardingTesterOverrideAllowed()) return;
+    if (route === 'clear-override') {
+      await writeOnboardingTesterOverride(null);
+      onboardingTesterOverrideRef.current = null;
+      setOnboardingTesterOverride(null);
+      syncOnboardingVariant();
+      return;
+    }
+    await writeOnboardingTesterOverride('v2');
+    onboardingTesterOverrideRef.current = 'v2';
+    setOnboardingTesterOverride('v2');
+    setOnboardingVariant('v2');
+    onboardingStartedRef.current = false;
+    onboardingCompletedRef.current = false;
+    autoPaywallAttemptedRef.current = false;
+    const reset = resetPersistedOnboardingForTester(
+      persistedStateRef.current ?? previewStateRef.current,
+      'v2',
+    );
+    previewStateRef.current = reset;
+    try {
+      const canonical = await writePersistedState(reset);
+      if (canonical) {
+        setPersistedState(canonical);
+        setExperienceReady(false);
+        setPreviewIssue(undefined);
+        syncMenoCompassWidgets(canonical);
+      }
+    } catch (error) {
+      reportTelemetryError(error);
+    }
   };
 
   const openNativePrimaryRoute = (route: MenoCompassPrimaryRoute) => {
@@ -820,6 +898,40 @@ function App() {
   }, []);
 
   useEffect(() => {
+    persistedStateRef.current = persistedState;
+  }, [persistedState]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let active = true;
+    void (async () => {
+      const [override, sandboxReceipt] = await Promise.all([
+        readOnboardingTesterOverride(),
+        MenoCompassSecurity?.usesSandboxAppStoreReceiptAsync?.().catch(() => false)
+          ?? Promise.resolve(false),
+      ]);
+      if (!active) return;
+      onboardingTesterOverrideRef.current = override;
+      setOnboardingTesterOverride(override);
+      usesSandboxReceiptRef.current = sandboxReceipt;
+      setOnboardingTesterGateReady(true);
+      syncOnboardingVariant();
+    })();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!onboardingTesterGateReady) return;
+    syncOnboardingVariant();
+  }, [onboardingTesterGateReady, onboardingTesterOverride]);
+
+  useEffect(() => {
+    return subscribeToOnboardingTesterLinks(route => {
+      void handleOnboardingTesterRoute(route);
+    });
+  }, []);
+
+  useEffect(() => {
     let active = true;
     const acceptResponse = (response: Notifications.NotificationResponse | null) => {
       const route = notificationRoute(response);
@@ -898,12 +1010,14 @@ function App() {
     let active = true;
     const updateCustomer = (customerInfo: CustomerInfo) => {
       if (!active) return;
+      storeEnvironmentRef.current = subscriptionSnapshot(customerInfo).storeEnvironment as StoreEnvironment;
       const nextProActive = hasProAccess(customerInfo);
       setProActive(nextProActive);
       setSubscriptionChecked(true);
       setSubscriptionIssue(undefined);
       setTelemetrySubscriptionState(customerInfo);
       syncProStatusToWeb(nextProActive);
+      if (onboardingTesterGateReady) syncOnboardingVariant();
     };
 
     try {
@@ -924,16 +1038,8 @@ function App() {
       Purchases.getOfferings()
         .then(offerings => {
           if (!active) return;
-          const variant = onboardingVariantFromOffering(offerings.current);
-          setOnboardingVariant(variant);
-          if (!onboardingVariantResolvedRef.current) {
-            onboardingVariantResolvedRef.current = true;
-            trackTelemetryEvent('onboarding_variant_assigned', {
-              variant,
-              offeringId: offerings.current?.identifier ?? 'none',
-              flowVersion: flowVersionForVariant(variant),
-            });
-          }
+          currentOfferingRef.current = offerings.current ?? null;
+          syncOnboardingVariant(true);
         })
         .catch(reportTelemetryError);
     } catch (error) {

@@ -3,4 +3,5 @@ export type MenoCompassSecurityModuleApi = {
   decryptForDeviceAsync(payload: string): Promise<string>;
   encryptBackupAsync(plaintext: string, password: string): Promise<string>;
   decryptBackupAsync(payload: string, password: string): Promise<string>;
+  usesSandboxAppStoreReceiptAsync(): Promise<boolean>;
 };
