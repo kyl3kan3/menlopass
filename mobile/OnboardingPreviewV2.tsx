@@ -60,6 +60,16 @@ const SUMMARY_STEP = 9;
 const BUILDING_STEP = 10;
 const NOTIFICATIONS_STEP = 11;
 
+type PreviewSeverity = 'mild' | 'moderate' | 'strong';
+
+const severityLabels: Record<PreviewSeverity, string> = {
+  mild: 'Mild',
+  moderate: 'Moderate',
+  strong: 'Strong',
+};
+
+const checkInSymptoms = symptoms.slice(0, 6);
+
 type Props = {
   initialDraft: OnboardingDraft;
   busy: boolean;
@@ -132,6 +142,9 @@ function SampleReminderCard({ title, body, time }: { title: string; body: string
 export function OnboardingPreviewV2(props: Props) {
   const [draft, setDraft] = useState(() => normalizeDraft(props.initialDraft, versionV2Flow));
   const [showMore, setShowMore] = useState(draft.symptoms.some(key => !symptoms.slice(0, 6).some(item => item.key === key)));
+  const [checkInSymptom, setCheckInSymptom] = useState<string | null>(null);
+  const [checkInSeverity, setCheckInSeverity] = useState<PreviewSeverity | null>(null);
+  const [previewCheckIn, setPreviewCheckIn] = useState<{ symptomKey: string; label: string; severity: PreviewSeverity } | null>(null);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(true);
@@ -262,13 +275,50 @@ export function OnboardingPreviewV2(props: Props) {
     </Pressable>
   );
 
+  const pickCheckInSymptom = (key: string) => {
+    setCheckInSymptom(key);
+    setMessage('');
+  };
+
+  const pickCheckInSeverity = (severity: PreviewSeverity) => {
+    if (!checkInSymptom) {
+      setMessage('Choose a symptom first, then how strong it feels.');
+      return;
+    }
+    setCheckInSeverity(severity);
+    setMessage('');
+  };
+
+  const severityChip = (severity: PreviewSeverity, label: string) => (
+    <Pressable
+      key={severity}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: checkInSeverity === severity, disabled: busy || !checkInSymptom }}
+      accessibilityLabel={`${label} intensity`}
+      disabled={busy || !checkInSymptom}
+      onPress={() => pickCheckInSeverity(severity)}
+      style={({ pressed }) => [
+        styles.severityChip,
+        checkInSeverity === severity && styles.severityChipActive,
+        !checkInSymptom && styles.severityChipDisabled,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Text style={[styles.severityChipText, semibold]}>{label}</Text>
+    </Pressable>
+  );
+
+  const checkInLabel = previewCheckIn?.label
+    || (checkInSymptom ? symptoms.find(item => item.key === checkInSymptom)?.label : null);
+
   const primaryDisabled = busy
+    || (draft.step === 0 && (!checkInSymptom || !checkInSeverity))
     || (draft.step === SYMPTOMS_STEP && !draft.symptoms.length)
     || (draft.step === GOAL_STEP && !draft.intent)
     || (draft.step === BUILDING_STEP && !buildingDone);
 
   const primaryLabel = (() => {
-    if (draft.step === 0) return 'Show me how it works';
+    if (draft.step === 0) return 'Log how today feels';
     if (draft.step >= SHOWCASE_START && draft.step <= SHOWCASE_END) return draft.step === SHOWCASE_END ? 'Personalize my plan' : 'Next';
     if (draft.step === SYMPTOMS_STEP) return 'These matter to me';
     if (draft.step === GOAL_STEP) return 'Continue';
@@ -279,6 +329,16 @@ export function OnboardingPreviewV2(props: Props) {
   })();
 
   const onPrimary = () => {
+    if (draft.step === 0) {
+      if (!checkInSymptom || !checkInSeverity) return;
+      const label = symptoms.find(item => item.key === checkInSymptom)?.label || 'Symptom';
+      setPreviewCheckIn({ symptomKey: checkInSymptom, label, severity: checkInSeverity });
+      const nextSymptoms = draft.symptoms.includes(checkInSymptom)
+        ? draft.symptoms
+        : [checkInSymptom, ...draft.symptoms].slice(0, 6);
+      change({ step: 1, symptoms: nextSymptoms });
+      return;
+    }
     if (draft.step === NOTIFICATIONS_STEP) return void finish(completedDraft());
     if (draft.step === BUILDING_STEP) {
       if (!buildingDone) return;
@@ -303,6 +363,26 @@ export function OnboardingPreviewV2(props: Props) {
   if (!fontsReady && !fontError) return <SafeAreaView style={styles.screen}><StatusBar style="dark" /></SafeAreaView>;
 
   const showcaseIndex = draft.step - SHOWCASE_START;
+  const showcaseTitles = [
+    previewCheckIn ? 'You just checked in' : 'Tap how today feels',
+    'Watch your week take shape',
+    'Capture what matters',
+    'Track care alongside symptoms',
+    'Bring a calm summary to visits',
+    'Explore evidence on your terms',
+  ];
+  const showcaseBodies = [
+    previewCheckIn && checkInLabel
+      ? `${checkInLabel} · ${severityLabels[previewCheckIn.severity]}. This preview holds it until you subscribe.`
+      : 'One tap per symptom — no spreadsheets, no streak guilt.',
+    previewCheckIn
+      ? 'Today’s check-in shows up on your week view — the same timeline you’ll use in peri.'
+      : 'Your check-ins become a gentle timeline you can actually read.',
+    'Add context in your own words whenever it helps.',
+    'See care changes next to how you feel over time.',
+    'Export focused talking points before an appointment.',
+    'Plain-language guides when you want deeper context.',
+  ];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -328,37 +408,46 @@ export function OnboardingPreviewV2(props: Props) {
         <Animated.View style={{ opacity: fade }}>
           {draft.step === 0 && (
             <>
-              <View style={styles.welcomeOrb} />
-              <Text accessibilityRole="header" style={[styles.title, display]}>Your body is changing.{'\n'}You deserve clarity.</Text>
-              <Text style={[styles.body, regular]}>In under half a minute, see how peri helps you notice patterns, keep private notes, and feel prepared — without pressure.</Text>
-              <View style={styles.preview}>
-                <Text style={[styles.eyebrow, bold]}>WHAT PERI DOES</Text>
-                <Text style={[styles.previewTitle, display]}>A calm check-in, shaped around you.</Text>
-                <Text style={[styles.body, regular, { marginBottom: 0 }]}>Tap how you feel, watch your week take shape, and bring a gentle summary to care visits when you want to.</Text>
+              <Text accessibilityRole="header" style={[styles.title, display]}>How is today feeling?</Text>
+              <Text style={[styles.body, regular]}>Choose what’s strongest right now, then tap how much it’s affecting you.</Text>
+              <Text style={[styles.eyebrow, bold, { marginBottom: 10 }]}>SYMPTOM</Text>
+              <View accessibilityRole="radiogroup" accessibilityLabel="Symptom for today" style={styles.gridChoices}>
+                {checkInSymptoms.map(item => choice(
+                  item.key,
+                  item.label,
+                  checkInSymptom === item.key,
+                  () => pickCheckInSymptom(item.key),
+                  true,
+                ))}
               </View>
-              <Text style={[styles.trust, semibold]}>Your health entries stay on this device. No account to create.</Text>
-              <Text style={[styles.small, regular]}>A paid subscription unlocks saving check-ins after setup.</Text>
+              <Text style={[styles.eyebrow, bold, { marginTop: 18, marginBottom: 10 }]}>HOW STRONG</Text>
+              <View accessibilityRole="radiogroup" accessibilityLabel="How strong it feels" style={styles.severityRow}>
+                {severityChip('mild', 'Mild')}
+                {severityChip('moderate', 'Moderate')}
+                {severityChip('strong', 'Strong')}
+              </View>
+              <Text accessibilityLiveRegion="polite" style={[styles.response, semibold]}>
+                {checkInSymptom && checkInSeverity && checkInLabel
+                  ? `${checkInLabel} · ${severityLabels[checkInSeverity]} — ready to log.`
+                  : checkInSymptom
+                    ? `${checkInLabel} — now choose how strong it feels.`
+                    : 'Pick one symptom to start your check-in.'}
+              </Text>
+              <Text style={[styles.small, regular]}>Your health entries stay on this device. A subscription unlocks saving check-ins after setup.</Text>
             </>
           )}
           {draft.step >= SHOWCASE_START && draft.step <= SHOWCASE_END && (
             <>
-              <Text accessibilityRole="header" style={[styles.title, display]}>{[
-                'Tap how today feels',
-                'Watch your week take shape',
-                'Jot what you want to remember',
-                'Keep treatment beside how you feel',
-                'Bring a calm summary to visits',
-                'Explore evidence on your terms',
-              ][showcaseIndex]}</Text>
-              <Text style={[styles.body, regular]}>{[
-                'One tap per symptom — no spreadsheets, no streak guilt.',
-                'Your check-ins become a gentle timeline you can actually read.',
-                'Add context in your own words whenever it helps.',
-                'See care changes next to how you feel over time.',
-                'Export focused talking points before an appointment.',
-                'Plain-language guides when you want deeper context.',
-              ][showcaseIndex]}</Text>
-              <OnboardingShowcaseStage index={showcaseIndex} reduceMotion={reduceMotion} semibold={semibold} regular={regular} bold={bold} />
+              <Text accessibilityRole="header" style={[styles.title, display]}>{showcaseTitles[showcaseIndex]}</Text>
+              <Text style={[styles.body, regular]}>{showcaseBodies[showcaseIndex]}</Text>
+              <OnboardingShowcaseStage
+                index={showcaseIndex}
+                reduceMotion={reduceMotion}
+                semibold={semibold}
+                regular={regular}
+                bold={bold}
+                previewCheckIn={previewCheckIn ? { label: previewCheckIn.label, severity: previewCheckIn.severity } : null}
+              />
             </>
           )}
           {draft.step === SYMPTOMS_STEP && (
@@ -488,6 +577,19 @@ const styles = StyleSheet.create({
   reminderTitle: { fontSize: 14, fontWeight: '600', color: INK },
   reminderTime: { fontSize: 12, color: INK_2 },
   reminderBody: { fontSize: 14, lineHeight: 20, color: INK_2 },
+  severityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  severityChip: {
+    minHeight: 48,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: LINE,
+    backgroundColor: NOTE,
+  },
+  severityChipActive: { backgroundColor: LAVENDER_2, borderColor: ACCENT },
+  severityChipDisabled: { opacity: 0.45 },
+  severityChipText: { fontSize: 15, color: INK, fontWeight: '600' },
   footer: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: 4, width: '100%', maxWidth: 650, alignSelf: 'center', backgroundColor: PAPER },
   primary: { minHeight: 54, borderRadius: 999, alignItems: 'center', justifyContent: 'center', padding: 14, backgroundColor: INK, marginTop: 6 },
   primaryText: { fontSize: 16, fontWeight: '600', color: NOTE, textAlign: 'center' },

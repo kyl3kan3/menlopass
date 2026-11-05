@@ -7,17 +7,25 @@ type Props = {
   semibold: { fontFamily: string; fontWeight: 'normal' } | null;
   regular: { fontFamily: string; fontWeight: 'normal' } | null;
   bold: { fontFamily: string; fontWeight: 'normal' } | null;
+  previewCheckIn?: { label: string; severity: 'mild' | 'moderate' | 'strong' } | null;
 };
 
-const INK = '#3d2f4a';
-const LAVENDER = '#ddd0eb';
-const LAVENDER_2 = '#ece4f3';
-const BLUSH = '#e8c4c0';
-const ACCENT = '#8b6fa8';
-const NOTE = '#fffcff';
-const LINE = '#e2d8ea';
+const severityChipIndex = (severity: 'mild' | 'moderate' | 'strong') => (
+  severity === 'mild' ? 0 : severity === 'moderate' ? 1 : 2
+);
 
-export function OnboardingShowcaseStage({ index, reduceMotion, semibold, regular, bold }: Props) {
+const weekBarHeight = (severity: 'mild' | 'moderate' | 'strong') => (
+  severity === 'mild' ? 0.42 : severity === 'moderate' ? 0.68 : 0.88
+);
+
+export function OnboardingShowcaseStage({
+  index,
+  reduceMotion,
+  semibold,
+  regular,
+  bold,
+  previewCheckIn = null,
+}: Props) {
   const progress = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
 
   useEffect(() => {
@@ -46,39 +54,62 @@ export function OnboardingShowcaseStage({ index, reduceMotion, semibold, regular
       <Animated.View style={[styles.phoneBody, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
         {index === 0 && (
           <>
-            <Text style={[styles.mockLabel, semibold]}>Today</Text>
-            <View style={styles.chipRow}>
-              {['Mild', 'Moderate', 'Strong'].map((label, chipIndex) => (
-                <Animated.View
-                  key={label}
-                  style={[
-                    styles.chip,
-                    chipIndex === 1 && styles.chipActive,
-                    {
-                      opacity: progress.interpolate({
-                        inputRange: [0, 0.2 + chipIndex * 0.15, 0.45 + chipIndex * 0.15],
-                        outputRange: [0.3, 0.3, 1],
-                        extrapolate: 'clamp',
-                      }),
-                    },
-                  ]}
-                >
-                  <Text style={[styles.chipText, semibold]}>{label}</Text>
-                </Animated.View>
-              ))}
-            </View>
-            <Text style={[styles.mockHint, regular]}>Hot flashes · tap to log</Text>
+            <Text style={[styles.mockLabel, semibold]}>{previewCheckIn ? 'Logged' : 'Today'}</Text>
+            {previewCheckIn ? (
+              <>
+                <Text style={[styles.mockHint, regular, { marginTop: 0, marginBottom: 12 }]}>{previewCheckIn.label}</Text>
+                <View style={styles.chipRow}>
+                  {['Mild', 'Moderate', 'Strong'].map((label, chipIndex) => (
+                    <View
+                      key={label}
+                      style={[
+                        styles.chip,
+                        chipIndex === severityChipIndex(previewCheckIn.severity) && styles.chipActive,
+                      ]}
+                    >
+                      <Text style={[styles.chipText, semibold]}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={[styles.mockHint, regular]}>Saved for today’s preview</Text>
+              </>
+            ) : (
+              <>
+                <View style={styles.chipRow}>
+                  {['Mild', 'Moderate', 'Strong'].map((label, chipIndex) => (
+                    <Animated.View
+                      key={label}
+                      style={[
+                        styles.chip,
+                        chipIndex === 1 && styles.chipActive,
+                        {
+                          opacity: progress.interpolate({
+                            inputRange: [0, 0.2 + chipIndex * 0.15, 0.45 + chipIndex * 0.15],
+                            outputRange: [0.3, 0.3, 1],
+                            extrapolate: 'clamp',
+                          }),
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, semibold]}>{label}</Text>
+                    </Animated.View>
+                  ))}
+                </View>
+                <Text style={[styles.mockHint, regular]}>Hot flashes · tap to log</Text>
+              </>
+            )}
           </>
         )}
         {index === 1 && (
           <>
             <Text style={[styles.mockLabel, semibold]}>Your week</Text>
             <View style={styles.barChart}>
-              {[0.35, 0.55, 0.4, 0.7, 0.5, 0.65, 0.45].map((height, barIndex) => (
+              {[0.35, 0.55, 0.4, 0.7, 0.5, 0.65, previewCheckIn ? weekBarHeight(previewCheckIn.severity) : 0.45].map((height, barIndex) => (
                 <Animated.View
                   key={barIndex}
                   style={[
                     styles.bar,
+                    previewCheckIn && barIndex === 6 && styles.barToday,
                     {
                       height: `${Math.round(height * 100)}%`,
                       opacity: progress.interpolate({
@@ -170,6 +201,14 @@ export function OnboardingShowcaseStage({ index, reduceMotion, semibold, regular
   );
 }
 
+const INK = '#3d2f4a';
+const LAVENDER = '#ddd0eb';
+const LAVENDER_2 = '#ece4f3';
+const BLUSH = '#e8c4c0';
+const ACCENT = '#8b6fa8';
+const NOTE = '#fffcff';
+const LINE = '#e2d8ea';
+
 const styles = StyleSheet.create({
   wrap: { marginBottom: 8, alignItems: 'center' },
   phone: {
@@ -195,6 +234,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, color: INK, fontWeight: '600' },
   barChart: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 100 },
   bar: { flex: 1, borderRadius: 6, backgroundColor: BLUSH, minHeight: 8 },
+  barToday: { backgroundColor: ACCENT },
   noteField: {
     backgroundColor: NOTE,
     borderRadius: 16,

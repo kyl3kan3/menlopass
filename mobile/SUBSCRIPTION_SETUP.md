@@ -4,6 +4,8 @@ The iOS app offers a native setup preview before purchase. **Control (flow versi
 
 **TestFlight / QA override (experiment still in draft):** On TestFlight, sandbox StoreKit, dev builds, or preview/development EAS channels only, `menlopass://onboarding-v2` persists a tester override, resets onboarding, and forces flow version 3. `menlopass://onboarding-control` clears the override and returns assignment to RevenueCat metadata. App Store production installs ignore these links (sandbox App Store receipt check plus RevenueCat `storeEnvironment`).
 
+Variant v2 opens with a **real one-tap check-in** (symptom + intensity) before animated product showcases; welcome marketing is not the first action.
+
 It stores only setup preferences in the existing encrypted device-local record; it does not create ratings or confirmed check-ins. The RevenueCat entitlement `MenoCompass Pro` is still required before the health-record WebView mounts.
 
 New users can return from the paywall to their saved preview. Existing users who have finished their first check-in return to the subscription gate when their entitlement expires or cannot be verified. Neither dismissing a paywall nor completing a preview unlocks health features. Restore, Privacy, and Terms are available during setup.

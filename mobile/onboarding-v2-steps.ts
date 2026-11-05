@@ -5,8 +5,8 @@ export const ONBOARDING_V2_FINAL_STEP = 11;
 export const ONBOARDING_V2_STEP_COUNT = 12;
 
 export const onboardingV2StepTitles = [
-  'Welcome to peri',
-  'Check in with a tap',
+  'How today feels',
+  'See your week unfold',
   'See your week unfold',
   'Capture what matters',
   'Track care alongside symptoms',
