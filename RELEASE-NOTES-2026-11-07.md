@@ -12,7 +12,7 @@ The release preserves the production onboarding experiment from `06b90b2` and ad
 | Trouble sleeping omitted from reports | Confirmed sleep-difficulty ratings participate in the symptom summary, separately from sleep hours. |
 | Native temporary exports retained health data | Share files are removed after the share sheet settles; deletion and startup also sweep legacy app-owned exports. |
 | Android had an unusable Pro gate | The native shell declares whether subscriptions are available; Android core screens follow its existing non-subscription path. The iOS entitlement gate remains active. |
-| Unreadable native record stranded the user | Recovery offers retry, strictly validated encrypted backup restore, and explicitly confirmed reset; restore preserves an original copy. Asset failures offer retry only. App Lock protects recovery and replay stays off there. |
+| Unreadable native record stranded the user | Recovery offers retry, strictly validated encrypted backup restore, and explicitly confirmed reset; restore preserves an original copy. Asset failures offer retry only. App Lock protects recovery and replay stays off there. TestFlight onboarding links wait for a loaded record and an unlocked app before changing progress. |
 | Expo release check compared an existing runtime with newer patches | CI checks installed dependencies against the locked SDK's bundled compatibility map, then runs the remaining online Expo Doctor checks. Incompatible dependencies still fail validation. |
 | Windows Python command failed | A portable launcher locates Python 3.10+ and propagates build failures. |
 

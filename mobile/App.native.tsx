@@ -599,6 +599,8 @@ function App() {
   const [unlockIssue, setUnlockIssue] = useState<string>();
   const [appIsActive, setAppIsActive] = useState(AppState.currentState === 'active');
   const [pendingNativeRoute, setPendingNativeRoute] = useState<MenoCompassNativeRoute | null>(null);
+  const [pendingOnboardingTesterRoute, setPendingOnboardingTesterRoute] = useState<OnboardingTesterRoute | null>(null);
+  const [testerRouteCompletion, setTesterRouteCompletion] = useState(0);
   const [nativeNavigation, setNativeNavigation] = useState<{
     route: MenoCompassWebRoute;
     onboarded: boolean;
@@ -618,6 +620,11 @@ function App() {
   const unlockInFlightRef = useRef(false);
   const automaticUnlockAttemptedRef = useRef(false);
   const healthKitInFlightRef = useRef(false);
+  const testerRouteInFlightRef = useRef(false);
+  const testerRouteReadyRef = useRef(false);
+  testerRouteReadyRef.current = recordReady && !error && privacyReady && !appLocked
+    && onboardingTesterGateReady && subscriptionChecked && !recoveryBusy
+    && previewWriteCount === 0 && !purchaseBusy && !paywall;
 
   const otaRestartIsSafe = () => AppState.currentState === 'active'
     && webContentReady && experienceReady && !appLocked && !keyboardVisible
@@ -681,27 +688,47 @@ function App() {
   };
 
   const handleOnboardingTesterRoute = async (route: OnboardingTesterRoute) => {
+    const deferUntilReady = () => {
+      if (testerRouteReadyRef.current) return false;
+      setPendingOnboardingTesterRoute(current => current ?? route);
+      return true;
+    };
+    if (deferUntilReady()) return;
     if (Platform.OS !== 'ios' || !onboardingTesterOverrideAllowed()) return;
     if (route === 'clear-override') {
       await writeOnboardingTesterOverride(null);
+      if (deferUntilReady()) return;
       onboardingTesterOverrideRef.current = null;
       setOnboardingTesterOverride(null);
       syncOnboardingVariant();
       return;
     }
     await writeOnboardingTesterOverride('v2');
+    if (deferUntilReady()) return;
     onboardingTesterOverrideRef.current = 'v2';
     setOnboardingTesterOverride('v2');
     setOnboardingVariant('v2');
     onboardingStartedRef.current = false;
     onboardingCompletedRef.current = false;
     autoPaywallAttemptedRef.current = false;
-    const reset = resetPersistedOnboardingForTester(
-      persistedStateRef.current ?? previewStateRef.current,
-      'v2',
-    );
-    previewStateRef.current = reset;
     try {
+      await persistedStateWriteQueue;
+      if (deferUntilReady()) return;
+      // Derive the reset only from a successfully loaded current record. Links
+      // arriving before hydration or during recovery must never synthesize a
+      // blank record from null refs and overwrite the unreadable original.
+      let currentRecord: string | null;
+      try {
+        currentRecord = await readPersistedState();
+      } catch (reason) {
+        setRecordReady(false);
+        setRecordUnavailable(true);
+        setError(reason instanceof Error ? reason.message : String(reason));
+        return;
+      }
+      if (deferUntilReady()) return;
+      const reset = resetPersistedOnboardingForTester(currentRecord, 'v2');
+      previewStateRef.current = reset;
       const canonical = await writePersistedState(reset);
       if (canonical) {
         setPersistedState(canonical);
@@ -871,6 +898,7 @@ function App() {
         && !unlockInFlightRef.current
         && nextState !== 'active'
       ) {
+        testerRouteReadyRef.current = false;
         automaticUnlockAttemptedRef.current = false;
         setAppLocked(true);
       }
@@ -932,10 +960,23 @@ function App() {
   }, [onboardingTesterGateReady, onboardingTesterOverride]);
 
   useEffect(() => {
-    return subscribeToOnboardingTesterLinks(route => {
-      void handleOnboardingTesterRoute(route);
-    });
+    // The listener stays mounted, but only queues intent. The processing effect
+    // below observes current hydration and lock state instead of mount-time flags.
+    return subscribeToOnboardingTesterLinks(setPendingOnboardingTesterRoute);
   }, []);
+
+  useEffect(() => {
+    if (!pendingOnboardingTesterRoute || !testerRouteReadyRef.current || testerRouteInFlightRef.current) return;
+    const route = pendingOnboardingTesterRoute;
+    setPendingOnboardingTesterRoute(null);
+    testerRouteInFlightRef.current = true;
+    void handleOnboardingTesterRoute(route).catch(reportTelemetryError).finally(() => {
+      testerRouteInFlightRef.current = false;
+      setTesterRouteCompletion(value => value + 1);
+    });
+  }, [pendingOnboardingTesterRoute, recordReady, error, privacyReady, appLocked,
+    onboardingTesterGateReady, subscriptionChecked, recoveryBusy, previewWriteCount,
+    purchaseBusy, paywall, testerRouteCompletion]);
 
   useEffect(() => {
     let active = true;

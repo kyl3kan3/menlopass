@@ -118,7 +118,7 @@ test('invalid and future backups fail recovery validation without returning any 
 
 const settle = async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); };
 
-function appHarness() {
+function appHarness(initialUrl = null) {
   const disk = files(), alerts = [], effects = [], replay = [], state = {
     html: '<html>bundled app</html>', privacyReady: true, subscriptionChecked: true,
     onboardingTesterGateReady: true,
@@ -127,6 +127,15 @@ function appHarness() {
   disk.entries.set('/documents/menocompass-state.secure', 'unreadable ciphertext');
   disk.entries.set('/asset.html', '<html>bundled app</html>');
   let stateIndex = 0, refIndex = 0, decryptFails = true, assetFails = false;
+  let clearRecord = '{"v":8,"profile":{},"entries":{}}', warmLink, overridePause;
+  const overrides = [];
+  const variant = load('onboarding-variant.ts', {});
+  const testerGate = load('onboarding-tester-gate.ts', { './onboarding-variant': variant, './onboarding-model': require('../onboarding-model') });
+  const testerRoutes = load('onboarding-tester-route.ts', {}, { URL });
+  const testerLinks = load('onboarding-tester-link.native.ts', {
+    'react-native': { Linking: { getInitialURL: async () => initialUrl, addEventListener: (_type, callback) => { warmLink = callback; return { remove() {} }; } } },
+    './onboarding-tester-route': testerRoutes,
+  });
   const source = fs.readFileSync(path.join(__dirname, '../App.native.tsx'), 'utf8');
   const componentSource = source.slice(source.indexOf('function App() {'), source.indexOf('function AppWithSafeArea()'));
   const stateNames = [...componentSource.matchAll(/const \[([^,\]]+),[^\]]+\] = useState/g)].map(match => match[1]);
@@ -145,14 +154,18 @@ function appHarness() {
     'posthog-react-native': { PostHogMaskView: 'PostHogMaskView' },
     'expo-observe': { ObserveRoot: { wrap: value => value }, useObserve: () => ({ markInteractive: noOp }) },
     'expo-file-system': disk,
+    'expo-updates': { channel: 'preview' },
     'expo-asset': { Asset: { fromModule: () => ({ downloadAsync: async () => { if (assetFails) throw new Error('asset unavailable'); return { localUri: '/asset.html' }; } }) } },
     './OtaUpdate.native': { useOtaUpdate: () => ({}) },
     './RecordRecovery.native': { RecordRecovery: 'RecordRecovery', RecoveryBackupValidator: 'RecoveryBackupValidator' },
     './native-private-files': disk,
     './onboarding-model': require('../onboarding-model'),
+    './onboarding-variant': variant,
+    './onboarding-tester-override': { ...testerGate, writeOnboardingTesterOverride: async value => { overrides.push(value); await overridePause; } },
+    './onboarding-tester-link.native': testerLinks,
     './privacyFeatures.native': {
       isDeviceEncryptionAvailable: () => true,
-      decryptForDeviceAsync: async () => { if (decryptFails) throw new Error('cannot decrypt'); return '{"v":8,"profile":{},"entries":{}}'; },
+      decryptForDeviceAsync: async () => { if (decryptFails) throw new Error('cannot decrypt'); return clearRecord; },
       encryptForDeviceAsync: async value => 'encrypted:' + value,
       clearNativePrivateDataAsync: async () => { disk.clearPrivateExportFiles(); disk.clearRecoveryRecords(); },
     },
@@ -167,7 +180,14 @@ function appHarness() {
   const App = module.default().props.children.props.children.type;
   const nodes = tree => { const all = []; const visit = node => { if (!node || typeof node !== 'object') return; if (Array.isArray(node)) return node.forEach(visit); all.push(node); visit(node.props?.children); }; visit(tree); return all; };
   const render = () => { stateIndex = 0; refIndex = 0; effects.length = 0; return nodes(App()); };
-  return { ...disk, state, alerts, replay, render, runReplay: () => effects.find(effect => effect.toString().includes('setTelemetryReplay'))(), runBoot: () => effects.find(effect => effect.toString().includes('readPersistedState'))(), allowDecrypt: () => { decryptFails = false; }, failAsset: () => { assetFails = true; } };
+  return { ...disk, state, alerts, replay, overrides, render,
+    mountTesterLinks: () => effects.find(effect => effect.toString().includes('subscribeToOnboardingTesterLinks'))(),
+    sendTesterLink: (url = 'menlopass://onboarding-v2') => warmLink({ url }),
+    runTesterRoute: () => effects.find(effect => effect.toString().includes('pendingOnboardingTesterRoute'))(),
+    pauseOverride: () => { let release; overridePause = new Promise(resolve => { release = resolve; }); return release; },
+    runReplay: () => effects.find(effect => effect.toString().includes('setTelemetryReplay'))(),
+    runBoot: () => effects.find(effect => effect.toString().includes('readPersistedState'))(),
+    allowDecrypt: value => { decryptFails = false; if (value) clearRecord = value; }, failAsset: () => { assetFails = true; } };
 }
 
 test('boot recovery remains behind App Lock; retry reads the preserved record again', async () => {
@@ -236,4 +256,55 @@ test('analytics consent never enables replay on recovery or backup-validation su
   h.render(); h.runReplay(); assert.equal(h.replay.at(-1), false);
   Object.assign(h.state, { error: undefined, recordReady: true, recoveryCandidate: null });
   h.render(); h.runReplay(); assert.equal(h.replay.at(-1), true);
+});
+
+const testerRecord = JSON.stringify({ v: 8, profile: { name: 'Tester', onboarded: true }, entries: { '2026-11-07': { hf: 2 } } });
+
+test('cold tester URL waits for record hydration and then preserves the loaded health entries', async () => {
+  const h = appHarness('menlopass://onboarding-v2');
+  Object.assign(h.state, { recordReady: false, error: undefined });
+  h.allowDecrypt(testerRecord); h.render(); h.mountTesterLinks(); await settle();
+  h.render(); h.runTesterRoute(); await settle();
+  assert.equal(h.state.pendingOnboardingTesterRoute, 'force-v2');
+  assert.equal(h.overrides.length, 0);
+  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
+  h.runBoot(); await settle(); h.render(); h.runTesterRoute(); await settle();
+  const restored = JSON.parse(h.entries.get('/documents/menocompass-state.secure').slice('encrypted:'.length));
+  assert.deepEqual(restored.entries, JSON.parse(testerRecord).entries);
+  assert.equal(restored.profile.onboardingVersion, 3);
+  assert.equal(restored.profile.onboarded, false);
+});
+
+test('mounted warm tester listener queues through recovery and App Lock without a stale readiness closure', async () => {
+  const h = appHarness(); h.render(); h.mountTesterLinks(); await settle();
+  h.sendTesterLink(); h.render(); h.runTesterRoute(); await settle();
+  assert.equal(h.overrides.length, 0);
+  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
+  Object.assign(h.state, { error: undefined, recordReady: true, appLocked: true });
+  h.allowDecrypt(testerRecord); h.render(); h.runTesterRoute(); await settle();
+  assert.equal(h.overrides.length, 0);
+  h.state.appLocked = false; h.render(); h.runTesterRoute(); await settle();
+  assert.equal(h.overrides.length, 1);
+  assert.equal(JSON.parse(h.entries.get('/documents/menocompass-state.secure').slice('encrypted:'.length)).entries['2026-11-07'].hf, 2);
+  h.sendTesterLink('menlopass://onboarding-control'); h.render(); h.runTesterRoute(); await settle();
+  assert.equal(h.overrides.at(-1), null, 'the existing mounted listener also handles later control links');
+});
+
+test('relocking during asynchronous tester setup defers the record write until unlock', async () => {
+  const h = appHarness(); Object.assign(h.state, { error: undefined, recordReady: true }); h.allowDecrypt(testerRecord);
+  h.render(); h.mountTesterLinks(); await settle();
+  const release = h.pauseOverride(); h.sendTesterLink(); h.render(); h.runTesterRoute(); await settle();
+  h.state.appLocked = true; h.render(); release(); await settle();
+  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
+  assert.equal(h.state.pendingOnboardingTesterRoute, 'force-v2');
+  h.state.appLocked = false; h.render(); h.runTesterRoute(); await settle();
+  assert.equal(h.entries.get('/documents/menocompass-state.secure').startsWith('encrypted:'), true);
+});
+
+test('a tester reset refuses to replace a record that becomes unreadable after hydration', async () => {
+  const h = appHarness(); Object.assign(h.state, { error: undefined, recordReady: true });
+  h.render(); h.mountTesterLinks(); await settle(); h.sendTesterLink(); h.render(); h.runTesterRoute(); await settle();
+  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
+  assert.equal(h.state.recordReady, false); assert.equal(h.state.recordUnavailable, true);
+  assert.match(h.state.error, /cannot decrypt/);
 });
