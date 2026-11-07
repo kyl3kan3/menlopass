@@ -317,6 +317,20 @@ function safeTreatmentFollowUp(raw,changeDate,targets){
     notes:safeText(raw.notes,500).trim(),outcome
   };
 }
+const MAX_MEDICATION_HISTORY = 1000;
+function safeMedicationDetails(raw){
+  if(!plainRecord(raw)) return null;
+  const name=safeText(raw.name,80).trim();
+  if(!name) return null;
+  const days=Array.isArray(raw.days)?[...new Set(raw.days.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6))].sort():[];
+  return {
+    name,
+    form:safeEnum(raw.form,['patch','tablet','capsule','gel','spray','cream','injection','other'],raw.icon==='patch'?'patch':'tablet'),
+    days:days.length?days:[0,1,2,3,4,5,6],
+    due:safeText(raw.due,20),
+    notes:safeText(raw.notes||raw.detail,120)
+  };
+}
 function safeMedication(raw,startedFallback){
   if(!plainRecord(raw)) return null;
   const name=safeText(raw.name,80).trim();
@@ -345,6 +359,26 @@ function safeMedication(raw,startedFallback){
   /* A stop date is authoritative. Do not let a malformed or older backup
      reactivate a treatment simply by pairing `status: active` with `ended`. */
   const status=requestedStatus==='archived'?'archived':ended?'stopped':'active';
+  // Additive v8 history: older backups have no pauses or detail revisions.
+  // A pause excludes only days after the last dose and before the restart.
+  const pauses=[];
+  (Array.isArray(raw.pauses)?raw.pauses:[]).slice(-MAX_MEDICATION_HISTORY).forEach(item=>{
+    if(!plainRecord(item)) return;
+    const stopped=safePastDate(item.stopped), resumed=safePastDate(item.resumed);
+    if(!stopped||!resumed||resumed<stopped||(started&&stopped<started)||(ended&&resumed>ended)) return;
+    pauses.push({stopped,resumed,reason:safeText(item.reason,500).trim(),name:safeText(item.name,80).trim()||name});
+  });
+  pauses.sort((a,b)=>a.stopped.localeCompare(b.stopped)||a.resumed.localeCompare(b.resumed));
+  const orderedPauses=[];
+  pauses.forEach(item=>{
+    const previous=orderedPauses[orderedPauses.length-1];
+    if(!previous||item.stopped>=previous.resumed) orderedPauses.push(item);
+  });
+  const revisions=(Array.isArray(raw.revisions)?raw.revisions:[]).slice(-MAX_MEDICATION_HISTORY).map(item=>{
+    if(!plainRecord(item)) return null;
+    const date=safePastDate(item.date), before=safeMedicationDetails(item.before), after=safeMedicationDetails(item.after);
+    return date&&before&&after?{date,before,after}:null;
+  }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
   return {
     id,
     name,
@@ -357,7 +391,9 @@ function safeMedication(raw,startedFallback){
     status,
     stopReason:safeText(raw.stopReason,500).trim(),
     archivedAt:status==='archived'?archivedAt:'',
-    changes
+    changes,
+    pauses:orderedPauses,
+    revisions
   };
 }
 function safeLab(raw){

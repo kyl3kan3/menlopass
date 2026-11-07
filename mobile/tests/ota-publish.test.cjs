@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../scripts/publish-update.cjs'), 'utf8');
-function publish({ args = [], dirty = ['', ''], builds = [{ runtime: { version: '1.2.0-native-2' } }], missingKey = false } = {}) {
+function publish({ args = [], dirty = ['', ''], builds = [{ runtime: { version: '1.2.0-native-2' } }], missingKey = false, diffStatus = 0 } = {}) {
   const calls = [];
   let statusReads = 0;
   const env = Object.fromEntries(['APPSFLYER_DEV_KEY', 'ANALYTICS_API_URL', 'ANALYTICS_PRODUCT_IDS', 'REVENUECAT_IOS_API_KEY', 'POSTHOG_API_KEY', 'POSTHOG_HOST'].map(name => [`EXPO_PUBLIC_${name}`, 'configured']));
@@ -23,7 +23,7 @@ function publish({ args = [], dirty = ['', ''], builds = [{ runtime: { version: 
         const stdout = argv.includes('--porcelain') ? dirty[statusReads++] || ''
           : argv.includes('rev-parse') ? 'abc123'
           : argv.includes('build:list') ? JSON.stringify(builds) : '';
-        return { status: 0, stdout };
+        return { status: argv.includes('diff') ? diffStatus : 0, stdout };
       } };
       throw new Error(`Unexpected import ${name}`);
     },
@@ -49,6 +49,27 @@ test('OTA blocks unsupported runtimes, but does not require downloading native E
   assert.equal(lookup.argv[lookup.argv.indexOf('--runtime-version') + 1], '1.2.0-native-2');
   assert.ok(compatible.calls.find(call => call.argv.includes('sync:web')));
   assert.ok(compatible.calls.find(call => call.argv.includes('typecheck')));
+  assert.ok(compatible.calls.find(call => call.argv.includes('check:sdk')));
   assert.ok(compatible.calls.find(call => call.argv.includes('test')));
   assert.equal(compatible.calls.filter(call => call.argv.includes('update')).length, 1);
+});
+
+test('OTA refreshes Git before both clean checks without ignoring real changes', () => {
+  const clean = publish();
+  clean.run();
+  const statusIndexes = clean.calls.flatMap((call, index) => call.argv.includes('--porcelain') ? [index] : []);
+  assert.equal(statusIndexes.length, 2);
+  for (const index of statusIndexes) assert.deepEqual(clean.calls[index - 1].argv, ['diff', '--quiet']);
+
+  const changed = publish({ diffStatus: 1, dirty: [' M index.html', ''] });
+  assert.throws(changed.run, /dirty Git worktree/);
+  assert.equal(changed.calls.some(call => call.argv.includes('update')), false);
+});
+
+test('OTA launches npm and EAS through Node, avoiding Windows command shims', () => {
+  const h = publish(); h.run();
+  for (const call of h.calls.filter(call => call.command !== 'git')) {
+    assert.equal(call.command, '/node');
+    assert.equal(call.argv[0], '/npm-cli.js');
+  }
 });

@@ -1,10 +1,14 @@
 /* peri service worker — offline-first shell cache.
    Bump CACHE when any cached file changes. */
 const CACHE_PREFIX = 'meno-compass-';
-const CACHE = `${CACHE_PREFIX}v20`;
+const CACHE = `${CACHE_PREFIX}v21`;
 const ASSETS = [
   './',
   './index.html',
+  './privacy.html',
+  './support.html',
+  './terms.html',
+  './get-app.html',
   './manifest.webmanifest',
   './assets/fonts/bricolage-grotesque-latin.woff2',
   './icons/apple-touch-icon.png',
@@ -43,18 +47,28 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    // Prefer fresh HTML online; only navigation requests receive the app-shell
-    // fallback, so a missing image or manifest never receives HTML by mistake.
+    // Only app routes may update or fall back to the tracker shell. Public
+    // pages keep their own cache entries, including on subdirectory installs.
+    const root = new URL('./', self.registration.scope);
+    const shell = new URL('./index.html', root);
+    const isAppRoute = url.pathname === root.pathname || url.pathname === shell.pathname;
+    const cacheKey = isAppRoute ? shell.href : request;
     event.respondWith(
       fetch(request)
         .then(async response => {
-          if (!response.ok) throw new Error(`Navigation failed: ${response.status}`);
+          if (!response.ok) return response;
           const copy = response.clone();
           const cache = await caches.open(CACHE);
-          await cache.put('./index.html', copy);
+          await cache.put(cacheKey, copy);
           return response;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(async () => {
+          const cache = await caches.open(CACHE);
+          return await cache.match(cacheKey) || new Response('This page is unavailable offline.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+          });
+        })
     );
     return;
   }

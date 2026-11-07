@@ -11,7 +11,7 @@ function option(name, fallback) {
   return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
 }
 
-function run(command, commandArgs, cwd = projectRoot, capture = false) {
+function run(command, commandArgs, cwd = projectRoot, capture = false, allowedStatuses = [0]) {
   const result = spawnSync(command, commandArgs, {
     cwd,
     encoding: 'utf8',
@@ -19,8 +19,17 @@ function run(command, commandArgs, cwd = projectRoot, capture = false) {
     stdio: capture ? ['ignore', 'pipe', 'inherit'] : 'inherit',
   });
   if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (!allowedStatuses.includes(result.status)) process.exit(result.status ?? 1);
   return capture ? result.stdout.trim() : '';
+}
+
+function dirtyWorktree() {
+  // Builds normalize generated HTML to LF. Refresh Git's content/stat cache
+  // before status so core.autocrlf does not report unchanged generated files.
+  // A real diff exits 1 and is still rejected by the porcelain check below;
+  // staged changes and untracked files are also retained in that check.
+  run('git', ['diff', '--quiet'], repositoryRoot, true, [0, 1]);
+  return run('git', ['status', '--porcelain'], repositoryRoot, true);
 }
 
 const channel = option('--channel', 'preview');
@@ -33,7 +42,7 @@ if (!['preview', 'production'].includes(environment)) {
 }
 if (environment !== channel) throw new Error('OTA channel and EAS environment must match.');
 
-const dirty = run('git', ['status', '--porcelain'], repositoryRoot, true);
+const dirty = dirtyWorktree();
 if (dirty) {
   throw new Error('Refusing to publish a production-grade OTA from a dirty Git worktree.');
 }
@@ -55,8 +64,9 @@ delete process.env.EAS_BUILD_PROFILE;
 require(path.join(projectRoot, 'app.config.js'))({ config: appConfig });
 npm(['run', 'sync:web']);
 npm(['run', 'typecheck']);
+npm(['run', 'check:sdk']);
 npm(['--prefix', repositoryRoot, 'test']);
-if (run('git', ['status', '--porcelain'], repositoryRoot, true)) {
+if (dirtyWorktree()) {
   throw new Error('Generated assets changed during validation. Commit and push the synchronized build before publishing.');
 }
 const builds = JSON.parse(eas(['build:list', '--platform', 'ios', '--status', 'finished', '--build-profile', channel, '--runtime-version', appConfig.runtimeVersion, '--limit', '1', '--json', '--non-interactive'], true));

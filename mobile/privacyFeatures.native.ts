@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import MenoCompassSecurityModule from './modules/menocompass-security';
+import { clearPrivateExportFiles, clearRecoveryRecords } from './native-private-files';
 
 const APP_LOCK_KEY = 'menocompass.app-lock.enabled.v1';
 const REMINDERS_KEY = 'menocompass.reminders.v1';
@@ -226,6 +227,8 @@ export async function configureRemindersAsync(
 }
 
 export async function clearNativePrivateDataAsync() {
+  clearPrivateExportFiles();
+  clearRecoveryRecords();
   await Promise.allSettled([
     Notifications.cancelAllScheduledNotificationsAsync(),
     Notifications.dismissAllNotificationsAsync(),

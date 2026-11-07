@@ -35,6 +35,8 @@ import {
 import { subscribeToOnboardingTesterLinks } from './onboarding-tester-link.native';
 import type { OnboardingTesterRoute } from './onboarding-tester-route';
 import MenoCompassSecurity from './modules/menocompass-security';
+import { RecordRecovery, RecoveryBackupValidator } from './RecordRecovery.native';
+import { clearPrivateExportFiles, deleteUnreadableRecord, preserveUnreadableRecord, withPrivateExport } from './native-private-files';
 import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import {
@@ -174,14 +176,14 @@ async function shareTextExport(message: Record<string, unknown>) {
   const format = supportedNativeExports[mime];
   const name = safeExportName(message.name, 'meno-compass-export', format.extension);
   await ensureNativeSharing();
-  const file = new File(Paths.cache, name);
-  file.create({ overwrite: true, intermediates: true });
-  file.write(message.contents);
-
-  await Sharing.shareAsync(file.uri, {
-    dialogTitle: 'Share peri export',
-    mimeType: mime,
-    UTI: format.uti,
+  await withPrivateExport(name, async file => {
+    file.create({ overwrite: true, intermediates: true });
+    file.write(message.contents as string);
+    await Sharing.shareAsync(file.uri, {
+      dialogTitle: 'Share peri export',
+      mimeType: mime,
+      UTI: format.uti,
+    });
   });
 }
 
@@ -203,23 +205,19 @@ async function shareReport(message: Record<string, unknown>) {
     `meno-compass-report-${new Date().toISOString().slice(0, 10)}`,
     '.pdf',
   );
-  const printableFile = new File(Paths.cache, name);
-  let shareUri = generated.uri;
-
+  const generatedFile = new File(generated.uri);
   try {
-    const generatedFile = new File(generated.uri);
-    await generatedFile.copy(printableFile, { overwrite: true });
-    shareUri = printableFile.uri;
-    generatedFile.delete();
-  } catch {
-    // The generated PDF is still shareable if assigning a friendly name fails.
+    await withPrivateExport(name, async printableFile => {
+      await generatedFile.copy(printableFile, { overwrite: true });
+      await Sharing.shareAsync(printableFile.uri, {
+        dialogTitle: 'Share peri report',
+        mimeType: 'application/pdf',
+        UTI: 'com.adobe.pdf',
+      });
+    });
+  } finally {
+    if (generatedFile.exists) generatedFile.delete();
   }
-
-  await Sharing.shareAsync(shareUri, {
-    dialogTitle: 'Share peri report',
-    mimeType: 'application/pdf',
-    UTI: 'com.adobe.pdf',
-  });
 }
 
 function nativeShareErrorMessage(reason: unknown) {
@@ -326,13 +324,14 @@ async function shareEncryptedBackup(message: Record<string, unknown>) {
     `meno-compass-backup-${new Date().toISOString().slice(0, 10)}`,
     '.menocompass',
   );
-  const file = new File(Paths.cache, name);
-  file.create({ overwrite: true, intermediates: true });
-  file.write(encrypted);
-  await Sharing.shareAsync(file.uri, {
-    dialogTitle: 'Save encrypted peri backup',
-    mimeType: 'application/octet-stream',
-    UTI: 'public.data',
+  await withPrivateExport(name, async file => {
+    file.create({ overwrite: true, intermediates: true });
+    file.write(encrypted);
+    await Sharing.shareAsync(file.uri, {
+      dialogTitle: 'Save encrypted peri backup',
+      mimeType: 'application/octet-stream',
+      UTI: 'public.data',
+    });
   });
 }
 
@@ -517,6 +516,13 @@ function App() {
   const [previewIssue, setPreviewIssue] = useState<string>();
   const [previewWriteCount, setPreviewWriteCount] = useState(0);
   const [error, setError] = useState<string>();
+  const [recordReady, setRecordReady] = useState(false);
+  const [recordUnavailable, setRecordUnavailable] = useState(false);
+  const [bootAttempt, setBootAttempt] = useState(0);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryIssue, setRecoveryIssue] = useState<string>();
+  const [recoveryCandidate, setRecoveryCandidate] = useState<string | null>(null);
+  const recoveryInFlight = useRef(false);
   const [revenueCatReady, setRevenueCatReady] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(Platform.OS !== 'ios');
   const [subscriptionIssue, setSubscriptionIssue] = useState<string>();
@@ -967,12 +973,17 @@ function App() {
 
   useEffect(() => {
     let active = true;
+    setError(undefined);
+    setRecordReady(false);
+    setRecordUnavailable(false);
     Promise.all([
-      Asset.fromModule(appAsset).downloadAsync().then(asset => new File(asset.localUri || asset.uri).text()),
+      Asset.fromModule(appAsset).downloadAsync()
+        .then(asset => new File(asset.localUri || asset.uri).text())
+        .then(source => { if (active) setHtml(source); return source; }),
       // A missing record resolves to null. Authentication/decryption failures
       // must surface instead of booting a blank database that could overwrite
       // the still-recoverable encrypted file.
-      readPersistedState(),
+      readPersistedState().catch(reason => { if (active) setRecordUnavailable(true); throw reason; }),
     ])
       .then(([source, savedState]) => {
         if (!active) return;
@@ -980,6 +991,8 @@ function App() {
         previewStateRef.current = savedState;
         setExperienceReady(persistedStateIsOnboarded(savedState));
         setHtml(source);
+        setRecordReady(true);
+        try { clearPrivateExportFiles(); } catch (reason) { reportTelemetryError(reason); }
         try {
           syncMenoCompassWidgets(savedState);
         } catch (error) {
@@ -988,7 +1001,7 @@ function App() {
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
     return () => { active = false; };
-  }, []);
+  }, [bootAttempt]);
 
   useEffect(() => {
     if (interactiveMarkedRef.current || !html || !privacyReady || !subscriptionChecked || !appIsActive) return;
@@ -1074,9 +1087,9 @@ function App() {
   }, [consentReady, privacyChoiceOpen, privacyReady, appLocked, appIsActive, paywall, purchaseBusy, nativeNavigation.sheetOpen, keyboardVisible]);
 
   useEffect(() => {
-    setTelemetryReplay(analyticsEnabled && consentReady && !privacyChoiceOpen && !appLocked && appIsActive && showOnboardingPreview && !paywall);
+    setTelemetryReplay(recordReady && !error && analyticsEnabled && consentReady && !privacyChoiceOpen && !appLocked && appIsActive && showOnboardingPreview && !paywall);
     return () => setTelemetryReplay(false);
-  }, [analyticsEnabled, consentReady, privacyChoiceOpen, appLocked, appIsActive, showOnboardingPreview, paywall]);
+  }, [recordReady, error, analyticsEnabled, consentReady, privacyChoiceOpen, appLocked, appIsActive, showOnboardingPreview, paywall]);
 
   useEffect(() => {
     if (!html || !telemetrySettled || appLaunchTrackedRef.current) return;
@@ -1523,7 +1536,76 @@ function App() {
     }
   };
 
-  if (!html || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked) || (proActive && previewWriteCount > 0)) {
+  const restoreRecordFromBackup = async (password: string) => {
+    if (recoveryInFlight.current || !html) return;
+    recoveryInFlight.current = true;
+    setRecoveryBusy(true);
+    setRecoveryIssue(undefined);
+    try {
+      const candidate = await chooseAndDecryptBackup(password);
+      if (candidate) {
+        setRecoveryCandidate(candidate);
+        return; // Remain busy until strict WebView validation has finished.
+      }
+    } catch (reason) {
+      setRecoveryIssue(nativeBackupImportErrorMessage(reason));
+    }
+    recoveryInFlight.current = false;
+    setRecoveryBusy(false);
+  };
+
+  const acceptRecoveryBackup = async (validated: string | null) => {
+    setRecoveryCandidate(null);
+    try {
+      if (!validated || !canonicalPersistedState(validated)) {
+        throw new Error('That backup is invalid or uses a newer app version. Your existing record was kept.');
+      }
+      await persistedStateWriteQueue;
+      await preserveUnreadableRecord([encryptedPersistedStateFile, legacyPersistedStateFile]);
+      const canonical = await writePersistedState(validated);
+      if (!canonical) throw new Error('The backup could not be saved. Your existing record was kept.');
+      setPersistedState(canonical);
+      previewStateRef.current = canonical;
+      setExperienceReady(persistedStateIsOnboarded(canonical));
+      setRecordReady(true);
+      setError(undefined);
+      try { syncMenoCompassWidgets(canonical); } catch (reason) { reportTelemetryError(reason); }
+      Alert.alert('Backup restored', 'Your backup was checked and restored. A copy of the unreadable record has been kept on this device.');
+    } catch (reason) {
+      setRecoveryIssue(reason instanceof Error ? reason.message : 'Your backup could not be restored. Please try again.');
+    } finally {
+      recoveryInFlight.current = false;
+      setRecoveryBusy(false);
+    }
+  };
+
+  const confirmRecoveryReset = () => Alert.alert(
+    'Delete the unreadable record?',
+    'This permanently deletes your device-local record and any recovery copies. Only a backup you saved separately can restore it. Your subscription will not be cancelled.',
+    [
+      { text: 'Keep my record', style: 'cancel' },
+      { text: 'Delete and start again', style: 'destructive', onPress: () => {
+        if (recoveryInFlight.current) return;
+        recoveryInFlight.current = true;
+        setRecoveryBusy(true);
+        setRecoveryIssue(undefined);
+        void (async () => {
+          await persistedStateWriteQueue;
+          await clearNativePrivateDataAsync();
+          deleteUnreadableRecord([encryptedPersistedStateFile, legacyPersistedStateFile]);
+          setAppLockEnabled(false);
+          setAppLocked(false);
+          setAnalyticsEnabled(false);
+          void deleteTrackingData().catch(() => false);
+          try { syncMenoCompassWidgets(null); } catch (reason) { reportTelemetryError(reason); }
+          setBootAttempt(attempt => attempt + 1);
+        })().catch(() => setRecoveryIssue('Your record could not be deleted completely. Please try again.'))
+          .finally(() => { recoveryInFlight.current = false; setRecoveryBusy(false); });
+      } },
+    ],
+  );
+
+  if ((!recordReady && !error) || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked) || (proActive && previewWriteCount > 0)) {
     return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><PipWaiting label={error ? 'Could not open peri.' : 'Opening peri…'} />{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
@@ -1559,6 +1641,20 @@ function App() {
         </Pressable>
       </SafeAreaView>
     );
+  }
+
+  if (error) {
+    return <View style={styles.container}>
+      <StatusBar style="dark" />
+      <RecordRecovery busy={recoveryBusy} issue={recoveryIssue}
+        recordUnavailable={recordUnavailable} canRestore={recordUnavailable && !!html && isDeviceEncryptionAvailable()}
+        onRetry={() => { setRecoveryIssue(undefined); setBootAttempt(attempt => attempt + 1); }}
+        onRestore={password => { void restoreRecordFromBackup(password); }} onReset={confirmRecoveryReset} />
+      {html && recoveryCandidate && <RecoveryBackupValidator html={html} candidate={recoveryCandidate} onResult={state => { void acceptRecoveryBackup(state); }} />}
+    </View>;
+  }
+  if (!html) {
+    return <SafeAreaView style={styles.loading}><PipWaiting label="Opening peri…" /></SafeAreaView>;
   }
 
   const consentGate = consentGatePhase(consentHydrating, privacyChoiceOpen, consentReady);
@@ -1641,6 +1737,7 @@ function App() {
         injectedJavaScriptBeforeContentLoaded={`
           ${webViewDiagnosticsScript}
           window.__MENO_NATIVE__ = true;
+          window.__MENO_NATIVE_SUBSCRIPTIONS__ = ${Platform.OS === 'ios' ? 'true' : 'false'};
           window.__MENO_NATIVE_TABS__ = ${Platform.OS === 'ios' ? 'true' : 'false'};
           window.__MENO_PRO_ACTIVE__ = ${proActive ? 'true' : 'false'};
           window.__MENO_PERSISTED_STATE__ = ${JSON.stringify(persistedState || '')};

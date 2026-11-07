@@ -132,6 +132,7 @@ let reportRange = 90;
 let treatmentChangeTarget = null;
 let treatmentFollowUpTarget = null;
 let treatmentStopTarget = null;
+let medicationEditTarget = null;
 let appointmentQuestionEditId = null;
 let afterVisitPlanEditId = null;
 let nativePrivacyState = {loaded:false,appLock:null,reminders:null,deviceEncrypted:false,encryptedBackups:false};
@@ -1145,8 +1146,8 @@ function reportSheet(days){
   const hf = series(rangeDates(summaryDays), e=>e.hf), bd = series(rangeDates(summaryDays), burden);
   const wt = series(rangeDates(days), e=>e.wt).filter(x=>x.v!=null);
   const wa = series(rangeDates(days), e=>e.waist).filter(x=>x.v!=null);
-  const topSym = SYMS.filter(s=>s.k!=='sleepq').map(s=>({
-    n:s.n, v:avg(rangeDates(summaryDays).map(dd=>{const e=confirmedRecord(dd);return e&&e.sym?e.sym[s.k]:null;}))
+  const topSym = SYMS.map(s=>({
+    n:symptomName(s.k), v:avg(rangeDates(summaryDays).map(dd=>{const e=confirmedRecord(dd);return e&&e.sym?e.sym[s.k]:null;}))
   })).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,6);
   const questionnaires = DB.scores.slice(-6).reverse();
   const medications = Array.isArray(DB.medications)?DB.medications:[];
@@ -1189,7 +1190,7 @@ function reportSheet(days){
   ${topSym.length?`<div class="card"><h4>Worth discussing · prominent symptoms (${summaryDays}-day average, 0–4)</h4>
     ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
   ${healthKitReportSection()}
-  ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.ended?' · stopped '+esc(fmtDay(m.ended)):''}${medicationStatus(m)==='archived'?' · archived':''}${m.stopReason?' · '+esc(m.stopReason):''}${m.due&&medicationStatus(m)==='active'?' · '+esc(m.due):''}</b></div>`).join('')}</div>`:''}
+  ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.ended?' · stopped '+esc(fmtDay(m.ended)):''}${medicationStatus(m)==='archived'?' · archived':''}${m.stopReason?' · '+esc(m.stopReason):''}${m.due&&medicationStatus(m)==='active'?' · '+esc(m.due):''}</b></div>${medicationHistoryMarkup(m)}`).join('')}</div>`:''}
   ${treatmentFollowUpReport(days)}
   ${savedBrief().concerns.length?`<div class="card"><h4>My appointment brief</h4>${briefSummaryMarkup(savedBrief())}</div>`:''}
   ${appointmentReportSection()}
@@ -1657,21 +1658,49 @@ function medicationActiveOn(m,date){
   if(!m||!validISODate(date)) return false;
   if(m.started&&date<m.started) return false;
   if(m.ended&&date>m.ended) return false;
+  if((m.pauses||[]).some(pause=>date>pause.stopped&&date<pause.resumed)) return false;
   if(date===todayISO()&&medicationStatus(m)!=='active') return false;
   return true;
 }
+function medicationDetailsOn(m,date){
+  let details=m;
+  const revisions=Array.isArray(m.revisions)?m.revisions:[];
+  for(let i=revisions.length-1;i>=0;i--){
+    if(revisions[i].date>date) details=revisions[i].before;
+  }
+  return details;
+}
+function medicationCurrentStart(m){
+  const pauses=Array.isArray(m.pauses)?m.pauses:[];
+  return pauses.length?pauses[pauses.length-1].resumed:m.started;
+}
+function medicationRevisionSummary(revision){
+  const before=revision.before, after=revision.after, changes=[];
+  if(before.name!==after.name) changes.push('Name / dose: '+before.name+' → '+after.name);
+  if(before.form!==after.form||JSON.stringify(before.days)!==JSON.stringify(after.days)) changes.push('Schedule: '+medicationDetail(before)+' → '+medicationDetail(after));
+  if(before.due!==after.due) changes.push('Usual time: '+(before.due||'not set')+' → '+(after.due||'not set'));
+  if(before.notes!==after.notes) changes.push('Notes: '+(before.notes||'none')+' → '+(after.notes||'none'));
+  return changes.join('; ');
+}
+function medicationHistoryMarkup(m){
+  const rows=[
+    ...(m.pauses||[]).map(pause=>({date:pause.stopped,text:pause.name+' stopped '+fmtDay(pause.stopped)+(pause.reason?' · '+pause.reason:'')+'; restarted '+fmtDay(pause.resumed)})),
+    ...(m.revisions||[]).map(revision=>({date:revision.date,text:fmtDay(revision.date)+' · '+medicationRevisionSummary(revision)}))
+  ].sort((a,b)=>a.date.localeCompare(b.date));
+  return rows.length?'<ul class="plain tiny">'+rows.map(row=>'<li>'+esc(row.text)+'</li>').join('')+'</ul>':'';
+}
 function scheduledMeds(date){
   const dow=parseISO(date).getDay();
-  return (Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationActiveOn(m,date)&&(m.days||[0,1,2,3,4,5,6]).includes(dow));
+  return (Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationActiveOn(m,date)&&(medicationDetailsOn(m,date).days||[0,1,2,3,4,5,6]).includes(dow));
 }
 function todayMedicationRows(onlyScheduled){
   const all=(Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationActiveOn(m,curDate)), meds=onlyScheduled?scheduledMeds(curDate):all, day=DB.entries[curDate]||{}, adherence=day.med||{};
   if(!all.length) return '<button class="tw-empty-med" data-act="tab" data-v="care">Add your treatments</button>';
   if(!meds.length) return '<div class="tw-empty-med quiet">Nothing scheduled today.</div>';
-  return meds.map(m=>{const rec=adherence[m.id]||{};return '<button class="tw-medrow" data-act="med-taken" data-id="'+esc(m.id)+'">'
+  return meds.map(m=>{const rec=adherence[m.id]||{}, details=medicationDetailsOn(m,curDate);return '<button class="tw-medrow" data-act="med-taken" data-id="'+esc(m.id)+'">'
     +medicationIcon(m)
-    +'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+'</small></span>'
-    +'<span class="tw-due'+(rec.taken?' ok':'')+'">'+(rec.taken?'✓ '+esc(rec.at||'taken'):esc(m.due||'Due'))+'</span></button>';}).join('');
+    +'<span class="tw-grow"><b>'+esc(details.name)+'</b><small>'+esc(medicationDetail(details))+'</small></span>'
+    +'<span class="tw-due'+(rec.taken?' ok':'')+'">'+(rec.taken?'✓ '+esc(rec.at||'taken'):esc(details.due||'Due'))+'</span></button>';}).join('');
 }
 function viewTodayCompact(){
   const e=DB.entries[curDate]||{sym:{},act:{},nut:{}}, sym=e.sym||{};
@@ -1699,15 +1728,14 @@ function adherenceDots(m){
     return '<i class="'+(rec&&rec.taken?'t':'s')+'"></i>';
   }).join('')+'</div>';
 }
-function medicationForm(){
-  return `<div class="tw-form-card" aria-label="Add medication">
-    <h3>Add a medication</h3><p class="jc-footnote">Enter what you currently take. To log an adjustment to an existing medication, choose Record change in your treatment plan.</p><label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Medication name and prescribed dose">
-    <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form"><option>patch</option><option>tablet</option><option>capsule</option><option>gel</option><option>spray</option><option>cream</option><option>injection</option><option>other</option></select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time"></div></div>
+function medicationForm(m){
+  return `<div class="tw-form-card" aria-label="${m?'Edit':'Add'} medication">
+    <h3>${m?'Edit medication':'Add a medication'}</h3><p class="jc-footnote">${m?'Changes apply from today. Your earlier details and schedules remain in your treatment history. Use Record change to add context and symptom follow-ups.':'Enter what you currently take. You can edit its details or record a treatment change later.'}</p><label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Medication name and prescribed dose" value="${esc(m&&m.name||'')}">
+    <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form">${['patch','tablet','capsule','gel','spray','cream','injection','other'].map(form=>`<option${m&&m.form===form?' selected':''}>${form}</option>`).join('')}</select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time" value="${esc(m&&m.due||'')}"></div></div>
     <label class="fl">Scheduled days</label><div class="tw-day-picks">${DAY_SHORT.map((d,i)=>h('button',{class:'chip','data-act':'med-day','data-v':i,'aria-pressed':medDaysDraft.includes(i)?'true':'false','aria-label':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]},d)).join('')}</div>
-    <div><label class="fl" for="med-started">Start date (optional)</label><input id="med-started" type="date" max="${todayISO()}" aria-describedby="med-started-help"><p id="med-started-help" class="jc-footnote">When you first started taking this medication. Leave blank if you’re not sure.</p></div><div><label class="fl" for="med-change-label">Starting details (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="For example: started this dose after my appointment"></div>
-    ${treatmentTargetField('med')}
-    <label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions">
-    <div class="btn-row split"><button class="btn primary" data-act="med-save">Save medication</button><button class="btn ghost" data-act="med-cancel">Cancel</button></div>
+    ${m?'':`<div><label class="fl" for="med-started">Start date (optional)</label><input id="med-started" type="date" max="${todayISO()}" aria-describedby="med-started-help"><p id="med-started-help" class="jc-footnote">When you first started taking this medication. Leave blank if you’re not sure.</p></div><div><label class="fl" for="med-change-label">Starting details (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="For example: started this dose after my appointment"></div>${treatmentTargetField('med')}`}
+    <label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions" value="${esc(m&&m.notes||'')}">
+    <div class="btn-row split"><button class="btn primary" data-act="${m?'med-edit-save':'med-save'}"${m?` data-id="${esc(m.id)}"`:''}>Save medication</button><button class="btn ghost" data-act="med-cancel">Cancel</button></div>
   </div>`;
 }
 function labForm(){
@@ -1974,14 +2002,17 @@ function weeklyPatternText(){
 function treatmentEvents(){
   const out=[];
   (Array.isArray(DB.medications)?DB.medications:[]).forEach(m=>{
-    if(pastOrTodayISO(m.started)) out.push({date:m.started,order:0,title:m.name+' started',body:m.notes||medicationDetail(m)});
+    const original=medicationDetailsOn(m,m.started||'0000-01-01');
+    if(pastOrTodayISO(m.started)) out.push({date:m.started,order:0,title:original.name+' started',body:original.notes||medicationDetail(original)});
+    (m.pauses||[]).forEach(pause=>out.push({date:pause.stopped,order:2,title:pause.name+' stopped',body:pause.reason||'Marked as no longer active.'}));
+    (m.revisions||[]).forEach(revision=>out.push({date:revision.date,order:1,title:revision.before.name+' updated',body:medicationRevisionSummary(revision)}));
     (Array.isArray(m.changes)?m.changes:[]).forEach(change=>{
       if(change&&pastOrTodayISO(change.date)){
         const targets=Array.isArray(change.targets)&&change.targets.length?' · Watching '+change.targets.map(symptomName).join(', ')+'.':'';
-        out.push({date:change.date,order:1,title:m.name+' changed',body:(change.label||'Treatment details updated.')+targets});
+        out.push({date:change.date,order:1,title:medicationDetailsOn(m,change.date).name+' changed',body:(change.label||'Treatment details updated.')+targets});
       }
     });
-    if(pastOrTodayISO(m.ended)) out.push({date:m.ended,order:2,title:m.name+' stopped',body:m.stopReason||'Marked as no longer active.'});
+    if(pastOrTodayISO(m.ended)) out.push({date:m.ended,order:2,title:medicationDetailsOn(m,m.ended).name+' stopped',body:m.stopReason||'Marked as no longer active.'});
   });
   return out.sort((a,b)=>b.date.localeCompare(a.date)||(b.order||0)-(a.order||0));
 }
@@ -2108,7 +2139,7 @@ function treatmentStopForm(m){
   return `<div class="tw-form-card jc-inline-form" aria-label="Stop ${esc(m.name)}">
     <span class="jc-followup-kicker">Treatment status</span><h3>Stop ${esc(m.name)}</h3>
     <p>This keeps the treatment and its history in your Journey and reports, but removes it from today’s schedule.</p>
-    <label class="fl" for="stop-date">Last day taken</label><input id="stop-date" type="date" min="${esc(m.started||'1900-01-01')}" max="${todayISO()}" value="${todayISO()}">
+    <label class="fl" for="stop-date">Last day taken</label><input id="stop-date" type="date" min="${esc(medicationCurrentStart(m)||'1900-01-01')}" max="${todayISO()}" value="${todayISO()}">
     <label class="fl" for="stop-reason">Reason or clinician instruction (optional)</label><textarea id="stop-reason" maxlength="500" placeholder="Why it stopped, side effects, or what happens next"></textarea>
     <div class="btn-row split"><button class="btn primary" data-act="med-stop-save" data-id="${esc(m.id)}">Save as stopped</button><button class="btn ghost" data-act="med-stop-cancel">Cancel</button></div>
   </div>`;
@@ -2160,12 +2191,13 @@ function treatmentRow(m){
       ?`<button data-act="med-restart" data-id="${esc(m.id)}">Restart</button><button data-act="med-archive" data-id="${esc(m.id)}">Archive</button>`
       :`<button data-act="med-unarchive" data-id="${esc(m.id)}">Unarchive</button><button data-act="med-remove" data-id="${esc(m.id)}" aria-label="Permanently remove ${esc(m.name)}">Delete</button>`;
   const stopped=status!=='active'&&m.ended?`<small>Stopped ${esc(fmtDay(m.ended))}${m.stopReason?' · '+esc(m.stopReason):''}</small>`:'';
-  return `<article class="jc-treatment ${status}"><div>${medicationIcon(m)}<span><b>${esc(m.name)}</b><small>${detail}</small>${stopped}</span></div><div class="jc-treatment-actions">${actions}</div></article>`;
+  return `<article class="jc-treatment ${status}"><div>${medicationIcon(m)}<span><b>${esc(m.name)}</b><small>${detail}</small>${stopped}</span></div><div class="jc-treatment-actions"><button data-act="med-edit" data-id="${esc(m.id)}">Edit details</button>${actions}</div></article>`;
 }
 function viewCare(){
   const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[], due=scheduledMeds(todayISO()), count=entryDates().length;
   const changeMed=treatmentChangeTarget?meds.find(m=>m.id===treatmentChangeTarget):null;
   const stopMed=treatmentStopTarget?meds.find(m=>m.id===treatmentStopTarget):null;
+  const editMed=medicationEditTarget?meds.find(m=>m.id===medicationEditTarget):null;
   const followUps=treatmentFollowUpItems(), activeFollowUp=findTreatmentFollowUp(treatmentFollowUpTarget);
   const activeMeds=meds.filter(m=>medicationStatus(m)==='active'), stoppedMeds=meds.filter(m=>medicationStatus(m)==='stopped'), archivedMeds=meds.filter(m=>medicationStatus(m)==='archived');
   const appointments=appointmentData(), plannerOpen=appointmentQuestionEditId!=null||afterVisitPlanEditId!=null||appointments.questions.length||appointments.plans.length;
@@ -2173,7 +2205,7 @@ function viewCare(){
   return `<div class="view jc-screen jc-care">
     ${jcChrome()}
     ${jcHeading('Your care','Prepare the conversation, then follow through.')}
-    ${medFormOpen?medicationForm():''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
+    ${medFormOpen?medicationForm(editMed):''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
     <div class="mc-care-prep">
       ${appointmentCompanionCard()}
       ${pipSays('guide',84,savedBrief().concerns.length?'Bring the version with details. I’ll keep the notes.':'Everything you meant to say, written down before you’re in the room.')}
@@ -2329,6 +2361,7 @@ function syncNativeNavigationState(){
 function setRoute(route,replace){
   route=normalizeRoute(route);
   curTab=route;
+  if(route!=='today-details') curDate=todayISO();
   if(location.protocol!=='file:'){
     const hash='#'+route;
     if(location.hash!==hash) history[replace?'replaceState':'pushState'](null,'',hash);
@@ -2355,6 +2388,7 @@ function topbarContent(){
   return '<div class="top-copy"><h1>'+esc(copy[0])+'</h1><span class="sub">'+esc(copy[1])+'</span></div>';
 }
 function render(preserveScroll){
+  if(curTab!=='today-details') curDate=todayISO();
   const scrollY=preserveScroll ? window.scrollY : 0;
   refreshTriggerStatus();
   applyTheme();
@@ -2400,6 +2434,7 @@ function render(preserveScroll){
 
 function nativeProLocked(area){
   return window.__MENO_NATIVE__===true
+    && window.__MENO_NATIVE_SUBSCRIPTIONS__!==false
     && window.__MENO_PRO_ACTIVE__!==true
     && (normalizeRoute(area)==='journey'||normalizeRoute(area)==='appointment-report');
 }
@@ -2427,6 +2462,7 @@ function revealCareForm(fieldId){
   field.focus({preventScroll:true});
 }
 function handleAction(el, ev){
+  if(curTab!=='today-details') curDate=todayISO();
   const a = el.dataset.act;
   if(companionAction(el)) return;
   const e = () => entry(curDate);
@@ -2446,11 +2482,11 @@ function handleAction(el, ev){
       if(curTab!=='profile') returnTab=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab)?curTab:(returnTab||'today');
       setRoute('profile'); render(); return;
     case 'go-back': {
-      const target=curTab==='checkin'?(returnTab||'today'):curTab==='today-details'?'checkin':curTab==='appointment-report'?'care':(returnTab||'today');
+      const target=curTab==='checkin'?(Object.prototype.hasOwnProperty.call(TAB_TITLES,returnTab)?returnTab:'today'):curTab==='today-details'?'checkin':curTab==='appointment-report'?'care':(returnTab||'today');
       setRoute(target); checkinComplete=false; render(); return;
     }
     case 'back-checkin': setRoute('checkin'); render(); return;
-    case 'more-details': returnTab='checkin'; setRoute('today-details'); render(); return;
+    case 'more-details': setRoute('today-details'); render(); return;
     case 'confirm-log': {
       const wasFirst=entryDates().length===0;
       const ok=typeof confirmEntry==='function'?confirmEntry(curDate):draftHasContent(e());
@@ -2465,7 +2501,7 @@ function handleAction(el, ev){
       return;
     }
     case 'back-journey': checkinComplete=false; setRoute('journey'); render(); return;
-    case 'checkin-add-treatment': checkinComplete=false; medFormOpen=true; setRoute('care'); render(); revealCareForm('med-name'); return;
+    case 'checkin-add-treatment': checkinComplete=false; medFormOpen=true; medicationEditTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; setRoute('care'); render(); revealCareForm('med-name'); return;
     case 'checkin-add-symptom': {
       const key=el.dataset.v, date=todayISO();
       if(curTab!=='checkin'||!PINNABLE_SYMPTOMS.includes(key)) return;
@@ -2537,11 +2573,34 @@ function handleAction(el, ev){
       else records[m.id]={taken:true,at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
       save(true); render(true); return;
     }
-    case 'med-add': medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); revealCareForm('med-name'); return;
-    case 'med-cancel': medFormOpen=false; render(true); return;
+    case 'med-add': medFormOpen=true; medicationEditTarget=null; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); revealCareForm('med-name'); return;
+    case 'med-edit': {
+      const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
+      medicationEditTarget=med.id; medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null;
+      medDaysDraft=[...med.days]; render(true); revealCareForm('med-name'); return;
+    }
+    case 'med-cancel': medFormOpen=false; medicationEditTarget=null; render(true); return;
     case 'med-day': {
       const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort();
       el.setAttribute('aria-pressed',medDaysDraft.includes(d)?'true':'false'); return;
+    }
+    case 'med-edit-save': {
+      const med=DB.medications.find(item=>item.id===el.dataset.id), name=document.getElementById('med-name');
+      if(!med||!name) return;
+      if(!name.value.trim()){ toast('Enter the medication and dose'); name.focus(); return; }
+      if(!medDaysDraft.length){ toast('Choose at least one scheduled day'); return; }
+      const before=safeMedicationDetails(med), after=safeMedicationDetails({
+        name:name.value.trim(), form:document.getElementById('med-form').value,
+        days:medDaysDraft, due:document.getElementById('med-due').value,
+        notes:document.getElementById('med-notes').value.trim()
+      });
+      if(JSON.stringify(before)!==JSON.stringify(after)){
+        med.revisions=Array.isArray(med.revisions)?med.revisions:[];
+        if(med.revisions.length>=MAX_MEDICATION_HISTORY){ toast('This treatment’s history is full. Save a backup and create a new medication entry.'); return; }
+        med.revisions.push({date:todayISO(),before,after});
+        Object.assign(med,after);
+      }
+      medFormOpen=false; medicationEditTarget=null; save(true); render(); toast('Medication details saved'); return;
     }
     case 'med-save': {
       const name=document.getElementById('med-name'), form=document.getElementById('med-form'), due=document.getElementById('med-due'), notes=document.getElementById('med-notes'), started=document.getElementById('med-started'), changeLabel=document.getElementById('med-change-label');
@@ -2572,14 +2631,19 @@ function handleAction(el, ev){
     case 'med-stop-cancel': treatmentStopTarget=null; render(true); return;
     case 'med-stop-save': {
       const med=DB.medications.find(item=>item.id===el.dataset.id), date=document.getElementById('stop-date'), reason=document.getElementById('stop-reason');
-      if(!med||!date||!pastOrTodayISO(date.value)||(med.started&&date.value<med.started)){ toast('Choose a valid last day on or after the treatment start'); return; }
+      if(!med||!date||!pastOrTodayISO(date.value)||(medicationCurrentStart(med)&&date.value<medicationCurrentStart(med))){ toast('Choose a valid last day on or after the latest treatment start'); return; }
       med.ended=date.value; med.status='stopped'; med.stopReason=reason?reason.value.trim():''; med.archivedAt='';
       treatmentStopTarget=null; save(true); render(); toast('Treatment moved to stopped'); return;
     }
     case 'med-restart': {
       const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
       if(!confirm('Restart '+med.name+' from today?')) return;
-      med.status='active'; med.ended=''; med.archivedAt=''; med.stopReason=''; med.started=med.started||todayISO();
+      if(med.ended){
+        med.pauses=Array.isArray(med.pauses)?med.pauses:[];
+        if(med.pauses.length>=MAX_MEDICATION_HISTORY){ toast('This treatment’s history is full. Save a backup and create a new medication entry.'); return; }
+        med.pauses.push({stopped:med.ended,resumed:todayISO(),reason:med.stopReason||'',name:medicationDetailsOn(med,med.ended).name});
+      }
+      med.status='active'; med.ended=''; med.archivedAt=''; med.stopReason='';
       med.changes=Array.isArray(med.changes)?med.changes:[];
       med.changes.push(newTreatmentChange(todayISO(),'Treatment restarted',[]));
       save(true); render(); toast('Treatment is active again'); return;
@@ -2881,6 +2945,7 @@ function readDateInput(el){
 }
 
 function handleInput(el){
+  if(curTab!=='today-details') curDate=todayISO();
   const a = el.dataset.act;
   if(a==='guide-search'){
     guideQuery=el.value||''; filterGuideResults(); return;

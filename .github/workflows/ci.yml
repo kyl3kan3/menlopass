@@ -48,7 +48,11 @@ jobs:
       - name: Verify Expo release configuration
         working-directory: mobile
         run: |
-          npx expo-doctor
+          npm run check:sdk
+          # The locked SDK map is checked above. Online patch recommendations
+          # belong to the next native build, not this existing OTA runtime.
+          # Keep Doctor's schema, peers, native duplicates and other checks.
+          EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK=1 npx --yes expo-doctor@1.21.5
           EXPO_NO_DOTENV=1 npx expo config --type public >/dev/null
 
       - name: Upload failure screenshots
