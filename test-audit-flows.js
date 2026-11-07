@@ -210,3 +210,43 @@ test('Android without subscriptions can open Journey and reports while iOS still
   });
   assert.deepEqual(locks, { android: [false, false], ios: [true, true], legacyIos: true });
 });
+
+test('native v3 onboarding metadata survives backup validation and reload', async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => {
+    const completed=PeriOnboarding.writeDraft(JSON.stringify(DB),{step:11,symptoms:['sleepq','fog'],intent:'appointment'},true,false,PeriOnboarding.versionV2Flow);
+    DB=validateBackup(JSON.parse(completed)); save(true); setRoute('today'); render();
+  });
+  await page.reload();
+  const state=await page.evaluate(() => {
+    const restored=validateBackup(JSON.parse(JSON.stringify(DB)));
+    const metadata=profile=>({version:profile.onboardingVersion,step:profile.onboardingStep,pending:profile.firstCheckinPending,symptoms:profile.pinnedSymptoms,intent:profile.intent});
+    const invalid=JSON.parse(JSON.stringify(DB)); invalid.profile.onboardingVersion=2; invalid.profile.onboardingStep=11;
+    const v2InvalidStep=validateBackup(invalid).profile.onboardingStep;
+    invalid.profile.onboardingVersion=3; invalid.profile.onboardingStep=12;
+    const v3InvalidStep=validateBackup(invalid).profile.onboardingStep;
+    return {loaded:metadata(DB.profile),restored:metadata(restored.profile),v2InvalidStep,v3InvalidStep,entries:entryDates()};
+  });
+  assert.deepEqual(state.loaded,{version:3,step:11,pending:true,symptoms:['sleepq','fog'],intent:'appointment'});
+  assert.deepEqual(state.restored,state.loaded);
+  assert.deepEqual([state.v2InvalidStep,state.v3InvalidStep],[0,0]);
+  assert.deepEqual(state.entries,[]);
+  assert.equal(await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible(),true);
+});
+
+test('incomplete native v3 progress opens a usable four-step web flow without rewriting progress', async t => {
+  const page=await fixture(t);
+  await page.evaluate(() => {
+    Object.assign(DB.profile,{onboarded:false,onboardingVersion:3,onboardingStep:8,pinnedSymptoms:['sleepq'],intent:'',firstCheckinPending:false});
+    save(true); setRoute('today'); render();
+  });
+  await page.reload();
+  assert.equal(await page.getByRole('heading',{name:'What would help you most?',exact:true}).isVisible(),true);
+  assert.equal(await page.getByRole('progressbar',{name:'Setup progress'}).getAttribute('aria-valuemax'),'4');
+  assert.deepEqual(await page.evaluate(()=>[DB.profile.onboardingVersion,DB.profile.onboardingStep]),[3,8]);
+  await page.getByRole('radio',{name:'Prepare for an appointment',exact:true}).click();
+  await page.getByRole('button',{name:'See my check-in',exact:true}).click();
+  assert.equal(await page.getByRole('heading',{name:'Your check-in, made for you.',exact:true}).isVisible(),true);
+  await page.getByRole('button',{name:'Start my first check-in',exact:true}).click();
+  assert.deepEqual(await page.evaluate(()=>({version:DB.profile.onboardingVersion,step:DB.profile.onboardingStep,onboarded:DB.profile.onboarded,entries:entryDates()})),{version:2,step:3,onboarded:true,entries:[]});
+});

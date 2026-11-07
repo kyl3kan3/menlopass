@@ -11,7 +11,7 @@ companion, reacts to state on Today, the check-in, Journey, Care, Guide, support
 (see `design-reference/pip-paper-spec.md`). It preserves the local record and native security model.
 
 - **No account, backend health database, or health-data transmission.** Browser entries live in
-  local storage. The native wrapper keeps its record in an encrypted file with a device-bound
+  local storage. The iOS native wrapper keeps its record in an encrypted file with a device-bound
   Keychain key and offers Face ID App Lock plus password-protected portable backups. Optional analytics uses a separate installation identity and a first-party event API.
   PostHog/Observe require analytics consent; AppsFlyer requires Apple ATT. Sentry diagnostics
   and RevenueCat subscription processing are separate. No provider receives health entries.

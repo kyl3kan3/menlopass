@@ -1585,7 +1585,13 @@ function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
    ============================================================ */
 let onboardingMore=false, onboardingViewedStep=null, onboardingViewedAt=0;
 function onboardingDraft(){
-  return PeriOnboarding.draftFromProfile(DB.profile);
+  // The web keeps its four-step flow even when restoring a native v3 record.
+  // Adapt only the displayed draft; loading must not rewrite native progress.
+  const draft=PeriOnboarding.normalizeDraft(PeriOnboarding.draftFromProfile(DB.profile));
+  if(DB.profile.onboardingVersion===3){
+    draft.step=!draft.symptoms.length?0:!draft.intent?2:3;
+  }
+  return draft;
 }
 function leaveOnboardingStep(){
   if(onboardingViewedStep===null) return;

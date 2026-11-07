@@ -136,8 +136,10 @@ function migrate(d){
   p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
   p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
   p.onboarded=rawProfile.onboarded===true;
-  p.onboardingVersion=rawProfile.onboardingVersion===2?2:1;
-  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,3)||0;
+  p.onboardingVersion=safeEnum(rawProfile.onboardingVersion,[1,2,3],1);
+  // Native experiment v3 has twelve steps; keep its progress intact through
+  // load, backup restore, and the WebView's canonical persistence handshake.
+  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,p.onboardingVersion===3?11:3)||0;
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
   p.firstCheckinPending=rawProfile.firstCheckinPending===true;
   p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
