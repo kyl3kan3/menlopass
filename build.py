@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 DIST = ROOT / "dist"
 JS_ORDER = ("content-a.js", "content-b.js", "mobile/onboarding-model.js", "app-core.js", "appointment-questions.js", "app-companion.js", "app-views.js")
 PWA_FILES = ("manifest.webmanifest", "sw.js")
+CRAWLER_FILES = ("robots.txt", "sitemap.xml", "fc1950e446bc40048e6616a7b91d030c.txt")
 PUBLIC_PAGES = ("get-app.html", "privacy.html", "support.html", "terms.html")
 ICONS = (
     "apple-touch-icon.png",
@@ -42,7 +43,7 @@ PIP_IMAGES = {
 # native bundle falls back to the still pose because it has no base URL.
 PIP_VIDEO_FILES = ("assets/mascot/pip/crisp-v2/check-in.webm",)
 PIP_CLIP_MOV = "assets/mascot/pip/crisp-v2/check-in.mov"
-SOURCE_FILES = ("styles.css", "redesign.css", *JS_ORDER, *PWA_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES, *PIP_IMAGES.values(), *PIP_VIDEO_FILES)
+SOURCE_FILES = ("styles.css", "redesign.css", *JS_ORDER, *PWA_FILES, *CRAWLER_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES, *PIP_IMAGES.values(), *PIP_VIDEO_FILES)
 
 
 def source_text(name: str) -> str:
@@ -92,6 +93,7 @@ def build_html() -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <title>peri — menopause tracker &amp; guide</title>
+<meta name="robots" content="noindex, nofollow">
 <meta name="description" content="A private daily tracker and evidence-based reference for perimenopause and menopause: symptoms, sleep, weight, movement, diet, skin, mood and sexual health. No account, no server.">
 <meta name="theme-color" content="#f7f5ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -126,6 +128,8 @@ def main() -> None:
     (DIST / "index.html").write_text(html, encoding="utf-8", newline="\n")
 
     for name in PWA_FILES:
+        shutil.copyfile(ROOT / name, DIST / name)
+    for name in CRAWLER_FILES:
         shutil.copyfile(ROOT / name, DIST / name)
     for name in PUBLIC_PAGES:
         shutil.copyfile(ROOT / name, DIST / name)

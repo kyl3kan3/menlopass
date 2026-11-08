@@ -32,7 +32,7 @@ for (const prefix of ['/', '/nested/']) {
       await page.waitForFunction(() => !!navigator.serviceWorker.controller);
       for (const [filename, title] of [
         ['privacy.html', 'peri Privacy Policy'], ['support.html', 'peri Support'],
-        ['terms.html', 'peri Terms of Use'], ['get-app.html', 'Get peri for iPhone'],
+        ['terms.html', 'peri Terms of Use'], ['get-app.html', 'peri — Private Menopause Tracker for iPhone'],
       ]) {
         await context.setOffline(false);
         await page.goto(origin + prefix + filename);
