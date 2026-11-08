@@ -1,7 +1,7 @@
 /* peri service worker — offline-first shell cache.
    Bump CACHE when any cached file changes. */
 const CACHE_PREFIX = 'meno-compass-';
-const CACHE = `${CACHE_PREFIX}v21`;
+const CACHE = `${CACHE_PREFIX}v22`;
 const ASSETS = [
   './',
   './index.html',
@@ -10,7 +10,10 @@ const ASSETS = [
   './terms.html',
   './get-app.html',
   './manifest.webmanifest',
-  './assets/fonts/bricolage-grotesque-latin.woff2',
+  './assets/fonts/fraunces-latin-opsz-normal.woff2',
+  './assets/fonts/fraunces-latin-opsz-italic.woff2',
+  './assets/fonts/instrument-sans-latin-wght-normal.woff2',
+  './assets/fonts/instrument-sans-latin-wght-italic.woff2',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
   './icons/icon-512.png',

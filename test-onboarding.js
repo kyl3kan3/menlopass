@@ -20,100 +20,70 @@ before(async () => {
 });
 after(async () => { await browser?.close(); await new Promise(resolve => server ? server.close(resolve) : resolve()); });
 
-test('one concern persists through reload, keyboard goal choice, preview, and the first confirmed check-in', async () => {
+async function fixture(t, { native = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  t.after(() => context.close());
+  await context.addInitScript(() => { const RealDate = Date; const fixed = new RealDate(); fixed.setHours(14, 14, 0, 0); const offset = fixed.getTime() - RealDate.now(); class PinnedDate extends RealDate { constructor(...a) { if (a.length) super(...a); else super(RealDate.now() + offset); } static now() { return RealDate.now() + offset; } } window.Date = PinnedDate; });
+  if (native) await context.addInitScript(() => { window.__MENO_NATIVE__ = true; window.__MENO_PRO_ACTIVE__ = true; window.__nativeMessages = []; window.ReactNativeWebView = { postMessage: payload => window.__nativeMessages.push(JSON.parse(payload)) }; });
   const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
+  t.after(() => assert.deepEqual(errors, []));
   await page.goto(url);
-  await page.getByRole('button', { name: 'Find my starting point', exact: true }).click();
-  assert.equal(await page.getByRole('button', { name: 'These matter to me' }).isDisabled(), true);
-  await page.getByRole('button', { name: 'Trouble sleeping', exact: true }).click();
+  return page;
+}
+const isoOffset = offset => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + offset); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+test('one blank persists through reload, the finding follows the answers, and finishing invents no page', async t => {
+  const page = await fixture(t);
+  assert.equal(await page.getByRole('button', { name: 'Open today’s page' }).isDisabled(), true);
+  await page.locator('[data-act="fr-symptom"][data-v="sleepq"]').click();
   await page.reload();
   assert.deepEqual(await page.evaluate(() => DB.profile.pinnedSymptoms), ['sleepq']);
-  assert.equal(await page.getByRole('button', { name: 'Trouble sleeping', exact: true }).getAttribute('aria-pressed'), 'true');
-  await page.getByRole('button', { name: 'These matter to me' }).click();
-  await page.getByRole('radio', { name: 'Understand my symptoms' }).focus();
-  await page.keyboard.press('ArrowDown');
-  assert.equal(await page.getByRole('radio', { name: 'Keep track of treatment' }).getAttribute('aria-checked'), 'true');
-  await page.getByRole('button', { name: 'See my check-in', exact: true }).click();
-  assert.equal(await page.locator('.ob-preview li').count(), 1);
-  assert.deepEqual(await page.evaluate(() => entryDates()), []);
-  assert.equal(await page.locator('input, select').count(), 0);
-  await page.getByRole('button', { name: 'Start my first check-in', exact: true }).click();
-  assert.equal(await page.locator('.jc-check-row').count(), 1);
-  await page.getByRole('button', { name: 'Trouble sleeping: Moderate', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm today’s log', exact: true }).click();
-  assert.equal(await page.getByRole('heading', { name: 'Your first check-in is saved.', exact: true }).isVisible(), true);
-  assert.equal(await page.evaluate(() => confirmedEntry(todayISO()).sym.sleepq), 2);
-  assert.equal(await page.evaluate(() => DB.profile.firstCheckinPending), false);
+  assert.equal(await page.locator('[data-act="fr-symptom"][data-v="sleepq"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.getByRole('heading', { name: 'Fill in the rest and the finding appears.' }).isVisible(), true);
+  await page.locator('[data-act="fr-periods"][data-v="changing"]').click();
+  await page.getByLabel('Your age').fill('44');
+  assert.equal(await page.getByRole('heading', { name: 'Most likely: early perimenopause.' }).isVisible(), true);
+  await page.locator('[data-act="fr-periods"][data-v="na"]').click();
+  assert.equal(await page.getByRole('heading', { name: 'Your pattern will come from the pages.' }).isVisible(), true);
+  await page.locator('[data-act="fr-periods"][data-v="stopped"]').click();
+  assert.equal(await page.getByRole('heading', { name: 'Fill in the rest and the finding appears.' }).isVisible(), true, 'a stopped cycle is not staged until she says how long ago');
+  await page.locator('[data-act="fr-since"][data-v="lt2"]').click();
+  assert.equal(await page.getByRole('heading', { name: 'Postmenopause, the first two years.' }).isVisible(), true);
+  await page.locator('[data-act="fr-appt"][data-v="no"]').click();
+  await page.getByRole('button', { name: 'Open today’s page' }).click();
+  const state = await page.evaluate(() => ({ onboarded: DB.profile.onboarded, stage: DB.profile.stage, answers: DB.profile.stageAnswers, intent: DB.profile.intent, date: DB.appointments.brief.date, entries: entryDates(), page: !!document.querySelector('.page-today') }));
+  assert.deepEqual(state, { onboarded: true, stage: 'Early postmenopause — the first two years', answers: { age: '40s_e', uterus: 'intact', ovaries: 'kept', contra: 'no', cycle: 'none12', since: 'lt2', vms: 'no' }, intent: 'understand', date: '', entries: [], page: true });
   await page.reload();
-  assert.deepEqual(await page.evaluate(() => DB.profile.pinnedSymptoms), ['sleepq']);
-  assert.equal(await page.evaluate(() => entryDates().length), 1);
-  assert.deepEqual(errors, []);
-  await context.close();
+  assert.equal(await page.locator('.page-today').count(), 1, 'a finished letter never comes back');
 });
 
-test('a starter preview creates preferences, not health ratings, and allows exploring first', async () => {
-  const context = await browser.newContext({ viewport: { width: 320, height: 844 } });
-  const page = await context.newPage(); await page.goto(url);
-  await page.getByRole('button', { name: 'Use a starter check-in', exact: true }).click();
-  assert.equal(await page.locator('.ob-preview li').count(), 3);
-  await page.getByRole('button', { name: 'Explore first', exact: true }).click();
-  assert.equal(await page.getByRole('heading', { name: 'Your check-in is ready.' }).isVisible(), true);
-  assert.equal(await page.evaluate(() => DB.profile.onboardingDeferred), true);
-  assert.deepEqual(await page.evaluate(() => entryDates()), []);
-  await context.close();
+test('the letter limits the watch list to six and keeps hot flash, night sweat and woke on the log sheet regardless', async t => {
+  const page = await fixture(t);
+  await page.locator('[data-act="fr-more"]').click();
+  for (const key of ['fog', 'energy', 'mood', 'anx', 'joint', 'head']) await page.locator('[data-act="fr-symptom"][data-v="' + key + '"]').click();
+  await page.locator('[data-act="fr-symptom"][data-v="palp"]').click();
+  assert.deepEqual(await page.evaluate(() => DB.profile.pinnedSymptoms), ['fog', 'energy', 'mood', 'anx', 'joint', 'head']);
+  await page.locator('[data-act="fr-periods"][data-v="regular"]').click();
+  await page.getByLabel('Your age').fill('51');
+  await page.locator('[data-act="fr-appt"][data-v="no"]').click();
+  await page.getByRole('button', { name: 'Open today’s page' }).click();
+  assert.deepEqual(await page.evaluate(() => logKinds()), ['hf', 'ns', 'woke', 'fog', 'energy', 'mood', 'anx', 'joint', 'head']);
+  assert.equal(await page.evaluate(() => DB.profile.stage), 'Late reproductive stage (early)');
 });
 
-test('the first saved summary accurately describes added symptoms and notes-only entries', async () => {
-  for (const notesOnly of [false, true]) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-    const page = await context.newPage(); await page.goto(url);
-    await page.getByRole('button', { name: 'Use a starter check-in', exact: true }).click();
-    await page.getByRole('button', { name: 'Start my first check-in', exact: true }).click();
-    if (notesOnly) {
-      await page.getByRole('button', { name: 'Add context', exact: true }).click();
-      await page.getByRole('textbox', { name: 'Anything worth remembering?' }).fill('A little space to reflect.');
-    } else {
-      await page.locator('.jc-add-symptom summary').click();
-      await page.getByRole('button', { name: 'Brain fog', exact: true }).click();
-      await page.getByRole('button', { name: 'Brain fog: Severe', exact: true }).click();
-    }
-    await page.getByRole('button', { name: 'Confirm today’s log', exact: true }).click();
-    assert.equal(await page.getByRole('heading', { name: 'Your first check-in is saved.', exact: true }).isVisible(), true);
-    assert.match(await page.locator('.ob-preview').innerText(), notesOnly ? /No symptoms were rated on this day/ : /Brain fog.*severe/);
-    await context.close();
-  }
-});
-
-test('analytics capture initial, backward and resumed screen entry without transmitting answers', async () => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  await context.addInitScript(() => {
-    window.__MENO_NATIVE__ = true; window.__MENO_PRO_ACTIVE__ = true;
-    window.__messages = []; window.ReactNativeWebView = { postMessage: payload => window.__messages.push(JSON.parse(payload)) };
-  });
-  const page = await context.newPage(); await page.goto(url);
-  await page.getByRole('button', { name: 'Find my starting point' }).click();
-  for (const label of ['Trouble sleeping', 'Fatigue', 'Hot flashes', 'Brain fog', 'Night sweats', 'Low mood']) await page.getByRole('button', { name: label, exact: true }).click();
-  await page.getByRole('button', { name: 'See all concerns' }).click();
-  await page.getByRole('button', { name: 'Anxiety', exact: true }).click();
-  assert.equal(await page.getByRole('button', { name: 'Anxiety', exact: true }).getAttribute('aria-pressed'), 'false');
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.getByRole('button', { name: 'These matter to me' }).click();
-  assert.equal(await page.evaluate(() => window.scrollY), 0);
-  await page.getByRole('button', { name: 'Back', exact: true }).click();
-  const messages = await page.evaluate(() => window.__messages.filter(message => message.type.startsWith('onboarding-')));
-  assert.deepEqual(messages.filter(message => message.type === 'onboarding-step').map(message => message.step), [0, 1, 2, 1]);
-  assert.equal(messages.some(message => message.type === 'onboarding-selection-limit'), true);
-  assert.ok(messages.some(message => message.type === 'onboarding-step-left' && Number.isInteger(message.durationMs)));
-  assert.ok(messages.every(message => !('symptoms' in message) && !('intent' in message) && !('profile' in message)));
-  const saved = await page.evaluate(() => window.__messages.filter(message => message.type === 'persist-state').at(-1).state);
-  const resumed = await browser.newContext();
-  await resumed.addInitScript(state => {
-    window.__MENO_NATIVE__ = true; window.__MENO_PRO_ACTIVE__ = true; window.__MENO_PERSISTED_STATE__ = state;
-    window.__messages = []; window.ReactNativeWebView = { postMessage: payload => window.__messages.push(JSON.parse(payload)) };
-  }, saved);
-  const resumedPage = await resumed.newPage(); await resumedPage.goto(url);
-  assert.deepEqual(await resumedPage.evaluate(() => window.__messages.filter(message => message.type === 'onboarding-step').map(message => message.step)), [1]);
-  await resumed.close(); await context.close();
+test('an appointment date from the letter drives the countdown, and analytics see only steps', async t => {
+  const page = await fixture(t, { native: true });
+  await page.locator('[data-act="fr-symptom"][data-v="hf"]').click();
+  await page.locator('[data-act="fr-periods"][data-v="gaps"]').click();
+  await page.getByLabel('Your age').fill('48');
+  await page.locator('[data-act="fr-appt"][data-v="yes"]').click();
+  await page.getByLabel('Appointment date').fill(isoOffset(9));
+  await page.getByRole('button', { name: 'Open today’s page' }).click();
+  assert.equal(await page.getByText(/Dossier · appointment in 9 days/).isVisible(), true);
+  const messages = await page.evaluate(() => window.__nativeMessages.filter(m => m.type !== 'persist-state'));
+  assert.ok(messages.some(m => m.type === 'onboarding-step' && m.step === 0));
+  assert.ok(messages.some(m => m.type === 'onboarding-finished' && m.skipped === false));
+  assert.equal(JSON.stringify(messages).includes('gaps'), false, 'answers never travel through analytics events');
+  assert.equal(JSON.stringify(messages).includes('"hf"'), false);
 });

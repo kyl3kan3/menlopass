@@ -1,121 +1,76 @@
-const PERI_BRAND_ICON = '<img src="__PERI_ICON_DATA__" alt="" width="36" height="36">';
-/* Pip, the peri sprout companion (assets/mascot/pip). The build inlines the
-   poses as WebP data URIs so the single-file bundle stays self-contained.
-   Pip is decorative: screen readers skip him and the copy carries the meaning. */
-const PIP_ART = {guideLeaves:'__PIP_GUIDE_LEAVES_DATA__', guideBody:'__PIP_GUIDE_BODY_DATA__', phone:'__PIP_PHONE_DATA__'};
-const PIP_CLIP = 'assets/mascot/check-in.webm';
-function pip(pose, size, extraClass){
-  const cls='pip pip-'+(pose==='phone'?'phone':'guide')+(extraClass?' '+extraClass:'');
-  if(pose==='phone') return `<span class="${cls}" style="--pip-h:${size}px" aria-hidden="true"><img src="${PIP_ART.phone}" alt="" draggable="false"></span>`;
-  return `<span class="${cls}" style="--pip-h:${size}px" aria-hidden="true"><img class="pip-body" src="${PIP_ART.guideBody}" alt="" draggable="false"><img class="pip-leaves" src="${PIP_ART.guideLeaves}" alt="" draggable="false"></span>`;
-}
-function pipSays(pose, size, text, extraClass){
-  return `<div class="pip-says${extraClass?' '+extraClass:''}">${pip(pose,size)}<p class="pip-bubble">${text}</p></div>`;
-}
-/* Rating dots (0–4) used by the Today note card and summaries. */
-function ratingDots(value, max){
-  const total=max||4, n=value==null?-1:Math.max(0,Math.min(total,Math.round(value)));
-  return `<span class="jc-dots" aria-hidden="true">${Array.from({length:total+1},(_,i)=>`<i${i<=n&&n>=0?' class="on"':''}></i>`).join('')}</span>`;
-}
-const PIP_IC = {
-  arrowRight:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>',
-  arrowDown:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg>',
-  arrowUp:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>',
-  edit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1L19 8.5l-3.5-3.5L5 15.5zM13.5 7l3.5 3.5"></path></svg>'
-};
 /* ============================================================
-   Views, tools, router
+   peri — views, sheets, router
+   An instrument, not a companion. Today's page carries the finding of the
+   day and the ledger of what happened; the log sheet files a moment with
+   one tap; the dossier is what she brings to the appointment; the index is
+   the reference, found by question.
    ============================================================ */
-
+const PERI_BRAND_ICON = '<img src="__PERI_ICON_DATA__" alt="" width="36" height="36">';
 const IC = {
-  /* Shared interface icons. Primary-route icons are assigned from PULSE_IC below. */
-  today:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"></rect><path d="M3 8h14M7 2v4M13 2v4"></path></svg>',
-  trends:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16l4-6 3 3 4-7 3 4"></path></svg>',
-  meds:'<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="2.5" width="12" height="15" rx="6"></rect><path d="M4 10h12"></path></svg>',
-  report:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
-  settings:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
-  learn:'<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 2h6l3 3v13H6z M12 2v4h4"></path></svg>',
-  you:'<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"></circle><path d="M10 2v3M10 15v3M2 10h3M15 10h3"></path></svg>',
-  chev:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>'
-};
-/* Lucide v1.38.0 (ISC) icons used by the selected Guided Daily Pulse shell.
-   The full license is retained in assets/icons/LUCIDE_LICENSE.txt. */
-const PULSE_IC = {
-  safety:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m4.93 4.93 4.24 4.24m5.66 0 4.24-4.24m-4.24 9.9 4.24 4.24m-9.9-4.24-4.24 4.24"></path><circle cx="12" cy="12" r="4"></circle></svg>',
-  profile:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"></path><circle cx="12" cy="11" r="4"></circle><circle cx="12" cy="12" r="10"></circle></svg>',
-  today:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>',
-  journey:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5q2.5 2 5 0t5 0 5 0 5 0M2 12q2.5 2 5 0t5 0 5 0 5 0M2 19q2.5 2 5 0t5 0 5 0 5 0"></path></svg>',
-  care:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"></path></svg>',
-  guide:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v16"></path><path d="M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"></path></svg>',
-  check:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m16 9-5.5 5.5L8 12"></path></svg>',
-  recap:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5h4M20 3v4"></path><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>',
-  task:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 10.01h.01M10 14.01h.01M14 10.01h.01M14 14.01h.01M18 6v12M6 6v12"></path><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>',
-  privacy:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg>',
-  reset:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>',
-  trash:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 11v6M14 11v6M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
-  backup:'<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 12a9 3 0 0 0 5 2.69M21 9.3V5M3 5v14a9 3 0 0 0 6.47 2.88M12 12v4h4M13 20a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5c-1.33 0-2.54.54-3.41 1.41L12 16"></path></svg>',
-  wind:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.8 19.6A2 2 0 1 0 14 16H2M17.5 8a2.5 2.5 0 1 1 2 4H2M9.8 4.4A2 2 0 1 1 11 8H2"></path></svg>',
-  moon:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5h4M20 3v4"></path><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>',
-  brain:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 18V5M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5M17.997 5.125a4 4 0 0 1 2.526 5.77M18 18a4 4 0 0 0 2-7.464M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517M6 18a4 4 0 0 1-2-7.464M6.003 5.125a4 4 0 0 0-2.526 5.77"></path></svg>',
-  heartPulse:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"></path></svg>',
-  person:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"></circle><path d="m9 20 3-6 3 6M6 8l6 2 6-2M12 10v4"></path></svg>',
-  flask:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"></path></svg>',
-  ruler:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0ZM14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2"></path></svg>',
-  calculator:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2"></rect><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"></path></svg>',
-  grid:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>'
-};
-IC.today=PULSE_IC.today;
-IC.journey=PULSE_IC.journey;
-IC.care=PULSE_IC.care;
-IC.guide=PULSE_IC.guide;
-
-const TWILIGHT_IC = {
-  /* Legacy key names now point to licensed Lucide assets for visual consistency. */
-  flame:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"></path></svg>',
-  moon:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>',
-  cloud:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>',
-  bolt:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5.5 0 0 1-.472-.667z"></path></svg>',
-  heart:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"></path></svg>',
-  horizon:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v8M4.93 10.93l1.41 1.41M2 18h2M20 18h2M19.07 10.93l-1.41 1.41M22 22H2M8 6l4-4 4 4M16 18a4 4 0 0 0-8 0"></path></svg>',
-  cycle:PULSE_IC.reset,
-  pill:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg>',
-  lab:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"></path></svg>',
-  calendar:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3M16 2v3"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"></path></svg>',
-  trend:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6M22 7l-8.5 8.5-5-5L2 17"></path></svg>',
-  document:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2zM14 2v5a1 1 0 0 0 1 1h5M10 9H8M16 13H8M16 17H8"></path></svg>',
-  sun:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>'
-};
-const SYM_IC = {
-  mood:TWILIGHT_IC.heart,
-  anx:TWILIGHT_IC.cloud,
-  fog:TWILIGHT_IC.cloud,
-  joint:TWILIGHT_IC.bolt,
-  dry:TWILIGHT_IC.horizon,
-  uri:TWILIGHT_IC.cycle,
-  energy:TWILIGHT_IC.bolt,
-  head:TWILIGHT_IC.cloud,
-  palp:TWILIGHT_IC.heart,
-  itch:TWILIGHT_IC.sun,
-  libido:TWILIGHT_IC.heart
-};
-const SYM_DISPLAY = {
-  sleepq:'Trouble sleeping', mood:'Low mood', anx:'Anxiety', fog:'Brain fog', joint:'Joint pain',
-  dry:'Dryness', uri:'Bladder', energy:'Fatigue', head:'Headache',
-  palp:'Palpitations', itch:'Skin', libido:'Low libido'
+  chev:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+  back:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>',
+  arrow:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  plus:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  mic:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg>',
+  keyboard:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  close:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  person:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  moon:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>',
+  sun:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>'
 };
 
 const TOOL_CATALOG = [
-  {id:'breath', name:'Paced breathing', short:'Breathe', description:'Settle into a slow, steady breathing rhythm.', group:'Quick relief', icon:PULSE_IC.wind},
-  {id:'pmr', name:'Progressive muscle relaxation', short:'Release tension', description:'Work through tension one area at a time.', group:'Quick relief', icon:PULSE_IC.person},
-  {id:'phq9', name:'PHQ-9 mood check', short:'Mood check', description:'A standard nine-question mood screen.', group:'Check in', icon:PULSE_IC.heartPulse},
-  {id:'gad7', name:'GAD-7 anxiety check', short:'Anxiety check', description:'A standard seven-question anxiety screen.', group:'Check in', icon:PULSE_IC.brain},
-  {id:'sleepwin', name:'Sleep window calculator', short:'Plan sleep', description:'Estimate a steadier time-in-bed window.', group:'Plan & learn', icon:PULSE_IC.moon},
-  {id:'protein', name:'Protein calculator', short:'Protein target', description:'Turn your weight and goal into a daily target.', group:'Plan & learn', icon:PULSE_IC.calculator},
-  {id:'trigger', name:'28-day trigger test', short:'Test a trigger', description:'Run one structured personal experiment.', group:'Plan & learn', icon:PULSE_IC.flask},
-  {id:'waist', name:'Waist reference', short:'Waist guide', description:'Put a measurement into clinical context.', group:'Plan & learn', icon:PULSE_IC.ruler}
+  {id:'ride', name:'Ride it out', short:'60 seconds', description:'A hot flash passes in about a minute. Count it down; the time goes on record.', group:'Right now', q:'hot flash flush cool heat'},
+  {id:'breath', name:'Paced breathing', short:'2 minutes', description:'Six breaths a minute. Evidence for anxiety and low mood; none for flashes.', group:'Right now', q:'breathe anxiety panic calm stress'},
+  {id:'pmr', name:'Wind-down', short:'Muscle relaxation', description:'Tense and release, head to foot. Twelve steps, nine minutes.', group:'Right now', q:'sleep relax tension wind down night'},
+  {id:'phq9', name:'PHQ-9 mood check', short:'Mood', description:'The standard nine-question depression screen, with the menopause caveat.', group:'Check', q:'mood depression low sad phq'},
+  {id:'gad7', name:'GAD-7 anxiety check', short:'Anxiety', description:'The standard seven-question anxiety screen.', group:'Check', q:'anxiety anxious worry gad'},
+  {id:'sleepwin', name:'Sleep window', short:'CBT-I restriction', description:'Your starting time-in-bed window from two weeks of logged sleep.', group:'Plan', q:'sleep insomnia window cbt bed'},
+  {id:'protein', name:'Protein target', short:'Grams a day', description:'Weight and goal into a daily and per-meal number.', group:'Plan', q:'protein diet food muscle grams'},
+  {id:'trigger', name:'28-day trigger test', short:'Remove, then reintroduce', description:'One structured experiment instead of avoiding six things at once.', group:'Plan', q:'trigger alcohol caffeine spicy test experiment'},
+  {id:'waist', name:'Waist reference', short:'Thresholds', description:'Put a measurement into clinical context, and measure it the same way every time.', group:'Plan', q:'waist measure cm inches weight'}
 ];
-const TODAY_TOOL_IDS = ['breath','pmr','phq9'];
-const GUIDE_TOOL_IDS = ['breath','pmr','sleepwin','trigger'];
+const LEARN_MODULES = [
+  {id:'stage', n:'Where am I?', s:'Staging, and how menopause is actually diagnosed', g:'Understand', q:'stage perimenopause postmenopause periods straw diagnosis where am i'},
+  {id:'symptoms', n:'Symptom library', s:'What is happening, how long it lasts, what helps', g:'Understand', q:'symptom hot flash night sweat fog mood joint dryness bladder palpitations headache itch libido'},
+  {id:'treatment', n:'Treatment options', s:'Hormone therapy, non-hormonal options, absolute risks', g:'Treat', q:'treatment hrt hormone estrogen oestrogen progesterone fezolinetant ssri patch risk breast cancer'},
+  {id:'supplements', n:'Supplements & remedies', s:'What the trials show, which is mostly not much', g:'Treat', q:'supplement black cohosh soy isoflavone magnesium vitamin remedy herbal'},
+  {id:'sleep', n:'Sleep', s:'Triage first, then real CBT-I, not a hygiene checklist', g:'Feel better', q:'sleep insomnia waking 3am night awake cbt-i apnea snoring tired'},
+  {id:'mind', n:'Mood, anxiety & mind', s:'The risk window, brain fog, techniques that work', g:'Feel better', q:'mood anxiety depression brain fog memory concentration irritable overwhelmed'},
+  {id:'exercise', n:'Movement & strength', s:'Resistance, bone loading, balance, pelvic floor', g:'Feel better', q:'exercise strength resistance bone pelvic floor balance walking weights'},
+  {id:'sex', n:'Intimacy & sexual health', s:'Options table, lubricant criteria, pain pathway', g:'Feel better', q:'sex libido dryness vaginal pain intimacy lubricant estrogen cream'},
+  {id:'diet', n:'Eating for this stage', s:'Protein, calcium, patterns, alcohol, energy myths', g:'Feel better', q:'diet food protein calcium alcohol eating weight sugar'},
+  {id:'weight', n:'Weight & body composition', s:'What really changes, and what works', g:'Feel better', q:'weight gain belly fat waist composition metabolism'},
+  {id:'skin', n:'Skin, hair & nails', s:'Four things with evidence; the rest is optional', g:'Feel better', q:'skin hair nails dry itch collagen retinoid'},
+  {id:'clinician', n:'Prepare for an appointment', s:'Build a question list from your own record', g:'Prepare', q:'appointment doctor clinician questions prepare visit gp'},
+  {id:'screening', n:'Preventive care checklist', s:'Scans and screens for this decade, with the dates you were seen', g:'Prepare', q:'screening mammogram cervical smear colon bone density dxa'},
+  {id:'redflags', n:'Red flags', s:'Ten things that need care promptly', g:'Prepare', q:'red flag bleeding emergency urgent chest pain danger'},
+  {id:'sources', n:'Sources & what we left out', s:'Where all of this comes from', g:'Prepare', q:'sources references evidence guideline nice menopause society'}
+];
+const LOG_ALWAYS = ['hf','ns','woke'];
+const LOG_SYNONYMS = {
+  hf:['hot flash','hot flush','flash','flush','flushing','overheating','boiling'],
+  ns:['night sweat','sweat','sweating','soaked','drenched'],
+  woke:['woke','awake','wake','woken','up again','can\'t sleep','cannot sleep','couldn\'t sleep'],
+  fog:['fog','foggy','forgetful','forgot','concentrat','focus','memory'],
+  mood:['low','down','sad','flat','tearful','cried','crying','depress'],
+  anx:['anxious','anxiety','panic','on edge','worried','worry','nervous'],
+  joint:['pain','ache','aching','sore','stiff','joint','knee','hip','back','shoulder'],
+  head:['headache','migraine','head hurts'],
+  palp:['palpitation','heart racing','racing heart','pounding'],
+  dizzy:['dizzy','dizziness','lightheaded','faint'],
+  bloating:['bloat','bloated','bloating'],
+  dry:['dryness','dry','discomfort down there','burning'],
+  uri:['bladder','urgency','urine','peeing','uti'],
+  energy:['tired','exhausted','fatigue','wiped','no energy','drained'],
+  itch:['itch','itchy','itching','crawling skin'],
+  libido:['libido','no desire','sex drive'],
+  irritable:['irritable','irritated','snappy','short tempered','angry'],
+  overwhelmed:['overwhelmed','overwhelm','too much','can\'t cope','stressed'],
+  bleed:['bleed','bleeding','spotting','period']
+};
+const SEVERITY_WORDS = [['strong',3],['severe',3],['bad',3],['awful',3],['terrible',3],['moderate',2],['medium',2],['mild',1],['slight',1],['small',1],['little',1]];
 
 let curDate = todayISO();
 let curTab = 'today';
@@ -123,21 +78,28 @@ let returnTab = 'today';
 let sheetStack = [];
 let sheetReturnStack = [];
 let lastSheetTrigger = null;
-let checkinComplete = false;
-let checkinFirstSaved = false;
-let checkinStep = 0;
-const checkinAddedSymptoms = new Map();
-let guideQuery = '';
 let reportRange = 90;
+let indexQuery = '';
+let logMore = false;
+let logNight = false;
+let lastLogged = null;
+let nightDeskDismissed = false;
+let closeDraft = null;
+let dictationOpen = false;
+let momentEditId = null;
 let treatmentChangeTarget = null;
 let treatmentFollowUpTarget = null;
 let treatmentStopTarget = null;
 let medicationEditTarget = null;
+let medFormOpen=false, labFormOpen=false;
+let medDaysDraft=[0,1,2,3,4,5,6];
 let appointmentQuestionEditId = null;
 let afterVisitPlanEditId = null;
+let firstRun = {appointment:null, date:'', more:false};
 let nativePrivacyState = {loaded:false,appLock:null,reminders:null,deviceEncrypted:false,encryptedBackups:false};
 let nativeHealthState = {loaded:false,status:null,busy:false};
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '2.0.0';
+const CONTENT_REVIEWED = 'July 2026';
 
 /* ---------- tiny helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -146,8 +108,8 @@ function h(tag, attrs, inner){
   return '<'+tag+a+'>'+(inner==null?'':inner)+'</'+tag+'>';
 }
 function toast(msg){
-  const old=$('.fab-note'); if(old) old.remove();
-  const el=document.createElement('div'); el.className='fab-note'; el.setAttribute('role','status');
+  const old=$('.toast'); if(old) old.remove();
+  const el=document.createElement('div'); el.className='toast'; el.setAttribute('role','status');
   el.setAttribute('aria-live','polite'); el.textContent=msg;
   document.body.appendChild(el); setTimeout(()=>el.remove(), 2600);
 }
@@ -158,9 +120,11 @@ function setPath(obj, path, val){
   if(val===null || val===undefined || val==='') delete o[parts[parts.length-1]];
   else o[parts[parts.length-1]] = val;
 }
-function getPath(obj, path){
-  return path.split('.').reduce((o,k)=> (o==null?undefined:o[k]), obj);
-}
+function getPath(obj, path){ return path.split('.').reduce((o,k)=> (o==null?undefined:o[k]), obj); }
+function dayLabel(d){ return parseISO(d).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}); }
+function shortDate(d){ return parseISO(d).toLocaleDateString(undefined,{day:'numeric',month:'short'}); }
+function dayNumber(){ const dates=entryDates(); const first=dates[0]||DB.meta.created||todayISO(); return Math.max(1,daysBetween(first,todayISO())+1); }
+function refresh(){ render(true); if(sheetStack.length) renderSheet(false); }
 
 /* ---------- scale / chip builders ---------- */
 function scaleRow(path, labels, cur, min, groupLabel){
@@ -168,10 +132,7 @@ function scaleRow(path, labels, cur, min, groupLabel){
   groupLabel=groupLabel||'Severity';
   let b='';
   for(let i=min;i<labels.length+min;i++){
-    const level=i-min;
-    b += h('button',{class:'scale-choice','data-act':'set','data-k':path,'data-v':i,
-      'aria-pressed':cur===i?'true':'false','aria-label':groupLabel+': '+labels[level]},
-      '<span class="scale-dot fill-'+level+(cur===i?' on':'')+'" aria-hidden="true"></span>');
+    b += h('button',{'data-act':'set','data-k':path,'data-v':i,'aria-pressed':cur===i?'true':'false','aria-label':groupLabel+': '+labels[i-min]}, String(i));
   }
   return '<div class="scale" role="group" aria-label="'+esc(groupLabel)+'">'+b+'</div><div class="scale-legend" aria-hidden="true"><span>'+esc(labels[0])+'</span><span>'+esc(labels[labels.length-1])+'</span></div>';
 }
@@ -193,8 +154,8 @@ function handleNativePrivacyResult(event){
   if(typeof detail.encryptedBackups==='boolean') nativePrivacyState.encryptedBackups=detail.encryptedBackups;
   nativePrivacyState.loaded=true;
   if(detail.ok===false&&!detail.cancelled&&detail.message) toast(detail.message);
-  else if(detail.action==='app-lock'&&detail.ok) toast(detail.appLock&&detail.appLock.enabled?'App Lock turned on':'App Lock turned off');
-  else if(detail.action==='reminders'&&detail.ok) toast('Reminder settings saved');
+  else if(detail.action==='app-lock'&&detail.ok) toast(detail.appLock&&detail.appLock.enabled?'App Lock on':'App Lock off');
+  else if(detail.action==='reminders'&&detail.ok) toast('Reminders saved');
   if(curTab==='profile') render(true);
 }
 function handleNativeBackupImport(event){
@@ -223,1440 +184,48 @@ function handleHealthKitResult(event){
     if(clean){ DB.healthKit=clean; save(true); }
   }
   if(detail.ok===false&&detail.message) toast(detail.message);
-  else if(summary) toast(summary.hasAnyData?'Apple Health summary updated':'Apple Health connected; no matching data was available');
+  else if(summary) toast(summary.hasAnyData?'Apple Health summary updated':'Apple Health connected; no matching data');
   if(curTab==='profile') render(true);
 }
-function twilightHeader(title, subtitle){
-  return '<div class="tw-status"><span>'+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+'</span><span>MENOCOMPASS</span></div>'
-    +'<div class="tw-heading tw-page-heading"><h1>'+esc(title)+'</h1><p>'+esc(subtitle)+'</p></div>';
+
+/* ---------- record helpers ---------- */
+function confirmedRecord(date){ return confirmedEntry(date); }
+function focusedKeys(){
+  const pins=DB.profile&&Array.isArray(DB.profile.pinnedSymptoms)?DB.profile.pinnedSymptoms:[];
+  return pins.length?pins.slice(0,6):[...PeriOnboarding.defaults];
 }
-function proteinChoices(current, target){
-  const met=current===true || current===1;
-  const missed=current===false || current===0;
-  return h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':1,'aria-pressed':met?'true':'false'},
-      esc('Met protein target'+(target?' ('+target.grams+'g)':'')))
-    + h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':0,'aria-pressed':missed?'true':'false'},
-      'Missed target')
-    + ((met||missed) ? h('button',{class:'chip','data-act':'set','data-k':'nut.prot','data-v':''},'Clear') : '');
+const SYM_DISPLAY = {sleepq:'Trouble sleeping', mood:'Low mood', anx:'Anxiety', fog:'Brain fog', joint:'Joint pain', dry:'Dryness', uri:'Bladder', energy:'Fatigue', head:'Headache', palp:'Palpitations', itch:'Skin', libido:'Low libido', bloating:'Bloating', dizzy:'Dizziness', irritable:'Irritability', overwhelmed:'Overwhelmed'};
+function symptomName(key){
+  if(key==='hf') return 'Hot flashes';
+  if(key==='ns') return 'Night sweats';
+  const found=SYMS.find(s=>s.k===key);
+  return SYM_DISPLAY[key]||(found&&found.n)||key;
+}
+function symptomValue(record,key){
+  if(!record) return null;
+  if(key==='hf'||key==='ns') return record[key]==null?null:+record[key];
+  return record.sym&&record.sym[key]!=null?+record.sym[key]:null;
+}
+function symptomPath(key){ return key==='hf'||key==='ns'?key:'sym.'+key; }
+function appointmentData(){
+  if(!DB.appointments||typeof DB.appointments!=='object') DB.appointments={questions:[],plans:[],brief:{concerns:[],goal:'',date:''},evidence:[]};
+  if(!Array.isArray(DB.appointments.questions)) DB.appointments.questions=[];
+  if(!Array.isArray(DB.appointments.plans)) DB.appointments.plans=[];
+  if(!Array.isArray(DB.appointments.evidence)) DB.appointments.evidence=[];
+  return DB.appointments;
+}
+function appointmentDate(){
+  const brief=appointmentData().brief||{}, next=(appointmentData().plans||[]).map(p=>p.nextVisit).filter(d=>d&&d>=todayISO()).sort()[0];
+  const candidates=[brief.date,next].filter(d=>d&&validISODate(d)&&d>=todayISO()).sort();
+  return candidates[0]||'';
 }
 
-/* ============================================================
-   TODAY
-   ============================================================ */
-function viewToday(){
-  const e = DB.entries[curDate] || {sym:{},act:{},nut:{}};
-  const sym = e.sym||{}, act=e.act||{}, nut=e.nut||{};
-  const t = todayISO();
-  let days='';
-  for(let i=13;i>=0;i--){
-    const d=addDays(t,-i), dd=parseISO(d);
-    days += h('button',{'data-act':'day','data-d':d,'aria-pressed':d===curDate?'true':'false',
-      class: hasData(d)?'has':'', 'aria-label':fmtLong(d)},
-      '<span>'+DOW[dd.getDay()]+'</span><b>'+dd.getDate()+'</b>');
-  }
-  const pt = proteinTarget();
-  const b = burden(e);
-
-  return `
-  <div class="view jc-screen jc-details today-view">
-    ${jcChrome('Check-in')}${jcHeading('More detail','Sleep, body, movement, and lifestyle stay in today’s draft.',fmtLong(curDate))}
-    <div class="dayscroll" role="group" aria-label="Choose a day">${days}</div>
-    <p class="tiny muted" style="margin:6px 0 14px">${curDate===t?'Tap only what changed.':esc(fmtLong(curDate))+' · editing a past day'}</p>
-
-    <div class="section-label day-label">Daily check-in</div>
-    <div class="checkin-grid">
-    <div class="card flash-card${e.hf>0?' sel':e.hf===0?' logged':''}">
-      <div class="card-head"><h3><span class="title-with-icon">${TWILIGHT_IC.flame}<span>Hot flashes</span></span></h3></div>
-      <div class="stepper">
-        <button data-act="hf" data-n="-1" aria-label="One fewer">–</button>
-        <span class="val">${e.hf==null?'–':e.hf}</span>
-        <button data-act="hf" data-n="1" aria-label="One more">+</button>
-      </div>
-      <div class="btn-row" style="margin-top:10px;justify-content:center">
-        <button class="btn ghost sm" data-act="set" data-k="hf" data-v="0">None today</button>
-        <button class="btn ghost sm" data-act="set" data-k="hf" data-v="">Clear</button>
-      </div>
-    </div>
-    <div class="card night-card${e.ns>0?' sel':e.ns===0?' logged':''}">
-      <label class="fl"><span class="title-with-icon">${TWILIGHT_IC.moon}<span>Night sweats</span></span></label>
-      ${scaleRow('ns', SCALE4, e.ns, 0, 'Night sweats last night')}
-    </div>
-    </div>
-
-    <div class="section-label">Symptoms · 0 none → 4 very severe</div>
-    <div class="symptom-grid">
-      ${SYMS.filter(s=>s.k!=='sleepq').map(s=>`
-        <div class="card symptom-tile${sym[s.k]>0?' sel':sym[s.k]===0?' logged':''}">
-          <label class="fl symptom-name"><span class="symptom-title">${SYM_IC[s.k]||TWILIGHT_IC.cycle}<span>${esc(SYM_DISPLAY[s.k]||s.n)}</span></span></label>
-          ${scaleRow('sym.'+s.k, SCALE4, sym[s.k], 0, s.n)}
-        </div>`).join('')}
-    </div>
-    ${b!=null?`<div class="callout info burden-card"><span class="ctitle">Today's burden score: ${b} of 44</span>
-      Built on the same 0–4 per-symptom structure as the Menopause Rating Scale — a way to watch direction over weeks and to show a clinician. Single days bounce around, and we deliberately don't label it mild or severe: there is no validated cut-off for this set of symptoms.</div>`:''}
-
-    <div class="section-label">How you slept</div>
-    <div class="card sleep-card">
-      <div class="grid2">
-        <div class="field"><label class="fl" for="inbed">Hours in bed</label>
-          <input id="inbed" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-k="inBedH" value="${e.inBedH??''}"></div>
-        <div class="field"><label class="fl" for="slept">Hours asleep</label>
-          <input id="slept" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-k="sleepH" value="${e.sleepH??''}"></div>
-      </div>
-      <label class="fl">Sleep quality (0 = fine, 4 = terrible)</label>
-      ${scaleRow('sym.sleepq', ['Fine','Slightly off','Poor','Bad','Awful'], sym.sleepq, 0, 'Sleep quality')}
-      ${e.inBedH!=null&&e.inBedH>0&&e.sleepH!=null?`<p class="tiny muted" style="margin-top:10px">Sleep efficiency <b>${Math.round(e.sleepH/e.inBedH*100)}%</b>. CBT-I extends your sleep window once this passes about 85–90%.</p>`:''}
-    </div>
-
-    <div class="section-label">Body</div>
-    <div class="card">
-      <div class="grid2">
-        <div class="field"><label class="fl" for="wt">Weight (${U.wLabel()})</label>
-          <input id="wt" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="num" data-k="wt" data-conv="w" value="${e.wt!=null?r1(U.wOut(e.wt)):''}"></div>
-        <div class="field"><label class="fl" for="wa">Waist (${U.lLabel()})</label>
-          <input id="wa" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="num" data-k="waist" data-conv="l" value="${e.waist!=null?r1(U.lOut(e.waist)):''}"></div>
-      </div>
-      <p class="xtiny">Waist: same landmark every time, bare skin, end of a normal exhale. Self-measurement usually reads 1–3 cm low — fine, because you are tracking change.</p>
-      <hr class="sep">
-      <label class="fl">${periodsPossible()?'Bleeding':'Any vaginal bleeding or spotting'}</label>
-      <div class="chips">
-        ${['none','spotting','light','moderate','heavy'].map(v=>h('button',{class:'chip','data-act':'set','data-k':'bleed','data-v':v,'aria-pressed':e.bleed===v?'true':'false'}, v[0].toUpperCase()+v.slice(1))).join('')}
-      </div>
-      ${!periodsPossible()?`<p class="xtiny">${!hasUterus()
-        ? 'After a hysterectomy any bleeding is unexpected. It is usually something minor and treatable, but log it and mention it to a clinician rather than watching it.'
-        : 'Your usual pattern is light or absent now, so anything new is worth logging and reporting rather than explaining away.'}</p>`:''}
-    </div>
-
-    <div class="section-label">Movement</div>
-    <div class="card">
-      <div class="chips" style="margin-bottom:14px">
-        ${chip('act.res','Strength session', act.res)}
-        ${chip('act.bal','Balance work', act.bal)}
-        ${chip('act.pf','Pelvic floor', act.pf)}
-      </div>
-      <div class="field" style="margin-bottom:0"><label class="fl" for="aero">Aerobic minutes</label>
-        <input id="aero" type="number" step="5" min="0" max="1440" inputmode="numeric" data-act="num" data-k="act.aero" value="${act.aero??''}"></div>
-    </div>
-
-    <div class="section-label">Food & drink</div>
-    <div class="card">
-      <div class="chips" style="margin-bottom:14px">
-        ${proteinChoices(nut.prot, pt)}
-        ${chip('nut.cal','2+ calcium servings', nut.cal)}
-        ${chip('nut.fib','Good fibre day', nut.fib)}
-      </div>
-      <div class="grid2">
-        <div class="field"><label class="fl" for="alc">Alcohol (drinks)</label>
-          <input id="alc" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-k="nut.alc" value="${nut.alc??''}"></div>
-        <div class="field"><label class="fl" for="caf">Caffeine (cups)</label>
-          <input id="caf" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-k="nut.caf" value="${nut.caf??''}"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <label class="fl" for="notes">Notes</label>
-      <textarea id="notes" maxlength="4000" data-act="num" data-k="notes" placeholder="Anything worth remembering — what helped, what set it off, questions for your next appointment.">${esc(e.notes||'')}</textarea>
-    </div>
-
-    ${DB.trigger&&DB.trigger.active?triggerBanner():''}
-
-    <div class="btn-row split" style="margin-bottom:10px">
-      <button class="btn ghost" data-act="sheet" data-s="redflags">Red flags</button>
-      <button class="btn ghost" data-act="sheet" data-s="tools">Tools</button>
-    </div>
-    <button class="jc-primary" data-act="confirm-log">Confirm this log</button>
-    <button class="jc-text-action" data-act="back-checkin">Back to focused check-in</button>
-    <p class="xtiny center">Drafts save on this device. Only confirmation updates your patterns.</p>
-  </div>`;
-}
-
-/* ============================================================
-   TRENDS
-   ============================================================ */
-let trendRange = 30;
-function viewTrends(){
-  const days = rangeDates(trendRange);
-  const dates = entryDates();
-  if(!dates.length){
-    return `<div class="view tw-screen tw-secondary">${twilightHeader('Trends','Your patterns will appear here as you log.')}
-      <div class="empty tw-empty-state">
-      ${IC.trends}
-      <h3>Nothing to chart yet</h3>
-      <p class="tiny">Fill in a check-in on the Today tab. Most patterns need about two weeks before they mean anything.</p>
-      <button class="btn primary" data-act="tab" data-v="today">Start today's check-in</button>
-    </div></div>`;
-  }
-  const hf = series(days, e=>e.hf);
-  const bd = series(days, burden);
-  const sq = series(days, e=>e.sym&&e.sym.sleepq!=null?4-e.sym.sleepq:null);
-  const md = series(days, e=>e.sym&&e.sym.mood!=null?e.sym.mood:null);
-  const wt = series(days, e=>e.wt!=null?U.wOut(e.wt):null);
-  const wa = series(days, e=>e.waist!=null?U.lOut(e.waist):null);
-
-  const hfAvg = avg(hf.map(p=>p.v));
-  const hfTot = sum(hf.map(p=>p.v));
-  const slAvg = avg(series(days,e=>e.sleepH).map(p=>p.v));
-  const res = days.filter(d=>{const e=confirmedRecord(d);return e&&e.act&&e.act.res;}).length;
-  const aero = sum(days.map(d=>{const e=confirmedRecord(d);return e&&e.act?e.act.aero:null;}));
-  const logged = days.filter(hasData).length;
-
-  const ins = insights();
-
-  return `<div class="view tw-screen tw-secondary">${twilightHeader('Trends','Patterns from your daily check-ins — direction matters more than one day.')}
-    <div class="seg" role="group" aria-label="Time range">
-      ${[7,30,90].map(n=>h('button',{'data-act':'range','data-v':n,'aria-pressed':trendRange===n?'true':'false'}, n+' days')).join('')}
-    </div>
-
-    <div class="tiles" style="margin-bottom:16px">
-      <div class="tile"><div class="k">Flashes/day</div><div class="v">${hfAvg!=null?r1(hfAvg):'–'}</div><div class="d">${hfTot} total</div></div>
-      <div class="tile"><div class="k">Sleep</div><div class="v">${slAvg!=null?r1(slAvg):'–'}<small> h</small></div><div class="d">average</div></div>
-      <div class="tile"><div class="k">Strength</div><div class="v">${res}</div><div class="d">sessions</div></div>
-      <div class="tile"><div class="k">Aerobic</div><div class="v">${aero}<small> min</small></div><div class="d">${trendRange} days</div></div>
-      <div class="tile"><div class="k">Days logged</div><div class="v">${logged}</div><div class="d">of ${trendRange}</div></div>
-    </div>
-
-    <div class="section-label">What stands out</div>
-    ${ins.map(i=>`<div class="callout ${i.t==='alert'?'alert':i.t==='warn'?'warn':i.t==='ok'?'ok':'info'}">
-      <span class="ctitle">${esc(i.h)}</span>${i.b}
-      ${i.cta?`<div style="margin-top:9px"><button class="btn sm ghost" data-act="go" data-v="${esc(i.cta.go)}">${esc(i.cta.l)}</button></div>`:''}
-    </div>`).join('')}
-
-    <div class="section-label">Hot flashes per day</div>
-    <div class="card">${barChart(hf,{label:'Hot flashes per day', min1:true})}
-      <p class="xtiny">Counts bounce around. Read the shape of the month, not any one bar.</p></div>
-
-    <div class="section-label">Symptom burden</div>
-    <div class="card">${lineChart(bd,{label:'Symptom burden score', area:true, ma:7, min:0, max:44})}
-      <div class="chart-legend"><span><i></i> daily</span><span><i class="b"></i> 7-day average</span></div>
-      <p class="xtiny">0–44, on the same 0–4 per-symptom structure the Menopause Rating Scale uses. Needs at least 8 of the 11 symptoms filled in for a day to score. No severity bands: this is not the MRS item set, and no validated cut-off exists for it — read the direction, not the number.</p></div>
-
-    <div class="section-label">Sleep quality & mood</div>
-    <div class="card">${lineChart(sq,{label:'Sleep quality', min:0, max:4, ma:7})}
-      <p class="xtiny" style="margin-bottom:12px">Higher is better sleep.</p>
-      ${lineChart(md,{label:'Low mood', min:0, max:4, ma:7})}
-      <p class="xtiny">Higher means lower mood. Two weeks of moderate-or-worse is worth a conversation, not a wait.</p></div>
-
-    ${wt.some(p=>p.v!=null)?`<div class="section-label">Weight</div>
-    <div class="card">${lineChart(wt,{label:'Weight', ma:7, area:true})}
-      <div class="chart-legend"><span><i></i> daily</span><span><i class="b"></i> 7-day average</span></div>
-      <p class="xtiny">Weigh at the same time of day. Follow the dashed average — daily swings are mostly water and food.</p></div>`:''}
-
-    ${wa.some(p=>p.v!=null)?`<div class="section-label">Waist</div>
-    <div class="card">${lineChart(wa,{label:'Waist circumference'})}
-      <p class="xtiny">Arguably the more useful number: with waist and BMI modelled together, waist stays predictive of mortality while BMI does not.</p></div>`:''}
-
-    <div class="btn-row split">
-      <button class="btn ghost" data-act="sheet" data-s="report">Clinician report</button>
-      <button class="btn ghost" data-act="sheet" data-s="data">Export data</button>
-    </div>
-  </div>`;
-}
-
-/* ============================================================
-   LEARN
-   ============================================================ */
-const LEARN_MODULES = [
-  {id:'stage',      i:TWILIGHT_IC.cycle, n:'Where am I?',              s:'Staging, and how menopause is actually diagnosed'},
-  {id:'symptoms',   i:TWILIGHT_IC.cloud, n:'Symptom library',           s:'What is happening, how long it lasts, what helps'},
-  {id:'treatment',  i:TWILIGHT_IC.pill, n:'Treatment options',         s:'Hormone therapy, non-hormonal options, absolute risks'},
-  {id:'supplements',i:TWILIGHT_IC.lab, n:'Supplements & remedies',    s:'What the trials actually show — mostly not much'},
-  {id:'diet',       i:TWILIGHT_IC.horizon, n:'Eating for this stage',     s:'Protein, calcium, patterns, alcohol, energy myths'},
-  {id:'exercise',   i:TWILIGHT_IC.bolt, n:'Movement & strength',       s:'Resistance, bone loading, balance, pelvic floor'},
-  {id:'weight',     i:TWILIGHT_IC.horizon, n:'Weight & body composition', s:'What really changes, and what works'},
-  {id:'skin',       i:TWILIGHT_IC.sun, n:'Skin, hair & nails',        s:'Four things with evidence; the rest is optional'},
-  {id:'sleep',      i:TWILIGHT_IC.moon, n:'Sleep',                     s:'Triage, then real CBT-I — not a hygiene checklist'},
-  {id:'mind',       i:TWILIGHT_IC.heart, n:'Mood, anxiety & mind',      s:'The risk window, brain fog, techniques that work'},
-  {id:'sex',        i:TWILIGHT_IC.heart, n:'Intimacy & sexual health',  s:'Options table, lubricant criteria, pain pathway'},
-  {id:'screening',  i:TWILIGHT_IC.calendar, n:'Preventive care checklist', s:'Scans and screens for this decade — track them'},
-  {id:'clinician',  i:TWILIGHT_IC.document, n:'Prepare for an appointment', s:'Build a question list from your own data'},
-  {id:'redflags',   i:TWILIGHT_IC.flame, n:'Red flags',                  s:'Ten things that need care promptly'},
-  {id:'sources',    i:TWILIGHT_IC.document, n:'Sources & what we left out', s:'Where all of this comes from'}
-];
-function viewLearn(){
-  return `<div class="view tw-screen tw-secondary">${twilightHeader('Evidence guide','Straight answers, clear evidence, and no wellness hype.')}
-    <div class="callout info"><span class="ctitle">How to read this library</span>
-      Claims are tagged by evidence quality where a badge helps, and where major bodies disagree we say so rather than picking a side quietly. Reviewed July 2026.</div>
-    <div class="rows">
-      ${LEARN_MODULES.map(m=>h('button',{class:'row','data-act':'sheet','data-s':'learn:'+m.id},
-        '<span class="ico">'+m.i+'</span><span class="txt"><b>'+esc(m.n)+'</b><span>'+esc(m.s)+'</span></span><span class="chev">'+IC.chev+'</span>')).join('')}
-    </div>
-    <p class="xtiny center">Education, not medical advice. Nothing here replaces a clinician who knows your history.</p>
-  </div>`;
-}
-
-/* ============================================================
-   YOU
-   ============================================================ */
-function nativePrivacyCard(){
-  if(window.__MENO_NATIVE__!==true) return '';
-  if(!nativePrivacyState.loaded) return `<div class="section-label">Privacy &amp; reminders</div><div class="card"><p class="tiny">Loading iPhone privacy settings…</p></div>`;
-  const lock=nativePrivacyState.appLock||{available:false,enabled:false,label:'biometric unlock'};
-  const reminders=nativePrivacyState.reminders||{permission:'not-determined',preferences:{dailyCheckIn:{enabled:false,hour:20,minute:0},treatmentFollowUp:{enabled:false,weekday:1,hour:10,minute:0}}};
-  const daily=reminders.preferences&&reminders.preferences.dailyCheckIn||{}, follow=reminders.preferences&&reminders.preferences.treatmentFollowUp||{};
-  const weekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  return `<div class="section-label">Privacy &amp; reminders</div><div class="card jc-native-settings">
-    <div class="jc-native-setting"><div><b>Optional analytics</b><small>Feature-use events, performance, and masked onboarding replay. Separate from Apple advertising permission.</small></div><button class="btn ghost sm" data-act="analytics-settings">Review choice</button></div>
-    <button class="btn ghost sm" data-act="advertising-settings">Apple tracking settings</button>
-    <button class="btn ghost sm" data-act="erase-analytics">Delete analytics data</button>
-    <div class="jc-native-setting"><div><b>App Lock</b><small>${lock.available?`Use ${esc(lock.label)} or the device passcode whenever peri returns from the background.`:'Set up Face ID or Touch ID in iOS Settings to make App Lock available.'}</small></div><button class="btn ${lock.enabled?'ghost':'primary'} sm" data-act="app-lock-toggle" data-enabled="${lock.enabled?'false':'true'}"${lock.available?'':' disabled'}>${lock.enabled?'Turn off':'Turn on'}</button></div>
-    <p class="xtiny">${nativePrivacyState.deviceEncrypted?'Your native peri record is encrypted at rest with a device-bound key.':'Secure native storage is unavailable on this build.'}</p>
-    <hr class="sep">
-    <h4>Reminders</h4><p class="tiny">Notifications stay generic and never include symptoms, treatments, or other health details. Permission is requested only when you save an enabled reminder.</p>
-    <label class="jc-native-toggle" for="daily-reminder-enabled"><input id="daily-reminder-enabled" type="checkbox"${daily.enabled?' checked':''}><span>Daily check-in</span><input id="daily-reminder-time" type="time" value="${nativeReminderTime(daily,'20:00')}" aria-label="Daily check-in reminder time"></label>
-    <label class="jc-native-toggle stacked" for="treatment-reminder-enabled"><input id="treatment-reminder-enabled" type="checkbox"${follow.enabled?' checked':''}><span>Weekly treatment review</span><select id="treatment-reminder-day" aria-label="Weekly treatment review day">${weekdays.map((label,index)=>`<option value="${index+1}"${+(follow.weekday||1)===index+1?' selected':''}>${label}</option>`).join('')}</select><input id="treatment-reminder-time" type="time" value="${nativeReminderTime(follow,'10:00')}" aria-label="Weekly treatment review time"></label>
-    <button class="btn block ghost" data-act="save-native-reminders">Save reminder settings</button>
-    <p class="xtiny">Notification permission: <b>${esc(String(reminders.permission||'not-determined').replace('-', ' '))}</b>.</p>
-  </div>`;
-}
-function healthKitCard(){
-  if(window.__MENO_NATIVE__!==true) return '';
-  const summary=DB.healthKit, status=nativeHealthState.status||{};
-  const unavailable=nativeHealthState.loaded&&status.available===false;
-  const value=(v,suffix)=>v==null?'Unavailable':r1(v)+suffix;
-  return `<div class="section-label">Apple Health</div><div class="card jc-healthkit">
-    <div class="jc-native-setting"><div><b>Read-only summary</b><small>peri reads only aggregate steps, sleep, and your latest body weight when you tap the button. It never writes to Apple Health.</small></div></div>
-    ${summary?`<div class="jc-health-grid"><div><span>Steps</span><b>${value(summary.steps.dailyAverage,' / day')}</b></div><div><span>Sleep</span><b>${value(summary.sleep.nightlyAverageHours,' h / night')}</b></div><div><span>Latest weight</span><b>${summary.bodyWeight.latestKilograms==null?'Unavailable':r1(U.wOut(summary.bodyWeight.latestKilograms))+' '+U.wLabel()}</b></div></div><p class="xtiny">${summary.lookbackDays}-day aggregate · synced ${esc(new Date(summary.generatedAt).toLocaleString())}. Missing values can mean no matching data or that access was not shared; Apple does not tell apps which read types were denied.</p>`:'<p class="tiny">No Apple Health summary has been saved yet.</p>'}
-    <div class="btn-row split"><button class="btn primary" data-act="healthkit-sync"${unavailable||nativeHealthState.busy?' disabled':''}>${summary?'Sync Apple Health':'Connect Apple Health'}</button>${summary?'<button class="btn ghost" data-act="healthkit-clear">Remove summary</button>':''}</div>
-    ${unavailable?'<p class="xtiny">Apple Health is unavailable on this device or build.</p>':''}
-  </div>`;
-}
-function viewYou(){
-  const p = DB.profile;
-  const age = p.birthYear? (new Date().getFullYear()-p.birthYear) : null;
-  const pt = proteinTarget();
-  const dates = entryDates();
-  return `<div class="view jc-screen jc-profile">${jcChrome('Back')}${jcHeading('Profile','Your context, tracking preferences, and private data.')}
-    <div class="section-label">Account &amp; data</div>
-    <div class="card jc-account-card">
-      <p class="tiny">${dates.length} ${dates.length===1?'day':'days'} recorded${dates.length?', from '+fmtDay(dates[0]):''}. ${Store.ephemeral?'<b>This preview cannot save to disk</b> — your entries will disappear when you close the page. Installed as an app, it saves normally.':'Stored on this device only.'}</p>
-      <div class="jc-account-actions">
-        <button class="btn ghost" data-act="sheet" data-s="data">${PULSE_IC.backup}<span>Export or restore data</span></button>
-        ${window.__MENO_NATIVE__===true?`<button class="btn ghost" data-act="manage-subscription">${PULSE_IC.calendar}<span>Manage Apple subscription</span></button>`:''}
-        <button class="btn ghost" data-act="reset-onboarding">${PULSE_IC.reset}<span>Reset onboarding</span></button>
-        <button class="btn danger" data-act="delete-local-data">${PULSE_IC.trash}<span>Delete app profile &amp; data</span></button>
-      </div>
-      <p class="xtiny">peri does not create an online account. Reset onboarding keeps your logs and treatments. Delete permanently erases this app profile and all health data stored on this device. An Apple subscription, if active, is managed separately in App Store settings.</p>
-    </div>
-
-    ${nativePrivacyCard()}
-    ${healthKitCard()}
-
-    <div class="card">
-      <div class="card-head"><h3>${p.name?esc(p.name):'Your profile'}</h3>
-        ${age?'<span class="badge">'+age+'</span>':''}</div>
-      <div class="grid2">
-        <div class="field"><label class="fl" for="pn">Name</label>
-          <input id="pn" type="text" maxlength="80" autocomplete="given-name" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div>
-        <div class="field"><label class="fl" for="by">Birth year</label>
-          <input id="by" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div>
-      </div>
-      <div class="field"><label class="fl" for="ut">Uterus (womb)</label>
-        <select id="ut" data-act="prof" data-k="uterus">
-          ${[['unknown','Prefer not to say'],['intact','Still there'],['hyst','Removed (hysterectomy)'],['ablation','Endometrial ablation']]
-            .map(([v,l])=>`<option value="${v}"${p.uterus===v?' selected':''}>${l}</option>`).join('')}
-        </select></div>
-      <div class="field"><label class="fl" for="ov">Ovaries</label>
-        <select id="ov" data-act="prof" data-k="ovaries">
-          ${[['unknown','Prefer not to say / not sure'],['kept','Both still there'],['one','One removed'],['both','Both removed']]
-            .map(([v,l])=>`<option value="${v}"${p.ovaries===v?' selected':''}>${l}</option>`).join('')}
-        </select>
-        <p class="xtiny">Asked separately on purpose: a hysterectomy often leaves both ovaries in place, and ovaries are sometimes removed with the uterus left. The two have completely different consequences.</p></div>
-      ${periodsPossible()
-        ? `<div class="field"><label class="fl" for="lp">Date of your last period</label>
-           <input id="lp" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="lastPeriod" value="${p.lastPeriod||''}">
-           <p class="xtiny">Used to count months without a period and to flag bleeding that needs checking.</p></div>`
-        : `<div class="field"><label class="fl" for="sd">Date of your surgery, if you know it</label>
-           <input id="sd" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="surgeryDate" value="${p.surgeryDate||''}">
-           <p class="xtiny">${p.ovaries==='both'
-              ? 'Both ovaries removed means menopause dates from this operation, so this app uses the surgery date rather than a last period.'
-              : 'With no readable bleeding pattern, a last-period date would not mean anything — so this app asks for the surgery date instead. Staging should not be attempted until at least 3 months after surgery.'}</p></div>`}
-      <div class="field" style="margin-bottom:0"><label class="fl" for="bn">Bone status</label>
-        <select id="bn" data-act="prof" data-k="bone">
-          ${[['unknown',"Don't know"],['normal','Normal density'],['osteopenia','Osteopenia'],['osteoporosis','Osteoporosis'],['fracture','Previous fragility fracture']]
-            .map(([v,l])=>`<option value="${v}"${p.bone===v?' selected':''}>${l}</option>`).join('')}
-        </select>
-        <p class="xtiny">This gates the bone-loading advice in the movement module. Heavy impact work is not for everyone.</p></div>
-    </div>
-
-    ${p.stage?`<div class="card flat">
-      <div class="card-head"><h4 style="margin:0">Your stage</h4>
-        <button class="btn sm ghost" data-act="sheet" data-s="learn:stage">Redo</button></div>
-      <p class="tiny" style="margin-bottom:0"><b>${esc(p.stage)}</b></p></div>`:
-     `<button class="btn block primary" data-act="sheet" data-s="learn:stage" style="margin-bottom:14px">Find out where you are in the transition</button>`}
-
-    <div class="section-label">Targets</div>
-    <div class="card">
-      <div class="field"><label class="fl" for="pg">Protein target (g per kg body weight)</label>
-        <select id="pg" data-act="prof" data-k="proteinGpk">
-          ${[[1.0,'1.0 — general older-adult floor'],[1.2,'1.2 — recommended baseline'],[1.4,'1.4 — active or losing weight'],[1.6,'1.6 — upper training range']]
-            .map(([v,l])=>`<option value="${v}"${+p.proteinGpk===v?' selected':''}>${l}</option>`).join('')}
-        </select>
-        ${pt?`<p class="xtiny">At your latest weight that is about <b>${pt.grams} g/day</b>, roughly <b>${pt.perMeal} g</b> per meal across three meals.</p>`
-             :'<p class="xtiny">Log a weight on the Today tab to see your grams.</p>'}</div>
-      <div class="grid2" style="margin-bottom:0">
-        <div class="field" style="margin-bottom:0"><label class="fl" for="wg">Weight goal (${U.wLabel()})</label>
-          <input id="wg" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="prof" data-k="weightGoal" data-conv="w" value="${p.weightGoal!=null?r1(U.wOut(p.weightGoal)):''}"></div>
-        <div class="field" style="margin-bottom:0"><label class="fl" for="wag">Waist goal (${U.lLabel()})</label>
-          <input id="wag" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="prof" data-k="waistGoal" data-conv="l" value="${p.waistGoal!=null?r1(U.lOut(p.waistGoal)):''}"></div>
-      </div>
-    </div>
-
-    <div class="section-label">Tracking preferences</div>
-    <div class="card jc-profile-tracking">
-      <div class="field"><label class="fl" for="profile-intent">What would help most?</label><select id="profile-intent" data-act="prof" data-k="intent">${[['understand','Understand symptoms'],['treatment','See whether treatment helps'],['appointment','Prepare for an appointment'],['record','Keep a private record']].map(([v,l])=>`<option value="${v}"${p.intent===v?' selected':''}>${l}</option>`).join('')}</select></div>
-      <div class="field"><label class="fl" for="profile-feeling">Overall feeling during setup (optional)</label><select id="profile-feeling" data-act="prof" data-k="onboardingFeeling"><option value="">Not recorded</option>${Object.entries(ONBOARDING_FEELINGS).map(([v,l])=>`<option value="${v}"${p.onboardingFeeling===v?' selected':''}>${esc(l)}</option>`).join('')}</select><p class="jc-footnote">Your starting point from onboarding. You can update or clear it here.</p></div>
-      <p class="tiny">Focused check-in symptoms · choose 1–6</p>
-      <div class="jc-pin-grid compact">${[['hf','Hot flashes'],['ns','Night sweats'],...SYMS.map(s=>[s.k,SYM_DISPLAY[s.k]||s.n])].map(([k,label])=>`<button data-act="profile-symptom" data-v="${k}" aria-pressed="${(p.pinnedSymptoms||[]).includes(k)?'true':'false'}">${symptomIcon(k)}<span>${esc(label)}</span></button>`).join('')}</div>
-    </div>
-
-    <div class="section-label">Settings</div>
-    <div class="card">
-      <div class="field"><label class="fl" for="un">Units</label>
-        <select id="un" data-act="prof" data-k="units">
-          <option value="imperial"${p.units==='imperial'?' selected':''}>Pounds and inches</option>
-          <option value="metric"${p.units==='metric'?' selected':''}>Kilograms and centimetres</option>
-        </select></div>
-      <div class="field"><label class="fl" for="rg">Where you are</label>
-        <select id="rg" data-act="prof" data-k="region">
-          <option value="us"${p.region==='us'?' selected':''}>United States</option>
-          <option value="uk"${p.region==='uk'?' selected':''}>United Kingdom</option>
-          <option value="other"${p.region==='other'?' selected':''}>Elsewhere</option>
-        </select>
-        <p class="xtiny">Guidance genuinely differs — on drug labelling, SSRIs for hot flashes, testosterone access, and calcium and vitamin D targets.</p></div>
-      <div class="jc-setting-note" style="margin-bottom:0"><span class="fl">Appearance</span><strong>Warm &amp; grounded</strong><p class="xtiny">Soft paper tones and clear, comfortable type. A little room to breathe.</p></div>
-    </div>
-
-    <div class="card flat">
-      <h4>Privacy, plainly</h4>
-      <p class="tiny">${window.__MENO_NATIVE__===true
-        ? 'Your native peri record stays on this device in an encrypted file protected by a device-bound key; it is not copied into WebView browser storage. Optional encrypted backups use a password you choose. Apple Health access is read-only, happens only when you tap Connect or Sync, and saves only the aggregate summary shown above. Widgets receive only whether today is complete and a seven-day completion count. Generic reminder schedules contain no health details. The app has no account or sync service and does not transmit your health record.'
-        : "Your health entries stay in this browser's storage on this device. The app has no account, health-data API, or sync service and does not transmit what you log. Browser storage is not encrypted by this app, so someone with access to this browser profile may be able to open it. <b>Clearing site data deletes your entries</b>, and they do not sync between devices."} The native app offers optional analytics and masked onboarding replay, separate from Apple advertising permission. Health entries never enter these services. Sanitized crash diagnostics and subscription processing are separate; see the Privacy Policy. External source links contact those sites only when you open them. Export a backup now and then.</p>
-      <h4 style="margin-top:14px">Medical disclaimer</h4>
-      <p class="tiny">This app provides general health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is <b>not a medical device or regulator-reviewed clinical tool</b>. Guideline content was reviewed in <b>July 2026</b> and this field moves quickly. Always talk to a qualified clinician about your own situation, and seek care promptly for anything on the red-flag list.</p>
-    </div>
-    <p class="xtiny center" style="margin-bottom:20px">peri ${APP_VERSION} · content reviewed July 2026</p>
-  </div>`;
-}
-
-/* ============================================================
-   SHEETS
-   ============================================================ */
-function setBackgroundInert(on){
-  ['#app','#topbar','#tabs'].forEach(selector=>{
-    const el=$(selector); if(!el) return;
-    if(on){ el.setAttribute('inert',''); el.setAttribute('aria-hidden','true'); }
-    else { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }
-  });
-}
-function focusDescriptor(el){
-  return el ? {node:el,tag:el.tagName.toLowerCase(),data:Object.assign({},el.dataset)} : null;
-}
-function findFocusTarget(desc,root){
-  if(!desc) return null;
-  if(desc.node&&desc.node.isConnected) return desc.node;
-  return [...(root||document).querySelectorAll(desc.tag)].find(el=>
-    Object.entries(desc.data).every(([key,value])=>el.dataset[key]===value)
-  )||null;
-}
-function openSheet(id){
-  if(id==='report'){
-    if(requestNativePro('appointment-report')) return;
-    returnTab=curTab; setRoute('appointment-report'); sheetStack=[]; renderSheet(); render(); return;
-  }
-  if(requestNativePro(id)) return;
-  if(id==='learn:stage' && !DB.profile.stage && !stageEditing) resetStageDraft();
-  if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
-  else {
-    const parentSheet=$('.sheet');
-    sheetReturnStack.push({
-      trigger:focusDescriptor(document.activeElement),
-      scrollTop:parentSheet?parentSheet.scrollTop:0,
-      parentTitle:($('#sheet-title')&&$('#sheet-title').textContent)||'previous screen'
-    });
-  }
-  sheetStack.push(id); renderSheet(true);
-}
-function closeSheet(){
-  const returnState=sheetStack.length>1?sheetReturnStack.pop():null;
-  const closing=sheetStack.pop();
-  if(closing==='learn:stage'){
-    stageAns={}; stageStep=0; stageEditing=false;
-    render(true);
-    if(DB.profile.onboarded) postNativeEvent('onboarding-finished');
-  }
-  runSheetHooks(sheetStack[sheetStack.length-1]||'');
-  renderSheet(true,returnState);
-}
-function renderSheet(moveFocus,returnState){
-  const host = $('#sheet-host');
-  if(!sheetStack.length){
-    runSheetHooks(''); sheetReturnStack=[];
-    host.innerHTML=''; document.body.style.overflow=''; setBackgroundInert(false);
-    const target=lastSheetTrigger; lastSheetTrigger=null;
-    if(moveFocus) setTimeout(()=>{
-      const candidate=findFocusTarget(target,document);
-      const restored=(candidate&&candidate!==document.body?candidate:null)
-        ||document.querySelector('#app button,#app input,#app select,#tabs button');
-      if(restored) restored.focus();
-    },0);
-    syncNativeNavigationState();
-    return;
-  }
-  const previous=host.contains(document.activeElement) ? focusDescriptor(document.activeElement) : null;
-  const id = sheetStack[sheetStack.length-1];
-  const {title, body} = sheetContent(id);
-  const parentState=sheetReturnStack[sheetReturnStack.length-1];
-  const nested=sheetStack.length>1;
-  const dismissLabel=nested?'Back to '+(parentState&&parentState.parentTitle||'previous screen'):'Close '+title;
-  setBackgroundInert(true);
-  host.innerHTML = `<div class="sheet-bg" data-act="bg">
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
-      <div class="sheet-bar"><h2 id="sheet-title">${esc(title)}</h2><button class="close-btn" data-act="close" aria-label="${esc(dismissLabel)}">${nested?'Back':'Close'}</button></div>
-      ${body}
-    </div></div>`;
-  document.body.style.overflow='hidden';
-  syncNativeNavigationState();
-  const s = host.querySelector('.sheet'); if(s) s.scrollTop=returnState?returnState.scrollTop:0;
-  runSheetHooks(id);
-  if(s) setTimeout(()=>{
-    let target=null;
-    if(returnState){
-      target=findFocusTarget(returnState.trigger,s);
-    } else if(id==='learn:stage'){
-      target=s.querySelector('.stage-focus-target');
-    } else if(!moveFocus && previous){
-      target=findFocusTarget(previous,s);
-      if(!target) target=s.querySelector('[data-act]:not(.xbtn)');
-    }
-    if(moveFocus&&!target) target=s.querySelector('.xbtn,button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled])');
-    (target||s).focus();
-  },0);
-}
-
-function keepFocusInSheet(ev){
-  if(!sheetStack.length) return;
-  if(ev.key==='Escape'){ ev.preventDefault(); closeSheet(); return; }
-  if(ev.key!=='Tab') return;
-  const sheet=$('.sheet'); if(!sheet) return;
-  const focusable=[...sheet.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
-    .filter(el=>el.getClientRects().length && getComputedStyle(el).visibility!=='hidden');
-  if(!focusable.length){ ev.preventDefault(); sheet.focus(); return; }
-  const first=focusable[0], last=focusable[focusable.length-1];
-  if(document.activeElement===sheet){ ev.preventDefault(); (ev.shiftKey?last:first).focus(); }
-  else if(ev.shiftKey && document.activeElement===first){ ev.preventDefault(); last.focus(); }
-  else if(!ev.shiftKey && document.activeElement===last){ ev.preventDefault(); first.focus(); }
-  else if(!sheet.contains(document.activeElement)){ ev.preventDefault(); first.focus(); }
-}
-
-function toolInfo(id){ return TOOL_CATALOG.find(tool=>tool.id===id); }
-function quickToolsMarkup(surface){
-  const toolCount=TOOL_CATALOG.length;
-  const tools=(surface==='guide'?GUIDE_TOOL_IDS:TODAY_TOOL_IDS).map(toolInfo).filter(Boolean);
-  if(surface==='guide'){
-    return `<section class="jc-toolkit" aria-labelledby="guide-toolkit-title">
-      <div class="jc-toolkit-head"><div><h2 id="guide-toolkit-title">Tools for right now</h2><p>Focused tools for relief, check-ins, and planning.</p></div><button data-act="sheet" data-s="tools" aria-label="See all ${toolCount} tools">See all ${toolCount}</button></div>
-      <div class="jc-toolkit-grid">${tools.map(tool=>`<button class="jc-tool-card" data-act="sheet" data-s="tool:${tool.id}" aria-label="${esc(tool.short)} — open ${esc(tool.name)}"><span class="jc-tool-card-icon">${tool.icon}</span><span><b>${esc(tool.short)}</b><small>${esc(tool.description)}</small></span></button>`).join('')}</div>
-    </section>`;
-  }
-  return `<section class="dc-tools" aria-labelledby="today-tools-title">
-    <div class="dc-tools-head"><h2 id="today-tools-title">Quick tools</h2><button data-act="sheet" data-s="tools" aria-label="See all ${toolCount} tools">See all ${toolCount}</button></div>
-    <div class="dc-tool-grid">${tools.map(tool=>`<button class="dc-tool" data-act="sheet" data-s="tool:${tool.id}" aria-label="${esc(tool.short)} — open ${esc(tool.name)}"><span>${tool.icon}</span><b>${esc(tool.short)}</b></button>`).join('')}</div>
-  </section>`;
-}
-function toolsLibraryBody(){
-  const groups=['Quick relief','Check in','Plan & learn'];
-  return `<div class="jc-tools-intro"><strong>Use what helps right now.</strong><p>${TOOL_CATALOG.length} focused tools for relief, self-checks, and planning. Results stay on this device.</p></div>
-    <div class="jc-tools-library">${groups.map(group=>`<section><h3>${esc(group)}</h3>${TOOL_CATALOG.filter(tool=>tool.group===group).map(tool=>`<button class="jc-tool-row" data-act="sheet" data-s="tool:${tool.id}"><span class="jc-tool-row-icon">${tool.icon}</span><span><b>${esc(tool.name)}</b><small>${esc(tool.description)}</small></span><span class="chev">${IC.chev}</span></button>`).join('')}</section>`).join('')}</div>`;
-}
-
-function sheetContent(id){
-  if(id==='support'||id.startsWith('support:')) return supportSheet(id.split(':')[1]);
-  if(id==='appointment-brief') return briefSheet();
-  if(id.startsWith('learn:')) return learnSheet(id.slice(6));
-  if(id.startsWith('tool:'))  return toolSheet(id.slice(5));
-  if(id==='redflags') return learnSheet('redflags');
-  if(id==='screening') return learnSheet('screening');
-  if(id==='tools') return {title:'Tools', body:toolsLibraryBody()};
-  if(id==='data') return dataSheet();
-  if(id==='reset-onboarding-confirm') return resetOnboardingSheet();
-  if(id==='delete-local-data-confirm') return deleteLocalDataSheet();
-  if(id==='report') return reportSheet();
-  return {title:'', body:''};
-}
-
-function learnSheet(k){
-  const m = LEARN_MODULES.find(x=>x.id===k) || {n:''};
-  let body='';
-  switch(k){
-    case 'stage': body = stageSheetBody(); break;
-    case 'symptoms':
-      body = `<p class="tiny muted">Tap a symptom. Each card gives the prevalence and duration data, what has evidence, and what is being over-claimed.</p>
-      <div class="rows">${SYMPTOMS.map(s=>h('button',{class:'row','data-act':'sheet','data-s':'learn:sym-'+s.id},
-        '<span class="txt"><b>'+esc(s.name)+'</b><span>'+esc(s.quick)+'</span></span><span class="chev">'+IC.chev+'</span>')).join('')}</div>`;
-      break;
-    case 'treatment':   body = regionNote() + uterusNote() + TREATMENT_HTML; break;
-    case 'supplements':
-      body = regionNote() + SUPPLEMENTS_INTRO + SUPPLEMENTS.map(s=>`<details class="acc"><summary>
-        <span style="flex:1">${esc(s.n)}</span> <span class="badge ${s.v}">${s.v==='strong'?'Good evidence':s.v==='moderate'?'Moderate':s.v==='mixed'?'Mixed':'No evidence'}</span></summary>
-        <div><p style="margin-bottom:0">${s.s}</p></div></details>`).join('');
-      break;
-    case 'diet':      body = regionNote() + DIET_HTML; break;
-    case 'exercise':  body = boneGate() + EXERCISE_HTML; break;
-    case 'weight':    body = WEIGHT_HTML; break;
-    case 'skin':      body = SKIN_HTML; break;
-    case 'sleep':     body = SLEEP_HTML; break;
-    case 'mind':      body = MIND_HTML; break;
-    case 'sex':       body = SEX_HTML; break;
-    case 'screening': body = screeningBody(); break;
-    case 'clinician': body = clinicianBody(); break;
-    case 'redflags':  body = redflagBody(); break;
-    case 'sources':   body = SOURCES_HTML; break;
-    default:
-      if(k.startsWith('sym-')){
-        const s = SYMPTOMS.find(x=>x.id===k.slice(4));
-        if(s) return {title:s.name, body:'<p class="pill-note">'+esc(s.tag)+'</p>'+s.body};
-      }
-  }
-  return {title:m.n||'', body};
-}
-
-/* Personalised note on endometrial protection, driven by the profile.
-   This is the one place where "do you have a uterus" changes the answer
-   rather than just the framing. */
-function uterusNote(){
-  const u = DB.profile.uterus;
-  if(u==='hyst') return `<div class="callout ok"><span class="ctitle">You have told us your uterus was removed</span>
-  So the progestogen section below does not apply to you. With no lining to protect, <b>oestrogen-only therapy is what is used</b> — and that avoids the component carrying most of the extra breast cancer signal. Over five years at ages 50–59, oestrogen-only estimates run from <b>6 fewer</b> to <b>3 extra</b> cases per 1,000 women, against <b>+8 to +10</b> for combined therapy. The endometrial cancer numbers in the risk table are also irrelevant to you.</div>`;
-  if(u==='ablation') return `<div class="callout warn"><span class="ctitle">You have told us you had an endometrial ablation</span>
-  You still have your uterus, so <b>you still need a progestogen alongside systemic oestrogen</b>. An ablation is not a substitute for endometrial protection — the lining can regenerate in patches. Read the progestogen section below as applying to you.</div>`;
-  if(u==='intact') return `<div class="callout info"><span class="ctitle">You have your uterus</span>
-  So the progestogen section below applies to you: anyone with a uterus taking systemic oestrogen needs endometrial protection. It is worth reading properly — the choice between continuous and sequential, and between progestogen types, is one of the genuinely unsettled areas.</div>`;
-  return '';
-}
-
-/* Region-specific heads-up, driven by the profile setting. */
-function regionNote(){
-  const r = DB.profile.region;
-  if(r==='uk') return `<div class="callout warn"><span class="ctitle">You have set your region to the UK</span>
-  Three things differ for you. <b>Drug labelling:</b> the November 2025 US boxed-warning removal has no verified UK equivalent — UK product information still reflects the earlier MHRA risk tables. <b>Non-hormonal options:</b> NICE says do <i>not</i> routinely offer SSRIs or SNRIs as first-line for hot flashes alone, where the US Menopause Society lists them as recommended. <b>Nutrient targets:</b> the British Menopause Society uses 700 mg calcium with normal bone density (1,200 mg with osteopenia or osteoporosis) and 400 IU vitamin D — not the US figures on these pages.</div>`;
-  if(r==='other') return `<div class="callout warn"><span class="ctitle">You are outside the US and UK</span>
-  This library is built on US and UK guidance, and drug approvals, labelling, nutrient targets and screening programmes vary by country. Treat the evidence as transferable and the specifics as local — worth confirming with a clinician where you are.</div>`;
-  return '';
-}
-function boneGate(){
-  const b = DB.profile.bone;
-  if(b==='osteoporosis'||b==='fracture'){
-    return `<div class="callout alert"><span class="ctitle">Tailored to what you told us</span>
-    You recorded ${b==='fracture'?'a previous fragility fracture':'osteoporosis'}. <b>Skip the high-impact and heavy-loading advice below</b> and read the "Too Fit To Fracture" rules instead: moderate loads, form over intensity, no jumping or running, and no loaded spinal bending or twisting. Ask for a physiotherapy referral — that is the standard recommendation for your situation, not a hedge.</div>`;
-  }
-  if(b==='unknown'){
-    return `<div class="callout warn"><span class="ctitle">You have not recorded your bone status</span>
-    Until you know it, treat the heavy-loading and impact sections below with caution. Bone loss averages 10–12% at spine and hip across the transition, and the safe programme differs a lot depending on where you are. Set it in your profile once you know.</div>`;
-  }
-  return '';
-}
-
-/* ---------- staging ---------- */
-let stageAns = {};
-let stageStep = 0;
-let stageEditing = false;
-
-function resetStageDraft(){
-  stageAns={};
-  stageStep=0;
-  stageEditing=true;
-  const age=ageStageAnswer(DB.profile.birthYear);
-  if(age){
-    stageAns.age=age;
-    stageStep=1;
-  }
-}
-
-function stageAnswerAllowed(q, value){
-  return q && q.a.some(a=>a.v===value);
-}
-function completeStageAnswers(ans){
-  if(!ans || typeof ans!=='object') return false;
-  const qs=stageQueue(ans);
-  return qs.length>0 && qs.every(q=>stageAnswerAllowed(q,ans[q.id]));
-}
-function ageStageAnswer(birthYear){
-  if(birthYear==null || birthYear==='' || !Number.isInteger(+birthYear)) return null;
-  const age=new Date().getFullYear()-(+birthYear);
-  return age<40?'u40':age<45?'40s_e':age<55?'45p':'55p';
-}
-function surgeryStageAnswer(date){
-  if(!pastOrTodayISO(date)) return 'unsure';
-  const days=daysBetween(date,todayISO());
-  return days<92?'lt3m':days<365?'lt1y':days<=Math.round(5*365.25)?'1to5':'gt5';
-}
-function storeStageAssessment(ans){
-  const p=DB.profile;
-  const clean={};
-  STAGE_Q.forEach(q=>{ if(stageAnswerAllowed(q,ans[q.id])) clean[q.id]=ans[q.id]; });
-  p.uterus=clean.uterus==='unsure'?'unknown':clean.uterus;
-  p.ovaries=clean.ovaries==='unsure'?'unknown':clean.ovaries;
-  const res=stageResult(clean);
-  p.stage=res.label;
-  p.stageAnswers=clean;
-  p.onboardingDeferred=false;
-  /* Older versions persisted rendered HTML here. Results are now derived
-     from the structured answers so updated guidance renders immediately. */
-  delete p.stageResult;
-  return res;
-}
-function invalidateStage(){
-  DB.profile.stage=null;
-  DB.profile.stageAnswers=null;
-  delete DB.profile.stageResult;
-}
-function refreshStageForProfile(key){
-  const p=DB.profile;
-  delete p.stageResult;
-  if(!p.stage || !p.stageAnswers) return;
-  const ans=Object.assign({},p.stageAnswers);
-  if(key==='uterus') ans.uterus=p.uterus==='unknown'?'unsure':p.uterus;
-  else if(key==='ovaries') ans.ovaries=p.ovaries==='unknown'?'unsure':p.ovaries;
-  else if(key==='birthYear'){
-    const age=ageStageAnswer(p.birthYear);
-    if(!age){ invalidateStage(); return; }
-    ans.age=age;
-  } else if(key==='surgeryDate'){
-    ans.surgWhen=surgeryStageAnswer(p.surgeryDate);
-  } else if(key==='lastPeriod'){
-    /* A date alone cannot tell regularity, variability, or skipped-cycle
-       history. Re-asking is safer than retaining a contradictory label. */
-    invalidateStage(); return;
-  } else return;
-
-  if(!completeStageAnswers(ans)){ invalidateStage(); return; }
-  const res=stageResult(ans);
-  p.stage=res.label;
-  p.stageAnswers=ans;
-}
-function stageResultView(res,justCompleted){
-  const firstParagraph=res.body.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i);
-  const intro=firstParagraph
-    ? '<p>'+firstParagraph[1]+'</p>'
-    : '<p>Your answers point to this result. Open the detailed explanation for more context.</p>';
-  const actions=justCompleted
-    ? '<div class="btn-row split stage-result-actions"><button class="btn ghost" data-act="stage-restart">Start again</button><button class="btn primary" data-act="close">Done</button></div>'
-    : '<button class="btn block ghost stage-result-actions" data-act="stage-restart">Answer the questions again</button>';
-  return `<div class="callout ok stage-result-summary"><h3 class="ctitle stage-focus-target" tabindex="-1">${esc(res.label)}</h3>${intro}</div>
-  ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
-  ${actions}
-  <details class="acc"><summary>Read your full result</summary><div>${res.body}</div></details>
-  <details class="acc"><summary>How menopause is diagnosed</summary><div>${STAGE_CAVEAT}</div></details>`;
-}
-function stageSheetBody(){
-  const p = DB.profile;
-  if(Object.prototype.hasOwnProperty.call(p,'stageResult')){
-    delete p.stageResult;
-    save();
-  }
-  if(p.stage && !completeStageAnswers(p.stageAnswers)){
-    invalidateStage();
-    save();
-  }
-  if(p.stage && !stageEditing){
-    const res = stageResult(p.stageAnswers);
-    return stageResultView(res,false);
-  }
-  if(!stageEditing) resetStageDraft();
-  const qs = stageQueue(stageAns);
-  if(stageStep>=qs.length){
-    const res = storeStageAssessment(stageAns);
-    save();
-    return stageResultView(res,true);
-  }
-  const q = qs[stageStep];
-  return `<p class="xtiny stage-step" aria-live="polite">Question ${stageStep+1} · tailored to your history</p>
-  <h3 class="stage-focus-target" tabindex="-1">${esc(q.q)}</h3>
-  ${q.note?`<p class="tiny muted">${esc(q.note)}</p>`:''}
-  <div class="rows" style="margin-top:14px">
-    ${q.a.map(a=>h('button',{class:'row','data-act':'stage-a','data-k':q.id,'data-v':a.v},
-      '<span class="txt"><b>'+esc(a.t)+'</b></span><span class="chev">'+IC.chev+'</span>')).join('')}
-  </div>
-  ${stageStep>0?'<button class="btn ghost sm" data-act="stage-back">Back</button>':''}
-  <p class="xtiny" style="margin-top:14px">Based on the STRAW+10 international staging system. This is orientation, not a diagnosis.</p>`;
-}
-
-/* ---------- screening ---------- */
-function screeningIntervalLabel(id, years){
-  if(id==='cervical') return years===3?'3 years — cytology':'5 years — HPV testing / co-test';
-  if(id==='colon') return years===1?'1 year — FIT / annual review'
-    : years===3?'3 years — stool DNA-FIT'
-    : years===5?'5 years — CT colonography / sigmoidoscopy'
-    : '10 years — colonoscopy';
-  return years+' years';
-}
-function screeningBody(){
-  const age = DB.profile.birthYear ? new Date().getFullYear()-DB.profile.birthYear : null;
-  const nonUS = DB.profile.region && DB.profile.region!=='us';
-  return `<div class="callout info"><span class="ctitle">US intervals, and one honest gap</span>
-  These are current US Preventive Services Task Force and society recommendations${age?', relevant to you at '+age:''}. We have deliberately not published a blood-pressure or lipid interval, because we could not verify the current one — ask your clinician rather than trusting a number we guessed.</div>
-  ${nonUS?`<div class="callout warn"><span class="ctitle">You are outside the US — these intervals will not match your programme</span>
-  Screening ages, intervals and invitation systems differ substantially outside the US, and many countries run national invitation programmes instead. Use this page as a prompt to ask what <i>your</i> programme covers, and record the dates you were actually seen.</div>`:''}
-  ${SCREENING.map(s=>{
-    const rec = DB.screening[s.id]||{};
-    const rule=SCREENING_RULES[s.id];
-    const status=rule?screeningStatus(s.id,age):{due:false};
-    const validLast=pastOrTodayISO(rec.last);
-    const intervals=rule?screeningIntervals(rule,age):[];
-    const selected=intervals.includes(+rec.intervalYears) ? +rec.intervalYears : (rule?rule.defaultYears:null);
-    const badge=status.due
-      ? '<span class="badge warn">due to check</span>'
-      : validLast?'<span class="badge strong">'+fmtDay(rec.last)+'</span>':'';
-    return `<details class="acc"><summary><span style="flex:1">${esc(s.n)}</span>${badge}</summary>
-    <div>
-      <p class="tiny"><b>${esc(s.w)}</b></p>
-      <p class="tiny">${s.d}</p>
-      <label class="fl" for="sc-${s.id}">Date you last had this</label>
-      <input id="sc-${s.id}" type="date" min="${DB.profile.birthYear?DB.profile.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="screen" data-k="${s.id}" value="${validLast?rec.last:''}">
-      ${intervals.length>1?`<label class="fl" for="sci-${s.id}" style="margin-top:10px">Reminder interval for the test you had</label>
-        <select id="sci-${s.id}" data-act="screen-int" data-k="${s.id}">
-          ${intervals.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}
-        </select>`:''}
-    </div></details>`;
-  }).join('')}
-  <p class="xtiny">Recording dates here is just for your own reference — it does not book anything, and nothing is sent anywhere. Reminder intervals are prompts, not a substitute for the schedule your clinician gives you.</p>`;
-}
-
-/* ---------- red flags ---------- */
-function redflagBody(){
-  return `<div class="callout alert"><span class="ctitle">Some symptoms need emergency help now</span>
-  Call your local emergency number now for chest pressure or pain, sudden severe trouble breathing, signs of a stroke, fainting with severe symptoms, or immediate danger. Use <b>911</b> in the US or Canada, <b>999</b> in the UK, or <b>112</b> in the EU. Do not drive yourself. The other items below need prompt clinical advice even when they are not emergencies.</div>
-  ${REDFLAGS.map(r=>`<details class="acc"><summary><span style="flex:1">${esc(r.n)}</span></summary><div><p style="margin-bottom:0">${r.why}</p></div></details>`).join('')}
-  <div class="callout warn"><span class="ctitle">If you are thinking about harming yourself</span>
-  If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer">988</a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer">Samaritans on 116 123</a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>. You do not have to explain yourself perfectly.</div>`;
-}
-
-/* ---------- clinician prep ---------- */
-function clinicianBody(){
-  const dates = entryDates();
-  const d30 = rangeDates(30);
-  const hfAvg = avg(series(d30,e=>e.hf).map(p=>p.v));
-  const bdAvg = avg(series(d30,burden).map(p=>p.v));
-  const last = DB.scores.slice(-4).reverse();
-  const personalQuestions=appointmentData().questions.filter(item=>!item.asked);
-  const brief=appointmentSuggestionBrief();
-  const questions=(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text);
-  return `<p class="tiny muted">Questions based on your concerns, confirmed symptom logs, and recorded treatment history. Add how symptoms affect your day to make them more specific.</p>
-  <button class="btn primary" data-act="brief-start">${brief.concerns.length?'Personalize my questions':'Choose my concerns'}</button>
-  ${questions.length?`<h3>Questions for your appointment</h3><ol class="mc-saved-questions">${questions.map(q=>`<li><b>${esc(q.text)}</b><p>${esc(q.reason)}</p></li>`).join('')}</ol>`:'<p>Choose what you want help with to build your question list. There is not enough confirmed symptom history to suggest concerns yet.</p>'}
-  <div class="callout ok"><span class="ctitle">Bring your numbers</span>
-  <ul class="plain tiny" style="margin-bottom:0">
-    <li>${dates.length} days logged${dates.length?', from '+fmtDay(dates[0]):''}</li>
-    ${hfAvg!=null?'<li>Hot flashes averaging <b>'+r1(hfAvg)+'/day</b> over the last month</li>':''}
-    ${bdAvg!=null?'<li>Symptom burden averaging <b>'+r1(bdAvg)+' of 44</b> across 11 tracked symptoms</li>':''}
-    ${last.length?'<li>Recent scores: '+last.map(s=>s.type.toUpperCase()+' '+s.score+' ('+fmtDay(s.date)+')').join(', ')+'</li>':''}
-  </ul>
-  <div style="margin-top:9px"><button class="btn sm ghost" data-act="sheet" data-s="report">Open the full report</button></div></div>
-  ${personalQuestions.length?`<div class="callout info"><span class="ctitle">Your saved questions</span><ul class="tick">${personalQuestions.map(item=>`<li>${esc(item.text)}</li>`).join('')}</ul><p class="xtiny">Edit or mark these asked from Care.</p></div>`:''}
-  ${briefQuestionSources()}`;
-}
-
-/* ---------- data sheet ---------- */
-function dataSheet(){
-  return {title:'Export & import', body:`
-  <div class="callout ${Store.ephemeral?'warn':'info'}"><span class="ctitle">${Store.ephemeral?'This preview is not saving to disk':'Where your data lives'}</span>
-  ${Store.ephemeral
-    ? 'Browser storage is unavailable in this preview, so entries are held in memory only and will be lost when you close the page. Install the app (or open the deployed version) and it will save normally.'
-    : window.__MENO_NATIVE__===true
-      ? 'In an encrypted file on this iPhone or iPad, protected by a key that stays on the device. It does not sync between devices, so save an encrypted backup occasionally.'
-      : "In this browser's local storage, on this device only. Clearing browser data deletes it, and it does not sync between devices — so take a backup occasionally."}</div>
-  ${window.__MENO_NATIVE__===true&&nativePrivacyState.encryptedBackups?`<div class="section-label">Encrypted backup</div>
-  <p class="tiny">Create a portable, password-protected <b>.menocompass</b> backup. The password is never stored, so keep it somewhere safe.</p>
-  <label class="fl" for="encrypted-backup-password">Backup password · at least 10 characters</label><input id="encrypted-backup-password" type="password" minlength="10" maxlength="200" autocomplete="new-password">
-  <label class="fl" for="encrypted-backup-confirm">Confirm password</label><input id="encrypted-backup-confirm" type="password" minlength="10" maxlength="200" autocomplete="new-password">
-  <button class="btn block primary" data-act="export-encrypted-backup">Save encrypted backup</button>
-  <p class="tiny" style="margin-top:18px">To restore, choose a <b>.menocompass</b> file and enter the password that protected it. Restoring replaces the current record.</p>
-  <label class="fl" for="encrypted-restore-password">Backup password</label><input id="encrypted-restore-password" type="password" maxlength="200" autocomplete="current-password">
-  <button class="btn block ghost" data-act="import-encrypted-backup">Choose encrypted backup</button>`:''}
-  <div class="section-label">${window.__MENO_NATIVE__===true?'Plain exports':'Back up'}</div>
-  <div class="btn-row split">
-    <button class="btn primary" data-act="export-json">Download JSON</button>
-    <button class="btn ghost" data-act="export-csv">Download CSV</button>
-  </div>
-  <p class="xtiny"><b>These downloads are plain, unencrypted files containing sensitive health information.</b> Save them only somewhere private. JSON restores everything including settings. CSV is one row per day for a spreadsheet or to share with a clinician.</p>
-  <div class="section-label">Copy instead</div>
-  <p class="tiny">If downloads are blocked, copy this and paste it into a file:</p>
-  <textarea id="dump" readonly style="min-height:130px;font-family:ui-monospace,monospace;font-size:.72rem">${esc(JSON.stringify(DB))}</textarea>
-  <div class="btn-row"><button class="btn ghost sm" data-act="copy-dump">Copy to clipboard</button></div>
-  <div class="section-label">Restore</div>
-  <p class="tiny">Paste a previously exported JSON backup. <b>This replaces everything currently stored.</b></p>
-  <textarea id="restore" maxlength="5000000" aria-describedby="restore-help" placeholder='{"v":2,"profile":...}'></textarea>
-  <p class="xtiny" id="restore-help">Restore accepts a peri JSON file up to 5 MB. Unknown fields and invalid values are discarded.</p>
-  <button class="btn block" data-act="import-json" style="margin-top:8px">Restore from this backup</button>
-  <div class="section-label">Account &amp; data controls</div>
-  <button class="btn block ghost" data-act="reset-onboarding">Reset onboarding</button>
-  <button class="btn block danger" data-act="delete-local-data" style="margin-top:8px">Delete app profile &amp; data</button>
-  <p class="xtiny">Reset keeps your health history. Delete is permanent, so export first if you may want a backup.</p>`};
-}
-
-function resetOnboardingSheet(){
-  const count=entryDates().length;
-  return {title:'Reset onboarding?', body:`
-    <div class="jc-confirm-sheet">
-      <span class="jc-confirm-icon">${PULSE_IC.reset}</span>
-      <h3>Start the setup walkthrough again</h3>
-      <p>Your ${count} confirmed ${count===1?'day':'days'}, drafts, treatments, labs, reports, and profile answers will stay on this device. Only onboarding progress is reset.</p>
-      <button class="btn block primary" data-act="confirm-reset-onboarding">Reset onboarding</button>
-      <button class="btn block ghost" data-act="close">Keep current setup</button>
-    </div>`};
-}
-
-function deleteLocalDataSheet(){
-  return {title:'Delete app profile & data?', body:`
-    <div class="jc-confirm-sheet danger">
-      <span class="jc-confirm-icon">${PULSE_IC.trash}</span>
-      <h3>This permanently erases this app’s data on this device</h3>
-      <p>peri has no online account. This deletes your local profile, symptom logs, treatment history, labs, reports, and settings. It cannot be undone unless you exported a backup.</p>
-      <div class="callout warn"><span class="ctitle">Apple subscriptions are separate</span>Deleting app data does not cancel an Apple subscription. Manage subscriptions in your App Store settings.</div>
-      <button class="btn block danger" data-act="confirm-delete-local-data">Delete everything permanently</button>
-      <button class="btn block ghost" data-act="close">Cancel</button>
-    </div>`};
-}
-
-/* ---------- clinician report ---------- */
-function appointmentReportSection(){
-  const data=appointmentData(), questions=data.questions.filter(item=>!item.asked), plans=(data.plans||[]).slice(0,3);
-  if(!questions.length&&!plans.length) return '';
-  return `<div class="card"><h4>Appointment questions &amp; after-visit plans</h4>
-    ${questions.length?`<p class="xtiny"><b>Questions to ask</b></p><ul class="plain tiny">${questions.map(item=>`<li>${esc(item.text)}</li>`).join('')}</ul>`:''}
-    ${plans.map(plan=>`<div class="jc-report-plan"><p class="xtiny"><b>${esc(fmtDay(plan.date))} after-visit plan</b>${plan.nextVisit?' · next appointment '+esc(fmtDay(plan.nextVisit)):''}</p>${plan.summary?`<p class="tiny">${esc(plan.summary)}</p>`:''}${plan.actions&&plan.actions.length?`<ul class="plain tiny">${plan.actions.map(action=>`<li>${action.done?'✓':'○'} ${esc(action.text)}</li>`).join('')}</ul>`:''}</div>`).join('')}
-  </div>`;
-}
-function healthKitReportSection(){
-  const summary=DB.healthKit;
-  if(!summary) return '';
-  const shown=(value,suffix)=>value==null?'unavailable':r1(value)+suffix;
-  return `<div class="card"><h4>Apple Health summary · user-synced</h4>
-    <div class="kv"><span>Steps (${summary.lookbackDays} d)</span><b>${shown(summary.steps.dailyAverage,' / day')}</b></div>
-    <div class="kv"><span>Sleep (${summary.lookbackDays} d)</span><b>${shown(summary.sleep.nightlyAverageHours,' h / tracked night')}${summary.sleep.trackedNights?' · '+summary.sleep.trackedNights+' nights':''}</b></div>
-    <div class="kv"><span>Latest body weight</span><b>${summary.bodyWeight.latestKilograms==null?'unavailable':r1(U.wOut(summary.bodyWeight.latestKilograms))+' '+U.wLabel()}</b></div>
-    <p class="xtiny">Read-only aggregate synced ${esc(new Date(summary.generatedAt).toLocaleString())}. Missing values may mean no matching data or that access was not shared; they are never treated as zero.</p>
-  </div>`;
-}
-function reportSheet(days){
-  days=[30,90,180].includes(+days)?+days:90;
-  const summaryDays=Math.min(30,days), activityDays=Math.min(28,days);
-  const d = rangeDates(days).filter(hasData);
-  const p = DB.profile;
-  const age = p.birthYear? new Date().getFullYear()-p.birthYear : null;
-  const hf = series(rangeDates(summaryDays), e=>e.hf), bd = series(rangeDates(summaryDays), burden);
-  const wt = series(rangeDates(days), e=>e.wt).filter(x=>x.v!=null);
-  const wa = series(rangeDates(days), e=>e.waist).filter(x=>x.v!=null);
-  const topSym = SYMS.map(s=>({
-    n:symptomName(s.k), v:avg(rangeDates(summaryDays).map(dd=>{const e=confirmedRecord(dd);return e&&e.sym?e.sym[s.k]:null;}))
-  })).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,6);
-  const questionnaires = DB.scores.slice(-6).reverse();
-  const medications = Array.isArray(DB.medications)?DB.medications:[];
-  const labs = Array.isArray(DB.labs)?DB.labs.slice(0,8):[];
-  const bleeds = entryDates().filter(x=>{const e=confirmedRecord(x);return e&&e.bleed&&e.bleed!=='none';});
-  const hfValues=hf.map(x=>x.v).filter(v=>v!=null);
-  const nsValues=rangeDates(summaryDays).map(x=>{const e=confirmedRecord(x);return e&&e.ns;}).filter(v=>v!=null);
-  const moderateNights=nsValues.filter(v=>v>=2).length;
-  const strengthValues=rangeDates(activityDays).map(x=>{const e=confirmedRecord(x);return e&&e.act?e.act.res:null;}).filter(v=>typeof v==='boolean');
-  const strengthCount=strengthValues.filter(Boolean).length;
-  const alcoholValues=rangeDates(activityDays).map(x=>{const e=confirmedRecord(x);return e&&e.nut?e.nut.alc:null;}).filter(v=>v!=null);
-  const strengthSummary=!strengthValues.length?'not tracked'
-    : strengthValues.length===activityDays?r1(strengthCount/(activityDays/7))+' / week'
-    : strengthCount+' session'+(strengthCount===1?'':'s')+' across '+strengthValues.length+' logged activity day'+(strengthValues.length===1?'':'s');
-  const alcoholSummary=!alcoholValues.length?'not tracked'
-    : alcoholValues.length===activityDays?r1(sum(alcoholValues)/(activityDays/7))+' drinks / week'
-    : sum(alcoholValues)+' drinks across '+alcoholValues.length+' logged day'+(alcoholValues.length===1?'':'s');
-  return {title:'Report for your clinician', body:`
-  <p class="tiny muted">A one-page summary of what you have tracked. Print it, or read from it.</p>
-  <div class="report-page">
-  <div class="report-brand"><b>peri</b><span>Appointment report · ${days} days</span></div>
-  <div class="card">
-    <h3 style="margin-bottom:2px">What changed · symptom summary</h3>
-    <p class="xtiny">${p.name?esc(p.name)+' · ':''}${age?age+' years · ':''}Prepared ${fmtLong(todayISO())}</p>
-    <hr class="sep">
-    <div class="kv"><span>Confirmed days (last ${days})</span><b>${d.length}</b></div>
-    ${p.stage?`<div class="kv"><span>Self-assessed stage</span><b>${esc(p.stage)}</b></div>`:''}
-    ${periodsPossible()&&pastOrTodayISO(p.lastPeriod)?`<div class="kv"><span>Last period</span><b>${fmtDay(p.lastPeriod)} (${Math.floor(daysBetween(p.lastPeriod,todayISO())/30)} months)</b></div>`:''}
-    ${!periodsPossible()&&pastOrTodayISO(p.surgeryDate)?`<div class="kv"><span>${surgicalMenopause()?'Surgical menopause date':'Surgery date'}</span><b>${fmtDay(p.surgeryDate)} (${Math.floor(daysBetween(p.surgeryDate,todayISO())/30)} months)</b></div>`:''}
-    <div class="kv"><span>Hot flashes / day (${summaryDays} d)</span><b>${hfValues.length?r1(avg(hfValues)):'not tracked'}</b></div>
-    <div class="kv"><span>Worst single day</span><b>${hfValues.length?Math.max(...hfValues):'not tracked'}</b></div>
-    <div class="kv"><span>Night sweats, moderate+ (${summaryDays} d)</span><b>${nsValues.length?moderateNights+' '+(moderateNights===1?'night':'nights'):'not tracked'}</b></div>
-    <div class="kv"><span>Sleep (${summaryDays} d average)</span><b>${avg(series(rangeDates(summaryDays),e=>e.sleepH).map(x=>x.v))!=null?r1(avg(series(rangeDates(summaryDays),e=>e.sleepH).map(x=>x.v)))+' h':'not tracked'}</b></div>
-    <div class="kv"><span>Symptom burden (${summaryDays} d avg)</span><b>${avg(bd.map(x=>x.v))!=null?r1(avg(bd.map(x=>x.v)))+' / 44':'not tracked'}</b></div>
-    ${wt.length?`<div class="kv"><span>Weight</span><b>${r1(U.wOut(wt[wt.length-1].v))} ${U.wLabel()} (${wt.length>1?(wt[wt.length-1].v>wt[0].v?'+':'')+r1(U.wOut(wt[wt.length-1].v-wt[0].v))+' over '+daysBetween(wt[0].d,wt[wt.length-1].d)+' d':'single reading'})</b></div>`:''}
-    ${wa.length?`<div class="kv"><span>Waist</span><b>${r1(U.lOut(wa[wa.length-1].v))} ${U.lLabel()}${wa.length>1?' ('+(wa[wa.length-1].v>wa[0].v?'+':'')+r1(U.lOut(wa[wa.length-1].v-wa[0].v))+')':''}</b></div>`:''}
-    <div class="kv"><span>Strength sessions (28 d)</span><b>${strengthSummary}</b></div>
-    <div class="kv"><span>Alcohol (28 d)</span><b>${alcoholSummary}</b></div>
-  </div>
-  ${topSym.length?`<div class="card"><h4>Worth discussing · prominent symptoms (${summaryDays}-day average, 0–4)</h4>
-    ${topSym.map(s=>`<div class="kv"><span>${esc(s.n)}</span><b>${r1(s.v)}</b></div>`).join('')}</div>`:''}
-  ${healthKitReportSection()}
-  ${medications.length?`<div class="card"><h4>Treatment timeline</h4>${medications.map(m=>`<div class="kv"><span>${esc(m.name)}</span><b>${esc(medicationDetail(m))}${m.started?' · started '+esc(fmtDay(m.started)):''}${m.ended?' · stopped '+esc(fmtDay(m.ended)):''}${medicationStatus(m)==='archived'?' · archived':''}${m.stopReason?' · '+esc(m.stopReason):''}${m.due&&medicationStatus(m)==='active'?' · '+esc(m.due):''}</b></div>${medicationHistoryMarkup(m)}`).join('')}</div>`:''}
-  ${treatmentFollowUpReport(days)}
-  ${savedBrief().concerns.length?`<div class="card"><h4>My appointment brief</h4>${briefSummaryMarkup(savedBrief())}</div>`:''}
-  ${appointmentReportSection()}
-  ${labs.length?`<div class="card"><h4>Recent lab results</h4>${labs.map(x=>`<div class="kv"><span>${esc(x.name)} · ${fmtDay(x.date)}</span><b>${esc(x.value+(x.unit?' '+x.unit:''))}</b></div>`).join('')}</div>`:''}
-  ${questionnaires.length?`<div class="card"><h4>Questionnaire scores</h4>
-    ${questionnaires.map(s=>`<div class="kv"><span>${s.type.toUpperCase()} · ${fmtDay(s.date)}</span><b>${s.score}${s.band?' — '+esc(s.band):''}</b></div>`).join('')}
-    <p class="xtiny">Note: several menopause symptoms — broken sleep, fatigue, poor concentration, low libido — also score points on depression scales, which can inflate totals.</p></div>`:''}
-  ${bleeds.length?`<div class="card"><h4>Bleeding logged</h4>
-    ${bleeds.slice(-8).reverse().map(x=>`<div class="kv"><span>${fmtDay(x)}</span><b>${esc(confirmedRecord(x).bleed)}</b></div>`).join('')}</div>`:''}
-  ${notesDigest()}
-  </div>
-  <div class="btn-row split">
-    <button class="btn primary" data-act="print">Print / save as PDF</button>
-    <button class="btn ghost" data-act="sheet" data-s="learn:clinician">Question list</button>
-  </div>
-  <p class="xtiny">Self-reported data from a consumer tracking app. Not a clinical record. The burden score is an unvalidated 0–44 sum of 11 self-rated symptoms on the 0–4 structure used by the Menopause Rating Scale; it has no established cut-off and is included only to show change over time.</p>`};
-}
-function notesDigest(){
-  const ns = entryDates().filter(d=>{const e=confirmedRecord(d);return e&&e.notes;}).slice(-6).reverse();
-  if(!ns.length) return '';
-  return `<div class="card"><h4>Recent notes</h4>${ns.map(d=>`<p class="tiny"><b>${fmtDay(d)}:</b> ${esc(confirmedRecord(d).notes)}</p>`).join('')}</div>`;
-}
-
-/* ============================================================
-   TOOLS
-   ============================================================ */
-function proteinTarget(){
-  const wt = latestWeight();
-  if(wt==null) return null;
-  const g = Math.round(wt * (+DB.profile.proteinGpk||1.2));
-  return {grams:g, perMeal:Math.round(g/3), kg:wt};
-}
-function latestWeight(){
-  const ds = entryDates().slice().reverse();
-  for(const d of ds){ const e=confirmedRecord(d); if(e&&e.wt!=null) return e.wt; }
-  return null;
-}
-
-const PHQ9 = ['Little interest or pleasure in doing things','Feeling down, depressed, or hopeless','Trouble falling or staying asleep, or sleeping too much','Feeling tired or having little energy','Poor appetite or overeating','Feeling bad about yourself, or that you are a failure, or have let yourself or your family down','Trouble concentrating on things, such as reading the newspaper or watching television','Moving or speaking so slowly that other people could have noticed, or the opposite — being fidgety or restless','Thoughts that you would be better off dead, or of hurting yourself in some way'];
-const GAD7 = ['Feeling nervous, anxious or on edge','Not being able to stop or control worrying','Worrying too much about different things','Trouble relaxing','Being so restless that it is hard to sit still','Becoming easily annoyed or irritable','Feeling afraid as if something awful might happen'];
-const FREQ = ['Not at all','Several days','More than half the days','Nearly every day'];
-const qDrafts = {phq9:{}, gad7:{}};
-
-function toolSheet(t){
-  switch(t){
-    case 'protein': return {title:'Protein calculator', body:proteinTool()};
-    case 'phq9':    return {title:'PHQ-9 mood check', body:questionTool('phq9')};
-    case 'gad7':    return {title:'GAD-7 anxiety check', body:questionTool('gad7')};
-    case 'sleepwin':return {title:'Sleep window calculator', body:sleepWinTool()};
-    case 'breath':  return {title:'Paced breathing', body:breathTool()};
-    case 'pmr':     return {title:'Progressive muscle relaxation', body:pmrTool()};
-    case 'trigger': return {title:'28-day trigger test', body:triggerTool()};
-    case 'waist':   return {title:'Waist reference', body:waistTool()};
-  }
-  return {title:'', body:''};
-}
-
-function proteinTool(){
-  const pt = proteinTarget();
-  const gpk = +DB.profile.proteinGpk||1.2;
-  return `<p class="tiny">The RDA of 0.8 g/kg is a floor for avoiding deficiency, not a target for keeping muscle. Guidelines for healthy older adults use 1.0–1.2 g/kg; the training and body-composition literature uses 1.2–1.6; during intentional weight loss, 1.2–1.5.</p>
-  <div class="field"><label class="fl" for="ptw">Your weight (${U.wLabel()})</label>
-    <input id="ptw" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" value="${pt?r1(U.wOut(pt.kg)):''}" data-act="prot-calc"></div>
-  <div class="field"><label class="fl" for="ptg">Target</label>
-    <select id="ptg" data-act="prot-calc">
-      ${[1.0,1.2,1.4,1.6].map(v=>`<option value="${v}"${gpk===v?' selected':''}>${v.toFixed(1)} g/kg</option>`).join('')}
-    </select></div>
-  <div id="prot-out" aria-live="polite">${proteinOut(pt?pt.kg:null, gpk)}</div>
-  <div class="callout info"><span class="ctitle">The per-meal threshold</span>
-  After about 60 the muscle-building response is blunted — reaching it takes roughly <b>30 g of protein and 2.8 g of leucine in one sitting</b>, where a younger woman responds to any amount. Spreading intake evenly (30/30/30) produced more 24-hour muscle protein synthesis than skewing it (10/20/60). During weight loss, even distribution meant 26% versus 34% of loss coming from lean tissue.</div>
-  <h4>Roughly 30 g of protein looks like</h4>
-  <div class="tw"><table><tbody>
-  <tr><td>Chicken or turkey breast</td><td>100–110 g cooked</td></tr>
-  <tr><td>Salmon or tuna</td><td>130 g cooked</td></tr>
-  <tr><td>Greek yogurt (plain, 0–2%)</td><td>280–300 g</td></tr>
-  <tr><td>Cottage cheese</td><td>250 g</td></tr>
-  <tr><td>Eggs</td><td>4–5 large</td></tr>
-  <tr><td>Firm tofu</td><td>200 g</td></tr>
-  <tr><td>Cooked lentils</td><td>330 g (about 1.7 cups)</td></tr>
-  <tr><td>Whey or soy protein powder</td><td>1 scoop (~30 g powder)</td></tr>
-  </tbody></table></div>
-  <p class="xtiny">Breakfast is nearly always the meal that falls short. For BMI 30+, guidelines generally apply g/kg to an adjusted rather than actual body weight — we are not publishing a formula for that because we could not verify a menopause-specific one. Ask a dietitian. Anyone with kidney disease should get a target from their clinician, not an app.</p>`;
-}
-function proteinOut(kg, gpk){
-  if(kg==null || !Number.isFinite(kg) || kg<=0 || !Number.isFinite(gpk)) return '<p class="tiny muted">Enter a valid weight to see your numbers.</p>';
-  const g = Math.round(kg*gpk);
-  return `<div class="tiles" style="margin-bottom:12px">
-    <div class="tile"><div class="k">Per day</div><div class="v">${g}<small> g</small></div></div>
-    <div class="tile"><div class="k">Per meal ×3</div><div class="v">${Math.round(g/3)}<small> g</small></div></div>
-    <div class="tile"><div class="k">Leucine aim</div><div class="v">~7.5<small> g</small></div><div class="d">per day</div></div>
-  </div>`;
-}
-
-function questionTool(kind){
-  const items = kind==='phq9'?PHQ9:GAD7;
-  const answers=qDrafts[kind];
-  const done = items.every((_,i)=>answers[i]!=null);
-  const score = done? items.reduce((total,_,i)=>total+answers[i],0) : null;
-  let band='', note='';
-  if(done){
-    if(kind==='phq9'){
-      band = score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe';
-    } else {
-      band = score<5?'minimal':score<10?'mild':score<15?'moderate':'severe';
-    }
-  }
-  const risk = kind==='phq9' && answers[8]>0;
-  const past = DB.scores.filter(s=>s.type===kind).slice(-6);
-  return `<p class="tiny">Over the <b>last two weeks</b>, how often have you been bothered by the following?</p>
-  <div class="callout warn"><span class="ctitle">Read the score carefully</span>
-  Several menopause symptoms — broken sleep, fatigue, poor concentration, low libido — <b>also score points on this questionnaire</b>. The perimenopausal depression guideline says so explicitly. A raised total is a reason to talk to someone, not a diagnosis.</div>
-  ${items.map((q,i)=>`<div style="margin-bottom:15px"><p class="fl" id="q-${kind}-${i}">${i+1}. ${esc(q)}</p>
-    <div class="scale" role="group" aria-labelledby="q-${kind}-${i}">${FREQ.map((f,v)=>h('button',{'data-act':'q-a','data-k':kind,'data-i':i,'data-v':v,'aria-pressed':answers[i]===v?'true':'false','aria-label':(i+1)+'. '+q+': '+f}, v)).join('')}</div>
-    <div class="scale-legend" aria-hidden="true"><span>Not at all</span><span>Nearly every day</span></div></div>`).join('')}
-  ${done?`<div class="callout ${score>=15?'alert':score>=10?'warn':'ok'}"><span class="ctitle">Score: ${score} of ${items.length*3} — ${band}</span>
-    ${kind==='phq9'
-      ? 'For context: elevated depressive symptoms are found in 45–68% of perimenopausal women versus 28–31% before. Women are 2–4× more likely to have a major depressive episode during the transition and early postmenopause. Prior depression is the strongest predictor.'
-      : 'GAD-7 is the standard anxiety measure. The bands shown are its usual published ones, but we could not find validation specific to menopausal women — so read your trend over time rather than the label.'}
-    ${score>=10?'<p style="margin:8px 0 0"><b>A score in this range warrants a conversation with a clinician.</b> Take these numbers with you.</p>':''}</div>`:''}
-  ${risk?`<div class="callout alert" role="alert"><span class="ctitle">Please reach out today</span>
-    You answered yes to thoughts of being better off dead or of hurting yourself. If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer"><b>988</b></a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer"><b>116 123</b></a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>. You do not have to explain yourself perfectly.</div>`:''}
-  <div class="btn-row split">
-    <button class="btn ghost" data-act="q-reset" data-k="${kind}">Clear</button>
-    <button class="btn primary" data-act="q-save" data-k="${kind}" ${done?'':'disabled style="opacity:.5"'}>Save ${done?'score of '+score:'score'}</button>
-  </div>
-  ${past.length?`<div class="section-label">Your history</div>
-    ${past.slice().reverse().map(s=>`<div class="kv"><span>${fmtDay(s.date)}</span><b>${s.score}${s.band?' · '+esc(s.band):''}</b></div>`).join('')}`:''}`;
-}
-
-function sleepWinTool(){
-  const ds = rangeDates(14);
-  const sleeps = ds.map(d=>{const e=confirmedRecord(d);return e&&e.sleepH!=null?e.sleepH:null;}).filter(v=>v!=null);
-  const beds = ds.map(d=>{const e=confirmedRecord(d);return e&&e.inBedH!=null?e.inBedH:null;}).filter(v=>v!=null);
-  const paired=ds.map(confirmedRecord).filter(e=>
-    e && e.sleepH!=null && e.inBedH!=null && e.inBedH>0 && e.sleepH<=e.inBedH
-  );
-  const aSleep = avg(sleeps), aBed = avg(beds);
-  const eff = paired.length ? avg(paired.map(e=>e.sleepH/e.inBedH*100)) : null;
-  const win = aSleep!=null&&aSleep>0 ? Math.max(5, Math.round(aSleep*4)/4) : null;
-  return `<div class="callout info"><span class="ctitle">Why this is the effective part</span>
-  In 150 postmenopausal women with chronic insomnia: sleep hygiene education alone produced <b>4%</b> remission. CBT-I produced <b>54%</b> at the end of treatment and <b>68% at six months</b>, with 40–43 more minutes of sleep a night. Sleep restriction is the engine.</div>
-  ${sleeps.length<5||win==null
-    ? (sleeps.length>=5&&aSleep===0
-        ? '<div class="callout alert"><span class="ctitle">Zero sleep is not a basis for sleep restriction</span>You recorded no sleep across these nights. Do not shorten your time in bed from this calculator; contact a clinician promptly for help and check that the entries are accurate.</div>'
-        : '<div class="callout warn"><span class="ctitle">Log a few more nights first</span>You have '+sleeps.length+' night'+(sleeps.length===1?'':'s')+' of sleep data in the last two weeks. This needs about a week of honest logging — hours in bed and hours actually asleep — before it gives you a sensible window.</div>')
-    : `<div class="tiles" style="margin-bottom:14px">
-        <div class="tile"><div class="k">Actual sleep</div><div class="v">${r1(aSleep)}<small> h</small></div><div class="d">14-day average</div></div>
-        ${aBed!=null?`<div class="tile"><div class="k">Time in bed</div><div class="v">${r1(aBed)}<small> h</small></div></div>`:''}
-        ${eff!=null?`<div class="tile"><div class="k">Efficiency</div><div class="v">${Math.round(eff)}<small>%</small></div><div class="d">${eff>=85?'extend the window':'hold the window'}</div></div>`:''}
-      </div>
-      <div class="card">
-        <h4>Your starting window: ${r1(win)} hours</h4>
-        <div class="field"><label class="fl" for="swk">Wake time you will keep every single day</label>
-          <input id="swk" type="time" value="06:30" data-act="sw-calc" style="width:auto"></div>
-        <div id="sw-out" aria-live="polite">${swOut('06:30', win)}</div>
-      </div>`}
-  <h4>The rules while you do this</h4>
-  <ul class="tick">
-    <li><b>Fixed wake time</b>, seven days a week, regardless of how the night went. This is the anchor.</li>
-    <li>Do not go to bed before your window opens, even if you are exhausted.</li>
-    <li>If you are awake and frustrated, <b>get out of bed</b>. Somewhere dim and dull. Return when sleepy — not when it feels like you should be.</li>
-    <li><b>No clock-watching.</b> Turn it away.</li>
-    <li>Bed for sleep and sex only.</li>
-    <li>Once efficiency passes about <b>85–90%</b>, extend the window by 15–30 minutes.</li>
-    <li>Expect to feel <b>worse in week one or two</b>. That is the mechanism, not failure.</li>
-  </ul>
-  <div class="callout alert"><span class="ctitle">Do not do this unsupervised if you have</span>
-  Bipolar disorder · a seizure disorder · untreated sleep apnea. Sleep deprivation is a trigger in all three — work with a clinician instead. And if you snore, wake unrefreshed, get morning headaches, or CBT-I does not work, ask to be tested for sleep apnea: it affects <b>20% of midlife women</b> and is routinely missed.</div>
-  <p class="xtiny">This calculator implements the sleep-restriction component of CBT-I. It is not therapy, and clinician- or programme-delivered CBT-I is better. Telephone-delivered CBT-I worked well in peri- and postmenopausal women, so ask about remote options.</p>`;
-}
-function swOut(wake, win){
-  if(win==null || win<=0) return '';
-  const [hh,mm] = wake.split(':').map(Number);
-  let t = hh*60+mm - Math.round(win*60);
-  while(t<0) t+=1440;
-  const bh = String(Math.floor(t/60)).padStart(2,'0'), bm = String(t%60).padStart(2,'0');
-  return `<div class="callout ok" style="margin-bottom:0"><span class="ctitle">Earliest bedtime: ${bh}:${bm}</span>
-  Do not get into bed before this, and get up at ${wake} every day. When you are sleeping through most of that window, move the bedtime 15–30 minutes earlier.</div>`;
-}
-
-function breathTool(){
-  return `<div class="callout alert"><span class="ctitle">What this is and is not for</span>
-  <p>Slow-paced breathing has meta-analytic support for <b>stress (g = −0.35), anxiety (−0.32) and low mood (−0.40)</b> — small-to-medium effects. Ten of twelve trials used <i>slow</i> pacing and worked; the two using fast pacing did not.</p>
-  <p style="margin-bottom:0"><b>It is rated Level I NOT recommended for hot flashes.</b> Larger trials found paced respiration no better than shallow breathing or usual care. Use it for anxiety, where it earns its place. Do not let anyone tell you it stops flashes.</p></div>
-  <div class="card center">
-    <div id="breath-ring" style="width:170px;height:170px;margin:8px auto 14px;border-radius:50%;border:3px solid var(--accent);display:grid;place-items:center;transition:transform 4s ease-in-out;background:var(--accent-soft)">
-      <div><div id="breath-word" aria-live="polite" style="font-size:1.15rem;font-weight:700">Ready</div>
-      <div id="breath-count" class="tiny muted">6 breaths per minute</div></div>
-    </div>
-    <div class="btn-row split"><button class="btn primary" data-act="breath-start">Start</button>
-      <button class="btn ghost" data-act="breath-stop">Stop</button></div>
-    <p class="xtiny" style="margin-top:10px">About five seconds in, five out — roughly six breaths a minute. The mechanistic study used six seconds each way; anywhere in that range is the point. Through the nose if comfortable. Two to five minutes is plenty.</p>
-  </div>
-  <p class="tiny">The authors of the meta-analysis explicitly warned against "miscalibration between hype and evidence" — this is a useful, cheap, low-risk tool with a modest effect, not a cure for anything.</p>`;
-}
-
-const PMR_STEPS = [
-  ['Settle','Sit or lie somewhere you will not be interrupted. Let your breathing slow. Nothing to achieve here.'],
-  ['Hands and forearms','Clench both fists. Hold — feel the tension. Now release completely, and notice the difference for a few breaths.'],
-  ['Upper arms','Bend your elbows and tense your biceps. Hold. Release, and let your arms be heavy.'],
-  ['Shoulders','Lift your shoulders towards your ears. Hold. Drop them, and let them keep dropping.'],
-  ['Face','Scrunch your whole face — brow, eyes, jaw. Hold. Release, and let your jaw hang slightly open.'],
-  ['Neck','Press your head gently back against the surface behind you. Hold. Release.'],
-  ['Chest and back','Take a breath in and hold it, tensing your chest. Release with a long exhale.'],
-  ['Stomach','Tighten your abdominal muscles. Hold. Release, and let your belly soften completely.'],
-  ['Thighs','Press your legs together and tense your thighs. Hold. Release.'],
-  ['Calves','Point your toes towards your face to tense your calves. Hold. Release.'],
-  ['Feet','Curl your toes downwards. Hold. Release.'],
-  ['Whole body','Scan from your feet upwards. Anywhere still holding on, invite it to let go. Stay here as long as you like.']
-];
-function pmrTool(){
-  return `<p class="tiny">Systematic review of 46 publications across 16 countries and over 3,400 adults: supportive results for stress (24 studies), anxiety (21) and low mood (11), effect sizes small to very large. Sessions of <b>5–28 minutes</b> worked, and <b>length did not significantly affect outcomes</b> — so a short one counts.</p>
-  <div class="card">
-    <div id="pmr-progress" class="progress" role="progressbar" aria-label="Relaxation progress" aria-valuemin="0" aria-valuemax="${PMR_STEPS.length}" aria-valuenow="0"><i id="pmr-bar" style="width:0%"></i></div>
-    <div aria-live="polite" aria-atomic="true"><h3 id="pmr-title" style="margin:12px 0 4px">Ready when you are</h3>
-    <p id="pmr-text" class="tiny">Tense each muscle group for about 5 seconds, then release for about 15 and pay attention to the contrast. That contrast is the active ingredient.</p></div>
-    <div class="btn-row split"><button class="btn primary" data-act="pmr-start">Start</button>
-      <button class="btn ghost" data-act="pmr-stop">Stop</button></div>
-  </div>
-  <p class="xtiny">If you have an injury or pain anywhere, skip that group or tense only very gently. Effects improve when combined with music, mindfulness or slow breathing.</p>`;
-}
-
-function refreshTriggerStatus(){
-  const t=DB.trigger;
-  if(!t || !t.active) return;
-  if(!pastOrTodayISO(t.start)){
-    t.active=false; t.status='stopped'; t.ended=todayISO();
-    save();
-    return;
-  }
-  if(daysBetween(t.start,todayISO())>=28){
-    t.active=false; t.status='completed'; t.ended=addDays(t.start,27);
-    save();
-  }
-}
-function triggerTool(){
-  refreshTriggerStatus();
-  const t = DB.trigger;
-  if(t && t.active){
-    const day = Math.max(1,daysBetween(t.start, todayISO())+1);
-    const phase = day<=14 ? 'removal' : 'reintroduction';
-    const dayIn = day<=14 ? day : day-14;
-    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
-    return `<div class="callout ok"><span class="ctitle">Test running: ${esc(t.item)}</span>
-    Day ${day} — <b>${phase} phase</b>, day ${dayIn} of 14. Keep logging as normal; the comparison happens automatically.</div>
-    <div class="progress" role="progressbar" aria-label="Trigger test progress" aria-valuemin="0" aria-valuemax="28" aria-valuenow="${Math.min(28,day)}"><i style="width:${Math.min(100, Math.round(day/28*100))}%"></i></div>
-    ${triggerPhaseTiles(before,remove,reintro)}
-    ${day>=15?triggerComparison(remove,reintro,false):`<div class="callout info"><span class="ctitle">Reintroduction starts on day 15</span>
-      A change during removal is only a clue. Bringing ${esc(t.item)} back for the second two weeks tests whether the pattern reverses.</div>`}
-    <button class="btn block ghost" data-act="trig-stop">End this test</button>
-    <p class="xtiny">Honest caveat: this is a single-person, unblinded experiment with no control for everything else changing in your life. It is the fairest version available to you, which is not the same as proof.</p>`;
-  }
-  if(t){
-    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
-    const complete=t.status==='completed';
-    return `<div class="callout ${complete?'ok':'warn'}"><span class="ctitle">${complete?'Test complete':'Test ended early'}: ${esc(t.item)}</span>
-      ${complete?'You completed both 14-day phases.':'The available numbers are shown, but an incomplete phase is much harder to interpret.'}</div>
-      ${triggerPhaseTiles(before,remove,reintro)}
-      ${triggerComparison(remove,reintro,complete)}
-      <button class="btn block primary" data-act="trig-reset">Start another test</button>
-      <p class="xtiny">These are personal observations, not proof of cause. Illness, weather, stress, treatment changes and ordinary symptom variation can all move the numbers.</p>`;
-  }
-  return `<div class="callout warn"><span class="ctitle">Start here: trigger-avoidance is not a proven treatment</span>
-  The Menopause Society states plainly that <b>there are no clinical trials assessing whether avoiding triggers relieves vasomotor symptoms</b>, and rates it not recommended. The most-quoted caffeine study was cross-sectional, and its own authors said they could not advise patients without further research.</div>
-  <p class="tiny">So why offer this? Because individual responses vary, and a structured two-week removal followed by reintroduction is far more informative than the usual approach of vaguely avoiding six things at once and never knowing which mattered.</p>
-  <div class="field"><label class="fl" for="trig">What do you want to test?</label>
-    <select id="trig">${['Alcohol','Caffeine','Spicy food','Sugar','Late meals','Hot drinks','Something else'].map(v=>`<option>${v}</option>`).join('')}</select></div>
-  <button class="btn block primary" data-act="trig-start">Start the 28-day test</button>
-  <h4 style="margin-top:18px">How it works</h4>
-  <ul class="tick">
-    <li><b>Days 1–14:</b> remove it completely. Change nothing else. Keep logging.</li>
-    <li><b>Days 15–28:</b> bring it back at your usual amount. Keep logging.</li>
-    <li>The app compares your hot flash counts and sleep across the phases.</li>
-    <li>A difference under about one flash a day is noise. Be willing to conclude nothing happened — that is a genuinely useful answer.</li>
-  </ul>
-  <p class="xtiny">One separate note: if alcohol is the thing you are testing, cutting it back is worth doing regardless of what this shows. The evidence for that sits with breast cancer risk and sleep quality, not hot flashes.</p>`;
-}
-function triggerStats(t, which){
-  const offsets=which==='base' ? [-14,-1] : which==='remove' ? [0,13] : [14,27];
-  const ds=[];
-  for(let i=offsets[0];i<=offsets[1];i++){
-    const d=addDays(t.start,i);
-    if(d<=todayISO()) ds.push(d);
-  }
-  const hf=ds.map(d=>{const e=confirmedRecord(d);return e&&e.hf;}).filter(v=>v!=null);
-  const sleep=ds.map(d=>{const e=confirmedRecord(d);return e&&e.sleepH;}).filter(v=>v!=null);
-  return {hf:avg(hf), sleep:avg(sleep), hfN:hf.length, sleepN:sleep.length};
-}
-function triggerPhaseTiles(before,remove,reintro){
-  const tile=(label,s)=>`<div class="tile"><div class="k">${label}</div>
-    <div class="v">${s.hf!=null?r1(s.hf):'–'}<small> flashes</small></div>
-    <div class="d">${s.sleep!=null?r1(s.sleep)+' h sleep':'sleep not logged'} · ${s.hfN} day${s.hfN===1?'':'s'}</div></div>`;
-  return `<div class="tiles" style="margin:14px 0">${tile('Before',before)}${tile('Removal',remove)}${tile('Reintroduction',reintro)}</div>`;
-}
-function triggerComparison(remove,reintro,complete){
-  if(remove.hf==null || reintro.hf==null){
-    return `<div class="callout warn"><span class="ctitle">Not enough paired phase data yet</span>
-      Log hot-flash counts during both removal and reintroduction. Sleep averages appear when hours asleep are logged.</div>`;
-  }
-  const delta=reintro.hf-remove.hf;
-  const small=Math.abs(delta)<0.8;
-  const title=small?'No clear hot-flash difference'
-    : delta>0?'Hot flashes were lower during removal':'Hot flashes were higher during removal';
-  const sleepNote=remove.sleep!=null&&reintro.sleep!=null
-    ? ' Average sleep was '+r1(remove.sleep)+' hours during removal and '+r1(reintro.sleep)+' after reintroduction.'
-    : '';
-  return `<div class="callout info"><span class="ctitle">${complete?'Final result':'Result so far'}: ${title}</span>
-    Removal averaged ${r1(remove.hf)} flashes/day; reintroduction averaged ${r1(reintro.hf)}.${sleepNote}
-    ${small?'A difference under about one flash a day is best treated as ordinary noise.':'A reversal after reintroduction is more suggestive than removal alone, but this still cannot establish cause.'}</div>`;
-}
-function triggerBanner(){
-  refreshTriggerStatus();
-  const t=DB.trigger;
-  if(!t || !t.active){ return ''; }
-  const day=daysBetween(t.start,todayISO())+1;
-  if(day<1 || day>28){ return ''; }
-  return `<div class="callout info"><span class="ctitle">Trigger test day ${day}: ${esc(t.item)}</span>
-  ${day<=14?'Removal phase — keep it out and keep logging.':'Reintroduction phase — back to your usual amount.'}
-  <div style="margin-top:8px"><button class="btn sm ghost" data-act="sheet" data-s="tool:trigger">View results</button></div></div>`;
-}
-
-function waistTool(){
-  const wa = entryDates().slice().reverse().map(d=>{const e=confirmedRecord(d);return e&&e.waist;}).find(v=>v!=null);
-  return `<p class="tiny">The International Atherosclerosis Society consensus argues waist should be treated as a <b>vital sign</b>. Modelled together with BMI, waist stays predictive of mortality while BMI becomes unrelated or even inversely related. A 10% larger waist meant 1.48× higher mortality after BMI adjustment; in coronary artery disease, 2.05×.</p>
-  ${wa!=null?`<div class="tiles" style="margin-bottom:14px"><div class="tile"><div class="k">Your latest</div><div class="v">${r1(U.lOut(wa))}<small> ${U.lLabel()}</small></div>
-    <div class="d">${wa>=105?'class I threshold':wa>=90?'above 90 cm':wa>=80?'above 80 cm':'below 80 cm'}</div></div></div>`:''}
-  <h4>Thresholds for women</h4>
-  <div class="tw"><table><tbody>
-  <tr><td>At normal weight</td><td><b>80 cm / 31.5 in</b></td></tr>
-  <tr><td>At overweight</td><td><b>90 cm / 35.4 in</b></td></tr>
-  <tr><td>Class I obesity</td><td>105 cm / 41.3 in</td></tr>
-  </tbody></table></div>
-  <p class="xtiny">Ethnicity-specific single cut-points for women include 80 cm for Chinese and Asian Indian women, 85 cm for Korean and Tunisian women, 90 cm for Japanese women.</p>
-  <h4>How to measure it the same way every time</h4>
-  <ul class="tick">
-    <li>Top of the hip bone, <b>or</b> midway between lowest rib and hip bone. These differ by about 2 cm in women — <b>pick one and never change</b>.</li>
-    <li>Bare skin, standing relaxed, tape snug but not compressing.</li>
-    <li>At the end of a normal exhale. Do not suck in.</li>
-    <li>Same time of day, ideally morning before eating.</li>
-  </ul>
-  <div class="callout ok"><span class="ctitle">The encouraging part</span>
-  Diet and exercise reduce waist <b>with or without weight loss</b> — one large trial found about 5 cm of reduction versus control. Aerobic work moved it most (−2.30 cm across 101 trials in postmenopausal women).</div>
-  <p class="xtiny">Self-measurement correlates well with clinical measurement (r = 0.8–0.9) but typically underestimates by 1–3 cm. Irrelevant when you are tracking your own change.</p>`;
-}
-
-/* ---------- animated tool hooks ---------- */
-let breathTimer=null, pmrTimer=null;
-function runSheetHooks(id){
-  if(id==='appointment-brief') document.querySelectorAll('.mc-question-card textarea').forEach(input=>{
-    const fit=()=>{input.style.height='auto';input.style.height=(input.scrollHeight+2)+'px';};
-    fit(); input.addEventListener('input',fit);
-  });
-  if(id!=='tool:breath' && breathTimer){ clearInterval(breathTimer); breathTimer=null; }
-  if(id!=='tool:pmr' && pmrTimer){ clearInterval(pmrTimer); pmrTimer=null; }
-}
-function breathStart(){
-  const ring=document.getElementById('breath-ring'), word=document.getElementById('breath-word'), cnt=document.getElementById('breath-count');
-  if(!ring) return;
-  if(breathTimer) clearInterval(breathTimer);
-  let phase=0, n=0;
-  const tick=()=>{
-    if(phase%2===0){ ring.style.transitionDuration='5s'; ring.style.transform='scale(1.22)'; word.textContent='Breathe in'; }
-    else { ring.style.transitionDuration='5s'; ring.style.transform='scale(0.86)'; word.textContent='Breathe out'; n++; cnt.textContent=n+' breath'+(n===1?'':'s'); }
-    phase++;
-  };
-  tick(); breathTimer=setInterval(tick,5000);
-}
-function breathStop(){
-  if(breathTimer) clearInterval(breathTimer); breathTimer=null;
-  const ring=document.getElementById('breath-ring'), word=document.getElementById('breath-word');
-  if(ring){ ring.style.transform='scale(1)'; word.textContent='Stopped'; }
-}
-function pmrStart(){
-  if(pmrTimer) clearInterval(pmrTimer);
-  let i=0;
-  const show=()=>{
-    const t=document.getElementById('pmr-title'), x=document.getElementById('pmr-text'), b=document.getElementById('pmr-bar'), p=document.getElementById('pmr-progress');
-    if(!t){ clearInterval(pmrTimer); return; }
-    if(i>=PMR_STEPS.length){ t.textContent='Done'; x.textContent='Notice how your body feels now compared with when you started. That comparison is worth a moment.'; b.style.width='100%'; b.classList.add('ok'); if(p) p.setAttribute('aria-valuenow',PMR_STEPS.length); clearInterval(pmrTimer); pmrTimer=null; return; }
-    t.textContent=PMR_STEPS[i][0]; x.textContent=PMR_STEPS[i][1];
-    b.style.width=Math.round((i+1)/PMR_STEPS.length*100)+'%';
-    if(p) p.setAttribute('aria-valuenow',i+1);
-    i++;
-  };
-  show(); pmrTimer=setInterval(show, 45000);
-}
-function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null;
-  const t=document.getElementById('pmr-title'); if(t) t.textContent='Stopped'; }
-
-/* ============================================================
-   ONBOARDING
-   ============================================================ */
-let onboardingMore=false, onboardingViewedStep=null, onboardingViewedAt=0;
-function onboardingDraft(){
-  // The web keeps its four-step flow even when restoring a native v3 record.
-  // Adapt only the displayed draft; loading must not rewrite native progress.
-  const draft=PeriOnboarding.normalizeDraft(PeriOnboarding.draftFromProfile(DB.profile));
-  if(DB.profile.onboardingVersion===3){
-    draft.step=!draft.symptoms.length?0:!draft.intent?2:3;
-  }
-  return draft;
-}
-function leaveOnboardingStep(){
-  if(onboardingViewedStep===null) return;
-  postNativeEvent('onboarding-step-left',{step:onboardingViewedStep,durationMs:Math.min(3600000,Date.now()-onboardingViewedAt)});
-  onboardingViewedStep=null;
-}
-function observeOnboardingStep(step){
-  if(onboardingViewedStep===step || document.visibilityState==='hidden') return;
-  leaveOnboardingStep(); onboardingViewedStep=step; onboardingViewedAt=Date.now();
-  postNativeEvent('onboarding-step',{step});
-}
-function updateOnboarding(patch,focus){
-  const draft=PeriOnboarding.normalizeDraft({...onboardingDraft(),...patch});
-  Object.assign(DB.profile,PeriOnboarding.profilePatch(draft));
-  save(true); render(true);
-  if(focus) document.querySelector(focus)?.focus({preventScroll:true});
-}
-function finishOnboarding(skipped=false){
-  const first=entryDates().length===0;
-  Object.assign(DB.profile,PeriOnboarding.profilePatch(onboardingDraft(),true,skipped));
-  DB.profile.firstCheckinPending=first;
-  leaveOnboardingStep();
-  curDate=todayISO(); checkinComplete=false; checkinStep=0; returnTab='today';
-  setRoute(first?'checkin':'today',true); save(true); render();
-  postNativeEvent('onboarding-finished',{skipped});
-}
-function viewOnboard(){
-  const draft=onboardingDraft(), step=draft.step, pins=draft.symptoms, goal=PeriOnboarding.goalFor(draft.intent);
-  const labels=PeriOnboarding.labelsFor(pins);
-  const titles=['Let’s make room for you.','What’s been bothering you most?','What would help you most?','Your check-in, made for you.'];
-  const subtitles=['A few small choices. A check-in that feels like yours.','Start with 1–3 concerns. You can follow up to six and change them later.','There’s no right answer. Start with what matters to you today.','A small starting point, shaped by what matters to you.'];
-  const selected=(key,label,action,active,radio=false)=>`<button class="ob-choice" data-act="${action}" data-v="${esc(key)}"${radio?` role="radio" aria-checked="${active}" tabindex="${active||!draft.intent&&key===PeriOnboarding.goals[0].key?'0':'-1'}"`:` aria-pressed="${active}"`}><span>${esc(label)}</span><span class="ob-choice-check" aria-hidden="true">${active?PULSE_IC.check:''}</span></button>`;
-  let body='';
-  if(step===0) body=`<div class="ob-preview ob-welcome-preview"><span class="ob-eyebrow">A LITTLE SPACE, JUST FOR YOU</span><h2>Notice how you feel.<br><em>One day at a time.</em></h2><p>Choose what to follow. Build a record you can return to, or bring to an appointment.</p></div><p class="ob-trust">${PULSE_IC.check}<span>Your health entries stay on this device.<br>No account to create.</span></p><details class="jc-disclosure"><summary>Privacy, evidence, and medical limits</summary><div><p>Your health entries stay on this device. peri provides education, not diagnosis or treatment, and does not replace a clinician who knows your history.</p><p>Content reviewed July 2026.</p></div></details>`;
-  if(step===1){
-    const common=PeriOnboarding.symptoms.slice(0,6), more=PeriOnboarding.symptoms.slice(6);
-    body=`<div class="ob-choice-grid" role="group" aria-label="Concerns to follow">${common.map(item=>selected(item.key,item.label,'ob-symptom',pins.includes(item.key))).join('')}</div><button class="jc-inline-action ob-more" data-act="ob-more" aria-expanded="${onboardingMore}" aria-controls="ob-more-concerns">${onboardingMore?'Show fewer concerns':'See all concerns'}</button><div id="ob-more-concerns" class="ob-choice-grid"${onboardingMore?'':' hidden'}>${more.map(item=>selected(item.key,item.label,'ob-symptom',pins.includes(item.key))).join('')}</div><p class="ob-response" aria-live="polite">${labels.length?esc(labels.join(', '))+' — we’ll put these front and center.':'Choose what feels relevant to you.'}</p>`;
-  }
-  if(step===2) body=`<div class="ob-choice-list" role="radiogroup" aria-label="Your main goal">${PeriOnboarding.goals.map(item=>selected(item.key,item.label,'ob-intent',draft.intent===item.key,true)).join('')}</div><p class="ob-response" aria-live="polite">${draft.intent?esc(goal.reply):'Your choice will shape your starting point.'}</p>`;
-  if(step===3) body=`<section class="ob-preview" aria-label="Your starting focus"><span class="ob-eyebrow">YOUR STARTING FOCUS</span><ul>${labels.map(label=>`<li><span>${esc(label)}</span>${PULSE_IC.check}</li>`).join('')}</ul><p class="ob-small">Your selection, ready for your first check-in. Nothing has been rated or logged yet.</p></section><h2 class="ob-goal-title">${esc(goal.label)}</h2><p class="ob-goal-benefit">${esc(goal.benefit)}</p><p class="ob-small">Profile details and reminders can wait. Let’s start with how today feels.</p>`;
-  return `<div class="view jc-onboard ob-v2"><div class="jc-onboard-top"><div class="jc-wordmark"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span>peri</div><span>${step+1} / 4</span></div><div class="jc-onboard-progress" role="progressbar" aria-label="Setup progress" aria-valuemin="0" aria-valuemax="4" aria-valuenow="${step+1}"><i style="width:${(step+1)*25}%"></i></div><div class="ob-body">${step?`<button class="jc-back" data-act="ob-back">${IC.chev} Back</button>`:`<div class="ob-scene" aria-hidden="true"><span class="ob-ring"></span><span class="pip-petal" style="left:34px;top:120px"></span><span class="pip-petal g" style="right:42px;top:96px;transform:rotate(20deg)"></span><span class="pip-petal" style="right:30px;top:210px;transform:rotate(-60deg)"></span>${pip('guide',236)}<p class="pip-bubble">Hi, I’m Pip. I’ll keep the notes.</p></div>`}<div class="jc-page-head"><h1 tabindex="-1" id="ob-heading">${esc(titles[step])}</h1><p>${esc(subtitles[step])}</p></div>${body}</div><div class="ob-footer">${step===1?`<p class="ob-selection-count" aria-live="polite">${pins.length} selected</p>`:''}<button class="jc-primary" data-act="${step===3?'ob-done':'ob-next'}"${step===1&&!pins.length||step===2&&!draft.intent?' disabled':''}>${['Find my starting point','These matter to me','See my check-in','Start my first check-in'][step]}</button>${step<3?'<button class="jc-text-action" data-act="ob-starter">Use a starter check-in</button>':'<button class="jc-text-action" data-act="ob-skip">Explore first</button>'}</div></div>`;
-}
-/* ============================================================
-   TWILIGHT PRIMARY SCREENS
-   These are deliberately shaped to the supplied 384 x 772 reference.
-   ============================================================ */
-let notesOpen=false, medFormOpen=false, labFormOpen=false;
-let medDaysDraft=[0,1,2,3,4,5,6];
-const DAY_SHORT=['S','M','T','W','T','F','S'];
-const TWILIGHT_LEVELS=['None','Mild','Moderate','Severe'];
-function twilightTile(path,value,label,icon,levels){
-  const choices=levels||TWILIGHT_LEVELS;
-  const logged=value!=null&&Number.isFinite(Number(value));
-  const v=logged?Math.max(0,Math.min(3,Number(value))):null;
-  const current=logged?choices[v]:'Choose level';
-  return '<div class="tw-tile'+(logged?' logged':'')+(v>0?' sel':'')+'" role="group" aria-label="'+esc(label)+'">'
-    +'<div class="tw-tile-top">'+icon+'<span>'+esc(label)+'</span><b class="tw-level">'+esc(current)+'</b></div>'
-    +'<div class="tw-level-grid">'+choices.map((choice,i)=>'<button class="tw-level-choice" data-act="set" data-k="'+esc(path)+'" data-v="'+i+'" aria-label="'+esc(label)+': '+esc(choice)+'" aria-pressed="'+(v===i?'true':'false')+'"><i class="tw-dot f'+i+'" aria-hidden="true"></i><span>'+esc(choice)+'</span></button>').join('')+'</div></div>';
-}
+/* ---------- medications ---------- */
 function medicationDetail(m){
   const days=m.days||[0,1,2,3,4,5,6];
   const schedule=days.length===7?'daily':days.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(' & ');
   return (m.form||'medication')+' · '+schedule;
 }
-function medicationIcon(m){ return PULSE_IC.task; }
 function medicationStatus(m){
   return m&&['active','stopped','archived'].includes(m.status)?m.status:(m&&m.archivedAt?'archived':m&&m.ended?'stopped':'active');
 }
@@ -1671,9 +240,7 @@ function medicationActiveOn(m,date){
 function medicationDetailsOn(m,date){
   let details=m;
   const revisions=Array.isArray(m.revisions)?m.revisions:[];
-  for(let i=revisions.length-1;i>=0;i--){
-    if(revisions[i].date>date) details=revisions[i].before;
-  }
+  for(let i=revisions.length-1;i>=0;i--){ if(revisions[i].date>date) details=revisions[i].before; }
   return details;
 }
 function medicationCurrentStart(m){
@@ -1699,139 +266,21 @@ function scheduledMeds(date){
   const dow=parseISO(date).getDay();
   return (Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationActiveOn(m,date)&&(medicationDetailsOn(m,date).days||[0,1,2,3,4,5,6]).includes(dow));
 }
-function todayMedicationRows(onlyScheduled){
-  const all=(Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationActiveOn(m,curDate)), meds=onlyScheduled?scheduledMeds(curDate):all, day=DB.entries[curDate]||{}, adherence=day.med||{};
-  if(!all.length) return '<button class="tw-empty-med" data-act="tab" data-v="care">Add your treatments</button>';
-  if(!meds.length) return '<div class="tw-empty-med quiet">Nothing scheduled today.</div>';
-  return meds.map(m=>{const rec=adherence[m.id]||{}, details=medicationDetailsOn(m,curDate);return '<button class="tw-medrow" data-act="med-taken" data-id="'+esc(m.id)+'">'
-    +medicationIcon(m)
-    +'<span class="tw-grow"><b>'+esc(details.name)+'</b><small>'+esc(medicationDetail(details))+'</small></span>'
-    +'<span class="tw-due'+(rec.taken?' ok':'')+'">'+(rec.taken?'✓ '+esc(rec.at||'taken'):esc(details.due||'Due'))+'</span></button>';}).join('');
-}
-function viewTodayCompact(){
-  const e=DB.entries[curDate]||{sym:{},act:{},nut:{}}, sym=e.sym||{};
-  const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-  return `<div class="view tw-screen tw-today">
-    ${twilightHeader(selected,curDate===todayISO()?(e.prefilledFrom?'Yesterday was copied forward. Choose the level that fits today.':'Choose a level for each symptom. Tap None when it did not happen.'):'Editing '+fmtLong(curDate)+'. Choose the level that fit that day.')}
-    ${DB.profile.onboardingDeferred?`<button class="tw-setup-reminder" data-act="finish-setup">${TWILIGHT_IC.cycle}<span><b>Finish your setup</b><small>Add your basics and find where you are in the transition.</small></span><span class="chev">${IC.chev}</span></button>`:''}
-    <div class="tw-grid">
-      ${twilightTile('hf',e.hf,'Hot flashes',TWILIGHT_IC.flame,['None','1 flash','2 flashes','3+ flashes'])}
-      ${twilightTile('ns',e.ns,'Night sweats',TWILIGHT_IC.moon)}
-      ${twilightTile('sym.fog',sym.fog,'Brain fog',TWILIGHT_IC.cloud)}
-      ${twilightTile('sym.energy',sym.energy,'Fatigue',TWILIGHT_IC.bolt)}
-      ${twilightTile('sym.joint',sym.joint,'Joint pain',TWILIGHT_IC.heart)}
-      ${twilightTile('sym.anx',sym.anx,'Anxiety',TWILIGHT_IC.horizon)}
-    </div>
-    <section class="tw-meds"><div class="tw-label">Today's meds</div><div class="tw-medcard">${todayMedicationRows()}</div></section>
-    ${notesOpen?'<textarea class="tw-notes" maxlength="4000" data-act="num" data-k="notes" placeholder="Anything worth remembering…">'+esc(e.notes||'')+'</textarea>':''}
-    <button class="tw-quiet" data-act="notes-toggle">${notesOpen?'Done':'Add a note about today'}</button>
-  </div>`;
-}
-function adherenceDots(m){
-  return '<div class="wk" aria-label="Last seven scheduled doses">'+rangeDates(7).map(d=>{
-    if(!(m.days||[]).includes(parseISO(d).getDay())) return '<i></i>';
-    const rec=DB.entries[d]&&DB.entries[d].med&&DB.entries[d].med[m.id];
-    return '<i class="'+(rec&&rec.taken?'t':'s')+'"></i>';
-  }).join('')+'</div>';
-}
-function medicationForm(m){
-  return `<div class="tw-form-card" aria-label="${m?'Edit':'Add'} medication">
-    <h3>${m?'Edit medication':'Add a medication'}</h3><p class="jc-footnote">${m?'Changes apply from today. Your earlier details and schedules remain in your treatment history. Use Record change to add context and symptom follow-ups.':'Enter what you currently take. You can edit its details or record a treatment change later.'}</p><label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Medication name and prescribed dose" value="${esc(m&&m.name||'')}">
-    <div class="grid2"><div><label class="fl" for="med-form">Form</label><select id="med-form">${['patch','tablet','capsule','gel','spray','cream','injection','other'].map(form=>`<option${m&&m.form===form?' selected':''}>${form}</option>`).join('')}</select></div><div><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time" value="${esc(m&&m.due||'')}"></div></div>
-    <label class="fl">Scheduled days</label><div class="tw-day-picks">${DAY_SHORT.map((d,i)=>h('button',{class:'chip','data-act':'med-day','data-v':i,'aria-pressed':medDaysDraft.includes(i)?'true':'false','aria-label':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]},d)).join('')}</div>
-    ${m?'':`<div><label class="fl" for="med-started">Start date (optional)</label><input id="med-started" type="date" max="${todayISO()}" aria-describedby="med-started-help"><p id="med-started-help" class="jc-footnote">When you first started taking this medication. Leave blank if you’re not sure.</p></div><div><label class="fl" for="med-change-label">Starting details (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="For example: started this dose after my appointment"></div>${treatmentTargetField('med')}`}
-    <label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions" value="${esc(m&&m.notes||'')}">
-    <div class="btn-row split"><button class="btn primary" data-act="${m?'med-edit-save':'med-save'}"${m?` data-id="${esc(m.id)}"`:''}>Save medication</button><button class="btn ghost" data-act="med-cancel">Cancel</button></div>
-  </div>`;
-}
-function labForm(){
-  return `<div class="tw-form-card" aria-label="Add lab result"><div class="grid2"><div><label class="fl" for="lab-name">Test</label><input id="lab-name" type="text" maxlength="80" placeholder="Estradiol"></div><div><label class="fl" for="lab-date">Date</label><input id="lab-date" type="date" max="${todayISO()}" value="${todayISO()}"></div></div><div class="grid2"><div><label class="fl" for="lab-value">Result</label><input id="lab-value" type="text" maxlength="40" placeholder="312"></div><div><label class="fl" for="lab-unit">Unit</label><input id="lab-unit" type="text" maxlength="30" placeholder="pmol/L"></div></div><div class="btn-row split"><button class="btn primary" data-act="lab-save">Save result</button><button class="btn ghost" data-act="lab-cancel">Cancel</button></div></div>`;
-}
-function viewMeds(){
-  const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[];
-  return `<div class="view tw-screen tw-secondary">${twilightHeader('Medications','Schedules, daily doses and lab context in one place.')}
-    <div class="tw-med-list">${meds.length?meds.map(m=>'<div class="tw-med-card"><div class="tw-medrow static">'+medicationIcon(m)+'<span class="tw-grow"><b>'+esc(m.name)+'</b><small>'+esc(medicationDetail(m))+(m.due?' · '+esc(m.due):'')+'</small></span><button class="tw-remove" data-act="med-remove" data-id="'+esc(m.id)+'" aria-label="Permanently remove '+esc(m.name)+'">×</button></div>'+adherenceDots(m)+'</div>').join(''):'<div class="tw-med-card tw-empty"><b>No medications yet</b><span>Add only what you actually take.</span></div>'}</div>
-    ${medFormOpen?medicationForm():'<button class="btn ghost block" data-act="med-add">Add a medication</button>'}
-    <div class="tw-label tw-labs-label">Labs</div><div class="tw-medcard">${labs.length?labs.slice(0,6).map((x,i)=>'<div class="tw-medrow static">'+TWILIGHT_IC.lab+'<span class="tw-grow"><b>'+esc(x.name)+'</b><small>'+esc(fmtDay(x.date))+'</small></span><span class="tw-due">'+esc(x.value+(x.unit?' '+x.unit:''))+'</span><button class="tw-remove" data-act="lab-remove" data-i="'+i+'" aria-label="Remove '+esc(x.name)+'">×</button></div>').join(''):'<div class="tw-empty-med">No lab results yet</div>'}</div>
-    ${labFormOpen?labForm():'<button class="tw-quiet" data-act="lab-add">Add result</button>'}
-  </div>`;
-}
-function viewReport(){
-  const dates=entryDates(), logged=dates.length, end=todayISO(), start=addDays(end,-89);
-  return `<div class="view tw-screen tw-secondary">${twilightHeader('Doctor report','Turn your private log into a focused appointment summary.')}
-    <div class="tw-chips"><span>30d</span><span class="on">90d</span><span>180d</span></div>
-    <div class="tw-pagewrap"><div class="tw-doc"><h2>Symptom &amp; treatment summary</h2><p>${esc(fmtDay(start))} – ${esc(fmtDay(end))} · ${logged} days logged · prepared with peri</p><div class="tw-doc-rule"></div><b>Current overview</b><p>Your private log is ready to turn into a clinician-friendly summary. Generated reports include symptoms, treatment context and safety notes.</p></div></div>
-    <div class="tw-observed"><span>Observed</span><p>Patterns become more useful as you log consistently and mark treatment changes.</p><small>Correlation is not causation — bring the report to your clinician.</small></div>
-    <button class="btn primary block" data-act="sheet" data-s="report">Generate report</button>
-  </div>`;
-}
-
-/* ============================================================
-   JOURNEY COMPASS — SELECTED PRODUCT FLOW
-   ============================================================ */
-function jcChrome(backLabel){
-  const name=safeText(DB.profile.name,80).trim(), initial=name?name[0].toLocaleUpperCase():'';
-  return `<div class="jc-chrome">
-    <div class="jc-chrome-main">
-      <div class="jc-wordmark" aria-label="peri"><span class="mc-brand-icon">${PERI_BRAND_ICON}</span><span>peri</span></div>
-      <span class="mc-chrome-caption">Leave future-you a little note.</span>
-      <div class="jc-global-actions">
-        <button data-act="sheet" data-s="tools" aria-label="Open tools">${PULSE_IC.grid}</button>
-        <button data-act="sheet" data-s="redflags" aria-label="Safety guidance">${PULSE_IC.safety}</button>
-        <button data-act="open-profile" aria-label="Open Profile">${initial?`<span class="jc-avatar" aria-hidden="true">${esc(initial)}</span>`:PULSE_IC.profile}</button>
-      </div>
-    </div>
-    ${backLabel?`<button class="jc-back" data-act="go-back">${IC.chev}<span>${esc(backLabel)}</span></button>`:''}
-  </div>`;
-}
-function jcHeading(title,subtitle,eyebrow){
-  return `<div class="jc-page-head">${eyebrow?`<span class="jc-eyebrow">${esc(eyebrow)}</span>`:''}<h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>`;
-}
-function confirmedRecord(date){
-  if(typeof confirmedEntry==='function') return confirmedEntry(date);
-  const raw=DB.entries[date];
-  return raw&&raw.confirmed===true?raw:null;
-}
-function draftHasContent(raw){
-  return typeof hasEntryContent==='function'?hasEntryContent(raw):!!raw;
-}
-function dayState(date){
-  const raw=DB.entries[date], confirmed=confirmedRecord(date);
-  if(confirmed && raw&&raw.draftDirty) return {key:'draft',label:'Draft saved — confirmed version stays in patterns',confirmed};
-  if(confirmed) return {key:'confirmed',label:(date===todayISO()?'Today':'Day')+' · confirmed',confirmed};
-  if(raw&&draftHasContent(raw)) return {key:'draft',label:'Draft saved — not included in patterns',confirmed:null};
-  return {key:'empty',label:(date===todayISO()?'Today':'Day')+' · not logged yet',confirmed:null};
-}
-function focusedKeys(){
-  const pins=DB.profile&&Array.isArray(DB.profile.pinnedSymptoms)?DB.profile.pinnedSymptoms:[];
-  return pins.length?pins.slice(0,6):[...PeriOnboarding.defaults];
-}
-function symptomName(key){
-  if(key==='hf') return 'Hot flashes';
-  if(key==='ns') return 'Night sweats';
-  const found=SYMS.find(s=>s.k===key);
-  return SYM_DISPLAY[key]||(found&&found.n)||key;
-}
-function symptomValue(record,key){
-  if(!record) return null;
-  if(key==='hf'||key==='ns') return record[key]==null?null:+record[key];
-  return record.sym&&record.sym[key]!=null?+record.sym[key]:null;
-}
-function symptomPath(key){ return key==='hf'||key==='ns'?key:'sym.'+key; }
-function symptomIcon(key){
-  return key==='hf'?TWILIGHT_IC.flame:key==='ns'?TWILIGHT_IC.moon:(SYM_IC[key]||TWILIGHT_IC.cycle);
+function medsTakenMarkup(date){
+  const meds=scheduledMeds(date), day=DB.entries[date]||{}, adherence=day.med||{};
+  if(!meds.length) return '';
+  return meds.map(m=>{const rec=adherence[m.id]||{}, details=medicationDetailsOn(m,date);
+    return `<button class="check sm" data-act="med-taken" data-id="${esc(m.id)}" data-d="${date}" aria-pressed="${rec.taken?'true':'false'}"><span class="box">${IC.check}</span><span>${esc(details.name)}</span><span class="s">${rec.taken?esc(rec.at||'taken'):esc(details.due||'due')}</span></button>`;}).join('');
 }
 function treatmentTargetField(prefix,selected){
   const chosen=Array.isArray(selected)?selected:[];
   const ordered=[...new Set([...focusedKeys(),...PINNABLE_SYMPTOMS])];
-  return `<fieldset class="jc-target-field"><legend>${prefix==='med'?'What are you taking this for? (optional)':'Which symptoms should improve? (optional)'}</legend>
-    <p>Choose up to six symptoms to review after 2 and 6 weeks. ${prefix==='med'?'Add a start date above to schedule these follow-ups.':'Your earlier logs help you compare how you felt before and after the change.'}</p>
-    <div>${ordered.map(key=>`<label for="${prefix}-target-${esc(key)}"><input id="${prefix}-target-${esc(key)}" name="${prefix}-target" type="checkbox" value="${esc(key)}"${chosen.includes(key)?' checked':''}><span>${esc(symptomName(key))}</span></label>`).join('')}</div>
-  </fieldset>`;
+  return `<div class="field"><span class="fl">${prefix==='med'?'What is it for? Up to six symptoms to watch.':'Which symptoms should this change move? Up to six.'}</span>
+    <p class="hint">Two- and six-week check-ins compare the week before with the week after, from your own pages.</p>
+    <div class="chips" style="margin-top:8px">${ordered.map(key=>`<label class="chip sm" style="cursor:pointer;gap:8px"><input type="checkbox" name="${prefix}-target" value="${esc(key)}"${chosen.includes(key)?' checked':''} style="width:16px;height:16px">${esc(symptomName(key))}</label>`).join('')}</div></div>`;
 }
 function selectedTreatmentTargets(prefix){
-  return [...document.querySelectorAll(`input[name="${prefix}-target"]:checked`)]
-    .map(input=>input.value).filter(key=>PINNABLE_SYMPTOMS.includes(key));
+  return [...document.querySelectorAll(`input[name="${prefix}-target"]:checked`)].map(input=>input.value).filter(key=>PINNABLE_SYMPTOMS.includes(key));
 }
 function treatmentWindowSnapshot(changeDate,startOffset,endOffset,targets){
   const windowStart=addDays(changeDate,startOffset), windowEnd=addDays(changeDate,endOffset), values={};
@@ -1847,11 +296,7 @@ function treatmentWindowSnapshot(changeDate,startOffset,endOffset,targets){
 }
 function newTreatmentChange(date,label,targets){
   const cleanTargets=[...new Set((targets||[]).filter(key=>PINNABLE_SYMPTOMS.includes(key)))].slice(0,6);
-  return {
-    date,label,targets:cleanTargets,
-    baseline:treatmentWindowSnapshot(date,-7,-1,cleanTargets),
-    followUps:[]
-  };
+  return {date,label,targets:cleanTargets,baseline:treatmentWindowSnapshot(date,-7,-1,cleanTargets),followUps:[]};
 }
 function treatmentFollowUpItems(){
   const out=[];
@@ -1867,27 +312,18 @@ function treatmentFollowUpItems(){
     });
   });
   const rank=item=>item.followUp?2:(item.dueDate<=todayISO()?0:1);
-  return out.sort((a,b)=>rank(a)-rank(b)
-    ||(rank(a)===2?(b.followUp.completed||'').localeCompare(a.followUp.completed||''):a.dueDate.localeCompare(b.dueDate)));
+  return out.sort((a,b)=>rank(a)-rank(b)||(rank(a)===2?(b.followUp.completed||'').localeCompare(a.followUp.completed||''):a.dueDate.localeCompare(b.dueDate)));
 }
 function findTreatmentFollowUp(target){
   if(!target) return null;
   return treatmentFollowUpItems().find(item=>item.med.id===target.medId&&item.changeIndex===target.changeIndex&&item.week===target.week)||null;
 }
-function treatmentBenefitLabel(value){
-  return ['No benefit noticed','Slight benefit','Some benefit','Clear benefit','Major benefit'][+value]||'Not recorded';
-}
-function treatmentAdherenceLabel(value){
-  return {all:'All scheduled doses',most:'Most scheduled doses',some:'About half of scheduled doses',few:'A few scheduled doses',none:'No scheduled doses'}[value]||'Not recorded';
-}
-function treatmentSideEffectLabel(value){
-  return {none:'None noticed',mild:'Mild',moderate:'Moderate',severe:'Severe'}[value]||'Not recorded';
-}
+function treatmentBenefitLabel(value){ return ['No benefit noticed','Slight benefit','Some benefit','Clear benefit','Major benefit'][+value]||'Not recorded'; }
+function treatmentAdherenceLabel(value){ return {all:'All scheduled doses',most:'Most scheduled doses',some:'About half of scheduled doses',few:'A few scheduled doses',none:'No scheduled doses'}[value]||'Not recorded'; }
+function treatmentSideEffectLabel(value){ return {none:'None noticed',mild:'Mild',moderate:'Moderate',severe:'Severe'}[value]||'Not recorded'; }
 function treatmentComparisonData(item){
   const baseline=item.change.baseline&&item.change.baseline.values?item.change.baseline.values:{};
-  const after=item.followUp
-    ?(item.followUp.outcome||{values:{}})
-    :treatmentWindowSnapshot(item.change.date,item.week*7-6,item.week*7,item.change.targets);
+  const after=item.followUp?(item.followUp.outcome||{values:{}}):treatmentWindowSnapshot(item.change.date,item.week*7-6,item.week*7,item.change.targets);
   return item.change.targets.map(key=>{
     const before=baseline[key]||null, current=after.values[key]||null;
     return {key,before,current,ready:!!before&&!!current&&before.n>=3&&current.n>=3};
@@ -1895,115 +331,54 @@ function treatmentComparisonData(item){
 }
 function treatmentComparisonMarkup(item){
   const rows=treatmentComparisonData(item);
-  return `<div class="jc-followup-comparison"><p><b>Matched 7-day windows</b> · the week before the change versus the week ending at week ${item.week}.</p>
+  return `<div class="compare"><p class="xtiny"><b>Matched 7-day windows.</b> The week before the change against the week ending at week ${item.week}.</p>
     ${rows.map(row=>{
       const beforeN=row.before?row.before.n:0, currentN=row.current?row.current.n:0;
-      if(!row.ready) return `<div><b>${esc(symptomName(row.key))}</b><span>Not enough confirmed data yet (${beforeN}/7 before, ${currentN}/7 at week ${item.week}; at least 3 in each window needed).</span></div>`;
+      if(!row.ready) return `<div class="kv stack"><b>${esc(symptomName(row.key))}</b><span class="r">Not enough pages yet (${beforeN}/7 before, ${currentN}/7 at week ${item.week}; at least 3 in each window needed).</span></div>`;
       const before=row.before.average, current=row.current.average, delta=current-before;
       const unit=row.key==='hf'?' / day':' / 4';
       const direction=Math.abs(delta)<0.05?'about the same':Math.abs(delta).toFixed(1)+' '+(delta<0?'lower':'higher');
-      return `<div><b>${esc(symptomName(row.key))}</b><span>${r1(before)}${unit} before (${row.before.n}/7) · ${r1(current)}${unit} at week ${item.week} (${row.current.n}/7) · observed average ${direction}.</span></div>`;
+      return `<div class="kv stack"><b>${esc(symptomName(row.key))}</b><span class="r">${r1(before)}${unit} before (${row.before.n}/7) · ${r1(current)}${unit} at week ${item.week} (${row.current.n}/7) · ${direction}.</span></div>`;
     }).join('')}
   </div>`;
 }
 function treatmentFollowUpForm(item){
-  return `<div class="tw-form-card jc-inline-form jc-followup-form" aria-label="${item.week}-week follow-up for ${esc(item.med.name)}">
-    <span class="jc-followup-kicker">${item.week}-week treatment follow-up</span>
-    <h3>${esc(item.med.name)}</h3>
-    <p>Change recorded ${esc(fmtDay(item.change.date))}: ${esc(item.change.label)}. Think about the target symptoms overall; your confirmed logs provide the matched comparison below.</p>
-    <div class="grid2"><div><label class="fl" for="followup-benefit">Benefit noticed</label><select id="followup-benefit"><option value="">Choose…</option>${[0,1,2,3,4].map(value=>`<option value="${value}">${esc(treatmentBenefitLabel(value))}</option>`).join('')}</select></div>
-      <div><label class="fl" for="followup-adherence">Doses taken</label><select id="followup-adherence"><option value="">Choose…</option>${['all','most','some','few','none'].map(value=>`<option value="${value}">${esc(treatmentAdherenceLabel(value))}</option>`).join('')}</select></div></div>
-    <label class="fl" for="followup-side-effect-level">Side effects</label><select id="followup-side-effect-level"><option value="">Choose…</option>${['none','mild','moderate','severe'].map(value=>`<option value="${value}">${esc(treatmentSideEffectLabel(value))}</option>`).join('')}</select>
-    <label class="fl" for="followup-side-effects">Side-effect details (optional)</label><textarea id="followup-side-effects" maxlength="500" placeholder="What happened, when, and whether it settled"></textarea>
-    <label class="fl" for="followup-notes">Anything to ask at your next appointment? (optional)</label><textarea id="followup-notes" maxlength="500" placeholder="Questions or context worth remembering"></textarea>
+  return `<div class="form" aria-label="${item.week}-week check-in for ${esc(item.med.name)}">
+    <div class="label accent">${item.week}-week check-in</div><h3>${esc(item.med.name)}</h3>
+    <p class="small muted">Change recorded ${esc(fmtDay(item.change.date))}: ${esc(item.change.label)}. Judge the target symptoms overall; the matched comparison below comes from your pages.</p>
+    <div class="grid2"><div class="field"><label class="fl" for="followup-benefit">Benefit noticed</label><select id="followup-benefit"><option value="">Choose</option>${[0,1,2,3,4].map(value=>`<option value="${value}">${esc(treatmentBenefitLabel(value))}</option>`).join('')}</select></div>
+      <div class="field"><label class="fl" for="followup-adherence">Doses taken</label><select id="followup-adherence"><option value="">Choose</option>${['all','most','some','few','none'].map(value=>`<option value="${value}">${esc(treatmentAdherenceLabel(value))}</option>`).join('')}</select></div></div>
+    <div class="field"><label class="fl" for="followup-side-effect-level">Side effects</label><select id="followup-side-effect-level"><option value="">Choose</option>${['none','mild','moderate','severe'].map(value=>`<option value="${value}">${esc(treatmentSideEffectLabel(value))}</option>`).join('')}</select></div>
+    <div class="field"><label class="fl" for="followup-side-effects">Side-effect details (optional)</label><textarea id="followup-side-effects" maxlength="500" placeholder="What happened, when, whether it settled"></textarea></div>
+    <div class="field"><label class="fl" for="followup-notes">To raise at the next appointment (optional)</label><textarea id="followup-notes" maxlength="500"></textarea></div>
     ${treatmentComparisonMarkup(item)}
-    <p class="jc-causality">Observed association—not proof that the treatment caused the change.</p>
-    <div class="btn-row split"><button class="btn primary" data-act="treatment-followup-save" data-med-id="${esc(item.med.id)}" data-change-index="${item.changeIndex}" data-week="${item.week}">Save follow-up</button><button class="btn ghost" data-act="treatment-followup-cancel">Cancel</button></div>
+    <p class="xtiny">An observed association, not proof the treatment caused the change.</p>
+    <div class="btn-row split"><button class="btn ink" data-act="treatment-followup-save" data-med-id="${esc(item.med.id)}" data-change-index="${item.changeIndex}" data-week="${item.week}">Save check-in</button><button class="btn outline" data-act="treatment-followup-cancel">Cancel</button></div>
   </div>`;
 }
-function treatmentFollowUpSection(items){
-  return `<section class="jc-section jc-followups"><div class="jc-section-head"><span>Treatment follow-ups</span></div>
-    <div class="jc-followup-list">${items.length?items.slice(0,8).map(item=>{
-      const daysUntil=daysBetween(todayISO(),item.dueDate), complete=item.followUp;
-      const status=complete?'Completed '+fmtDay(complete.completed):daysUntil<=0?'Due now':daysUntil===1?'Due tomorrow':'Due in '+daysUntil+' days';
-      return `<article class="jc-followup-card${!complete&&daysUntil<=0?' due':''}"><div><span>${esc(status)}</span><h3>${item.week}-week check · ${esc(item.med.name)}</h3><p>${esc(item.change.targets.map(symptomName).join(', '))}</p></div>
-        ${complete?`<p><b>${esc(treatmentBenefitLabel(complete.benefit))}</b> · ${esc(treatmentAdherenceLabel(complete.adherence))} · side effects: ${esc(treatmentSideEffectLabel(complete.sideEffectLevel))}.</p>`:daysUntil<=0?`<button class="jc-secondary" data-act="treatment-followup-open" data-med-id="${esc(item.med.id)}" data-change-index="${item.changeIndex}" data-week="${item.week}">Complete follow-up</button>`:`<small>Scheduled for ${esc(fmtDay(item.dueDate))}</small>`}
-      </article>`;
-    }).join(''):`<p class="jc-empty-line">No follow-ups scheduled. Choose target symptoms when you record a treatment change to create 2- and 6-week check-ins.</p>`}</div>
-  </section>`;
+function treatmentFollowUpRows(items){
+  if(!items.length) return '<p class="small muted">No check-ins scheduled. Choose target symptoms when you record a treatment change and the 2- and 6-week check-ins appear here.</p>';
+  return items.slice(0,8).map(item=>{
+    const daysUntil=daysBetween(todayISO(),item.dueDate), complete=item.followUp;
+    const status=complete?'Done '+fmtDay(complete.completed):daysUntil<=0?'Due now':daysUntil===1?'Due tomorrow':'Due in '+daysUntil+' days';
+    return `<div class="kv stack"><b>${item.week}-week check · ${esc(item.med.name)} <span class="muted" style="font-weight:400">· ${esc(status)}</span></b><span class="r">${esc(item.change.targets.map(symptomName).join(', '))}${complete?' · '+esc(treatmentBenefitLabel(complete.benefit))+' · side effects '+esc(treatmentSideEffectLabel(complete.sideEffectLevel)).toLowerCase():''}</span>${!complete&&daysUntil<=0?`<button class="textbtn" data-act="treatment-followup-open" data-med-id="${esc(item.med.id)}" data-change-index="${item.changeIndex}" data-week="${item.week}">Complete the check-in</button>`:''}</div>`;
+  }).join('');
 }
 function treatmentFollowUpReport(days){
   const rangeStart=addDays(todayISO(),-(days-1));
   const items=treatmentFollowUpItems().filter(item=>item.followUp&&item.followUp.completed>=rangeStart).slice(0,8);
   if(!items.length) return '';
-  return `<div class="card jc-report-followups"><h4>Treatment follow-ups</h4>${items.map(item=>{
+  return reportSection('Treatment check-ins',items.map(item=>{
     const followUp=item.followUp;
-    return `<section><p><b>${esc(item.med.name)} · ${item.week}-week check</b><br><span>${esc(item.change.label)} · completed ${esc(fmtDay(followUp.completed))}</span></p>
-      <div class="kv"><span>Benefit noticed</span><b>${esc(treatmentBenefitLabel(followUp.benefit))}</b></div>
-      <div class="kv"><span>Doses taken</span><b>${esc(treatmentAdherenceLabel(followUp.adherence))}</b></div>
-      <div class="kv"><span>Side effects</span><b>${esc(treatmentSideEffectLabel(followUp.sideEffectLevel))}${followUp.sideEffects?' · '+esc(followUp.sideEffects):''}</b></div>
-      ${followUp.notes?`<p class="tiny"><b>Appointment note:</b> ${esc(followUp.notes)}</p>`:''}
-      ${treatmentComparisonMarkup(item)}
-    </section>`;
-  }).join('')}<p class="xtiny"><b>Observed association—not proof that the treatment caused the change.</b> Comparisons use equal seven-calendar-day windows and only confirmed logs; coverage is shown for each target symptom.</p></div>`;
-}
-function recordSummary(record){
-  if(!record) return 'No confirmed entries yet.';
-  if(!PINNABLE_SYMPTOMS.some(key=>symptomValue(record,key)!=null)) return 'No symptoms were rated on this day.';
-  const ranked=[...new Set([...focusedKeys(),...PINNABLE_SYMPTOMS])].map(k=>({k,v:symptomValue(record,k)})).filter(x=>x.v!=null&&x.v>0).sort((a,b)=>b.v-a.v);
-  if(!ranked.length) return 'Tracked symptoms were quiet on this confirmed day.';
-  const first=ranked[0], suffix=first.k==='hf'?(first.v+' '+(first.v===1?'flash':'flashes')):(['none','mild','moderate','severe','very severe'][Math.min(4,first.v)]||first.v);
-  const lead=first.k==='hf'?'Hot flashes: '+suffix:symptomName(first.k)+' was '+suffix;
-  return lead+(ranked[1]?' · '+symptomName(ranked[1].k)+' was also present.':'.');
+    return `<div class="kv stack"><b>${esc(item.med.name)} · ${item.week}-week check</b><span class="r">${esc(item.change.label)} · completed ${esc(fmtDay(followUp.completed))}. ${esc(treatmentBenefitLabel(followUp.benefit))}; ${esc(treatmentAdherenceLabel(followUp.adherence)).toLowerCase()}; side effects ${esc(treatmentSideEffectLabel(followUp.sideEffectLevel)).toLowerCase()}${followUp.sideEffects?' ('+esc(followUp.sideEffects)+')':''}.${followUp.notes?' Note: '+esc(followUp.notes):''}</span></div>${treatmentComparisonMarkup(item)}`;
+  }).join('')+'<p class="xtiny">Observed associations, not proof of cause. Comparisons use equal seven-day windows and only recorded days.</p>');
 }
 const WEEKLY_WINDOW_DAYS=7, WEEKLY_MIN_COVERAGE=4;
 function weeklyPatternWindows(anchor){
   const end=anchor||todayISO();
   const recent=Array.from({length:WEEKLY_WINDOW_DAYS},(_,i)=>addDays(end,i-(WEEKLY_WINDOW_DAYS-1)));
   const prior=Array.from({length:WEEKLY_WINDOW_DAYS},(_,i)=>addDays(end,i-(WEEKLY_WINDOW_DAYS*2-1)));
-  return {
-    recent,
-    prior,
-    recentCount:recent.filter(d=>!!confirmedRecord(d)).length,
-    priorCount:prior.filter(d=>!!confirmedRecord(d)).length
-  };
-}
-function weeklyCoverageText(summary){
-  return 'Coverage: '+summary.recentCount+'/'+WEEKLY_WINDOW_DAYS+' recent days · '+summary.priorCount+'/'+WEEKLY_WINDOW_DAYS+' prior days.';
-}
-function weeklyPattern(){
-  const windows=weeklyPatternWindows();
-  if(windows.recentCount<WEEKLY_MIN_COVERAGE||windows.priorCount<WEEKLY_MIN_COVERAGE) return null;
-  const candidates=focusedKeys().map(k=>{
-    const recentValues=windows.recent.map(d=>symptomValue(confirmedRecord(d),k)).filter(v=>v!=null&&!isNaN(v));
-    const priorValues=windows.prior.map(d=>symptomValue(confirmedRecord(d),k)).filter(v=>v!=null&&!isNaN(v));
-    if(recentValues.length<WEEKLY_MIN_COVERAGE||priorValues.length<WEEKLY_MIN_COVERAGE) return null;
-    const a=avg(recentValues), b=avg(priorValues), delta=a-b;
-    /* Rank unlike units by proportional change, with a floor of one unit so
-       tiny moves near zero cannot outrank a meaningful sustained change. */
-    const score=Math.abs(delta)/Math.max(Math.abs(a),Math.abs(b),1);
-    return {k,a,b,delta,score,recentCount:recentValues.length,priorCount:priorValues.length};
-  }).filter(Boolean).sort((a,b)=>b.score-a.score||Math.abs(b.delta)-Math.abs(a.delta));
-  if(!candidates.length){
-    return {
-      text:'Those calendar windows have enough confirmed check-ins, but not enough matching symptom answers to compare yet.',
-      recentCount:windows.recentCount,
-      priorCount:windows.priorCount
-    };
-  }
-  const changed=candidates.filter(candidate=>candidate.score>=0.2&&Math.abs(candidate.delta)>=0.35);
-  const top=changed[0], coverageCandidate=top||candidates[0];
-  return {
-    text:top
-      ?symptomName(top.k)+' has been '+(top.delta<0?'lower':'higher')+' in the recent 7 calendar days than in the previous 7 days.'
-      :'Your tracked symptoms look broadly steady across the two 7-day calendar windows.',
-    recentCount:coverageCandidate.recentCount,
-    priorCount:coverageCandidate.priorCount
-  };
-}
-function weeklyPatternText(){
-  const pattern=weeklyPattern();
-  return pattern?pattern.text:null;
+  return {recent,prior,recentCount:recent.filter(d=>!!confirmedRecord(d)).length,priorCount:prior.filter(d=>!!confirmedRecord(d)).length};
 }
 function treatmentEvents(){
   const out=[];
@@ -2022,414 +397,1305 @@ function treatmentEvents(){
   });
   return out.sort((a,b)=>b.date.localeCompare(a.date)||(b.order||0)-(a.order||0));
 }
-function comparisonPanel(count){
-  const windows=weeklyPatternWindows(), ready=windows.recentCount>=WEEKLY_MIN_COVERAGE&&windows.priorCount>=WEEKLY_MIN_COVERAGE;
-  const coverage='Calendar coverage: '+windows.recentCount+'/'+WEEKLY_WINDOW_DAYS+' recent days · '+windows.priorCount+'/'+WEEKLY_WINDOW_DAYS+' prior days.';
-  const progress=Math.min(100,Math.min(windows.recentCount,windows.priorCount)/WEEKLY_WINDOW_DAYS*100);
-  return `<div class="jc-sufficiency"><div><strong>${count} confirmed ${count===1?'day':'days'} total</strong><span>${coverage} ${ready?'Comparisons are ready — keep confirming changes.':'Weekly comparisons need at least 4 confirmed days in each window.'}</span></div><div class="jc-progress" aria-label="${windows.recentCount} of 7 recent days and ${windows.priorCount} of 7 prior days"><i style="width:${progress}%"></i></div></div>`;
+function proteinTarget(){
+  const wt = latestWeight();
+  if(wt==null) return null;
+  const g = Math.round(wt * (+DB.profile.proteinGpk||1.2));
+  return {grams:g, perMeal:Math.round(g/3), kg:wt};
 }
-function dcWeekStrip(anchor){
-  const days=Array.from({length:7},(_,i)=>addDays(anchor,i-6));
-  return `<div class="dc-week" aria-label="Seven-day calendar">${days.map(date=>{
-    const d=parseISO(date), active=date===anchor;
-    return `<time class="dc-week-day${active?' active':''}" datetime="${date}" aria-current="${active?'date':'false'}"><span>${d.toLocaleDateString(undefined,{weekday:'short'}).toUpperCase()}</span><strong>${d.getDate()}</strong>${active?'<i aria-hidden="true"></i>':''}</time>`;
-  }).join('')}</div>`;
+function latestWeight(){
+  const ds = entryDates().slice().reverse();
+  for(const d of ds){ const e=confirmedRecord(d); if(e&&e.wt!=null) return e.wt; }
+  return null;
 }
-function dcProgress(count){
-  const shown=Math.min(count,14), windows=weeklyPatternWindows(), ready=windows.recentCount>=WEEKLY_MIN_COVERAGE&&windows.priorCount>=WEEKLY_MIN_COVERAGE;
-  const copy=ready?'patterns are ready to explore.':count>=14?'Keep checking in — weekly comparisons need 4 days in each calendar window.':shown?'patterns are starting to form.':'Log 14 confirmed days to start finding patterns.';
-  return `<div class="dc-progress"><div role="progressbar" aria-label="Confirmed days toward pattern insights" aria-valuemin="0" aria-valuemax="14" aria-valuenow="${shown}"><i style="width:${Math.min(100,count/14*100)}%"></i></div><p>${shown?`<strong>${shown} of 14 days</strong> — `:''}${copy}</p></div>`;
+
+/* ============================================================
+   CHROME
+   ============================================================ */
+const TAB_TITLES = {today:['Today','The page'], dossier:['Dossier','For the appointment'], index:['Index','The reference']};
+function masthead(active,right){
+  return `<header class="masthead"><div class="masthead-top"><button class="wordmark" data-act="tab" data-v="today" aria-label="peri, today’s page">peri</button><div style="display:flex;align-items:flex-end;gap:10px"><span class="masthead-meta">${right||''}</span><button class="iconbtn" data-act="open-profile" aria-label="You: profile, record and settings">${IC.person}</button></div></div><div class="rule thick"></div>
+    <nav class="masthead-nav" aria-label="Primary">${Object.entries(TAB_TITLES).map(([k,v])=>`<button data-act="tab" data-v="${k}" aria-current="${k===active?'page':'false'}"${nativeProLocked(k)?' aria-label="'+esc(v[0])+', peri Pro"':''}>${esc(v[0])}</button>`).join('')}</nav></header>`;
 }
-function dcTodayTask(date){
-  const due=scheduledMeds(date), all=(Array.isArray(DB.medications)?DB.medications:[]).filter(m=>medicationStatus(m)==='active');
-  if(due.length){
-    const m=due[0], rec=DB.entries[date]&&DB.entries[date].med&&DB.entries[date].med[m.id];
-    return `<section class="dc-feature dc-task"><div class="dc-orb amber">${PULSE_IC.task}</div><div class="dc-feature-copy"><span>Today’s task</span><h2>${esc(m.name)} · ${rec&&rec.taken?'complete':'due today'}</h2><p>${rec&&rec.taken?'Recorded for today. Tap again if you need to undo it.':'Keeps your treatment record on track.'}</p><button class="dc-outline-action" data-act="med-taken" data-id="${esc(m.id)}">${PULSE_IC.check}<span>${rec&&rec.taken?'Done today':'Mark as done'}</span></button></div></section>`;
-  }
-  return `<section class="dc-feature dc-task"><div class="dc-orb amber">${PULSE_IC.task}</div><div class="dc-feature-copy"><span>Today’s task</span><h2>${all.length?'Nothing is due today':'Add your treatment plan'}</h2><p>${all.length?'Your next scheduled treatment will appear here.':'Keep treatment changes on track.'}</p><button class="dc-text-link" data-act="tab" data-v="care">${all.length?'Open Care':'Add treatment'} ${IC.chev}</button></div></section>`;
+function topbar(backLabel,backAct,meta){
+  return `<div class="topbar"><button class="back" data-act="${esc(backAct||'go-back')}">${IC.back}<span>${esc(backLabel||'Today')}</span></button><span class="meta">${meta||''}</span></div><div class="rule thick"></div>`;
 }
-function jcTimelineEvent(kind,meta,title,body,extra){
-  const icon={treatment:PULSE_IC.task,pattern:PULSE_IC.journey,confirmed:PULSE_IC.today,draft:PULSE_IC.check,waiting:PULSE_IC.recap}[kind]||PULSE_IC.check;
-  return `<article class="jc-timeline-event ${esc(kind)}"><div class="jc-node" aria-hidden="true">${icon}</div><div class="jc-event-copy"><span class="jc-event-meta">${esc(meta)}</span><h2>${esc(title)}</h2><p>${esc(body)}</p>${extra||''}</div></article>`;
+function ledgerRow(m,date,opts){
+  const detail=momentDetail(m), accent=(m.k==='hf'&&m.s===3)||m.k==='bleed';
+  const inner=`<span class="t">${esc(m.t)}</span><span class="e${accent?' accent':''}">${esc(momentName(m))}${m.k==='note'&&m.n?': <span class="small" style="font-family:var(--sans);font-weight:400;color:var(--text-2)">'+esc(m.n.length>60?m.n.slice(0,57)+'…':m.n)+'</span>':''}</span>${detail?`<span class="d">${esc(detail)}</span>`:''}`;
+  if(!m.id||(opts&&opts.readOnly)) return `<div class="ledger-row">${inner}</div>`;
+  return `<button class="ledger-row" data-act="moment" data-id="${esc(m.id)}" data-d="${date}" aria-label="Edit ${esc(momentName(m))} at ${esc(m.t)}">${inner}</button>`;
 }
-function todayNoteCard(record,keys){
-  const rows=keys.map(key=>{
-    const value=symptomValue(record,key); if(value==null) return '';
-    const val=key==='hf'?`<span class="mc-note-val">${value} ${value===1?'flash':'flashes'}</span>`:ratingDots(value,4)+`<span class="sr-only">${esc(['None','Mild','Moderate','Severe','Very severe'][Math.min(4,value)]||String(value))}</span>`;
-    return `<div class="mc-note-row"><span>${esc(symptomName(key))}</span>${val}</div>`;
-  }).filter(Boolean).join('');
-  const note=safeText(record.notes,4000).trim();
-  if(!rows&&!note) return '';
-  return `<section class="mc-note mc-today-note" aria-labelledby="today-note-title">
-    <div class="mc-note-head"><span class="mc-eyebrow">Today, in a few words</span><button class="pip-chip soft" data-act="start-checkin" aria-label="Edit today’s check-in">${PIP_IC.edit}Edit</button></div>
-    <h2 id="today-note-title">My check-in</h2>
-    ${rows?`<div class="mc-note-rows">${rows}</div>`:''}
-    ${note?`<div class="mc-note-text"><small>What I noticed</small><span>${esc(note.length>160?note.slice(0,157).trimEnd()+'…':note)}</span></div>`:''}
-  </section>`;
+function ledgerMarkup(date,opts){
+  const ms=dayMoments(date);
+  if(!ms.length) return `<div class="ledger-row empty"><span class="e">${date===todayISO()?'Nothing yet today.':'Nothing logged this day.'}</span><span class="d">${date===todayISO()?'Log the first thing that happens.':''}</span></div>`;
+  return ms.map(m=>ledgerRow(m,date,opts)).join('');
 }
-function viewHome(){
-  const t=todayISO(), state=dayState(t), count=entryDates().length;
-  const dates=entryDates(), latestDate=dates.length?dates[dates.length-1]:null, latest=latestDate?confirmedRecord(latestDate):null;
-  const cta=state.key==='confirmed'?'Review today':state.key==='draft'?'Finish check-in':'Check in';
-  const pattern=weeklyPattern();
-  const recapTitle=pattern?pattern.text:recordSummary(latest);
-  const recapBody=pattern?weeklyCoverageText(pattern):latestDate?'From your latest confirmed day, '+fmtDay(latestDate)+'.':'Confirm a few quick check-ins and your first recap will appear here.';
-  const name=safeText(DB.profile.name,80).trim(), hour=new Date().getHours();
-  const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
-  const dateLabel=parseISO(t).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
-  const weekDates=Array.from({length:7},(_,i)=>addDays(t,i-6));
-  const weekCount=weekDates.filter(date=>confirmedRecord(date)).length;
-  const dayMarks=weekDates.map(date=>`<div class="mc-week-mark${confirmedRecord(date)?' logged':''}${date===t?' current':''}"><i>${confirmedRecord(date)?PULSE_IC.check:''}</i><span>${parseISO(date).toLocaleDateString(undefined,{weekday:'narrow'})}</span></div>`).join('');
-  const rawToday=DB.entries[t], prefilled=state.key==='draft'&&rawToday&&rawToday.prefilledFrom&&!rawToday.draftDirty;
-  const hero={
-    confirmed:{eyebrow:'Today’s check-in · saved',title:'Noted. Future-you says thanks.',body:'Your Journey and appointment report use this version.',pose:'guide'},
-    draft:prefilled?{eyebrow:'Today’s check-in',title:'How are you feeling today?',body:'Yesterday’s answers are filled in as a starting point. Adjust what changed, then confirm.',pose:'phone'}:{eyebrow:'Today’s check-in',title:'Pick up where you left off.',body:'Your draft is saved. Nothing counts until you confirm it.',pose:'phone'},
-    empty:{eyebrow:'Today’s check-in',title:'How are you feeling today?',body:'About a minute. Three ratings, and a note if you like.',pose:'phone'}
-  }[state.key];
-  return `<div class="view jc-screen jc-home">
-    ${jcChrome()}
-    <div class="mc-welcome"><div><p class="mc-eyebrow">${esc(greeting)} · ${esc(dateLabel)}</p><h1>Hello${name?', '+esc(name):''}.</h1></div></div>
-    <div class="mc-home-top">
-      <section class="mc-checkin-card is-${state.key}" aria-labelledby="today-hero-title"><div class="mc-checkin-copy"><div class="mc-card-top"><span class="mc-eyebrow">${esc(hero.eyebrow)}</span></div><h2 id="today-hero-title">${esc(hero.title)}</h2><p>${esc(hero.body)}</p><div class="mc-checkin-bottom"><button class="jc-primary dc-checkin" data-act="start-checkin"><span>${esc(cta)}</span>${PIP_IC.arrowRight}</button>${state.key!=='confirmed'?`<span class="mc-time">${TWILIGHT_IC.sun} About a minute</span>`:''}</div></div>${pip(hero.pose,state.key==='empty'?158:150)}</section>
-      ${state.key==='confirmed'?todayNoteCard(state.confirmed,[...new Set([...focusedKeys(),...PINNABLE_SYMPTOMS])]):''}
-      ${count?`<section class="mc-week-card" aria-labelledby="week-card-title"><div class="mc-week-stat"><h2 id="week-card-title">Your week so far</h2><span><strong>${weekCount}</strong> of 7 days</span></div><div class="mc-week-marks" aria-label="Your check-ins this week">${dayMarks}</div>${dcProgress(count)}</section>`:`<section class="mc-week-card"><span class="mc-eyebrow">YOUR STARTING FOCUS</span><h2 style="font-size:20px;margin:6px 0 4px">Your check-in is ready.</h2><p>${esc(focusedKeys().map(symptomName).join(', '))}</p><p class="mc-muted">A little space to notice how today feels. Add more detail whenever you’re ready.</p></section>`}
-    </div>
-    ${DB.trigger&&DB.trigger.active?triggerBanner():''}
-    ${DB.profile.onboardingDeferred?`<button class="jc-open-row jc-setup" data-act="finish-setup"><span>${TWILIGHT_IC.cycle}</span><span><b>Finish your context</b><small>Personalize guidance and the symptoms you watch.</small></span>${IC.chev}</button>`:''}
-    <button class="mc-support-banner" data-act="sheet" data-s="support" aria-label="I’m struggling right now"><span class="mc-support-icon">${TWILIGHT_IC.heart}</span><div><h2>I’m struggling right now</h2><p>Sleep · overwhelm · hot flash · fog</p></div>${IC.chev}</button>
-    <div class="mc-section-heading"><h2>A little more understanding</h2><button class="dc-text-link" data-act="tab" data-v="journey">See your journey ${IC.chev}</button></div>
-    <div class="mc-home-middle"><section class="dc-feature dc-recap"><div class="dc-orb">${PULSE_IC.recap}</div><div class="dc-feature-copy"><span>Today’s recap</span><h2>${esc(latestDate?recapTitle:'Your story starts with you.')}</h2><p>${esc(recapBody)}</p></div></section>${dcTodayTask(t)}</div>
-    <div class="mc-section-heading"><h2>Make room for yourself</h2><button class="dc-text-link" data-act="tab" data-v="guide">Open the guide ${IC.chev}</button></div>
-    <div class="mc-home-resources"><button data-act="sheet" data-s="tool:breath"><span class="mc-resource-icon">${PULSE_IC.wind}</span><span><b>A moment to breathe</b><small>A guided pause for your day</small></span>${IC.chev}</button><button data-act="sheet" data-s="learn:sleep"><span class="mc-resource-icon lilac">${PULSE_IC.moon}</span><span><b>Make sense of sleep</b><small>Understand what’s changing</small></span>${IC.chev}</button><button data-act="sheet" data-s="tool:phq9"><span class="mc-resource-icon peach">${PULSE_IC.heartPulse}</span><span><b>Check in with your mood</b><small>Make space for how you feel</small></span>${IC.chev}</button></div>
-    <div class="dc-privacy">${PULSE_IC.privacy}<p><strong>Your data stays on this device.</strong><span>Always personal. Always yours.</span></p></div>
-  </div>`;
+function ledgerSummary(date){
+  const e=DB.entries[date]||{}, ms=dayMoments(date), parts=[];
+  const n=k=>ms.filter(m=>m.k===k).length;
+  const hf=e.hf!=null?e.hf:n('hf'); if(hf) parts.push(hf+' '+plural(hf,'flash','flashes'));
+  const wakes=e.wakes!=null?e.wakes:n('woke'), sweats=n('ns')||e.ns||0;
+  if(wakes||sweats) parts.push([wakes?wakes+' '+plural(wakes,'wake'):'',sweats?sweats+' '+plural(sweats,'sweat'):''].filter(Boolean).join(', '));
+  if(e.sleepH!=null) parts.push(r1(e.sleepH)+' h sleep');
+  const symKinds=ms.filter(m=>MOMENT_KINDS[m.k]&&MOMENT_KINDS[m.k].sym!==false).map(m=>m.k);
+  [...new Set(symKinds)].slice(0,3).forEach(k=>parts.push(MOMENT_KINDS[k].n.toLowerCase()));
+  const meds=scheduledMeds(date); if(meds.length&&meds.some(m=>e.med&&e.med[m.id]&&e.med[m.id].taken)) parts.push(meds.length===1?medicationDetailsOn(meds[0],date).form+' day':'medication taken');
+  return parts.join(' · ');
 }
-function viewJourney(){
-  const t=todayISO(), state=dayState(t), dates=entryDates(), count=dates.length, events=treatmentEvents();
-  const windows=weeklyPatternWindows(), pattern=weeklyPattern();
-  const todayBody=state.key==='confirmed'?recordSummary(state.confirmed):state.key==='draft'?('Your draft is saved locally. The last confirmed version stays in patterns'+(state.confirmed?' — '+recordSummary(state.confirmed):'.')):'No confirmed entry yet. Log to keep your story complete.';
-  let timeline=jcTimelineEvent(state.key,'Today',state.label,todayBody);
-  const recentActivity=[
-    ...events.slice(0,3).map(event=>({...event,kind:'treatment'})),
-    ...dates.filter(date=>date!==t).slice(-3).map(date=>({date,kind:'confirmed',title:'Confirmed check-in',body:recordSummary(confirmedRecord(date))}))
-  ].sort((a,b)=>b.date.localeCompare(a.date)||(b.order||0)-(a.order||0));
-  const latestTreatment=recentActivity.find(event=>event.kind==='treatment');
-  timeline+=recentActivity.map(event=>jcTimelineEvent(event.kind,fmtDay(event.date),event.title,event.body,event===latestTreatment?'<span class="jc-proof">Observed association—not proof of cause and effect.</span>':'')).join('');
-  if(!events.length&&DB.medications.some(m=>medicationStatus(m)==='active')){
-    const activeCount=DB.medications.filter(m=>medicationStatus(m)==='active').length;
-    timeline+=jcTimelineEvent('treatment','Treatment plan','Add a change date',activeCount+' active treatment '+(activeCount===1?'item is':'items are')+' on file. Record when something changes to place it in your story.');
-  }
-  return `<div class="view jc-screen jc-journey">
-    ${jcChrome()}
-    ${jcHeading('Your journey','A little perspective on how you’ve been feeling.')}
-    <div class="mc-journey-overview">
-      ${weeklyStoryMarkup()}
-      <aside class="mc-record-summary" aria-labelledby="record-summary-title">
-        <h2 id="record-summary-title">The bigger picture</h2>
-        <div class="mc-stat-grid"><div><strong>${count}</strong><span>confirmed ${count===1?'day':'days'}</span></div><div><strong>${windows.recentCount}<small>/7</small></strong><span>past 7 days</span></div><div><strong>${focusedKeys().length}</strong><span>symptoms you watch</span></div></div>
-        <p>${pattern?esc(pattern.text):'Your confirmed check-ins build a clearer picture over time. Start with how you feel today.'}</p>
-        ${pattern?`<p class="mc-muted">${esc(weeklyCoverageText(pattern))}</p>`:''}
-        <button class="jc-primary" data-act="start-checkin">${PULSE_IC.check}<span>${state.key==='confirmed'?'Edit today':state.key==='draft'?'Finish check-in':'Log today'}</span></button>
-        ${comparisonPanel(count)}
-        <button class="jc-inline-action" data-act="sheet" data-s="learn:symptoms">What this means ${IC.chev}</button>
-      </aside>
-    </div>
-    <div class="mc-section-intro"><div><span class="mc-eyebrow">Your record, in order</span><h2>Recent activity</h2></div><p>Check-ins and treatment changes, together.</p></div>
-    <div class="jc-timeline">${timeline}</div>
-  </div>`;
+function dossierReadiness(){
+  const brief=savedBrief(), n=entryDates().length;
+  let score=0;
+  if(brief.concerns.length) score+=35;
+  if(brief.concerns.some(c=>c.impact)) score+=15;
+  if(brief.goal) score+=10;
+  if(Array.isArray(brief.questions)&&brief.questions.length) score+=10;
+  score+=Math.min(30,Math.round(n/14*30));
+  return Math.min(100,score);
 }
-function treatmentChangeForm(m){
-  return `<div class="tw-form-card jc-inline-form"><h3>Record a change to ${esc(m.name)}</h3><p class="jc-footnote">Add a dated note about a dose, form, or schedule adjustment. It appears in Journey so you can compare symptoms before and after. This records the change; it does not change your saved medication name or schedule.</p><label class="fl" for="change-date">Change date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"><label class="fl" for="change-label">What changed?</label><input id="change-label" type="text" maxlength="120" aria-describedby="change-example" placeholder="Describe the previous and new treatment"><p id="change-example" class="jc-footnote">Example: switched from a tablet to a patch, or moved my usual time from morning to evening.</p>${treatmentTargetField('change')}<div class="btn-row split"><button class="btn primary" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn ghost" data-act="med-change-cancel">Cancel</button></div></div>`;
+function stageSummary(){
+  const label=DB.profile.stage||'';
+  const map={
+    'Late menopausal transition':['Late perimenopause, most likely.','Periods 60 or more days apart, with the symptoms you log, is that pattern. It usually runs one to three years. Reassessed as the record grows. Not a diagnosis.'],
+    'Early menopausal transition':['Early perimenopause, most likely.','Cycles varying by a week or more is the first readable sign. Symptoms can run years ahead of the last period. Not a diagnosis.'],
+    'Late reproductive stage':['Not yet, from the cycle alone.','Regular cycles that feel shorter are the earliest signal. The record will show more than any single test can.'],
+    'Late reproductive stage (early)':['Not perimenopause yet, by the cycle.','Regular periods put you before the transition. Symptoms still count; log them.'],
+    'Early postmenopause — the first two years':['Early postmenopause.','Twelve months without a period confirms menopause in hindsight. Flashes often peak here, then ease. Any bleeding from now on needs checking.'],
+    'Postmenopause, roughly years 3–6':['Postmenopause.','Years three to six after the last period. Vaginal and urinary symptoms are the ones that worsen if left; they are also the most treatable.'],
+    'Late postmenopause':['Late postmenopause.','More than six years on. Bone, heart and genitourinary health are the long game now.'],
+    'Surgical menopause':['Surgical menopause.','Both ovaries removed means the hormone drop was abrupt. Managed differently from natural menopause; hormone therapy until around 52 is the usual advice absent contraindications.'],
+    'Possible premature menopause — this needs assessment':['Needs assessment.','Menopause before 40 is a diagnosis to make with a clinician and blood tests, not an app. Bring the record.'],
+    'Bleeding pattern no longer readable':['Cannot be staged from bleeding.','After a hysterectomy or ablation there is no cycle to read. Symptom trends are the evidence; that is what the pages are for.'],
+    'Periods masked by contraception':['Masked by contraception.','Hormonal contraception hides the cycle signal. Staging leans on symptoms and age instead.']
+  };
+  if(map[label]) return {head:map[label][0],body:map[label][1],label};
+  if(label) return {head:label+'.',body:'From your staging answers. Reassess in the Index if anything changes. Not a diagnosis.',label};
+  return {head:'Not staged yet.',body:'Four questions in the Index place you on the STRAW+10 map. The dossier reads better with it.',label:''};
 }
-function treatmentStopForm(m){
-  return `<div class="tw-form-card jc-inline-form" aria-label="Stop ${esc(m.name)}">
-    <span class="jc-followup-kicker">Treatment status</span><h3>Stop ${esc(m.name)}</h3>
-    <p>This keeps the treatment and its history in your Journey and reports, but removes it from today’s schedule.</p>
-    <label class="fl" for="stop-date">Last day taken</label><input id="stop-date" type="date" min="${esc(medicationCurrentStart(m)||'1900-01-01')}" max="${todayISO()}" value="${todayISO()}">
-    <label class="fl" for="stop-reason">Reason or clinician instruction (optional)</label><textarea id="stop-reason" maxlength="500" placeholder="Why it stopped, side effects, or what happens next"></textarea>
-    <div class="btn-row split"><button class="btn primary" data-act="med-stop-save" data-id="${esc(m.id)}">Save as stopped</button><button class="btn ghost" data-act="med-stop-cancel">Cancel</button></div>
-  </div>`;
-}
-function appointmentData(){
-  if(!DB.appointments||typeof DB.appointments!=='object') DB.appointments={questions:[],plans:[]};
-  if(!Array.isArray(DB.appointments.questions)) DB.appointments.questions=[];
-  if(!Array.isArray(DB.appointments.plans)) DB.appointments.plans=[];
-  return DB.appointments;
-}
-function appointmentQuestionForm(){
-  const data=appointmentData(), question=appointmentQuestionEditId&&appointmentQuestionEditId!=='new'
-    ?data.questions.find(item=>item.id===appointmentQuestionEditId):null;
-  return `<div class="tw-form-card jc-inline-form jc-appointment-form" aria-label="${question?'Edit':'Add'} appointment question">
-    <label class="fl" for="appointment-question">Question for your clinician</label>
-    <textarea id="appointment-question" maxlength="500" placeholder="Could this treatment be adjusted based on my symptoms?">${esc(question&&question.text||'')}</textarea>
-    <div class="btn-row split"><button class="btn primary" data-act="appointment-question-save" data-id="${esc(question&&question.id||'')}">${question?'Save question':'Add question'}</button><button class="btn ghost" data-act="appointment-question-cancel">Cancel</button></div>
-  </div>`;
-}
-function afterVisitPlanForm(){
-  const data=appointmentData(), plan=afterVisitPlanEditId&&afterVisitPlanEditId!=='new'
-    ?data.plans.find(item=>item.id===afterVisitPlanEditId):null;
-  const actionText=plan?(plan.actions||[]).map(item=>item.text).join('\n'):'';
-  return `<div class="tw-form-card jc-inline-form jc-appointment-form" aria-label="${plan?'Edit':'Add'} after-visit plan">
-    <span class="jc-followup-kicker">After the appointment</span><h3>${plan?'Edit your plan':'Capture the plan while it is fresh'}</h3>
-    <label class="fl" for="visit-date">Visit date</label><input id="visit-date" type="date" max="${todayISO()}" value="${esc(plan&&plan.date||todayISO())}">
-    <label class="fl" for="visit-summary">What you and your clinician decided</label><textarea id="visit-summary" maxlength="2000" placeholder="Decision, dose change, tests ordered, or advice">${esc(plan&&plan.summary||'')}</textarea>
-    <label class="fl" for="visit-actions">Next steps · one per line</label><textarea id="visit-actions" maxlength="8000" placeholder="Pick up prescription&#10;Book blood test&#10;Review symptoms in six weeks">${esc(actionText)}</textarea>
-    <label class="fl" for="visit-next">Next appointment (optional)</label><input id="visit-next" type="date" value="${esc(plan&&plan.nextVisit||'')}">
-    <div class="btn-row split"><button class="btn primary" data-act="after-visit-save" data-id="${esc(plan&&plan.id||'')}">${plan?'Save plan':'Add plan'}</button><button class="btn ghost" data-act="after-visit-cancel">Cancel</button></div>
-  </div>`;
-}
-function appointmentPlannerSection(){
-  const data=appointmentData(), open=data.questions.filter(item=>!item.asked), asked=data.questions.filter(item=>item.asked), plans=data.plans||[];
-  const questionRows=items=>items.map(item=>`<div class="jc-plan-row${item.asked?' complete':''}"><button class="jc-plan-check" data-act="appointment-question-toggle" data-id="${esc(item.id)}" aria-label="${item.asked?'Move back to questions':'Mark question asked'}" aria-pressed="${item.asked?'true':'false'}">${item.asked?'✓':'○'}</button><span>${esc(item.text)}</span><div><button data-act="appointment-question-edit" data-id="${esc(item.id)}">Edit</button><button data-act="appointment-question-remove" data-id="${esc(item.id)}" aria-label="Remove question: ${esc(item.text)}">Remove</button></div></div>`).join('');
-  return `<section class="jc-section jc-appointment-planner"><div class="jc-section-head"><span>Appointment questions</span>${appointmentQuestionEditId==null?'<button data-act="appointment-question-add">Add question</button>':''}</div>
-    ${appointmentQuestionEditId!=null?appointmentQuestionForm():''}
-    <div class="jc-plan-list">${open.length?questionRows(open):'<p class="jc-empty-line">No open questions yet. Add anything you do not want to forget.</p>'}${asked.length?`<details class="jc-plan-archive"><summary>${asked.length} asked ${asked.length===1?'question':'questions'}</summary>${questionRows(asked)}</details>`:''}</div>
-    <div class="jc-section-head jc-plan-heading"><span>After-visit plans</span>${afterVisitPlanEditId==null?'<button data-act="after-visit-add">Add plan</button>':''}</div>
-    ${afterVisitPlanEditId!=null?afterVisitPlanForm():''}
-    <div class="jc-visit-list">${plans.length?plans.slice(0,12).map(plan=>`<article class="jc-visit-plan"><div class="jc-visit-head"><div><b>${esc(fmtDay(plan.date))}</b>${plan.nextVisit?`<small>Next appointment ${esc(fmtDay(plan.nextVisit))}</small>`:''}</div><div><button data-act="after-visit-edit" data-id="${esc(plan.id)}">Edit</button><button data-act="after-visit-remove" data-id="${esc(plan.id)}" aria-label="Remove plan from ${esc(fmtDay(plan.date))}">Remove</button></div></div>${plan.summary?`<p>${esc(plan.summary)}</p>`:''}<div class="jc-action-list">${(plan.actions||[]).map(action=>`<button data-act="after-visit-action-toggle" data-plan-id="${esc(plan.id)}" data-action-id="${esc(action.id)}" aria-pressed="${action.done?'true':'false'}"><i>${action.done?'✓':'○'}</i><span>${esc(action.text)}</span></button>`).join('')}</div></article>`).join(''):'<p class="jc-empty-line">After a visit, record decisions and next steps here.</p>'}</div>
-  </section>`;
-}
-function treatmentRow(m){
-  const status=medicationStatus(m), detail=esc(medicationDetail(m))+(m.started?' · since '+esc(fmtDay(m.started)):'');
-  const actions=status==='active'
-    ?`<button data-act="med-change" data-id="${esc(m.id)}">Record change</button><button data-act="med-stop" data-id="${esc(m.id)}">Stop</button>`
-    :status==='stopped'
-      ?`<button data-act="med-restart" data-id="${esc(m.id)}">Restart</button><button data-act="med-archive" data-id="${esc(m.id)}">Archive</button>`
-      :`<button data-act="med-unarchive" data-id="${esc(m.id)}">Unarchive</button><button data-act="med-remove" data-id="${esc(m.id)}" aria-label="Permanently remove ${esc(m.name)}">Delete</button>`;
-  const stopped=status!=='active'&&m.ended?`<small>Stopped ${esc(fmtDay(m.ended))}${m.stopReason?' · '+esc(m.stopReason):''}</small>`:'';
-  return `<article class="jc-treatment ${status}"><div>${medicationIcon(m)}<span><b>${esc(m.name)}</b><small>${detail}</small>${stopped}</span></div><div class="jc-treatment-actions"><button data-act="med-edit" data-id="${esc(m.id)}">Edit details</button>${actions}</div></article>`;
-}
-function viewCare(){
-  const meds=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs:[], due=scheduledMeds(todayISO()), count=entryDates().length;
-  const changeMed=treatmentChangeTarget?meds.find(m=>m.id===treatmentChangeTarget):null;
-  const stopMed=treatmentStopTarget?meds.find(m=>m.id===treatmentStopTarget):null;
-  const editMed=medicationEditTarget?meds.find(m=>m.id===medicationEditTarget):null;
-  const followUps=treatmentFollowUpItems(), activeFollowUp=findTreatmentFollowUp(treatmentFollowUpTarget);
-  const activeMeds=meds.filter(m=>medicationStatus(m)==='active'), stoppedMeds=meds.filter(m=>medicationStatus(m)==='stopped'), archivedMeds=meds.filter(m=>medicationStatus(m)==='archived');
-  const appointments=appointmentData(), plannerOpen=appointmentQuestionEditId!=null||afterVisitPlanEditId!=null||appointments.questions.length||appointments.plans.length;
-  const pendingFollowUps=followUps.filter(item=>!item.followUp&&daysBetween(todayISO(),item.dueDate)<=0).length;
-  return `<div class="view jc-screen jc-care">
-    ${jcChrome()}
-    ${jcHeading('Your care','Prepare the conversation, then follow through.')}
-    ${medFormOpen?medicationForm(editMed):''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
-    <div class="mc-care-prep">
-      ${appointmentCompanionCard()}
-      ${pipSays('guide',84,savedBrief().concerns.length?'Bring the version with details. I’ll keep the notes.':'Everything you meant to say, written down before you’re in the room.')}
-      <section class="jc-context jc-appointment"><span class="mc-eyebrow">Appointment report</span><h2>Your story, ready to share.</h2><p>Symptoms, treatment changes and questions in one printable summary.</p><p class="mc-muted">Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p><button class="jc-secondary" data-act="open-report">Prepare appointment report</button><button class="jc-inline-action" data-act="sheet" data-s="learn:clinician">Build a question list ${IC.chev}</button></section>
-    </div>
-    ${!plannerOpen?'<div class="mc-care-actions"><button class="jc-secondary" data-act="appointment-question-add">Add question</button><button class="jc-secondary" data-act="after-visit-add">Add plan</button></div>':''}
-    <details class="mc-disclosure mc-care-planner"${plannerOpen?' open':''}><summary><span><b>Questions &amp; after-visit plans</b><small>${appointments.questions.filter(item=>!item.asked).length} open questions · ${appointments.plans.length} saved ${appointments.plans.length===1?'plan':'plans'}</small></span>${IC.chev}</summary>${appointmentPlannerSection()}</details>
-    ${visitReminderMarkup()}
-    <div class="mc-section-intro"><div><span class="mc-eyebrow">Between appointments</span><h2>Your everyday care</h2></div>${!medFormOpen&&!changeMed&&!stopMed&&!activeFollowUp?'<button class="jc-secondary" data-act="med-add">Add a medication</button>':''}</div>
-    <div class="mc-care-columns">
-      <section class="jc-section"><div class="jc-section-head"><span>Today’s care</span><small>${due.length?due.length+' scheduled':''}</small></div><div class="jc-open-list">${due.length?todayMedicationRows(true):`<p class="jc-empty-line">${meds.length?'Nothing scheduled today.':'Add your treatments to keep track of what you take and when it changes.'}</p>`}</div></section>
-      <section class="jc-section"><div class="jc-section-head"><span>Your treatment plan</span><small>${activeMeds.length} active</small></div><div class="jc-treatment-list">${activeMeds.length?activeMeds.map(treatmentRow).join(''):'<p class="jc-empty-line">No active treatments.</p>'}${stoppedMeds.length?`<div class="jc-treatment-subhead">Stopped</div>${stoppedMeds.map(treatmentRow).join('')}`:''}${archivedMeds.length?`<details class="jc-treatment-archive"><summary>${archivedMeds.length} archived ${archivedMeds.length===1?'treatment':'treatments'}</summary>${archivedMeds.map(treatmentRow).join('')}</details>`:''}</div></section>
-    </div>
-    <details class="mc-disclosure"${pendingFollowUps?' open':''}><summary><span><b>Treatment follow-ups</b><small>${pendingFollowUps?pendingFollowUps+' ready to complete':followUps.length?followUps.length+' scheduled or completed':'Check in after a treatment change'}</small></span>${IC.chev}</summary>${treatmentFollowUpSection(followUps)}</details>
-    <section class="jc-section mc-labs"><div class="jc-section-head"><span>Labs</span><button data-act="lab-add">Add result</button></div>${labFormOpen?labForm():labs.length?`<details class="mc-disclosure"><summary><span><b>${labs.length} saved ${labs.length===1?'result':'results'}</b><small>Open your lab record</small></span>${IC.chev}</summary><div class="jc-data-list">${labs.map((x,i)=>`<div><span><b>${esc(x.name)}</b><small>${esc(fmtDay(x.date))}</small></span><strong>${esc(x.value+(x.unit?' '+x.unit:''))}</strong><button data-act="lab-remove" data-i="${i}" aria-label="Remove ${esc(x.name)} result">×</button></div>`).join('')}</div></details>`:'<p class="jc-empty-line">Keep results here for your next appointment.</p>'}</section>
-    <button class="jc-open-row" data-act="sheet" data-s="learn:screening"><span>${TWILIGHT_IC.calendar}</span><span><b>Preventive care</b><small>Keep screening dates and regional guidance together.</small></span>${IC.chev}</button>
-  </div>`;
-}
-function guideRows(ids){
-  return ids.map(id=>LEARN_MODULES.find(m=>m.id===id)).filter(Boolean).map(m=>h('button',{class:'jc-guide-row','data-act':'sheet','data-s':'learn:'+m.id,'data-guide-text':(m.n+' '+m.s).toLowerCase()},'<span class="ico">'+m.i+'</span><span class="txt"><b>'+esc(m.n)+'</b><span>'+esc(m.s)+'</span></span><span class="chev">'+IC.chev+'</span>')).join('');
-}
-function guideGroup(title,ids,index,description){ return `<section class="jc-guide-group" data-guide-group><div class="mc-guide-group-heading"><span class="mc-guide-index">${esc(index||'')}</span><div><h2>${esc(title)}</h2>${description?`<p>${esc(description)}</p>`:''}</div></div>${guideRows(ids)}</section>`; }
-function viewGuide(){
-  const intent=DB.profile.intent||'understand';
-  const rec={understand:'stage',treatment:'treatment',appointment:'clinician',record:'symptoms'}[intent]||'stage';
-  const recommendation=LEARN_MODULES.find(m=>m.id===rec)||LEARN_MODULES[0];
-  return `<div class="view jc-screen jc-guide">
-    ${jcChrome()}
-    ${jcHeading('Guide','Evidence and tools, at your pace.')}
-    <label class="jc-search"><span class="sr-only">Search Guide</span><input type="search" data-act="guide-search" value="${esc(guideQuery)}" placeholder="Search symptoms, treatments, tools"></label>
-    <p class="mc-search-status" role="status" aria-live="polite" hidden></p>
-    <section class="jc-context jc-for-you mc-guide-feature"><div><span class="mc-eyebrow">Matched to your focus</span><h2>${esc(recommendation.n)}</h2><p>${esc(recommendation.s)}</p><button class="jc-inline-action" data-act="sheet" data-s="learn:${esc(recommendation.id)}">Open guide ${IC.chev}</button></div>${pip('guide',128)}</section>
-    ${quickToolsMarkup('guide')}
-    <div class="mc-section-intro"><div><h2>Library</h2></div><p>Clear information for each part of your journey.</p></div>
-    <div id="guide-results" class="mc-guide-library">
-      ${guideGroup('Understand',['stage','symptoms'],'01','Make sense of the changes.')}
-      ${guideGroup('Treat',['treatment','supplements'],'02','Know the options to discuss.')}
-      ${guideGroup('Feel better',['sleep','mind','exercise','sex','diet','weight','skin'],'03','Everyday wellbeing, one topic at a time.')}
-      ${guideGroup('Prepare',['clinician','screening','sources'],'04','Bring more confidence to your care.')}
-      <p class="jc-no-results" hidden>No matching guidance. Try a symptom or treatment name.</p>
-    </div>
-    <p class="jc-footnote">Education, not medical advice. Content reviewed July 2026.</p>
-  </div>`;
-}
-function filterGuideResults(){
-  const root=document.getElementById('guide-results'); if(!root) return;
-  const q=guideQuery.trim().toLowerCase(), rows=[...root.querySelectorAll('[data-guide-text]')];
-  rows.forEach(row=>{ row.hidden=!!q&&!row.dataset.guideText.includes(q); });
-  const guide=root.closest('.jc-guide'), status=guide.querySelector('.mc-search-status');
-  guide.classList.toggle('mc-searching',!!q);
-  if(status){ const count=rows.filter(row=>!row.hidden).length; status.hidden=!q; status.textContent=count+' '+(count===1?'guide':'guides')+' found'; }
-  root.querySelectorAll('[data-guide-group]').forEach(group=>{ group.hidden=![...group.querySelectorAll('[data-guide-text]')].some(row=>!row.hidden); });
-  const empty=root.querySelector('.jc-no-results'); if(empty) empty.hidden=rows.some(row=>!row.hidden);
-}
-function jcSeverityControl(key,value){
-  const labels=['None','Mild','Moderate','Severe','Very severe'];
-  return `<div class="jc-check-row${value!=null?' mc-rated':''}"><div class="jc-check-label">${symptomIcon(key)}<span><b>${esc(symptomName(key))}</b><small>${value==null?'Tap a number':labels[Math.min(4,value)]}</small></span></div><div class="jc-scale" role="group" aria-label="${esc(symptomName(key))}">${labels.map((label,i)=>`<button${value!=null&&i<value?' class="below"':''} data-act="set" data-k="${esc(symptomPath(key))}" data-v="${i}" aria-label="${esc(symptomName(key)+': '+label)}" aria-pressed="${value===i?'true':'false'}"><span>${i}</span><small class="mc-scale-label">${label}</small></button>`).join('')}</div></div>`;
-}
-/* The confirmed moment: Pip's check-in clip (puzzled glance, phone tap, smile)
-   on the web build, with the still guide pose underneath. Safari/WebKit only
-   plays transparent video as HEVC, so the webm is offered to other engines and
-   the .mov only when the build shipped one. The native bundle has no base URL
-   for relative media, so it keeps the still pose. */
-const PIP_CLIP_MOV='__PIP_CLIP_MOV__';
-function pipClipSources(){
-  if(window.__MENO_NATIVE__===true||typeof navigator==='undefined') return '';
-  const ua=navigator.userAgent||'', webkitOnly=/AppleWebKit/.test(ua)&&!/Chrome|Chromium|CriOS|Edg|Android|Firefox/.test(ua);
-  if(webkitOnly) return PIP_CLIP_MOV&&!PIP_CLIP_MOV.startsWith('__')?`<source src="${PIP_CLIP_MOV}" type='video/quicktime; codecs="hvc1.1.6.H120.b0"'>`:'';
-  return `<source src="${PIP_CLIP}" type='video/webm; codecs="vp09.00.41.08"'>`;
-}
-function pipCelebration(text){
-  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const sources=reduced?'':pipClipSources();
-  const clip=sources?`<video class="pip-clip" autoplay muted playsinline disablepictureinpicture aria-hidden="true" onplaying="this.parentNode.classList.add('is-playing')" onended="this.parentNode.classList.remove('is-playing');this.remove()" onerror="this.parentNode.classList.remove('is-playing');this.remove()">${sources}</video>`:'';
-  return `<div class="pip-says"><span class="pip-swap">${pip('guide',112)}${clip}</span><p class="pip-bubble">${text}</p></div>`;
-}
-function viewCheckin(){
-  const t=todayISO(), raw=entry(t), count=entryDates().length, backLabel=returnTab==='journey'?'Journey':'Today';
-  if(checkinComplete){
-    return `<div class="view jc-screen jc-checkin jc-complete">${jcChrome(backLabel)}${pipCelebration(checkinFirstSaved?'Your first note. Future-you says thanks.':'Noted. Future-you says thanks.')}${jcHeading(checkinFirstSaved?'Your first check-in is saved.':'Today is confirmed.',checkinFirstSaved?'You made a little space for yourself. Here’s what you recorded.':'Your Journey and appointment report now use this version.',fmtLong(t))}${checkinFirstSaved?`<section class="ob-preview"><span class="ob-eyebrow">YOUR STARTING POINT</span><p>${esc(recordSummary(confirmedRecord(t)))}</p><p class="ob-small">One day is a starting point. As you add check-ins, you’ll have more to look back on.</p></section>`:comparisonPanel(count)}<button class="jc-primary" data-act="back-journey">${checkinFirstSaved?'See my first check-in':'Back to Journey'}</button><button class="jc-secondary" data-act="finish-setup">Add optional profile details</button><button class="jc-inline-action" data-act="checkin-add-treatment">Add treatment change</button></div>`;
-  }
-  const state=dayState(t), context=checkinStep===1;
-  const keys=[...new Set([...focusedKeys(),...(checkinAddedSymptoms.get(t)||[]),...PINNABLE_SYMPTOMS.filter(key=>symptomValue(raw,key)!=null)])];
-  const availableKeys=PINNABLE_SYMPTOMS.filter(key=>!keys.includes(key));
-  const recordedKeys=[...new Set([...keys,...PINNABLE_SYMPTOMS])].filter(key=>symptomValue(raw,key)!=null);
-  const ratingLabels=['None','Mild','Moderate','Severe','Very severe'];
-  return `<div class="view jc-screen jc-checkin">
-    ${jcChrome(backLabel)}
-    ${pipSays('phone',84,context?'Anything worth remembering? One line is plenty.':'Take your time. “Rough” is a fine answer.')}
-    ${jcHeading(DB.profile.firstCheckinPending?'Your first check-in':'Today’s check-in',DB.profile.firstCheckinPending?'Your chosen concerns are ready. Nothing counts in your patterns until you confirm.':'Nothing counts in your patterns until you confirm.',fmtLong(t))}
-    <nav class="mc-check-steps" aria-label="Check-in steps">
-      <button class="mc-step${context?'':' active'}" aria-label="Step 1: Your symptoms" data-act="checkin-step" data-v="0"${context?'':' aria-current="step"'}><span>1</span><b>Your symptoms</b></button>
-      <button class="mc-step${context?' active':''}" aria-label="Step 2: Context and review (optional)" data-act="checkin-step" data-v="1"${context?' aria-current="step"':''}><span>2</span><b>Context &amp; review<small>Optional</small></b></button>
-    </nav>
-    <div class="jc-draft-badge ${state.key}">${state.key==='confirmed'?'Confirmed version on file':state.label}</div>
-    ${context?`
-      <div class="mc-check-intro"><h2 id="mc-check-heading" tabindex="-1">The little details matter.</h2><p>Add anything that may help you remember this day.</p></div>
-      <section class="mc-check-review"><div class="jc-section-head"><span>Your symptoms today</span><button data-act="checkin-step" data-v="0">Edit ratings</button></div>
-        ${recordedKeys.length?`<dl class="mc-check-summary">${recordedKeys.map(key=>{const value=symptomValue(raw,key);return `<div><dt>${esc(symptomName(key))}</dt><dd>${key==='hf'?value+' '+(value===1?'flash':'flashes'):esc(ratingLabels[Math.min(4,value)]||String(value))}</dd></div>`;}).join('')}</dl>`:'<p class="jc-empty-line">No symptom ratings yet. You can still save a note about today.</p>'}
-      </section>
-      <label class="jc-note"><span>Anything worth remembering?</span><textarea maxlength="4000" data-act="num" data-k="notes" placeholder="What helped, what changed, or a question for your clinician…">${esc(raw.notes||'')}</textarea></label>
-      <section class="jc-section"><div class="jc-section-head"><span>Today’s treatment</span></div><div class="jc-open-list">${todayMedicationRows(true)}</div></section>
-      <button class="jc-open-row" data-act="more-details"><span>${PULSE_IC.today}</span><span><b>Add more detail</b><small>Sleep, cycle, body, and lifestyle</small></span>${IC.chev}</button>
-    `:`
-      <div class="mc-check-intro"><h2 id="mc-check-heading" class="sr-only" tabindex="-1">How has today felt?</h2><p>Choose what fits. Skip anything you’re unsure about.</p></div>
-      <aside class="jc-scale-guide" aria-label="How to rate symptoms"><p>Rate how much each symptom affected you today, from 0 (none) to 4 (very severe).</p><details><summary>What does each rating mean?</summary><dl><div><dt>0 · None</dt><dd>Did not happen.</dd></div><div><dt>1 · Mild</dt><dd>Noticeable, but easy to carry on.</dd></div><div><dt>2 · Moderate</dt><dd>Sometimes interrupted what you were doing.</dd></div><div><dt>3 · Severe</dt><dd>Made usual activities difficult.</dd></div><div><dt>4 · Very severe</dt><dd>Stopped you doing usual activities.</dd></div></dl><p>For example, choose 2 for brain fog if you sometimes lost your train of thought but could continue. Hot flashes use a count, not this scale.</p></details></aside>
-      <section class="jc-check-list" aria-label="Today’s symptoms">
-        ${keys.map(key=>key==='hf'?`<div class="jc-check-row${raw.hf!=null?' mc-rated':''}"><div class="jc-check-label">${TWILIGHT_IC.flame}<span><b>Hot flashes</b><small>Actual count today</small></span></div><div class="jc-count"><button data-act="hf" data-n="-1" aria-label="One fewer hot flash">−</button><strong>${raw.hf==null?'—':raw.hf}</strong><button data-act="hf" data-n="1" aria-label="One more hot flash">+</button><button data-act="set" data-k="hf" data-v="0">None</button></div></div>`:jcSeverityControl(key,symptomValue(raw,key))).join('')}
-      </section>
-      ${availableKeys.length?`<details class="mc-disclosure jc-add-symptom"><summary>Add another symptom ${IC.chev}</summary><div class="jc-open-list">${availableKeys.map(key=>`<button class="jc-open-row" data-act="checkin-add-symptom" data-v="${esc(key)}"><span>${symptomIcon(key)}</span><span>${esc(symptomName(key))}</span>${IC.chev}</button>`).join('')}</div></details>`:'<p class="jc-empty-line">All symptoms are shown above.</p>'}
-    `}
-    <div class="mc-check-actions">
-      ${context?'':`<button class="jc-secondary" data-act="checkin-step" data-v="1">Add context ${IC.chev}</button>`}
-      <button class="jc-primary jc-confirm" data-act="confirm-log">Confirm today’s log</button>
-      <p class="jc-footnote">${context?'Your confirmed log will update your Journey and appointment report.':'You can confirm now, or add a note and treatment details first.'}</p>
+
+/* ============================================================
+   TODAY'S PAGE
+   ============================================================ */
+function viewToday(){
+  const t=todayISO();
+  if(isNightHour()&&!nightDeskDismissed) return viewNight();
+  const fs=findings(), top=fs[0], dossierList=dossierFindings();
+  const topIndex=dossierList.findIndex(f=>f.id===top.id);
+  const closed=dayClosed(t), rating=closed?confirmedEntry(t).rating:null;
+  const appt=appointmentDate(), n=entryDates().length;
+  const right=`${esc(dayLabel(t))}<br>Day ${dayNumber()}`;
+  const dossierLine=appt
+    ?`<b>Dossier</b> <span class="muted">· appointment in ${daysBetween(t,appt)} ${plural(daysBetween(t,appt),'day')} · ${dossierReadiness()}% ready</span>`
+    :`<b>Dossier</b> <span class="muted">· ${n} ${plural(n,'day')} recorded · ${dossierList.length} ${plural(dossierList.length,'finding')}</span>`;
+  const quiet=top.kind==='record';
+  return `<div class="view page-today">
+    ${masthead('today',right)}
+    <section class="finding" aria-labelledby="finding-label">
+      <div class="label" id="finding-label">${top.kind==='alert'?'Needs attention':quiet?'The record':'Today’s finding'}</div>
+      <h1 class="head${quiet?' quiet':''}">${top.head}</h1>
+      <p>${quiet||top.kind==='alert'?top.body:(top.sub?esc(top.sub.charAt(0).toUpperCase()+top.sub.slice(1))+'. ':'')+(topIndex>=0?'Filed to the dossier as finding '+String(topIndex+1).padStart(2,'0')+'.':'')}</p>
+      ${top.cta?`<button class="filed" data-act="go" data-v="${esc(top.cta.go)}">${esc(top.cta.l)} ${IC.arrow}</button>`:topIndex>=0?`<button class="filed" data-act="tab" data-v="dossier">Open the dossier ${IC.arrow}</button>`:''}
+    </section>
+    <div class="rule strong"></div>
+    <section class="ledger" aria-labelledby="ledger-label">
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><div class="label" id="ledger-label">The ledger</div><button class="textbtn muted" data-act="sheet" data-s="pages" style="padding:0;min-height:0;font-size:12px">Earlier pages</button></div>
+      ${ledgerMarkup(t)}
+      ${medsTakenMarkup(t)}
+    </section>
+    <div class="spacer"></div>
+    <button class="linkrow" data-act="sheet" data-s="support"><span><b>Right now</b> <span class="muted">· can’t sleep, overwhelmed, hot flash, fog</span></span>${IC.arrow}</button>
+    <button class="linkrow" data-act="tab" data-v="dossier"><span>${dossierLine}</span>${IC.arrow}</button>
+    <div class="actions">
+      <button class="btn accent wide" data-act="sheet" data-s="log">${IC.plus}Log</button>
+      ${closed?`<button class="btn quiet" data-act="sheet" data-s="close">Closed · ${DAY_RATINGS[rating]}</button>`:`<button class="btn outline" data-act="sheet" data-s="close">Close the day</button>`}
     </div>
   </div>`;
 }
-function viewAppointmentReport(){
-  const count=entryDates().length, report=reportSheet(reportRange);
-  return `<div class="view jc-screen jc-report-route">${jcChrome('Care')}${jcHeading('Appointment report',count<7?'Early summary — facts only until more days are confirmed.':'A focused summary for a more useful conversation.')}
-    <div class="jc-range" role="group" aria-label="Report range">${[30,90,180].map(n=>`<button data-act="report-range" data-v="${n}" aria-pressed="${reportRange===n?'true':'false'}">${n} days</button>`).join('')}</div>
-    <p class="jc-report-provenance">Based on ${count} confirmed ${count===1?'day':'days'}. Self-reported; not a clinical record.</p>
-    ${report.body}
-    <button class="jc-secondary" data-act="go-care">Back to Care</button>
+function viewNight(){
+  const t=todayISO(), now=nowHM();
+  const tonight=dayMoments(t).filter(m=>windowOf(m.t).id==='night'&&hmMinutes(m.t)<6*60);
+  const yesterdayLate=dayMoments(addDays(t,-1)).filter(m=>hmMinutes(m.t)>=22*60);
+  const wakes=tonight.filter(m=>m.k==='woke').length;
+  const trail=[...yesterdayLate,...tonight].filter(m=>['woke','ns','slept','note'].includes(m.k)).map(m=>momentName(m).toLowerCase()+' '+m.t);
+  const ordinal=['','Second','Third','Fourth','Fifth','Sixth'][wakes]||(wakes+1)+'th';
+  return `<div class="view night page-night">
+    <div class="topbar"><span class="wordmark" style="font-size:22px">peri</span><span class="meta">Night desk · dimmed</span></div><div class="rule thick"></div>
+    <div style="padding:26px 0 8px"><div class="clock" aria-label="Current time">${esc(now)}</div><h1 class="clock-sub">${wakes?'Awake again.':'Still up.'}</h1></div>
+    <p class="small muted">${wakes?ordinal+' time tonight. ':''}Tap what it is and go back to bed. The page will be written by seven.</p>
+    <div class="rule" style="margin-top:22px"></div>
+    <div class="biglist">
+      <button class="bigrow" data-act="log" data-k="woke" data-night="1"><span>Woke</span><span class="s">logs ${esc(now)}</span></button>
+      <button class="bigrow" data-act="log" data-k="ns" data-night="1"><span>Night sweat</span><span class="s">logs ${esc(now)}</span></button>
+      <button class="bigrow" data-act="sheet" data-s="tool:pmr"><span>Can’t sleep</span><span class="s">wind-down</span></button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn accent" data-act="sheet" data-s="tool:breath">Breathe · 2 min</button>
+    <p class="footnote">${trail.length?esc(trail.join(' · '))+' · now.':'Nothing logged tonight.'} <button class="textbtn muted" data-act="night-dismiss" style="padding:0 0 0 6px;min-height:0;font-size:12px">Open today’s page</button></p>
   </div>`;
 }
 
 /* ============================================================
-   RENDER + EVENTS
+   DOSSIER
    ============================================================ */
-function applyTheme(){
-  document.documentElement.setAttribute('data-theme','light');
-  const meta=document.querySelector('meta[name="theme-color"]');
-  if(meta) meta.setAttribute('content','#f7f5ef');
+function sec(num,title,inner,action){
+  return `<section class="sec" aria-labelledby="sec-${num}"><div class="sec-head"><span class="n">${num}</span><h2 id="sec-${num}">${esc(title)}</h2>${action||''}</div>${inner}</section>`;
 }
-const TAB_TITLES = {today:['Today','What matters now'], journey:['Journey','Symptoms and changes'], care:['Care','Treatment and appointments'], guide:['Guide','Evidence and tools']};
-const ROUTE_ALIASES = {trends:'journey',meds:'care',report:'appointment-report',settings:'profile',you:'profile',learn:'guide'};
+function findingRow(f,i){
+  return `<div class="fnd"><span class="n">${i+1}</span><div class="body"><h3 class="head">${f.head}</h3>${f.num?`<div class="figure"><span class="big">${f.num}</span>${f.sub?`<span class="sub">${esc(f.sub)}</span>`:''}</div>`:''}<p class="note">${f.kind==='insight'||f.kind==='alert'?f.body:'Filed '+esc(shortDate(f.filed))+'. '+f.body}${f.cta?` <button class="textbtn" data-act="go" data-v="${esc(f.cta.go)}" style="padding:0;min-height:0;display:inline">${esc(f.cta.l)}</button>`:''}</p></div></div>`;
+}
+function medsSection(){
+  const meds=Array.isArray(DB.medications)?DB.medications:[], active=meds.filter(m=>medicationStatus(m)==='active'), stopped=meds.filter(m=>medicationStatus(m)!=='active');
+  const followUps=treatmentFollowUpItems(), due=followUps.filter(item=>!item.followUp&&daysBetween(todayISO(),item.dueDate)<=0);
+  const row=m=>{const adherence=rangeDates(7).filter(d=>scheduledMeds(d).includes(m)), taken=adherence.filter(d=>DB.entries[d]&&DB.entries[d].med&&DB.entries[d].med[m.id]&&DB.entries[d].med[m.id].taken).length;
+    const change=(m.changes||[]).slice(-1)[0];
+    return `<div class="kv"><span><b>${esc(m.name)}</b>${change&&change.label&&change.label!=='Treatment started'?' <span class="muted">· '+esc(change.label)+'</span>':''}</span><span class="r">${esc(medicationDetail(m).replace(/^[a-z]+ · /,''))}${m.started?' · from '+esc(shortDate(m.started)):''}${adherence.length?' · '+taken+' of '+adherence.length:''}</span></div>`;};
+  const body=(active.length?active.map(row).join(''):'<p class="small muted">No treatments recorded. If you take something for this, it belongs here with its start date; the check-ins and the report both read from it.</p>')
+    +(stopped.length?`<p class="xtiny" style="margin-top:8px">Stopped or archived: ${stopped.map(m=>esc(m.name)+(m.ended?' ('+esc(shortDate(m.ended))+')':'')).join(', ')}.</p>`:'')
+    +(due.length?`<p class="small" style="margin-top:10px"><b>${due.length} check-in${due.length===1?'':'s'} due.</b> <button class="textbtn" data-act="sheet" data-s="treatments" style="padding:0;min-height:0;display:inline">Complete</button></p>`:'');
+  return sec('03','Treatments',body,`<button class="textbtn" data-act="sheet" data-s="treatments">${meds.length?'Manage':'Add'}</button>`);
+}
+function questionsSection(){
+  const brief=appointmentSuggestionBrief(), saved=savedBrief().concerns.length>0;
+  const generated=saved?(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text):[];
+  const personal=appointmentData().questions.filter(q=>!q.asked);
+  const all=[...generated.map(q=>({text:q.text,why:q.reason})),...personal.map(q=>({text:q.text,why:'Your own question.',id:q.id}))];
+  const body=all.length?all.slice(0,8).map((q,i)=>`<div class="qn"><span class="n">${i+1}</span><div style="flex:1 1 auto;min-width:0"><div class="q">${esc(q.text)}</div><div class="why">${esc(q.why)}${q.id?` <button class="textbtn muted" data-act="appointment-question-remove" data-id="${esc(q.id)}" style="padding:0;min-height:0;display:inline;font-size:12px">Remove</button>`:''}</div></div></div>`).join('')
+    :'<p class="small muted">Set your three concerns and the questions write themselves from your record. Add your own below.</p>';
+  return sec('04','Questions',body+(appointmentQuestionEditId!=null?appointmentQuestionForm():`<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:6px"><button class="textbtn" data-act="brief-start">${saved?'Edit the brief':'Build the brief'}</button><button class="textbtn ink" data-act="appointment-question-add">Add a question</button></div>`));
+}
+function appointmentQuestionForm(){
+  const data=appointmentData(), question=appointmentQuestionEditId&&appointmentQuestionEditId!=='new'?data.questions.find(item=>item.id===appointmentQuestionEditId):null;
+  return `<div class="form" style="margin-top:12px"><div class="field"><label class="fl" for="appointment-question">Question for your clinician</label><textarea id="appointment-question" maxlength="500" placeholder="Could the dose be adjusted on what I have logged?">${esc(question&&question.text||'')}</textarea></div><div class="btn-row split"><button class="btn ink sm" data-act="appointment-question-save" data-id="${esc(question&&question.id||'')}">${question?'Save':'Add'}</button><button class="btn outline sm" data-act="appointment-question-cancel">Cancel</button></div></div>`;
+}
+function afterVisitPlanForm(){
+  const data=appointmentData(), plan=afterVisitPlanEditId&&afterVisitPlanEditId!=='new'?data.plans.find(item=>item.id===afterVisitPlanEditId):null;
+  const actionText=plan?(plan.actions||[]).map(item=>item.text).join('\n'):'';
+  return `<div class="form" style="margin-top:12px" aria-label="${plan?'Edit':'Add'} after-visit plan">
+    <div class="field"><label class="fl" for="visit-date">Visit date</label><input id="visit-date" type="date" max="${todayISO()}" value="${esc(plan&&plan.date||todayISO())}"></div>
+    <div class="field"><label class="fl" for="visit-summary">What was decided</label><textarea id="visit-summary" maxlength="2000" placeholder="Decision, dose change, tests ordered, advice">${esc(plan&&plan.summary||'')}</textarea></div>
+    <div class="field"><label class="fl" for="visit-actions">Next steps, one per line</label><textarea id="visit-actions" maxlength="8000" placeholder="Collect prescription&#10;Book blood test&#10;Review in six weeks">${esc(actionText)}</textarea></div>
+    <div class="field"><label class="fl" for="visit-next">Next appointment (optional)</label><input id="visit-next" type="date" value="${esc(plan&&plan.nextVisit||'')}"></div>
+    <div class="btn-row split"><button class="btn ink sm" data-act="after-visit-save" data-id="${esc(plan&&plan.id||'')}">${plan?'Save plan':'Add plan'}</button><button class="btn outline sm" data-act="after-visit-cancel">Cancel</button></div>
+  </div>`;
+}
+function afterVisitSection(){
+  const plans=appointmentData().plans||[];
+  const body=plans.length?plans.slice(0,6).map(plan=>`<div class="kv stack"><b>${esc(fmtDay(plan.date))}${plan.nextVisit?' <span class="muted" style="font-weight:400">· next '+esc(fmtDay(plan.nextVisit))+'</span>':''}</b>${plan.summary?`<span class="r">${esc(plan.summary)}</span>`:''}${(plan.actions||[]).map(action=>`<button class="check sm" data-act="after-visit-action-toggle" data-plan-id="${esc(plan.id)}" data-action-id="${esc(action.id)}" aria-pressed="${action.done?'true':'false'}"><span class="box">${IC.check}</span><span>${esc(action.text)}</span></button>`).join('')}<div style="display:flex;gap:14px"><button class="textbtn muted" data-act="after-visit-edit" data-id="${esc(plan.id)}" style="font-size:12px;min-height:36px">Edit</button><button class="textbtn muted" data-act="after-visit-remove" data-id="${esc(plan.id)}" style="font-size:12px;min-height:36px">Remove</button></div></div>`).join('')
+    :'<p class="small muted">After the visit, write down what was decided while it is fresh. Next steps become a checklist; a next date goes on the page.</p>';
+  return sec('06','After the visit',body+(afterVisitPlanEditId!=null?afterVisitPlanForm():'')+visitReminderMarkup(),afterVisitPlanEditId==null?'<button class="textbtn" data-act="after-visit-add">Add</button>':'');
+}
+function evidenceSection(){
+  const data=appointmentData(), labs=Array.isArray(DB.labs)?DB.labs:[], scores=DB.scores.slice(-4).reverse();
+  const evidence=data.evidence.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=[
+    ...evidence.map(item=>`<div class="kv"><span>${item.kind==='chapter'?'<span class="muted">Chapter · </span>':''}${esc(item.text)}</span><span class="r">${esc(shortDate(item.date))} <button class="textbtn muted" data-act="evidence-remove" data-id="${esc(item.id)}" aria-label="Remove ${esc(item.text)}" style="padding:0 0 0 6px;min-height:0;display:inline;font-size:12px">×</button></span></div>`),
+    ...labs.slice(0,6).map((x,i)=>`<div class="kv"><span><b>${esc(x.name)}</b> ${esc(x.value+(x.unit?' '+x.unit:''))}</span><span class="r">${esc(shortDate(x.date))} <button class="textbtn muted" data-act="lab-remove" data-i="${i}" aria-label="Remove ${esc(x.name)}" style="padding:0 0 0 6px;min-height:0;display:inline;font-size:12px">×</button></span></div>`),
+    ...scores.map(s=>`<div class="kv"><span><b>${esc(s.type.toUpperCase())}</b> ${s.score}${s.band?' · '+esc(s.band):''}</span><span class="r">${esc(shortDate(s.date))}</span></div>`)
+  ];
+  const body=(rows.length?rows.join(''):'<p class="small muted">Lab results, questionnaire scores and any chapter you pin from the Index. The clinician report carries all of it.</p>')
+    +(labFormOpen?labForm():'')
+    +`<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:6px">${labFormOpen?'':'<button class="textbtn" data-act="lab-add">Add a lab result</button>'}<button class="textbtn ink" data-act="sheet" data-s="learn:screening">Screening dates</button></div>`;
+  return sec('05','Evidence',body);
+}
+function labForm(){
+  return `<div class="form" style="margin-top:12px" aria-label="Add lab result"><div class="grid2"><div class="field"><label class="fl" for="lab-name">Test</label><input id="lab-name" type="text" maxlength="80" placeholder="Estradiol"></div><div class="field"><label class="fl" for="lab-date">Date</label><input id="lab-date" type="date" max="${todayISO()}" value="${todayISO()}"></div></div><div class="grid2"><div class="field"><label class="fl" for="lab-value">Result</label><input id="lab-value" type="text" maxlength="40" placeholder="312"></div><div class="field"><label class="fl" for="lab-unit">Unit</label><input id="lab-unit" type="text" maxlength="30" placeholder="pmol/L"></div></div><div class="btn-row split"><button class="btn ink sm" data-act="lab-save">Save result</button><button class="btn outline sm" data-act="lab-cancel">Cancel</button></div></div>`;
+}
+function viewDossier(){
+  const t=todayISO(), appt=appointmentDate(), n=entryDates().length, list=dossierFindings(), stage=stageSummary(), brief=savedBrief();
+  const right=appt?`For the appointment<br>${esc(dayLabel(appt))}`:`For the appointment<br>No date set`;
+  if(nativeProLocked('dossier')){
+    return `<div class="view page-dossier">${masthead('dossier',right)}
+      <div style="padding:22px 0 18px"><h1 style="font-size:clamp(44px,14vw,56px);line-height:.95;letter-spacing:-.035em;margin:0">Dossier</h1><p class="small muted" style="margin-top:10px">Everything they need in the ten minutes you get. Self-reported, recorded daily, dated.</p></div>
+      <div class="lock"><div class="label accent" style="margin-bottom:10px">peri Pro</div><p class="lead">The dossier, the one-page brief, the treatment check-ins and the rehearsal.</p><p class="small muted">The page, the ledger, the night desk, the index and the finding of the day stay free. Your ${n} ${plural(n,'day')} on record are already here, waiting.</p><button class="btn accent" data-act="unlock-pro">Unlock peri Pro</button><button class="textbtn" data-act="manage-subscription">Already subscribed? Restore</button></div>
+      <div class="spacer"></div><p class="footnote">Nothing here has left the phone.</p></div>`;
+  }
+  const opening=briefOpening(brief);
+  return `<div class="view page-dossier">
+    ${masthead('dossier',right)}
+    <div style="padding:22px 0 18px"><h1 style="font-size:clamp(44px,14vw,56px);line-height:.95;letter-spacing:-.035em;margin:0">Dossier</h1><p class="small muted" style="margin-top:10px">Everything they need in the ten minutes you get. Self-reported, recorded daily, dated.</p></div>
+    <div class="stats" aria-label="Dossier summary">
+      ${appt?`<div class="stat"><div class="v accent num">${daysBetween(t,appt)}</div><div class="k">${plural(daysBetween(t,appt),'day')} to go</div></div>`:`<div class="stat"><div class="v num">${dayNumber()}</div><div class="k">day of record</div></div>`}
+      <div class="stat"><div class="v num">${n}</div><div class="k">${plural(n,'day')} recorded</div></div>
+      <div class="stat"><div class="v num">${list.length}</div><div class="k">${plural(list.length,'finding')}</div></div>
+      <div class="stat"><div class="v num">${dossierReadiness()}<small>%</small></div><div class="k">brief ready</div></div>
+    </div>
+    <div style="padding:16px 0 4px"><button class="btn accent" data-act="open-report">Export the one-page brief</button></div>
+    <div style="padding:8px 0 6px;display:flex;gap:8px"><button class="btn outline sm" data-act="sheet" data-s="rehearse">Rehearse the opening</button><button class="btn outline sm" data-act="sheet" data-s="appointment-date">${appt?'Change the date':'Set the date'}</button></div>
+    ${sec('01','Where you are',`<p class="sec-lead">${esc(stage.head)}</p><p>${esc(stage.body)}</p>`,`<button class="textbtn" data-act="sheet" data-s="learn:stage">${stage.label?'Reassess':'Answer'}</button>`)}
+    ${sec('02','Findings',list.length?list.slice(0,8).map(findingRow).join(''):'<p class="small muted">Nothing filed yet. Findings need about a week of pages; the first usually arrives around day seven.</p>')}
+    ${medsSection()}
+    ${questionsSection()}
+    ${evidenceSection()}
+    ${afterVisitSection()}
+    ${sec('07','Opening statement',`<p class="quote${opening?'':' empty'}">${opening?'“'+esc(opening)+'”':'Set your three concerns and the opening writes itself.'}</p>`,`<button class="textbtn" data-act="${opening?'sheet':'brief-start'}"${opening?' data-s="rehearse"':''}>${opening?'Rehearse':'Write it'}</button>`)}
+    <p class="xtiny" style="padding-top:16px;line-height:1.45">Self-reported. Associations are your own record, not evidence of cause. Not a clinical record. Nothing here has left the phone.</p>
+  </div>`;
+}
+
+/* ============================================================
+   INDEX
+   ============================================================ */
+function indexEntries(query){
+  const q=(query||'').trim().toLowerCase();
+  const chapters=LEARN_MODULES.map((m,i)=>({kind:'chapter',id:'learn:'+m.id,group:m.g,path:(q?m.g+' · ':'Chapter ')+(i+1)+' of '+LEARN_MODULES.length,head:m.n,body:m.s,q:(m.n+' '+m.s+' '+m.q).toLowerCase()}));
+  const tools=TOOL_CATALOG.map((t,i)=>({kind:'tool',id:'tool:'+t.id,path:'Tool · '+t.group,head:t.name,body:t.description,q:(t.name+' '+t.description+' '+t.q).toLowerCase()}));
+  const symptoms=(typeof SYMPTOMS!=='undefined'?SYMPTOMS:[]).map(s=>({kind:'symptom',id:'learn:sym-'+s.id,path:'Symptom library',head:s.name,body:s.quick,q:(s.name+' '+s.quick+' '+(s.tag||'')).toLowerCase()}));
+  if(!q) return chapters;
+  const words=q.split(/\s+/).filter(w=>w.length>1&&!['the','and','why','am','is','my','at','do','what','how','i','a','to','of'].includes(w));
+  const score=item=>words.reduce((n,w)=>n+(item.q.includes(w)?1:0),0)+(item.q.includes(q)?3:0);
+  return [...chapters,...symptoms,...tools].map(item=>({item,s:score(item)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s).map(x=>x.item);
+}
+function viewIndex(){
+  const entries=indexEntries(indexQuery), all=findings(), pattern=all.find(f=>f.kind==='pattern'&&!f.id.startsWith('today-'))||all.find(f=>f.kind==='pattern');
+  const groups=indexQuery.trim()?null:['Understand','Treat','Feel better','Prepare'];
+  const entry=e=>`<button class="entry" data-act="sheet" data-s="${esc(e.id)}"><div class="path">${esc(e.path)}</div><div class="head">${esc(e.head)}</div><p>${esc(e.body)}</p></button>`;
+  return `<div class="view page-index">
+    ${masthead('index',`${LEARN_MODULES.length} chapters · ${TOOL_CATALOG.length} tools<br>reviewed ${CONTENT_REVIEWED}`)}
+    <label class="ask"><span class="sr-only">Search the index</span><input type="search" data-act="index-search" value="${esc(indexQuery)}" placeholder="Why am I waking at 3 am?" autocomplete="off" enterkeyhint="search"><span class="iconbtn" aria-hidden="true">${IC.mic}</span></label>
+    ${pattern&&!indexQuery?`<p class="ask-ledger">In your ledger: ${pattern.head.replace(/\.$/,'').replace(/^(\w)/,c=>c.toLowerCase())}${pattern.sub?' ('+esc(pattern.sub)+')':''}.</p>`:''}
+    <div id="index-results">${groups?groups.map(g=>`<div class="label" style="margin:20px 0 2px">${esc(g)}</div>`+entries.filter(e=>e.group===g).map(entry).join('')).join('')+`<div class="label" style="margin:20px 0 2px">Tools</div>`+TOOL_CATALOG.map(t=>`<button class="entry" data-act="sheet" data-s="tool:${t.id}"><div class="path">Tool · ${esc(t.group)}</div><div class="head">${esc(t.name)}</div><p>${esc(t.description)}</p></button>`).join('')
+      :entries.length?entries.map(entry).join(''):`<p class="empty">Nothing in the index matches that. Try a symptom, a treatment or a tool.</p>`}</div>
+    <div class="spacer"></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;padding-top:18px" class="xtiny"><span>Education, not medical advice.</span><span>Any chapter can be pinned to the dossier.</span></div>
+  </div>`;
+}
+
+/* ============================================================
+   YOU
+   ============================================================ */
+function nativePrivacyBlock(){
+  if(window.__MENO_NATIVE__!==true) return '';
+  if(!nativePrivacyState.loaded) return `<div class="label" style="margin:22px 0 8px">Privacy and reminders</div><p class="small muted">Loading iPhone settings…</p>`;
+  const lock=nativePrivacyState.appLock||{available:false,enabled:false,label:'biometric unlock'};
+  const reminders=nativePrivacyState.reminders||{permission:'not-determined',preferences:{dailyCheckIn:{enabled:false,hour:20,minute:0},treatmentFollowUp:{enabled:false,weekday:1,hour:10,minute:0}}};
+  const daily=reminders.preferences&&reminders.preferences.dailyCheckIn||{}, follow=reminders.preferences&&reminders.preferences.treatmentFollowUp||{};
+  const weekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return `<div class="label" style="margin:22px 0 8px">Privacy and reminders</div>
+    <div class="toggle-row"><div><b>App Lock</b><span class="hint">${lock.available?`${esc(lock.label)} or the passcode when peri comes back from the background.`:'Set up Face ID or Touch ID in iOS Settings to make this available.'}</span></div><button class="switch" data-act="app-lock-toggle" data-enabled="${lock.enabled?'false':'true'}" aria-pressed="${lock.enabled?'true':'false'}" aria-label="App Lock"${lock.available?'':' disabled'}></button></div>
+    <div class="toggle-row"><div><b>Optional analytics</b><span class="hint">Feature use and performance. Never health entries.</span></div><button class="btn xs outline" data-act="analytics-settings">Review</button></div>
+    <div class="toggle-row"><div><b>Apple tracking</b><span class="hint">System permission, separate from analytics.</span></div><button class="btn xs outline" data-act="advertising-settings">Settings</button></div>
+    <div class="toggle-row"><div><b>Analytics data</b><span class="hint">Delete this installation’s analytics events.</span></div><button class="btn xs outline" data-act="erase-analytics">Delete</button></div>
+    <p class="xtiny" style="margin-top:8px">${nativePrivacyState.deviceEncrypted?'The record is encrypted at rest with a device-bound key.':'Secure native storage is unavailable on this build.'}</p>
+    <div class="label" style="margin:22px 0 8px">Reminders</div>
+    <p class="small muted">Generic wording only; a reminder never contains symptoms or treatments. Permission is asked for when you save an enabled reminder.</p>
+    <div class="optrow"><input id="daily-reminder-enabled" type="checkbox"${daily.enabled?' checked':''}><label for="daily-reminder-enabled">Close the day</label><input id="daily-reminder-time" type="time" value="${nativeReminderTime(daily,'20:00')}" aria-label="Daily reminder time" style="width:auto;min-height:40px"></div>
+    <div class="optrow"><input id="treatment-reminder-enabled" type="checkbox"${follow.enabled?' checked':''}><label for="treatment-reminder-enabled">Weekly treatment review</label><select id="treatment-reminder-day" aria-label="Weekday" style="width:auto;min-height:40px">${weekdays.map((label,index)=>`<option value="${index+1}"${+(follow.weekday||1)===index+1?' selected':''}>${label.slice(0,3)}</option>`).join('')}</select><input id="treatment-reminder-time" type="time" value="${nativeReminderTime(follow,'10:00')}" aria-label="Weekly review time" style="width:auto;min-height:40px"></div>
+    <button class="btn outline sm" data-act="save-native-reminders" style="margin-top:10px">Save reminders</button>
+    <p class="xtiny">Notification permission: ${esc(String(reminders.permission||'not-determined').replace('-', ' '))}.</p>`;
+}
+function healthKitBlock(){
+  if(window.__MENO_NATIVE__!==true) return '';
+  const summary=DB.healthKit, status=nativeHealthState.status||{};
+  const unavailable=nativeHealthState.loaded&&status.available===false;
+  const value=(v,suffix)=>v==null?'unavailable':r1(v)+suffix;
+  return `<div class="label" style="margin:22px 0 8px">Apple Health</div>
+    <p class="small muted">Read-only. peri reads aggregate steps, sleep and your latest weight when you tap the button, and never writes to Apple Health.</p>
+    ${summary?`<div class="kv"><span>Steps</span><span class="r">${value(summary.steps.dailyAverage,' / day')}</span></div><div class="kv"><span>Sleep</span><span class="r">${value(summary.sleep.nightlyAverageHours,' h / night')}</span></div><div class="kv"><span>Latest weight</span><span class="r">${summary.bodyWeight.latestKilograms==null?'unavailable':r1(U.wOut(summary.bodyWeight.latestKilograms))+' '+U.wLabel()}</span></div><p class="xtiny">${summary.lookbackDays}-day aggregate, synced ${esc(new Date(summary.generatedAt).toLocaleString())}. A missing value can mean no data or access not shared; Apple does not say which.</p>`:'<p class="small muted">No summary saved yet.</p>'}
+    <div class="btn-row split" style="margin-top:8px"><button class="btn outline sm" data-act="healthkit-sync"${unavailable||nativeHealthState.busy?' disabled':''}>${summary?'Sync':'Connect'}</button>${summary?'<button class="btn outline sm" data-act="healthkit-clear">Remove summary</button>':''}</div>
+    ${unavailable?'<p class="xtiny">Apple Health is unavailable on this device or build.</p>':''}`;
+}
+function viewYou(){
+  const p=DB.profile, age=p.birthYear?(new Date().getFullYear()-p.birthYear):null, dates=entryDates(), pt=proteinTarget();
+  const sel=(id,k,options,hint)=>`<div class="field"><label class="fl" for="${id}">${options.label}</label><select id="${id}" data-act="prof" data-k="${k}">${options.items.map(([v,l])=>`<option value="${v}"${String(p[k])===String(v)?' selected':''}>${esc(l)}</option>`).join('')}</select>${hint?`<p class="hint">${hint}</p>`:''}</div>`;
+  return `<div class="view page-you">
+    ${topbar(TAB_TITLES[returnTab]?TAB_TITLES[returnTab][0]:'Today','go-back',`You · ${esc(p.name||'the record')}`)}
+    <div style="padding:22px 0 14px"><h1 style="font-size:clamp(36px,11vw,44px);line-height:1;letter-spacing:-.03em;margin:0">${p.name?esc(p.name):'You'}</h1><p class="small muted" style="margin-top:10px">${dates.length} ${plural(dates.length,'day')} on record${dates.length?', since '+esc(shortDate(dates[0])):''}. ${Store.ephemeral?'<b>This preview cannot save</b>; entries disappear when the page closes.':window.__MENO_NATIVE__===true?'Stored in an encrypted file on this device.':'Stored in this browser, on this device only.'}</p></div>
+    <div class="rule strong"></div>
+    <div class="label" style="margin:22px 0 8px">The record</div>
+    <button class="linkrow" data-act="sheet" data-s="data" style="border-top:0"><span><b>Export or restore</b> <span class="muted">· JSON, CSV${window.__MENO_NATIVE__===true?', encrypted backup':''}</span></span>${IC.arrow}</button>
+    <button class="linkrow" data-act="open-report"><span><b>Clinician report</b> <span class="muted">· print or save as PDF</span></span>${IC.arrow}</button>
+    ${window.__MENO_NATIVE__===true?`<button class="linkrow" data-act="manage-subscription"><span><b>Apple subscription</b></span>${IC.arrow}</button>`:''}
+    <button class="linkrow" data-act="reset-onboarding"><span><b>Redo the first page</b> <span class="muted">· keeps every record</span></span>${IC.arrow}</button>
+    <button class="linkrow" data-act="delete-local-data"><span><b style="color:var(--accent-text)">Delete everything</b> <span class="muted">· permanent</span></span>${IC.arrow}</button>
+    ${nativePrivacyBlock()}
+    ${healthKitBlock()}
+    <div class="label" style="margin:22px 0 10px">Profile</div>
+    <div class="grid2"><div class="field"><label class="fl" for="pn">Name</label><input id="pn" type="text" maxlength="80" autocomplete="given-name" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div><div class="field"><label class="fl" for="by">Birth year</label><input id="by" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div></div>
+    ${sel('ps','periodStatus',{label:'Periods',items:[['','Not said'],['regular','Still regular'],['changing','Changing'],['gaps','60+ days apart'],['stopped','Gone a year or more'],['na','Not applicable']]})}
+    ${p.periodStatus==='stopped'?sel('psince','periodSince',{label:'Last period was',items:[['','Not said'],['lt2','One to two years ago'],['2to6','Two to six years ago'],['gt6','More than six years ago']]},'Staging after the last period runs on how long ago it was.'):''}
+    ${sel('ut','uterus',{label:'Uterus',items:[['unknown','Prefer not to say'],['intact','Still there'],['hyst','Removed (hysterectomy)'],['ablation','Endometrial ablation']]})}
+    ${sel('ov','ovaries',{label:'Ovaries',items:[['unknown','Prefer not to say or not sure'],['kept','Both still there'],['one','One removed'],['both','Both removed']]},'Asked separately: a hysterectomy often leaves both ovaries, and ovaries are sometimes removed with the uterus left. The consequences differ completely.')}
+    ${periodsPossible()
+      ?`<div class="field"><label class="fl" for="lp">Last period</label><input id="lp" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="lastPeriod" value="${p.lastPeriod||''}"><p class="hint">Counts the months without a period and flags bleeding that needs checking.</p></div>`
+      :`<div class="field"><label class="fl" for="sd">Surgery date, if known</label><input id="sd" type="date" min="${p.birthYear?p.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="prof" data-k="surgeryDate" value="${p.surgeryDate||''}"><p class="hint">${p.ovaries==='both'?'Both ovaries removed means menopause dates from the operation.':'With no readable bleeding pattern, the surgery date stands in for the last period.'}</p></div>`}
+    ${sel('bn','bone',{label:'Bone status',items:[['unknown',"Don't know"],['normal','Normal density'],['osteopenia','Osteopenia'],['osteoporosis','Osteoporosis'],['fracture','Previous fragility fracture']]},'Gates the bone-loading advice in the movement chapter.')}
+    <div class="kv"><span>Stage</span><span class="r">${esc(stageSummary().head)} <button class="textbtn" data-act="sheet" data-s="learn:stage" style="padding:0 0 0 6px;min-height:0;display:inline">${p.stage?'Reassess':'Answer'}</button></span></div>
+    <div class="label" style="margin:22px 0 10px">The log sheet</div>
+    <p class="small muted">Hot flash, night sweat and woke are always on it. Choose up to six more words.</p>
+    <div class="chips">${Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).map(k=>`<button class="chip sm" data-act="profile-symptom" data-v="${k}" aria-pressed="${(p.pinnedSymptoms||[]).includes(k)?'true':'false'}">${esc(MOMENT_KINDS[k].n)}</button>`).join('')}</div>
+    <div class="label" style="margin:22px 0 10px">Targets</div>
+    ${sel('pg','proteinGpk',{label:'Protein target (g per kg)',items:[[1,'1.0 · general floor'],[1.2,'1.2 · baseline'],[1.4,'1.4 · active or losing weight'],[1.6,'1.6 · training range']]},pt?`About <b>${pt.grams} g a day</b> at your latest weight, roughly ${pt.perMeal} g per meal.`:'Log a weight in the day’s details to see the grams.')}
+    <div class="grid2"><div class="field"><label class="fl" for="wg">Weight goal (${U.wLabel()})</label><input id="wg" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="prof" data-k="weightGoal" data-conv="w" value="${p.weightGoal!=null?r1(U.wOut(p.weightGoal)):''}"></div><div class="field"><label class="fl" for="wag">Waist goal (${U.lLabel()})</label><input id="wag" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="prof" data-k="waistGoal" data-conv="l" value="${p.waistGoal!=null?r1(U.lOut(p.waistGoal)):''}"></div></div>
+    <div class="label" style="margin:22px 0 10px">Settings</div>
+    ${sel('un','units',{label:'Units',items:[['imperial','Pounds and inches'],['metric','Kilograms and centimetres']]})}
+    ${sel('rg','region',{label:'Where you are',items:[['us','United States'],['uk','United Kingdom'],['other','Elsewhere']]},'Guidance differs on drug labelling, SSRIs for hot flashes, testosterone access and calcium and vitamin D targets.')}
+    ${sel('th','theme',{label:'Appearance',items:[['auto','Follow the device'],['light','Paper'],['dark','Night']]})}
+    <div class="label" style="margin:22px 0 8px">Privacy, plainly</div>
+    <p class="small muted">${window.__MENO_NATIVE__===true
+      ?'The record stays on this device in an encrypted file protected by a device-bound key. Optional encrypted backups use a password you choose. Apple Health access is read-only and happens only when you tap the button. Widgets receive only whether today has a page and a seven-day count. Reminders carry no health details. There is no account and no sync.'
+      :'The record stays in this browser’s storage on this device. There is no account, no health-data API and no sync. Browser storage is not encrypted by this app, so anyone with access to this browser profile could open it. Clearing site data deletes the record. Export a backup now and then.'} External source links contact those sites only when you open them.</p>
+    <div class="label" style="margin:22px 0 8px">Medical disclaimer</div>
+    <p class="small muted">General health education compiled from published clinical guidelines. It does not diagnose, treat or prescribe, is not a substitute for professional medical advice, and is not a medical device. Content reviewed ${CONTENT_REVIEWED}; this field moves quickly. Seek care promptly for anything on the red-flag list.</p>
+    <p class="xtiny center" style="margin:24px 0 8px">peri ${APP_VERSION}</p>
+  </div>`;
+}
+
+/* ============================================================
+   FIRST RUN: a letter with blanks
+   ============================================================ */
+const LETTER_SYMPTOMS=[['sleepq','trouble sleeping'],['hf','hot flashes'],['fog','brain fog'],['energy','fatigue'],['mood','low mood'],['anx','anxiety'],['ns','night sweats'],['joint','joint pain']];
+const LETTER_MORE=[['head','headaches'],['palp','palpitations'],['dizzy','dizziness'],['bloating','bloating'],['dry','dryness'],['uri','bladder trouble'],['itch','itchy skin'],['libido','low libido'],['irritable','irritability'],['overwhelmed','feeling overwhelmed']];
+const LETTER_PERIODS=[['regular','still regular'],['changing','changing'],['gaps','60+ days apart'],['stopped','gone a year or more'],['na','not applicable']];
+const LETTER_SINCE=[['lt2','one to two years ago'],['2to6','two to six years ago'],['gt6','more than six years ago']];
+function firstRunAnswers(){
+  const p=DB.profile, age=p.birthYear?new Date().getFullYear()-p.birthYear:null;
+  if(!p.periodStatus||p.periodStatus==='na'||age==null) return null;
+  const pins=p.pinnedSymptoms||[];
+  const ans={age:age<40?'u40':age<45?'40s_e':age<55?'45p':'55p',uterus:'intact',ovaries:'kept',contra:'no',
+    cycle:{regular:'reg',changing:'var7',gaps:'skip',stopped:'none12'}[p.periodStatus],
+    vms:pins.includes('hf')||pins.includes('ns')?'lots':'no'};
+  if(ans.cycle==='none12'){ if(!PERIOD_SINCE.includes(p.periodSince)) return null; ans.since=p.periodSince; }
+  return ans;
+}
+function firstRunFinding(){
+  const p=DB.profile, pins=p.pinnedSymptoms||[], ans=firstRunAnswers();
+  if(!pins.length) return null;
+  const named=pins.slice(0,3).map(k=>MOMENT_KINDS[k]?MOMENT_KINDS[k].n.toLowerCase():symptomName(k).toLowerCase());
+  const list=named.length>1?named.slice(0,-1).join(', ')+' and '+named.slice(-1):named[0];
+  if(!ans){
+    if(p.periodStatus==='na') return {head:'Your pattern will come from the pages.',body:'With no cycle to read, staging leans on symptoms and age. Four questions in the Index place you properly. '+list.charAt(0).toUpperCase()+list.slice(1)+' get watched from tonight.'};
+    return {head:'Fill in the rest and the finding appears.',body:'Age and cycle together are what staging runs on.'};
+  }
+  const res=stageResult(ans), s={
+    'Late menopausal transition':['Most likely: late perimenopause.','Periods 60+ days apart, with '+list+' together, is that pattern. It usually runs one to three years. It is very treatable. You are not imagining it.'],
+    'Early menopausal transition':['Most likely: early perimenopause.','Cycles varying by a week or more, with '+list+', is the first readable stage. Symptoms can run years ahead of the last period. Treatable now, not later.'],
+    'Late reproductive stage':['Probably before the transition, by the cycle.','Regular cycles, even shorter ones, put you ahead of perimenopause on paper. '+list.charAt(0).toUpperCase()+list.slice(1)+' still count, and the pages will show whether they move.'],
+    'Late reproductive stage (early)':['Not perimenopause yet, by the cycle.','Regular periods place you before the transition. '+list.charAt(0).toUpperCase()+list.slice(1)+' are worth recording anyway; the record is what will show a change.'],
+    'Early postmenopause — the first two years':['Postmenopause, the first two years.','A year without a period confirms it in hindsight. Flashes often peak here, then ease. Any bleeding from now on needs checking, not watching.'],
+    'Postmenopause, roughly years 3–6':['Postmenopause.','Years three to six after the last period. Dryness and bladder symptoms are the ones that worsen if left, and the most treatable.'],
+    'Late postmenopause':['Late postmenopause.','More than six years on. Bone, heart and genitourinary health are the long game now.'],
+    'Possible premature menopause — this needs assessment':['This needs a clinician, not an app.','Under 40 with these changes is a diagnosis to make properly, with blood tests. Bring the record; it shortens the conversation.']
+  }[res.label]||[res.label+'.','From your age and cycle. Reassess any time in the Index.'];
+  return {head:s[0],body:s[1],label:res.label,answers:ans};
+}
+function viewFirstRun(){
+  const p=DB.profile, pins=p.pinnedSymptoms||[], age=p.birthYear?new Date().getFullYear()-p.birthYear:'';
+  const blank=(act,v,label,on)=>`<button class="blank" data-act="${act}" data-v="${esc(v)}" aria-pressed="${on?'true':'false'}">${esc(label)}</button>`;
+  const finding=firstRunFinding();
+  const watched=[
+    pins.some(k=>['ns','sleepq','woke'].includes(k))?['Nights','Wakes, sweats','and what follows']:null,
+    pins.includes('hf')?['Days','Flash clusters','by hour']:null,
+    pins.includes('fog')||pins.includes('energy')?['Fog','After bad nights','to show the link']:null,
+    pins.some(k=>['mood','anx','irritable','overwhelmed'].includes(k))?['Mood','Two-week runs','not single days']:null,
+    ['Flags','Red flags','e.g. bleeding after a year']
+  ].filter(Boolean);
+  return `<div class="view page-firstrun">
+    <div class="masthead"><div class="masthead-top"><span class="wordmark" style="font-size:30px">peri</span><span class="masthead-meta">Two minutes · no account</span></div><div class="rule thick"></div></div>
+    <h1 style="font-size:clamp(28px,8.2vw,32px);line-height:1.05;margin:24px 0 8px">Fill in the blanks. That is the whole setup.</h1>
+    <p class="letter">Lately the hardest things have been ${LETTER_SYMPTOMS.map(([k,l])=>blank('fr-symptom',k,l,pins.includes(k))).join(' ')}${firstRun.more?' '+LETTER_MORE.map(([k,l])=>blank('fr-symptom',k,l,pins.includes(k))).join(' '):' <button class="blank" data-act="fr-more" aria-expanded="false" style="border-style:dashed;color:var(--text-2)">more…</button>'}.</p>
+    <p class="letter">My periods are ${LETTER_PERIODS.map(([v,l])=>blank('fr-periods',v,l,p.periodStatus===v)).join(' ')}.${p.periodStatus==='stopped'?' My last one was '+LETTER_SINCE.map(([v,l])=>blank('fr-since',v,l,p.periodSince===v)).join(' ')+'.':''}</p>
+    <p class="letter">I am <span class="blank input"><label class="sr-only" for="fr-age">Your age</label><input id="fr-age" type="number" min="18" max="90" inputmode="numeric" placeholder="47" data-act="fr-age" value="${age||''}"></span> and I ${blank('fr-appt','yes','have an appointment coming',firstRun.appointment==='yes')} ${blank('fr-appt','no','don’t, yet',firstRun.appointment==='no')}.${firstRun.appointment==='yes'?` <span class="blank input"><label class="sr-only" for="fr-date">Appointment date</label><input id="fr-date" type="date" data-act="fr-date" value="${esc(firstRun.date)}" min="${todayISO()}" style="width:auto;padding:2px 8px;font-size:.8em"></span>`:''}</p>
+    <div class="rule" style="margin-top:14px"></div>
+    ${finding?`<section class="finding" aria-live="polite"><div class="label accent">The finding</div><h2 class="head" style="font-size:clamp(30px,9vw,36px);line-height:1">${esc(finding.head)}</h2><p style="font-size:15.5px;color:var(--text-2)">${esc(finding.body)}</p></section>`:`<section class="finding"><div class="label">The finding</div><h2 class="head quiet">Appears once the blanks are filled.</h2></section>`}
+    <div style="padding:4px 0 20px"><div class="label" style="margin-bottom:4px">What gets watched</div>${watched.map(([a,b,c],i)=>`<div class="ledger-row"><span class="t">${esc(a)}</span><span class="e">${esc(b)}</span><span class="d">${esc(c)}</span></div>`).join('')}</div>
+    <button class="btn accent" data-act="fr-done"${pins.length?'':' disabled'}>Open today’s page</button>
+    <p class="footnote">Based on your age, cycle and concerns. Not a diagnosis. Nothing leaves this phone.</p>
+    <details class="plain"><summary>Privacy, evidence and medical limits</summary><p>Your entries stay on this device. There is no account. peri is education and a record, not diagnosis or treatment, and does not replace a clinician who knows your history. Content reviewed ${CONTENT_REVIEWED}.</p></details>
+  </div>`;
+}
+function finishFirstRun(){
+  const p=DB.profile;
+  if(!(p.pinnedSymptoms||[]).length) return;
+  const finding=firstRunFinding();
+  if(finding&&finding.answers&&completeStageAnswers(finding.answers)){ p.stageAnswers=finding.answers; p.stage=finding.label; }
+  p.onboarded=true; p.onboardingVersion=4; p.onboardingStep=0; p.onboardingDeferred=false; p.firstCheckinPending=false;
+  p.intent=firstRun.appointment==='yes'?'appointment':'understand';
+  if(firstRun.appointment==='yes'&&validISODate(firstRun.date)) appointmentData().brief.date=firstRun.date;
+  save(true);
+  nightDeskDismissed=true;
+  setRoute('today',true); render();
+  postNativeEvent('onboarding-finished',{skipped:false});
+}
+
+/* ============================================================
+   THE CLINICIAN REPORT (one-page brief)
+   ============================================================ */
+function reportSection(title,inner){ return `<section class="rsec"><div class="label" style="margin-bottom:6px">${esc(title)}</div>${inner}</section>`; }
+function kvRow(k,v){ return `<div class="kv"><span>${k}</span><span class="r">${v}</span></div>`; }
+/* Questions for the visit: the brief's generated questions, then her own
+   unasked ones, numbered on from each other. Neither list hides the other. */
+function questionsReport(brief){
+  const own=appointmentData().questions.filter(q=>!q.asked);
+  const generated=brief.concerns.length?briefSummaryMarkup(brief).replace(/<div class="label"[^>]*>Opening statement<\/div><p class="quote">[^<]*<\/p>/,''):'';
+  if(!generated&&!own.length) return '';
+  const start=brief.concerns.length?(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text).length:0;
+  const ownMarkup=own.length?(generated?'<div class="label" style="margin:18px 0 6px">Her own questions</div>':'')+own.map((q,i)=>`<div class="qn"><span class="n">${start+i+1}</span><div class="q">${esc(q.text)}</div></div>`).join(''):'';
+  return reportSection('Questions',generated+ownMarkup);
+}
+function reportBody(days){
+  days=[30,90,180].includes(+days)?+days:90;
+  const summaryDays=Math.min(30,days), activityDays=Math.min(28,days);
+  const d=rangeDates(days).filter(hasData), p=DB.profile, age=p.birthYear?new Date().getFullYear()-p.birthYear:null;
+  const hf=series(rangeDates(summaryDays),e=>e.hf), bd=series(rangeDates(summaryDays),burden);
+  const wt=series(rangeDates(days),e=>e.wt).filter(x=>x.v!=null), wa=series(rangeDates(days),e=>e.waist).filter(x=>x.v!=null);
+  const topSym=SYMS.map(s=>({n:symptomName(s.k),v:avg(rangeDates(summaryDays).map(dd=>{const e=confirmedRecord(dd);return e&&e.sym?e.sym[s.k]:null;}))})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,6);
+  const questionnaires=DB.scores.slice(-6).reverse(), medications=Array.isArray(DB.medications)?DB.medications:[], labs=Array.isArray(DB.labs)?DB.labs.slice(0,8):[];
+  const bleeds=entryDates().filter(x=>{const e=confirmedRecord(x);return e&&e.bleed&&e.bleed!=='none';});
+  const hfValues=hf.map(x=>x.v).filter(v=>v!=null);
+  const nsValues=rangeDates(summaryDays).map(x=>{const e=confirmedRecord(x);return e&&e.ns;}).filter(v=>v!=null);
+  const wakes=rangeDates(summaryDays).map(x=>{const e=confirmedRecord(x);return e&&e.wakes;}).filter(v=>v!=null);
+  const ratings=rangeDates(summaryDays).map(x=>{const e=confirmedRecord(x);return e&&e.rating;}).filter(v=>v!=null);
+  const moderateNights=nsValues.filter(v=>v>=2).length;
+  const strengthValues=rangeDates(activityDays).map(x=>{const e=confirmedRecord(x);return e&&e.act?e.act.res:null;}).filter(v=>typeof v==='boolean');
+  const strengthCount=strengthValues.filter(Boolean).length;
+  const alcoholValues=rangeDates(activityDays).map(x=>{const e=confirmedRecord(x);return e&&e.nut?e.nut.alc:null;}).filter(v=>v!=null);
+  const sleepAvg=avg(series(rangeDates(summaryDays),e=>e.sleepH).map(x=>x.v));
+  const strengthSummary=!strengthValues.length?'not tracked':strengthValues.length===activityDays?r1(strengthCount/(activityDays/7))+' / week':strengthCount+' '+plural(strengthCount,'session')+' across '+strengthValues.length+' logged '+plural(strengthValues.length,'day');
+  const alcoholSummary=!alcoholValues.length?'not tracked':alcoholValues.length===activityDays?r1(sum(alcoholValues)/(activityDays/7))+' drinks / week':sum(alcoholValues)+' drinks across '+alcoholValues.length+' logged '+plural(alcoholValues.length,'day');
+  const brief=savedBrief(), list=dossierFindings().slice(0,6), stage=stageSummary();
+  const notes=entryDates().filter(x=>{const e=confirmedRecord(x);return e&&e.notes;}).slice(-6).reverse();
+  return `<div class="report-page">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:2px solid var(--border-strong)"><span class="wordmark" style="font-size:22px">peri</span><span class="label">Brief for the appointment · ${days} days</span></div>
+  <p class="small muted" style="margin:10px 0 0">${p.name?esc(p.name)+' · ':''}${age?age+' · ':''}prepared ${esc(fmtLong(todayISO()))} · ${d.length} ${plural(d.length,'day')} recorded in the last ${days}.</p>
+  ${brief.concerns.length?reportSection('Opening statement',`<p class="quote" style="font-size:19px">“${esc(briefOpening(brief))}”</p>`):''}
+  ${reportSection('Where she is',`<p class="sec-lead" style="font-size:19px">${esc(stage.head)}</p><p class="small muted">${esc(stage.body)}</p>`)}
+  ${reportSection('Summary · last '+summaryDays+' days',
+    kvRow('Hot flashes a day',hfValues.length?r1(avg(hfValues))+' <span class="muted">· worst day '+Math.max(...hfValues)+'</span>':'not tracked')
+    +kvRow('Night sweats, moderate or worse',nsValues.length?moderateNights+' '+plural(moderateNights,'night'):'not tracked')
+    +kvRow('Night wakes',wakes.length?r1(avg(wakes))+' a night':'not tracked')
+    +kvRow('Sleep',sleepAvg!=null?r1(sleepAvg)+' h':'not tracked')
+    +kvRow('Day rating (0 rough to 4 great)',ratings.length?r1(avg(ratings))+' over '+ratings.length+' '+plural(ratings.length,'day'):'not tracked')
+    +kvRow('Symptom burden (0–44, unvalidated)',avg(bd.map(x=>x.v))!=null?r1(avg(bd.map(x=>x.v))):'not tracked')
+    +(periodsPossible()&&pastOrTodayISO(p.lastPeriod)?kvRow('Last period',fmtDay(p.lastPeriod)+' ('+Math.floor(daysBetween(p.lastPeriod,todayISO())/30)+' months)'):'')
+    +(!periodsPossible()&&pastOrTodayISO(p.surgeryDate)?kvRow(surgicalMenopause()?'Surgical menopause':'Surgery',fmtDay(p.surgeryDate)):'')
+    +(wt.length?kvRow('Weight',r1(U.wOut(wt[wt.length-1].v))+' '+U.wLabel()+(wt.length>1?' ('+(wt[wt.length-1].v>wt[0].v?'+':'')+r1(U.wOut(wt[wt.length-1].v-wt[0].v))+' over '+daysBetween(wt[0].d,wt[wt.length-1].d)+' d)':'')):'')
+    +(wa.length?kvRow('Waist',r1(U.lOut(wa[wa.length-1].v))+' '+U.lLabel()+(wa.length>1?' ('+(wa[wa.length-1].v>wa[0].v?'+':'')+r1(U.lOut(wa[wa.length-1].v-wa[0].v))+')':'')):'')
+    +kvRow('Strength sessions (28 d)',strengthSummary)+kvRow('Alcohol (28 d)',alcoholSummary))}
+  ${list.length?reportSection('Findings',list.map((f,i)=>`<div class="fnd" style="padding:10px 0"><span class="n">${i+1}</span><div class="body"><div class="head" style="font-size:17px">${f.head}</div>${f.num?`<div class="figure" style="margin-top:4px"><span class="big" style="font-size:26px">${f.num}</span>${f.sub?`<span class="sub">${esc(f.sub)}</span>`:''}</div>`:''}<p class="note">${f.kind==='pattern'||f.kind==='treatment'?'Filed '+esc(shortDate(f.filed))+'. ':''}${f.body}</p></div></div>`).join('')):''}
+  ${topSym.length?reportSection('Prominent symptoms · '+summaryDays+'-day average, 0–4',topSym.map(s=>kvRow(esc(s.n),r1(s.v))).join('')):''}
+  ${medications.length?reportSection('Treatments',medications.map(m=>kvRow('<b>'+esc(m.name)+'</b>',esc(medicationDetail(m))+(m.started?' · from '+esc(fmtDay(m.started)):'')+(m.ended?' · stopped '+esc(fmtDay(m.ended)):'')+(medicationStatus(m)==='archived'?' · archived':'')+(m.stopReason?' · '+esc(m.stopReason):''))+((m.changes||[]).filter(c=>c.label&&c.label!=='Treatment started').length?'<ul class="plain tiny">'+(m.changes||[]).filter(c=>c.label&&c.label!=='Treatment started').map(c=>'<li>'+esc(fmtDay(c.date))+' · '+esc(c.label)+(c.targets&&c.targets.length?' · watching '+esc(c.targets.map(symptomName).join(', ')):'')+'</li>').join('')+'</ul>':'')+medicationHistoryMarkup(m)).join('')):''}
+  ${treatmentFollowUpReport(days)}
+  ${questionsReport(brief)}
+  ${appointmentData().evidence.length?reportSection('Pinned from the index',appointmentData().evidence.map(item=>kvRow(esc(item.text),esc(shortDate(item.date)))).join('')):''}
+  ${healthKitReportSection()}
+  ${labs.length?reportSection('Lab results',labs.map(x=>kvRow(esc(x.name)+' · '+esc(fmtDay(x.date)),esc(x.value+(x.unit?' '+x.unit:'')))).join('')):''}
+  ${questionnaires.length?reportSection('Questionnaire scores',questionnaires.map(s=>kvRow(s.type.toUpperCase()+' · '+fmtDay(s.date),s.score+(s.band?' · '+esc(s.band):''))).join('')+'<p class="xtiny">Broken sleep, fatigue, poor concentration and low libido also score on depression scales, which can inflate totals.</p>'):''}
+  ${bleeds.length?reportSection('Bleeding logged',bleeds.slice(-8).reverse().map(x=>kvRow(fmtDay(x),esc(confirmedRecord(x).bleed))).join('')):''}
+  ${(appointmentData().plans||[]).length?reportSection('After previous visits',appointmentData().plans.slice(0,3).map(plan=>`<div class="kv stack"><b>${esc(fmtDay(plan.date))}${plan.nextVisit?' · next '+esc(fmtDay(plan.nextVisit)):''}</b>${plan.summary?`<span class="r">${esc(plan.summary)}</span>`:''}${plan.actions&&plan.actions.length?`<span class="r">${plan.actions.map(a=>(a.done?'✓ ':'○ ')+esc(a.text)).join(' · ')}</span>`:''}</div>`).join('')):''}
+  ${notes.length?reportSection('Recent notes',notes.map(dd=>`<p class="small"><b>${fmtDay(dd)}:</b> ${esc(confirmedRecord(dd).notes)}</p>`).join('')):''}
+  <p class="xtiny" style="padding-top:12px">Self-reported data from a consumer app. Not a clinical record. The burden score is an unvalidated 0–44 sum of 11 self-rated symptoms on the 0–4 structure used by the Menopause Rating Scale; it shows change over time only.</p>
+  </div>`;
+}
+function healthKitReportSection(){
+  const summary=DB.healthKit;
+  if(!summary) return '';
+  const shown=(value,suffix)=>value==null?'unavailable':r1(value)+suffix;
+  return reportSection('Apple Health summary · user-synced',kvRow('Steps ('+summary.lookbackDays+' d)',shown(summary.steps.dailyAverage,' / day'))+kvRow('Sleep ('+summary.lookbackDays+' d)',shown(summary.sleep.nightlyAverageHours,' h / tracked night')+(summary.sleep.trackedNights?' · '+summary.sleep.trackedNights+' nights':''))+kvRow('Latest body weight',summary.bodyWeight.latestKilograms==null?'unavailable':r1(U.wOut(summary.bodyWeight.latestKilograms))+' '+U.wLabel())+'<p class="xtiny">Read-only aggregate synced '+esc(new Date(summary.generatedAt).toLocaleString())+'. Missing values are never treated as zero.</p>');
+}
+function viewReport(){
+  const count=entryDates().length;
+  return `<div class="view page-report">${topbar('Dossier','go-dossier','One-page brief')}
+    <div style="padding:20px 0 12px"><h1 style="font-size:clamp(30px,9vw,36px);line-height:1;margin:0">The brief.</h1><p class="small muted" style="margin-top:8px">${count<7?'Early: facts only until more days are recorded.':'Print it, save it as a PDF, or read from it in the room.'} Based on ${count} recorded ${plural(count,'day')}.</p></div>
+    <div class="range no-print" role="group" aria-label="Range">${[30,90,180].map(n=>`<button data-act="report-range" data-v="${n}" aria-pressed="${reportRange===n?'true':'false'}">${n} days</button>`).join('')}</div>
+    ${reportBody(reportRange)}
+    <div class="actions no-print" style="margin-top:16px"><button class="btn accent wide" data-act="print">Print or save as PDF</button><button class="btn outline" data-act="sheet" data-s="data">Export data</button></div>
+  </div>`;
+}
+
+/* ============================================================
+   SHEETS
+   ============================================================ */
+function setBackgroundInert(on){
+  const el=$('#app'); if(!el) return;
+  if(on){ el.setAttribute('inert',''); el.setAttribute('aria-hidden','true'); }
+  else { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }
+}
+function focusDescriptor(el){ return el ? {node:el,tag:el.tagName.toLowerCase(),data:Object.assign({},el.dataset)} : null; }
+function findFocusTarget(desc,root){
+  if(!desc) return null;
+  if(desc.node&&desc.node.isConnected) return desc.node;
+  return [...(root||document).querySelectorAll(desc.tag)].find(el=>Object.entries(desc.data).every(([key,value])=>el.dataset[key]===value))||null;
+}
+function sheetDate(id){ const m=/^(?:day|close|details|moment):(\d{4}-\d\d-\d\d)/.exec(id||''); return m&&validISODate(m[1])&&m[1]<=todayISO()?m[1]:todayISO(); }
+function openSheet(id){
+  if(id==='report'){ if(requestNativePro('appointment-report')) return; returnTab=curTab; setRoute('appointment-report'); sheetStack=[]; renderSheet(); render(); return; }
+  if(id==='treatments'&&requestNativePro('dossier')) return;
+  if(id==='learn:stage' && !DB.profile.stage && !stageEditing) resetStageDraft();
+  if(id==='log'||id==='log:night'){ lastLogged=null; logMore=false; dictationOpen=false; logNight=id==='log:night'||isNightHour(); }
+  if(id.startsWith('close')){ const e=DB.entries[sheetDate(id)]||{}; closeDraft={rating:e.rating==null?null:e.rating}; }
+  if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
+  else {
+    const parentSheet=$('.sheet');
+    sheetReturnStack.push({trigger:focusDescriptor(document.activeElement),scrollTop:parentSheet?parentSheet.scrollTop:0,parentTitle:($('#sheet-title')&&$('#sheet-title').textContent)||'previous'});
+  }
+  sheetStack.push(id); renderSheet(true);
+}
+function closeSheet(){
+  const returnState=sheetStack.length>1?sheetReturnStack.pop():null;
+  const closing=sheetStack.pop();
+  if(closing==='learn:stage'){ stageAns={}; stageStep=0; stageEditing=false; render(true); }
+  if(closing==='log'||closing==='log:night'||(closing||'').startsWith('close')||(closing||'').startsWith('moment')) render(true);
+  runSheetHooks(sheetStack[sheetStack.length-1]||'');
+  renderSheet(true,returnState);
+}
+function renderSheet(moveFocus,returnState){
+  const host=$('#sheet-host');
+  if(!sheetStack.length){
+    runSheetHooks(''); sheetReturnStack=[];
+    host.innerHTML=''; document.body.style.overflow=''; setBackgroundInert(false);
+    const target=lastSheetTrigger; lastSheetTrigger=null;
+    if(moveFocus) setTimeout(()=>{
+      const candidate=findFocusTarget(target,document);
+      const restored=(candidate&&candidate!==document.body?candidate:null)||document.querySelector('#app button,#app input,#app select');
+      if(restored) restored.focus();
+    },0);
+    syncNativeNavigationState();
+    return;
+  }
+  const previous=host.contains(document.activeElement)?focusDescriptor(document.activeElement):null;
+  const id=sheetStack[sheetStack.length-1];
+  const content=sheetContent(id), title=content.title, body=content.body;
+  const parentState=sheetReturnStack[sheetReturnStack.length-1], nested=sheetStack.length>1;
+  const dismissLabel=nested?'Back to '+(parentState&&parentState.parentTitle||'previous'):'Close '+title;
+  setBackgroundInert(true);
+  host.innerHTML=`<div class="sheet-bg" data-act="bg"><div class="sheet${content.night?' night':''}${content.full?' full':''}" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
+      <div class="sheet-bar${content.night?' night-bar':''}"><h2 id="sheet-title">${esc(title)}</h2><button class="done" data-act="close" aria-label="${esc(dismissLabel)}">${nested?'Back':'Done'}</button></div>
+      ${body}
+    </div></div>`;
+  document.body.style.overflow='hidden';
+  syncNativeNavigationState();
+  const s=host.querySelector('.sheet'); if(s) s.scrollTop=returnState?returnState.scrollTop:0;
+  runSheetHooks(id);
+  if(s) setTimeout(()=>{
+    let target=null;
+    if(returnState) target=findFocusTarget(returnState.trigger,s);
+    else if(id==='learn:stage') target=s.querySelector('.stage-focus-target');
+    else if(!moveFocus&&previous){ target=findFocusTarget(previous,s); if(!target) target=s.querySelector('[data-act]:not(.done)'); }
+    if(moveFocus&&!target) target=s.querySelector('.sheet-focus,button:not([disabled]):not(.done),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled])')||s.querySelector('.done');
+    (target||s).focus();
+  },0);
+}
+function keepFocusInSheet(ev){
+  if(!sheetStack.length) return;
+  if(ev.key==='Escape'){ ev.preventDefault(); closeSheet(); return; }
+  if(ev.key!=='Tab') return;
+  const sheet=$('.sheet'); if(!sheet) return;
+  const focusable=[...sheet.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(el=>el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden');
+  if(!focusable.length){ ev.preventDefault(); sheet.focus(); return; }
+  const first=focusable[0], last=focusable[focusable.length-1];
+  if(document.activeElement===sheet){ ev.preventDefault(); (ev.shiftKey?last:first).focus(); }
+  else if(ev.shiftKey&&document.activeElement===first){ ev.preventDefault(); last.focus(); }
+  else if(!ev.shiftKey&&document.activeElement===last){ ev.preventDefault(); first.focus(); }
+  else if(!sheet.contains(document.activeElement)){ ev.preventDefault(); first.focus(); }
+}
+function toolInfo(id){ return TOOL_CATALOG.find(tool=>tool.id===id); }
+function sheetContent(id){
+  if(id==='log'||id==='log:night') return logSheet();
+  if(id.startsWith('close')) return closeSheet_(sheetDate(id));
+  if(id==='pages') return pagesSheet();
+  if(id.startsWith('day:')) return daySheet(sheetDate(id));
+  if(id.startsWith('details')) return detailsSheet(sheetDate(id));
+  if(id.startsWith('moment:')) return momentSheet(id);
+  if(id==='treatments') return treatmentsSheet();
+  if(id==='appointment-date') return appointmentDateSheet();
+  if(id==='rehearse') return rehearseSheet();
+  if(id==='support'||id.startsWith('support:')) return supportSheet(id.split(':')[1]);
+  if(id==='appointment-brief') return briefSheet();
+  if(id.startsWith('learn:')) return learnSheet(id.slice(6));
+  if(id.startsWith('tool:')) return toolSheet(id.slice(5));
+  if(id==='redflags') return learnSheet('redflags');
+  if(id==='screening') return learnSheet('screening');
+  if(id==='tools') return {title:'Tools',body:TOOL_CATALOG.map(t=>`<button class="entry" data-act="sheet" data-s="tool:${t.id}"><div class="path">${esc(t.group)}</div><div class="head">${esc(t.name)}</div><p>${esc(t.description)}</p></button>`).join('')};
+  if(id==='data') return dataSheet();
+  if(id==='reset-onboarding-confirm') return resetOnboardingSheet();
+  if(id==='delete-local-data-confirm') return deleteLocalDataSheet();
+  return {title:'',body:''};
+}
+
+/* ---------- the log sheet ---------- */
+function logKinds(){
+  const pinned=focusedKeys().filter(k=>!LOG_ALWAYS.includes(k)&&MOMENT_KINDS[k]&&MOMENT_KINDS[k].sym!==false);
+  return [...LOG_ALWAYS,...pinned];
+}
+function logSheet(){
+  const t=todayISO(), now=nowHM(), ms=dayMoments(t), kinds=logKinds();
+  const more=Object.keys(MOMENT_KINDS).filter(k=>!kinds.includes(k)&&!['slept','med','breath'].includes(k));
+  const last=lastLogged?ms.find(m=>m.id===lastLogged):null;
+  const row=k=>{
+    const mine=ms.filter(m=>m.k===k), pressed=last&&last.k===k, latest=mine[mine.length-1];
+    const sub=pressed?'logged'+(last.s?' · '+MOMENT_SEVERITY[last.s].toLowerCase():' · '+last.t):latest?(mine.length>1?mine.length+'× · ':'')+'last '+latest.t:'';
+    return `<button class="bigrow" data-act="log" data-k="${k}" aria-pressed="${pressed?'true':'false'}" aria-label="Log ${esc(MOMENT_KINDS[k].n)} now"><span>${esc(MOMENT_KINDS[k].n)}</span><span class="s">${esc(sub)}</span></button>`;
+  };
+  const sevApplies=last&&last.k!=='note'&&last.k!=='woke'&&last.k!=='slept';
+  const speech=typeof window!=='undefined'&&(window.SpeechRecognition||window.webkitSpeechRecognition);
+  return {title:'Log · '+now,night:true,full:true,body:`
+    <div class="biglist">${kinds.map(row).join('')}${logMore?more.map(row).join(''):`<button class="bigrow sm" data-act="log-more" aria-expanded="false" style="color:var(--text-2)"><span>More…</span><span class="s">${more.length} words</span></button>`}</div>
+    <div class="sheet-foot" style="border-top:0">
+      ${sevApplies?`<div class="seg" role="group" aria-label="How strong">${[1,2,3].map(s=>`<button data-act="log-severity" data-v="${s}" aria-pressed="${last.s===s?'true':'false'}">${MOMENT_SEVERITY[s]}</button>`).join('')}</div>`:'<div class="seg" aria-hidden="true" style="visibility:hidden"><button tabindex="-1">Mild</button></div>'}
+      ${dictationOpen?`<form class="dictate" data-act="dictate-form" style="display:flex;gap:8px"><label class="sr-only" for="dictate-text">Say what happened</label><input id="dictate-text" type="text" maxlength="280" placeholder="hot flash, strong, 20 minutes ago" autocomplete="off" class="sheet-focus" style="flex:1 1 auto;border-color:var(--border-strong)"><button type="submit" class="btn outline auto" style="min-height:48px">Add</button></form>`
+        :`<div style="display:flex;gap:8px"><button class="btn ink" style="flex:1 1 auto" data-act="sheet" data-s="tool:ride">Ride it out · 60 s</button><button class="btn outline auto" data-act="dictate" aria-label="${speech?'Say it instead':'Type it instead'}" style="width:54px;padding:0">${speech?IC.mic:IC.keyboard}</button></div>`}
+      <p class="footnote">${last?'Filed '+esc(momentName(last))+' at '+esc(last.t)+'. Tap again for another; edit any row from the page.':'One tap files it with the time. Nothing else to fill in.'}</p>
+    </div>`};
+}
+/* Free text against the vocabulary. Unmatched words become a dated note. */
+function parseUtterance(text){
+  const raw=String(text||'').trim(); if(!raw) return [];
+  const lower=raw.toLowerCase(), out=[];
+  let s=null; SEVERITY_WORDS.forEach(([w,v])=>{ if(lower.includes(w)&&s==null) s=v; });
+  let t=nowHM();
+  const ago=/(\d{1,3})\s*(min|minutes?|hours?|hrs?|h)\b\s*ago/.exec(lower);
+  if(ago){ const n=+ago[1]*(ago[2].startsWith('h')?60:1); const d=new Date(Date.now()-n*60000); if(iso(d)===todayISO()) t=nowHM(d); }
+  const at=/\b(?:at|around)\s*(\d{1,2})(?::(\d\d))?\s*(am|pm)?/.exec(lower);
+  if(at){ let hh=+at[1]; const mm=at[2]?+at[2]:0; if(at[3]==='pm'&&hh<12) hh+=12; if(at[3]==='am'&&hh===12) hh=0; if(hh<24) t=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+  Object.entries(LOG_SYNONYMS).forEach(([k,words])=>{ if(words.some(w=>lower.includes(w))&&!out.some(m=>m.k===k)) out.push({k,t,s:s==null?undefined:s}); });
+  if(out.some(m=>m.k==='ns')&&out.some(m=>m.k==='hf')&&!/flash|flush/.test(lower)) out.splice(out.findIndex(m=>m.k==='hf'),1);
+  if(out.some(m=>m.k==='joint')&&/head/.test(lower)&&!/joint|knee|hip|back|shoulder|ache/.test(lower)) out.splice(out.findIndex(m=>m.k==='joint'),1);
+  if(!out.length) out.push({k:'note',t,n:raw.slice(0,280)});
+  return out;
+}
+
+/* ---------- close the day ---------- */
+/* What the day already says about the four close-the-day facts, read live so
+   edits made in the nested Details sheet show up when she comes back. */
+function closeFacts(e){
+  return {alcohol:e.nut&&e.nut.alc!=null?e.nut.alc>0:null,strength:e.act&&e.act.res!=null?!!e.act.res:null,period:e.bleed?e.bleed!=='none':null,stress:e.sym&&e.sym.overwhelmed!=null?e.sym.overwhelmed>=2:null};
+}
+function closeFact(key,draft,e){ return key in draft?!!draft[key]:!!closeFacts(e)[key]; }
+/* The answers for closeDay(): what she touched in the sheet, an explicit zero
+   for a fact the day says nothing about, and nothing at all for a fact the
+   day already carries (so a typed drink count or a logged bleed survives). */
+function closeAnswers(date,draft){
+  const e=DB.entries[date]||{}, facts=closeFacts(e), out={rating:draft.rating};
+  ['alcohol','strength','period','stress'].forEach(key=>{ if(key in draft) out[key]=!!draft[key]; else if(facts[key]==null) out[key]=false; });
+  return out;
+}
+function closeSheet_(date){
+  const d=closeDraft||{}, e=DB.entries[date]||{};
+  const check=(key,label,hint)=>`<button class="check" data-act="close-toggle" data-k="${key}" aria-pressed="${closeFact(key,d,e)?'true':'false'}"><span class="box">${IC.check}</span><span>${label}</span>${hint?`<span class="s">${esc(hint)}</span>`:''}</button>`;
+  const summary=ledgerSummary(date);
+  return {title:(date===todayISO()?'Today':dayLabel(date))+' · '+nowHM(),body:`
+    <p class="lead">${date===todayISO()?'Close the day.':'Close '+esc(dayLabel(date))+'.'}</p><p class="small muted">One question. The ledger did the rest.</p>
+    <div class="label" style="margin:18px 0 10px">Overall</div>
+    <div class="words" role="group" aria-label="How was the day">${DAY_RATINGS.map((w,i)=>`<button data-act="close-rate" data-v="${i}" aria-pressed="${d.rating===i?'true':'false'}">${w}</button>`).join('')}</div>
+    <div class="label" style="margin:22px 0 2px">Anything to add</div>
+    ${check('alcohol','Alcohol',e.nut&&e.nut.alc>1?e.nut.alc+' drinks':'')}${check('strength','Strength session')}${check('period','Period',e.bleed&&e.bleed!=='none'?e.bleed:'')}${check('stress','Stressful day')}
+    <div class="label" style="margin:18px 0 8px">From the ledger</div>
+    <p class="summary-line">${summary?esc(summary):'<span class="muted">Nothing logged. Closing still counts the day.</span>'}</p>
+    <button class="textbtn" data-act="sheet" data-s="details:${date}">Sleep, body, food and notes</button>
+    <div class="sheet-foot"><button class="btn ink" data-act="close-save" data-d="${date}">Close the day</button><p class="footnote">Counts in the dossier now. Edit any time.</p></div>`};
+}
+
+/* ---------- earlier pages ---------- */
+function pagesSheet(){
+  const days=rangeDates(21).reverse();
+  return {title:'Earlier pages',body:`<p class="lead">The last three weeks.</p>${days.map(d=>{const e=confirmedEntry(d), sum=ledgerSummary(d);
+    return `<button class="kv" data-act="sheet" data-s="day:${d}" style="width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;color:var(--text)"><span><b>${esc(fmtDay(d))}</b>${sum?' <span class="muted">· '+esc(sum)+'</span>':e?'':' <span class="muted">· no page</span>'}</span><span class="r">${e&&e.rating!=null?esc(DAY_RATINGS[e.rating]):e?'open':''}</span></button>`;}).join('')}`};
+}
+function daySheet(date){
+  const e=confirmedEntry(date), closed=e&&e.rating!=null;
+  return {title:fmtDay(date),body:`<p class="lead">${esc(fmtLong(date))}</p>${closed?`<p class="small muted">Closed · ${esc(DAY_RATINGS[e.rating])}.</p>`:''}
+    <div class="label" style="margin:14px 0 4px">The ledger</div>${ledgerMarkup(date)}
+    <div class="label" style="margin:18px 0 8px">Add to this day</div>
+    <div style="display:flex;gap:8px;align-items:stretch"><label class="sr-only" for="past-kind">What happened</label><select id="past-kind" style="flex:1 1 auto">${Object.keys(MOMENT_KINDS).filter(k=>!['med','breath','slept'].includes(k)).map(k=>`<option value="${k}">${esc(MOMENT_KINDS[k].n)}</option>`).join('')}</select><label class="sr-only" for="past-time">At what time</label><input id="past-time" type="time" value="12:00" style="width:auto"><button class="btn outline auto" data-act="day-add" data-d="${date}" style="min-height:48px">Add</button></div>
+    <div class="sheet-foot"><div class="btn-row split"><button class="btn ${closed?'outline':'ink'} sm" data-act="sheet" data-s="close:${date}">${closed?'Edit the close':'Close this day'}</button><button class="btn outline sm" data-act="sheet" data-s="details:${date}">Details</button></div></div>`};
+}
+function momentSheet(id){
+  const parts=id.split(':'), date=sheetDate(id), mid=parts.slice(2).join(':'), m=dayMoments(date).find(x=>x.id===mid);
+  if(!m) return {title:'Moment',body:'<p class="small muted">This entry is gone.</p>'};
+  const sevApplies=!['note','woke','slept','med','breath'].includes(m.k);
+  return {title:momentName(m)+' · '+esc(fmtDay(date)),body:`<p class="lead">${esc(momentName(m))}</p>
+    <div class="field"><label class="fl" for="moment-time">Time</label><input id="moment-time" type="time" data-act="moment-time" data-d="${date}" data-id="${esc(m.id)}" value="${esc(m.t)}" style="width:auto"></div>
+    ${sevApplies?`<div class="field"><span class="fl">How strong</span><div class="seg ink" role="group" aria-label="How strong">${[1,2,3].map(s=>`<button data-act="moment-severity" data-d="${date}" data-id="${esc(m.id)}" data-v="${s}" aria-pressed="${m.s===s?'true':'false'}">${MOMENT_SEVERITY[s]}</button>`).join('')}</div></div>`:''}
+    ${m.k==='slept'?`<div class="field"><label class="fl" for="moment-hours">Hours asleep</label><input id="moment-hours" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="moment-hours" data-d="${date}" data-id="${esc(m.id)}" value="${m.v!=null?m.v:''}"></div>`:''}
+    <div class="field"><label class="fl" for="moment-note">${m.k==='note'?'Note':'Note (optional)'}</label><textarea id="moment-note" maxlength="280" data-act="moment-note" data-d="${date}" data-id="${esc(m.id)}" placeholder="What was happening">${esc(m.n||'')}</textarea></div>
+    <div class="sheet-foot"><button class="btn outline" data-act="moment-delete" data-d="${date}" data-id="${esc(m.id)}" style="color:var(--accent-text);border-color:var(--accent-text)">Delete this entry</button></div>`};
+}
+
+/* ---------- the day's details ---------- */
+function detailsSheet(date){
+  const e=DB.entries[date]||{sym:{},act:{},nut:{}}, sym=e.sym||{}, act=e.act||{}, nut=e.nut||{}, ms=dayMoments(date);
+  const hasHF=ms.some(m=>m.k==='hf'), hasNS=ms.some(m=>m.k==='ns'), pt=proteinTarget(), b=burden(e);
+  return {title:'Details · '+fmtDay(date),body:`
+    <p class="lead">The rest of the page.</p><p class="small muted">Anything here counts the moment you type it. The ledger stays the record of events.</p>
+    <div class="label" style="margin:18px 0 10px">Counts</div>
+    <div class="grid2">
+      <div class="field"><span class="fl">Hot flashes</span>${hasHF?`<p class="small">${e.hf} from the ledger.</p>`:`<div class="stepper"><button data-act="hf" data-n="-1" data-d="${date}" aria-label="One fewer">−</button><span class="val">${e.hf==null?'–':e.hf}</span><button data-act="hf" data-n="1" data-d="${date}" aria-label="One more">+</button></div>`}</div>
+      <div class="field"><span class="fl">Night sweats (0–4)</span>${hasNS?`<p class="small">${e.ns} from the ledger.</p>`:scaleRow('ns',SCALE4,e.ns,0,'Night sweats')}</div>
+    </div>
+    <div class="label" style="margin:18px 0 10px">Symptoms · 0 none to 4 very severe</div>
+    ${SYMS.filter(s=>s.k!=='sleepq').map(s=>`<div class="field" style="margin-bottom:12px"><span class="fl">${esc(SYM_DISPLAY[s.k]||s.n)}</span>${scaleRow('sym.'+s.k,SCALE4,sym[s.k],0,s.n)}</div>`).join('')}
+    ${b!=null?`<p class="xtiny">Burden today: ${b} of 44. Direction over weeks, not a label.</p>`:''}
+    <div class="label" style="margin:18px 0 10px">Sleep</div>
+    <div class="grid2"><div class="field"><label class="fl" for="inbed">Hours in bed</label><input id="inbed" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-d="${date}" data-k="inBedH" value="${e.inBedH??''}"></div><div class="field"><label class="fl" for="slept">Hours asleep</label><input id="slept" type="number" step="0.25" min="0" max="16" inputmode="decimal" data-act="num" data-d="${date}" data-k="sleepH" value="${e.sleepH??''}"></div></div>
+    <div class="field"><span class="fl">Sleep quality · 0 fine to 4 awful</span>${scaleRow('sym.sleepq',['Fine','Off','Poor','Bad','Awful'],sym.sleepq,0,'Sleep quality')}</div>
+    ${e.inBedH!=null&&e.inBedH>0&&e.sleepH!=null?`<p class="xtiny">Sleep efficiency ${Math.round(e.sleepH/e.inBedH*100)}%. CBT-I extends the window once this passes about 85 to 90%.</p>`:''}
+    <div class="label" style="margin:18px 0 10px">Body</div>
+    <div class="grid2"><div class="field"><label class="fl" for="wt">Weight (${U.wLabel()})</label><input id="wt" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" data-act="num" data-d="${date}" data-k="wt" data-conv="w" value="${e.wt!=null?r1(U.wOut(e.wt)):''}"></div><div class="field"><label class="fl" for="wa">Waist (${U.lLabel()})</label><input id="wa" type="number" step="0.1" min="${U.imp?12:30}" max="${U.imp?118:300}" inputmode="decimal" data-act="num" data-d="${date}" data-k="waist" data-conv="l" value="${e.waist!=null?r1(U.lOut(e.waist)):''}"></div></div>
+    <div class="field"><span class="fl">${periodsPossible()?'Bleeding':'Any bleeding or spotting'}</span><div class="chips">${['none','spotting','light','moderate','heavy'].map(v=>h('button',{class:'chip sm','data-act':'set','data-d':date,'data-k':'bleed','data-v':v,'aria-pressed':e.bleed===v?'true':'false'},v[0].toUpperCase()+v.slice(1))).join('')}</div>${!periodsPossible()?`<p class="hint">${!hasUterus()?'After a hysterectomy any bleeding is unexpected. Usually minor, always worth reporting.':'Anything new is worth logging and reporting rather than explaining away.'}</p>`:''}</div>
+    <div class="label" style="margin:18px 0 10px">Movement</div>
+    <div class="chips" style="margin-bottom:12px">${chip('act.res','Strength session',act.res).replace('data-act','data-d="'+date+'" data-act')}${chip('act.bal','Balance work',act.bal).replace('data-act','data-d="'+date+'" data-act')}${chip('act.pf','Pelvic floor',act.pf).replace('data-act','data-d="'+date+'" data-act')}</div>
+    <div class="field"><label class="fl" for="aero">Aerobic minutes</label><input id="aero" type="number" step="5" min="0" max="1440" inputmode="numeric" data-act="num" data-d="${date}" data-k="act.aero" value="${act.aero??''}"></div>
+    <div class="label" style="margin:18px 0 10px">Food and drink</div>
+    <div class="chips" style="margin-bottom:12px">
+      ${h('button',{class:'chip sm','data-act':'set','data-d':date,'data-k':'nut.prot','data-v':1,'aria-pressed':nut.prot===true||nut.prot===1?'true':'false'},esc('Protein target met'+(pt?' ('+pt.grams+' g)':'')))}
+      ${h('button',{class:'chip sm','data-act':'set','data-d':date,'data-k':'nut.prot','data-v':0,'aria-pressed':nut.prot===false||nut.prot===0?'true':'false'},'Missed')}
+      ${chip('nut.cal','2+ calcium servings',nut.cal).replace('data-act','data-d="'+date+'" data-act')}${chip('nut.fib','Good fibre day',nut.fib).replace('data-act','data-d="'+date+'" data-act')}
+    </div>
+    <div class="grid2"><div class="field"><label class="fl" for="alc">Alcohol (drinks)</label><input id="alc" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-d="${date}" data-k="nut.alc" value="${nut.alc??''}"></div><div class="field"><label class="fl" for="caf">Caffeine (cups)</label><input id="caf" type="number" step="1" min="0" max="50" inputmode="numeric" data-act="num" data-d="${date}" data-k="nut.caf" value="${nut.caf??''}"></div></div>
+    <div class="field"><label class="fl" for="notes">Notes</label><textarea id="notes" maxlength="4000" data-act="num" data-d="${date}" data-k="notes" placeholder="What helped, what set it off, a question for the appointment.">${esc(e.notes||'')}</textarea></div>
+    ${medsTakenMarkup(date)}
+    ${DB.trigger&&DB.trigger.active?triggerBanner():''}`};
+}
+
+/* ---------- treatments ---------- */
+function medicationForm(m){
+  return `<div class="form" aria-label="${m?'Edit':'Add'} medication"><h3>${m?'Edit '+esc(m.name):'Add a medication'}</h3><p class="small muted">${m?'Changes apply from today; earlier details stay in the history. Use Record a change for dose or schedule changes you want compared.':'What you actually take, with the start date if you know it.'}</p>
+    <div class="field"><label class="fl" for="med-name">Medication and dose</label><input id="med-name" type="text" maxlength="80" placeholder="Estradiol patch 0.05 mg" value="${esc(m&&m.name||'')}"></div>
+    <div class="grid2"><div class="field"><label class="fl" for="med-form">Form</label><select id="med-form">${['patch','tablet','capsule','gel','spray','cream','injection','other'].map(form=>`<option${m&&m.form===form?' selected':''}>${form}</option>`).join('')}</select></div><div class="field"><label class="fl" for="med-due">Usual time</label><input id="med-due" type="time" value="${esc(m&&m.due||'')}"></div></div>
+    <div class="field"><span class="fl">Days</span><div class="chips">${['S','M','T','W','T','F','S'].map((d,i)=>h('button',{class:'chip sm','data-act':'med-day','data-v':i,'aria-pressed':medDaysDraft.includes(i)?'true':'false','aria-label':['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]},d)).join('')}</div></div>
+    ${m?'':`<div class="grid2"><div class="field"><label class="fl" for="med-started">Start date (optional)</label><input id="med-started" type="date" max="${todayISO()}"></div><div class="field"><label class="fl" for="med-change-label">Starting note (optional)</label><input id="med-change-label" type="text" maxlength="120" placeholder="Started after the appointment"></div></div>${treatmentTargetField('med')}`}
+    <div class="field"><label class="fl" for="med-notes">Notes (optional)</label><input id="med-notes" type="text" maxlength="120" placeholder="Prescriber instructions" value="${esc(m&&m.notes||'')}"></div>
+    <div class="btn-row split"><button class="btn ink sm" data-act="${m?'med-edit-save':'med-save'}"${m?` data-id="${esc(m.id)}"`:''}>Save</button><button class="btn outline sm" data-act="med-cancel">Cancel</button></div></div>`;
+}
+function treatmentChangeForm(m){
+  return `<div class="form"><h3>Record a change to ${esc(m.name)}</h3><p class="small muted">A dated note about a dose, form or schedule change. The pages before and after get compared; the saved name and schedule do not change.</p><div class="grid2"><div class="field"><label class="fl" for="change-date">Date</label><input id="change-date" type="date" max="${todayISO()}" value="${todayISO()}"></div><div class="field"><label class="fl" for="change-label">What changed</label><input id="change-label" type="text" maxlength="120" placeholder="0.0375 → 0.05 mg"></div></div>${treatmentTargetField('change')}<div class="btn-row split"><button class="btn ink sm" data-act="med-change-save" data-id="${esc(m.id)}">Save change</button><button class="btn outline sm" data-act="med-change-cancel">Cancel</button></div></div>`;
+}
+function treatmentStopForm(m){
+  return `<div class="form" aria-label="Stop ${esc(m.name)}"><h3>Stop ${esc(m.name)}</h3><p class="small muted">Keeps the history in the dossier and the report; removes it from the day.</p><div class="field"><label class="fl" for="stop-date">Last day taken</label><input id="stop-date" type="date" min="${esc(medicationCurrentStart(m)||'1900-01-01')}" max="${todayISO()}" value="${todayISO()}"></div><div class="field"><label class="fl" for="stop-reason">Reason (optional)</label><textarea id="stop-reason" maxlength="500" placeholder="Why it stopped, side effects, what happens next"></textarea></div><div class="btn-row split"><button class="btn ink sm" data-act="med-stop-save" data-id="${esc(m.id)}">Save as stopped</button><button class="btn outline sm" data-act="med-stop-cancel">Cancel</button></div></div>`;
+}
+function treatmentRow(m){
+  const status=medicationStatus(m);
+  const actions=status==='active'?`<button class="textbtn" data-act="med-change" data-id="${esc(m.id)}">Record a change</button><button class="textbtn muted" data-act="med-stop" data-id="${esc(m.id)}">Stop</button>`
+    :status==='stopped'?`<button class="textbtn" data-act="med-restart" data-id="${esc(m.id)}">Restart</button><button class="textbtn muted" data-act="med-archive" data-id="${esc(m.id)}">Archive</button>`
+    :`<button class="textbtn" data-act="med-unarchive" data-id="${esc(m.id)}">Unarchive</button><button class="textbtn muted" data-act="med-remove" data-id="${esc(m.id)}">Delete</button>`;
+  return `<div class="kv stack"><b>${esc(m.name)} <span class="muted" style="font-weight:400">· ${esc(medicationDetail(m))}${m.started?' · from '+esc(shortDate(m.started)):''}</span></b>${status!=='active'&&m.ended?`<span class="r">Stopped ${esc(fmtDay(m.ended))}${m.stopReason?' · '+esc(m.stopReason):''}</span>`:''}${(m.changes||[]).filter(c=>c.label&&c.label!=='Treatment started').slice(-2).map(c=>`<span class="r">${esc(shortDate(c.date))} · ${esc(c.label)}</span>`).join('')}<div style="display:flex;gap:16px;flex-wrap:wrap"><button class="textbtn muted" data-act="med-edit" data-id="${esc(m.id)}">Edit</button>${actions}</div></div>`;
+}
+function treatmentsSheet(){
+  const meds=Array.isArray(DB.medications)?DB.medications:[];
+  const changeMed=treatmentChangeTarget?meds.find(m=>m.id===treatmentChangeTarget):null, stopMed=treatmentStopTarget?meds.find(m=>m.id===treatmentStopTarget):null, editMed=medicationEditTarget?meds.find(m=>m.id===medicationEditTarget):null;
+  const followUps=treatmentFollowUpItems(), activeFollowUp=findTreatmentFollowUp(treatmentFollowUpTarget);
+  const active=meds.filter(m=>medicationStatus(m)==='active'), stopped=meds.filter(m=>medicationStatus(m)==='stopped'), archived=meds.filter(m=>medicationStatus(m)==='archived');
+  const formOpen=medFormOpen||changeMed||stopMed||activeFollowUp;
+  return {title:'Treatments',body:`<p class="lead">What you take, when it changed, whether it helped.</p>
+    ${medFormOpen?medicationForm(editMed):''}${changeMed?treatmentChangeForm(changeMed):''}${stopMed?treatmentStopForm(stopMed):''}${activeFollowUp?treatmentFollowUpForm(activeFollowUp):''}
+    ${formOpen?'':'<button class="btn outline sm" data-act="med-add" style="margin:6px 0 14px">Add a medication</button>'}
+    <div class="label" style="margin:14px 0 4px">Active</div>${active.length?active.map(treatmentRow).join(''):'<p class="small muted">None recorded.</p>'}
+    ${stopped.length?`<div class="label" style="margin:18px 0 4px">Stopped</div>${stopped.map(treatmentRow).join('')}`:''}
+    ${archived.length?`<details class="plain"><summary>${archived.length} archived</summary>${archived.map(treatmentRow).join('')}</details>`:''}
+    <div class="label" style="margin:22px 0 4px">Check-ins</div>${treatmentFollowUpRows(followUps)}
+    <p class="xtiny" style="margin-top:14px">Adherence is marked from the day’s page. Associations between a change and a symptom are your own record, not proof of cause.</p>`};
+}
+function appointmentDateSheet(){
+  const brief=savedBrief();
+  return {title:'Appointment',body:`<p class="lead">When is it?</p><p class="small muted">Sets the countdown on the page and the dossier. No health details go to the calendar.</p>
+    <div class="field"><label class="fl" for="appt-date">Date</label><input id="appt-date" type="date" value="${esc(brief.date||'')}" min="${todayISO()}"></div>
+    <div class="btn-row split"><button class="btn ink sm" data-act="appointment-date-save">Save</button>${brief.date?'<button class="btn outline sm" data-act="appointment-date-clear">Clear</button>':''}</div>
+    ${brief.date?'<div style="margin-top:14px">'+calendarButton(brief.date)+'</div>':''}`};
+}
+function rehearseSheet(){
+  const brief=savedBrief(), opening=briefOpening(brief);
+  const questions=brief.concerns.length?(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text).slice(0,3):[];
+  if(!opening) return {title:'Rehearse',body:`<p class="lead">Nothing to rehearse yet.</p><p class="small muted">Set your three concerns and what you want from the visit; the opening statement writes itself.</p><button class="btn ink" data-act="brief-start">Build the brief</button>`};
+  return {title:'Rehearse',body:`<div class="label accent" style="margin-bottom:12px">Say it out loud. Twice.</div><p class="quote" style="font-size:clamp(22px,6.5vw,26px)">“${esc(opening)}”</p>
+    <p class="small muted" style="margin-top:14px">Under thirty seconds. Concerns first, impact second, what you want third. Then stop talking and let them ask.</p>
+    ${questions.length?`<div class="label" style="margin:22px 0 6px">Then the questions</div>${questions.map((q,i)=>`<div class="qn"><span class="n">${i+1}</span><div class="q">${esc(q.text)}</div></div>`).join('')}`:''}
+    <div class="sheet-foot"><div class="btn-row split"><button class="btn outline sm" data-act="brief-start">Edit the brief</button><button class="btn ink sm" data-act="open-report">The one-page brief</button></div></div>`};
+}
+
+/* ---------- the index chapters ---------- */
+function pinButton(ref,text){
+  const pinned=appointmentData().evidence.some(item=>item.ref===ref);
+  return `<div class="no-print" style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px"><span class="xtiny">${pinned?'Pinned to the dossier.':'Worth raising at the appointment?'}</span><button class="textbtn${pinned?' muted':''}" data-act="${pinned?'evidence-unpin':'evidence-pin'}" data-ref="${esc(ref)}" data-text="${esc(text)}">${pinned?'Unpin':'Pin to the dossier'}</button></div>`;
+}
+function learnSheet(k){
+  const m=LEARN_MODULES.find(x=>x.id===k)||{n:''};
+  let body='';
+  switch(k){
+    case 'stage': body=stageSheetBody(); break;
+    case 'symptoms':
+      body=`<p class="small muted">Each entry gives prevalence and duration, what has evidence, and what is over-claimed.</p>
+      <div class="rows">${SYMPTOMS.map(s=>h('button',{class:'row','data-act':'sheet','data-s':'learn:sym-'+s.id},'<span class="txt"><b>'+esc(s.name)+'</b><span>'+esc(s.quick)+'</span></span><span class="chev">'+IC.chev+'</span>')).join('')}</div>`;
+      break;
+    case 'treatment': body=regionNote()+uterusNote()+TREATMENT_HTML; break;
+    case 'supplements':
+      body=regionNote()+SUPPLEMENTS_INTRO+SUPPLEMENTS.map(s=>`<details class="acc"><summary><span style="flex:1">${esc(s.n)}</span> <span class="badge ${s.v}">${s.v==='strong'?'Good evidence':s.v==='moderate'?'Moderate':s.v==='mixed'?'Mixed':'No evidence'}</span></summary><div><p style="margin-bottom:0">${s.s}</p></div></details>`).join('');
+      break;
+    case 'diet': body=regionNote()+DIET_HTML; break;
+    case 'exercise': body=boneGate()+EXERCISE_HTML; break;
+    case 'weight': body=WEIGHT_HTML; break;
+    case 'skin': body=SKIN_HTML; break;
+    case 'sleep': body=SLEEP_HTML; break;
+    case 'mind': body=MIND_HTML; break;
+    case 'sex': body=SEX_HTML; break;
+    case 'screening': body=screeningBody(); break;
+    case 'clinician': body=clinicianBody(); break;
+    case 'redflags': body=redflagBody(); break;
+    case 'sources': body=SOURCES_HTML; break;
+    default:
+      if(k.startsWith('sym-')){
+        const s=SYMPTOMS.find(x=>x.id===k.slice(4));
+        if(s) return {title:s.name,body:'<p class="label" style="margin-bottom:12px">'+esc(s.tag)+'</p>'+s.body+pinButton('learn:'+k,s.name+' (symptom library)')};
+      }
+  }
+  const pin=['stage','screening','clinician','sources','redflags'].includes(k)?'':pinButton('learn:'+k,m.n+' (chapter)');
+  return {title:m.n||'',body:body+pin};
+}
+function uterusNote(){
+  const u=DB.profile.uterus;
+  if(u==='hyst') return `<div class="callout ok"><span class="ctitle">You have told us your uterus was removed</span>So the progestogen section below does not apply to you. With no lining to protect, <b>oestrogen-only therapy is what is used</b>, and that avoids the component carrying most of the extra breast cancer signal. Over five years at ages 50–59, oestrogen-only estimates run from <b>6 fewer</b> to <b>3 extra</b> cases per 1,000 women, against <b>+8 to +10</b> for combined therapy. The endometrial cancer numbers in the risk table are also irrelevant to you.</div>`;
+  if(u==='ablation') return `<div class="callout warn"><span class="ctitle">You have told us you had an endometrial ablation</span>You still have your uterus, so <b>you still need a progestogen alongside systemic oestrogen</b>. An ablation is not a substitute for endometrial protection; the lining can regenerate in patches. Read the progestogen section below as applying to you.</div>`;
+  if(u==='intact') return `<div class="callout info"><span class="ctitle">You have your uterus</span>So the progestogen section below applies to you: anyone with a uterus taking systemic oestrogen needs endometrial protection. The choice between continuous and sequential, and between progestogen types, is one of the genuinely unsettled areas.</div>`;
+  return '';
+}
+function regionNote(){
+  const r=DB.profile.region;
+  if(r==='uk') return `<div class="callout warn"><span class="ctitle">You have set your region to the UK</span>Three things differ for you. <b>Drug labelling:</b> the November 2025 US boxed-warning removal has no verified UK equivalent; UK product information still reflects the earlier MHRA risk tables. <b>Non-hormonal options:</b> NICE says do <i>not</i> routinely offer SSRIs or SNRIs as first-line for hot flashes alone, where the US Menopause Society lists them as recommended. <b>Nutrient targets:</b> the British Menopause Society uses 700 mg calcium with normal bone density (1,200 mg with osteopenia or osteoporosis) and 400 IU vitamin D, not the US figures on these pages.</div>`;
+  if(r==='other') return `<div class="callout warn"><span class="ctitle">You are outside the US and UK</span>This library is built on US and UK guidance, and drug approvals, labelling, nutrient targets and screening programmes vary by country. Treat the evidence as transferable and the specifics as local; confirm them with a clinician where you are.</div>`;
+  return '';
+}
+function boneGate(){
+  const b=DB.profile.bone;
+  if(b==='osteoporosis'||b==='fracture') return `<div class="callout alert"><span class="ctitle">Tailored to what you told us</span>You recorded ${b==='fracture'?'a previous fragility fracture':'osteoporosis'}. <b>Skip the high-impact and heavy-loading advice below</b> and read the “Too Fit To Fracture” rules instead: moderate loads, form over intensity, no jumping or running, and no loaded spinal bending or twisting. Ask for a physiotherapy referral; that is the standard recommendation for your situation.</div>`;
+  if(b==='unknown') return `<div class="callout warn"><span class="ctitle">You have not recorded your bone status</span>Until you know it, treat the heavy-loading and impact sections below with caution. Bone loss averages 10–12% at spine and hip across the transition, and the safe programme depends on where you are. Set it under You once you know.</div>`;
+  return '';
+}
+
+/* ---------- staging ---------- */
+let stageAns={}, stageStep=0, stageEditing=false;
+function resetStageDraft(){
+  stageAns={}; stageStep=0; stageEditing=true;
+  const age=ageStageAnswer(DB.profile.birthYear);
+  if(age){ stageAns.age=age; stageStep=1; }
+}
+function stageAnswerAllowed(q,value){ return q&&q.a.some(a=>a.v===value); }
+function completeStageAnswers(ans){
+  if(!ans||typeof ans!=='object') return false;
+  const qs=stageQueue(ans);
+  return qs.length>0&&qs.every(q=>stageAnswerAllowed(q,ans[q.id]));
+}
+function ageStageAnswer(birthYear){
+  if(birthYear==null||birthYear===''||!Number.isInteger(+birthYear)) return null;
+  const age=new Date().getFullYear()-(+birthYear);
+  return age<40?'u40':age<45?'40s_e':age<55?'45p':'55p';
+}
+function surgeryStageAnswer(date){
+  if(!pastOrTodayISO(date)) return 'unsure';
+  const days=daysBetween(date,todayISO());
+  return days<92?'lt3m':days<365?'lt1y':days<=Math.round(5*365.25)?'1to5':'gt5';
+}
+function storeStageAssessment(ans){
+  const p=DB.profile, clean={};
+  STAGE_Q.forEach(q=>{ if(stageAnswerAllowed(q,ans[q.id])) clean[q.id]=ans[q.id]; });
+  p.uterus=clean.uterus==='unsure'?'unknown':clean.uterus;
+  p.ovaries=clean.ovaries==='unsure'?'unknown':clean.ovaries;
+  const res=stageResult(clean);
+  p.stage=res.label; p.stageAnswers=clean; p.onboardingDeferred=false;
+  delete p.stageResult;
+  return res;
+}
+function invalidateStage(){ DB.profile.stage=null; DB.profile.stageAnswers=null; delete DB.profile.stageResult; }
+function refreshStageForProfile(key){
+  const p=DB.profile;
+  delete p.stageResult;
+  if(!p.stage||!p.stageAnswers) return;
+  const ans=Object.assign({},p.stageAnswers);
+  if(key==='uterus') ans.uterus=p.uterus==='unknown'?'unsure':p.uterus;
+  else if(key==='ovaries') ans.ovaries=p.ovaries==='unknown'?'unsure':p.ovaries;
+  else if(key==='birthYear'){ const age=ageStageAnswer(p.birthYear); if(!age){ invalidateStage(); return; } ans.age=age; }
+  else if(key==='surgeryDate'){ ans.surgWhen=surgeryStageAnswer(p.surgeryDate); }
+  else if(key==='lastPeriod'||key==='periodStatus'||key==='periodSince'){ invalidateStage(); return; }
+  else return;
+  if(!completeStageAnswers(ans)){ invalidateStage(); return; }
+  const res=stageResult(ans); p.stage=res.label; p.stageAnswers=ans;
+}
+function stageResultView(res,justCompleted){
+  const firstParagraph=res.body.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i);
+  const intro=firstParagraph?'<p>'+firstParagraph[1]+'</p>':'<p>Your answers point to this result. Open the full explanation for more.</p>';
+  const actions=justCompleted?'<div class="btn-row split" style="margin:14px 0"><button class="btn outline sm" data-act="stage-restart">Start again</button><button class="btn ink sm" data-act="close">Done</button></div>':'<button class="textbtn" data-act="stage-restart">Answer the questions again</button>';
+  return `<div class="label accent" style="margin-bottom:8px">Your stage</div><h3 class="lead stage-focus-target" tabindex="-1" style="margin:0 0 10px">${esc(res.label)}</h3>${intro}
+  ${res.flags.map(f=>'<div class="callout warn">'+f+'</div>').join('')}
+  ${actions}
+  <details class="acc"><summary>Read your full result</summary><div>${res.body}</div></details>
+  <details class="acc"><summary>How menopause is diagnosed</summary><div>${STAGE_CAVEAT}</div></details>`;
+}
+function stageSheetBody(){
+  const p=DB.profile;
+  if(Object.prototype.hasOwnProperty.call(p,'stageResult')){ delete p.stageResult; save(); }
+  if(p.stage&&!completeStageAnswers(p.stageAnswers)){ invalidateStage(); save(); }
+  if(p.stage&&!stageEditing){ return stageResultView(stageResult(p.stageAnswers),false); }
+  if(!stageEditing) resetStageDraft();
+  const qs=stageQueue(stageAns);
+  if(stageStep>=qs.length){ const res=storeStageAssessment(stageAns); save(); return stageResultView(res,true); }
+  const q=qs[stageStep];
+  return `<p class="label stage-step" aria-live="polite" style="margin-bottom:10px">Question ${stageStep+1}</p>
+  <h3 class="lead stage-focus-target" tabindex="-1">${esc(q.q)}</h3>
+  ${q.note?`<p class="small muted">${esc(q.note)}</p>`:''}
+  <div class="rows" style="margin-top:14px">${q.a.map(a=>h('button',{class:'row','data-act':'stage-a','data-k':q.id,'data-v':a.v},'<span class="txt"><b>'+esc(a.t)+'</b></span><span class="chev">'+IC.chev+'</span>')).join('')}</div>
+  ${stageStep>0?'<button class="textbtn" data-act="stage-back">Back</button>':''}
+  <p class="xtiny" style="margin-top:14px">Based on the STRAW+10 international staging system. Orientation, not a diagnosis.</p>`;
+}
+
+/* ---------- screening, red flags, clinician prep ---------- */
+function screeningIntervalLabel(id,years){
+  if(id==='cervical') return years===3?'3 years · cytology':'5 years · HPV testing / co-test';
+  if(id==='colon') return years===1?'1 year · FIT / annual review':years===3?'3 years · stool DNA-FIT':years===5?'5 years · CT colonography / sigmoidoscopy':'10 years · colonoscopy';
+  return years+' years';
+}
+function screeningBody(){
+  const age=DB.profile.birthYear?new Date().getFullYear()-DB.profile.birthYear:null, nonUS=DB.profile.region&&DB.profile.region!=='us';
+  return `<div class="callout info"><span class="ctitle">US intervals, and one honest gap</span>Current US Preventive Services Task Force and society recommendations${age?', relevant to you at '+age:''}. No blood-pressure or lipid interval is published here because the current one could not be verified; ask your clinician rather than trust a guessed number.</div>
+  ${nonUS?`<div class="callout warn"><span class="ctitle">You are outside the US; these intervals will not match your programme</span>Screening ages, intervals and invitation systems differ substantially, and many countries run national invitation programmes. Use this page to ask what <i>your</i> programme covers, and record the dates you were actually seen.</div>`:''}
+  ${SCREENING.map(s=>{
+    const rec=DB.screening[s.id]||{}, rule=SCREENING_RULES[s.id], status=rule?screeningStatus(s.id,age):{due:false};
+    const validLast=pastOrTodayISO(rec.last), intervals=rule?screeningIntervals(rule,age):[];
+    const selected=intervals.includes(+rec.intervalYears)?+rec.intervalYears:(rule?rule.defaultYears:null);
+    const badge=status.due?'<span class="badge accent">due to check</span>':validLast?'<span class="badge">'+fmtDay(rec.last)+'</span>':'';
+    return `<details class="acc"><summary><span style="flex:1">${esc(s.n)}</span>${badge}</summary><div>
+      <p class="small"><b>${esc(s.w)}</b></p><p class="small">${s.d}</p>
+      <div class="field"><label class="fl" for="sc-${s.id}">Date you last had this</label><input id="sc-${s.id}" type="date" min="${DB.profile.birthYear?DB.profile.birthYear+'-01-01':'1900-01-01'}" max="${todayISO()}" data-act="screen" data-k="${s.id}" value="${validLast?rec.last:''}"></div>
+      ${intervals.length>1?`<div class="field"><label class="fl" for="sci-${s.id}">Reminder interval for the test you had</label><select id="sci-${s.id}" data-act="screen-int" data-k="${s.id}">${intervals.map(y=>`<option value="${y}"${selected===y?' selected':''}>${esc(screeningIntervalLabel(s.id,y))}</option>`).join('')}</select></div>`:''}
+    </div></details>`;
+  }).join('')}
+  <p class="xtiny">Dates here are for your own reference. Nothing is booked and nothing is sent anywhere. Reminder intervals are prompts, not the schedule your clinician gives you.</p>`;
+}
+function redflagBody(){
+  return `<div class="callout alert"><span class="ctitle">Some symptoms need emergency help now</span>Call your local emergency number now for chest pressure or pain, sudden severe trouble breathing, signs of a stroke, fainting with severe symptoms, or immediate danger. Use <b>911</b> in the US or Canada, <b>999</b> in the UK, or <b>112</b> in the EU. Do not drive yourself. The items below need prompt clinical advice even when they are not emergencies.</div>
+  ${REDFLAGS.map(r=>`<details class="acc"><summary><span style="flex:1">${esc(r.n)}</span></summary><div><p style="margin-bottom:0">${r.why}</p></div></details>`).join('')}
+  <div class="callout warn"><span class="ctitle">If you are thinking about harming yourself</span>If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer">988</a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer">Samaritans on 116 123</a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>.</div>`;
+}
+function clinicianBody(){
+  const dates=entryDates(), d30=rangeDates(30), hfAvg=avg(series(d30,e=>e.hf).map(p=>p.v)), bdAvg=avg(series(d30,burden).map(p=>p.v)), last=DB.scores.slice(-4).reverse();
+  const brief=appointmentSuggestionBrief(), questions=(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text);
+  return `<p class="small muted">The dossier does most of this for you. The brief turns three concerns into an opening statement and a question list; the one-page export carries the numbers.</p>
+  <button class="btn ink" data-act="brief-start">${brief.concerns.length?'Edit the brief':'Build the brief'}</button>
+  ${questions.length?`<div class="label" style="margin:18px 0 6px">Questions for the appointment</div>${questions.map((q,i)=>`<div class="qn"><span class="n">${i+1}</span><div><div class="q">${esc(q.text)}</div><div class="why">${esc(q.reason)}</div></div></div>`).join('')}`:'<p class="small muted" style="margin-top:14px">Not enough recorded days to suggest concerns yet; choose them yourself in the brief.</p>'}
+  <div class="label" style="margin:18px 0 6px">Bring the numbers</div>
+  <ul class="plain small" style="margin-bottom:0"><li>${dates.length} days logged${dates.length?', from '+fmtDay(dates[0]):''}</li>${hfAvg!=null?'<li>Hot flashes averaging <b>'+r1(hfAvg)+' a day</b> over the last month</li>':''}${bdAvg!=null?'<li>Symptom burden averaging <b>'+r1(bdAvg)+' of 44</b> across 11 tracked symptoms</li>':''}${last.length?'<li>Recent scores: '+last.map(s=>s.type.toUpperCase()+' '+s.score+' ('+fmtDay(s.date)+')').join(', ')+'</li>':''}</ul>
+  <button class="textbtn" data-act="open-report">Open the one-page brief</button>
+  ${briefQuestionSources()}`;
+}
+
+/* ---------- data ---------- */
+function dataSheet(){
+  return {title:'Export and restore',body:`
+  <div class="callout ${Store.ephemeral?'warn':'info'}"><span class="ctitle">${Store.ephemeral?'This preview is not saving':'Where the record lives'}</span>
+  ${Store.ephemeral?'Browser storage is unavailable here, so entries are held in memory and lost when the page closes. Installed, or on the deployed site, it saves normally.'
+    :window.__MENO_NATIVE__===true?'In an encrypted file on this iPhone or iPad, protected by a key that stays on the device. It does not sync between devices, so save an encrypted backup now and then.'
+    :"In this browser's local storage, on this device only. Clearing browser data deletes it, and it does not sync, so take a backup now and then."}</div>
+  ${window.__MENO_NATIVE__===true&&nativePrivacyState.encryptedBackups?`<div class="label" style="margin:18px 0 8px">Encrypted backup</div>
+  <p class="small">A portable, password-protected <b>.menocompass</b> file. The password is never stored.</p>
+  <div class="field"><label class="fl" for="encrypted-backup-password">Backup password · at least 10 characters</label><input id="encrypted-backup-password" type="password" minlength="10" maxlength="200" autocomplete="new-password"></div>
+  <div class="field"><label class="fl" for="encrypted-backup-confirm">Confirm password</label><input id="encrypted-backup-confirm" type="password" minlength="10" maxlength="200" autocomplete="new-password"></div>
+  <button class="btn ink sm" data-act="export-encrypted-backup">Save encrypted backup</button>
+  <p class="small" style="margin-top:18px">To restore, choose a <b>.menocompass</b> file and enter its password. Restoring replaces the current record.</p>
+  <div class="field"><label class="fl" for="encrypted-restore-password">Backup password</label><input id="encrypted-restore-password" type="password" maxlength="200" autocomplete="current-password"></div>
+  <button class="btn outline sm" data-act="import-encrypted-backup">Choose encrypted backup</button>`:''}
+  <div class="label" style="margin:18px 0 8px">${window.__MENO_NATIVE__===true?'Plain exports':'Back up'}</div>
+  <div class="btn-row split"><button class="btn ink sm" data-act="export-json">Download JSON</button><button class="btn outline sm" data-act="export-csv">Download CSV</button></div>
+  <p class="xtiny"><b>Plain, unencrypted files containing health information.</b> Keep them somewhere private. JSON restores everything; CSV is one row per day plus one row per ledger entry.</p>
+  <div class="label" style="margin:18px 0 8px">Copy instead</div>
+  <textarea id="dump" readonly style="min-height:110px;font-family:var(--mono);font-size:.72rem">${esc(JSON.stringify(DB))}</textarea>
+  <button class="textbtn" data-act="copy-dump">Copy to clipboard</button>
+  <div class="label" style="margin:18px 0 8px">Restore</div>
+  <p class="small">Paste a peri JSON backup. <b>This replaces everything currently stored.</b></p>
+  <textarea id="restore" maxlength="5000000" aria-describedby="restore-help" placeholder='{"v":9,"profile":...}'></textarea>
+  <p class="xtiny" id="restore-help">Up to 5 MB. Unknown fields and invalid values are discarded.</p>
+  <button class="btn outline sm" data-act="import-json" style="margin-top:8px">Restore from this backup</button>`};
+}
+function resetOnboardingSheet(){
+  const count=entryDates().length;
+  return {title:'Redo the first page?',body:`<p class="lead">Start the letter again.</p><p class="small muted">Your ${count} recorded ${plural(count,'day')}, treatments, labs and brief stay. Only the first-page answers are asked again.</p><div class="btn-row split"><button class="btn ink sm" data-act="confirm-reset-onboarding">Redo it</button><button class="btn outline sm" data-act="close">Keep it</button></div>`};
+}
+function deleteLocalDataSheet(){
+  return {title:'Delete everything?',body:`<p class="lead">This erases the record on this device.</p><p class="small muted">peri has no account. Profile, ledger, treatments, labs, dossier and settings go, and cannot come back unless you exported a backup.</p><div class="callout warn"><span class="ctitle">Apple subscriptions are separate</span>Deleting the record does not cancel a subscription. Manage that in App Store settings.</div><div class="btn-row split"><button class="btn sm" style="background:var(--accent);border-color:var(--accent);color:#fff" data-act="confirm-delete-local-data">Delete permanently</button><button class="btn outline sm" data-act="close">Cancel</button></div>`};
+}
+
+/* ============================================================
+   TOOLS
+   ============================================================ */
+const PHQ9 = ['Little interest or pleasure in doing things','Feeling down, depressed, or hopeless','Trouble falling or staying asleep, or sleeping too much','Feeling tired or having little energy','Poor appetite or overeating','Feeling bad about yourself, or that you are a failure, or have let yourself or your family down','Trouble concentrating on things, such as reading the newspaper or watching television','Moving or speaking so slowly that other people could have noticed, or the opposite: being fidgety or restless','Thoughts that you would be better off dead, or of hurting yourself in some way'];
+const GAD7 = ['Feeling nervous, anxious or on edge','Not being able to stop or control worrying','Worrying too much about different things','Trouble relaxing','Being so restless that it is hard to sit still','Becoming easily annoyed or irritable','Feeling afraid as if something awful might happen'];
+const FREQ = ['Not at all','Several days','More than half the days','Nearly every day'];
+const qDrafts = {phq9:{}, gad7:{}};
+function toolSheet(t){
+  const info=toolInfo(t);
+  const map={ride:rideTool,protein:proteinTool,phq9:()=>questionTool('phq9'),gad7:()=>questionTool('gad7'),sleepwin:sleepWinTool,breath:breathTool,pmr:pmrTool,trigger:triggerTool,waist:waistTool};
+  if(!map[t]) return {title:'',body:''};
+  return {title:info?info.name:t,body:map[t]()};
+}
+function statTiles(items){
+  return `<div class="stats" style="margin:14px 0">${items.map(([v,k,d])=>`<div class="stat"><div class="v num" style="font-size:clamp(28px,8vw,36px)">${v}</div><div class="k">${esc(k)}${d?'<br><span style="text-transform:none;letter-spacing:0;font-weight:400">'+esc(d)+'</span>':''}</div></div>`).join('')}</div>`;
+}
+function rideTool(){
+  return `<p class="lead">Sixty seconds. It passes.</p>
+  <div class="center" style="padding:14px 0 6px"><div id="ride-clock" class="clock" aria-live="polite" style="font-size:clamp(64px,22vw,88px)">60</div><p id="ride-word" class="small muted" style="margin-top:6px">Cooler air. Lose a layer. Breathe out slowly.</p></div>
+  <div class="btn-row split"><button class="btn ink" data-act="ride-start">Start</button><button class="btn outline" data-act="ride-stop">Stop</button></div>
+  <p class="xtiny" style="margin-top:12px">Most flashes last one to five minutes. When the count ends, the time goes on today’s ledger against the flash you logged, or as a new one. Paced breathing does not stop flashes; the minute is for riding it out, not fighting it.</p>`;
+}
+function proteinTool(){
+  const pt=proteinTarget(), gpk=+DB.profile.proteinGpk||1.2;
+  return `<p class="small">The RDA of 0.8 g/kg is a floor for avoiding deficiency, not a target for keeping muscle. Guidelines for healthy older adults use 1.0–1.2 g/kg; the training and body-composition literature uses 1.2–1.6; during intentional weight loss, 1.2–1.5.</p>
+  <div class="grid2"><div class="field"><label class="fl" for="ptw">Your weight (${U.wLabel()})</label><input id="ptw" type="number" step="0.1" min="${U.imp?44:20}" max="${U.imp?1100:500}" inputmode="decimal" value="${pt?r1(U.wOut(pt.kg)):''}" data-act="prot-calc"></div>
+  <div class="field"><label class="fl" for="ptg">Target</label><select id="ptg" data-act="prot-calc">${[1.0,1.2,1.4,1.6].map(v=>`<option value="${v}"${gpk===v?' selected':''}>${v.toFixed(1)} g/kg</option>`).join('')}</select></div></div>
+  <div id="prot-out" aria-live="polite">${proteinOut(pt?pt.kg:null,gpk)}</div>
+  <div class="callout info"><span class="ctitle">The per-meal threshold</span>After about 60 the muscle-building response is blunted; reaching it takes roughly <b>30 g of protein and 2.8 g of leucine in one sitting</b>, where a younger woman responds to any amount. Spreading intake evenly (30/30/30) produced more 24-hour muscle protein synthesis than skewing it (10/20/60). During weight loss, even distribution meant 26% versus 34% of loss coming from lean tissue.</div>
+  <h4>Roughly 30 g of protein</h4>
+  <div class="tw"><table><tbody><tr><td>Chicken or turkey breast</td><td>100–110 g cooked</td></tr><tr><td>Salmon or tuna</td><td>130 g cooked</td></tr><tr><td>Greek yogurt (plain, 0–2%)</td><td>280–300 g</td></tr><tr><td>Cottage cheese</td><td>250 g</td></tr><tr><td>Eggs</td><td>4–5 large</td></tr><tr><td>Firm tofu</td><td>200 g</td></tr><tr><td>Cooked lentils</td><td>330 g (about 1.7 cups)</td></tr><tr><td>Whey or soy protein powder</td><td>1 scoop (~30 g powder)</td></tr></tbody></table></div>
+  <p class="xtiny">Breakfast is nearly always the meal that falls short. For BMI 30+, guidelines generally apply g/kg to an adjusted rather than actual body weight; no menopause-specific formula could be verified, so ask a dietitian. Anyone with kidney disease should get a target from their clinician, not an app.</p>`;
+}
+function proteinOut(kg,gpk){
+  if(kg==null||!Number.isFinite(kg)||kg<=0||!Number.isFinite(gpk)) return '<p class="small muted">Enter a valid weight to see the numbers.</p>';
+  const g=Math.round(kg*gpk);
+  return statTiles([[g+'<small> g</small>','per day'],[Math.round(g/3)+'<small> g</small>','per meal ×3'],['~7.5<small> g</small>','leucine','per day']]);
+}
+function questionTool(kind){
+  const items=kind==='phq9'?PHQ9:GAD7, answers=qDrafts[kind], done=items.every((_,i)=>answers[i]!=null);
+  const score=done?items.reduce((total,_,i)=>total+answers[i],0):null;
+  let band='';
+  if(done) band=kind==='phq9'?(score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe'):(score<5?'minimal':score<10?'mild':score<15?'moderate':'severe');
+  const risk=kind==='phq9'&&answers[8]>0, past=DB.scores.filter(s=>s.type===kind).slice(-6);
+  return `<p class="small">Over the <b>last two weeks</b>, how often have you been bothered by the following?</p>
+  <div class="callout warn"><span class="ctitle">Read the score carefully</span>Several menopause symptoms (broken sleep, fatigue, poor concentration, low libido) <b>also score points here</b>. The perimenopausal depression guideline says so explicitly. A raised total is a reason to talk to someone, not a diagnosis.</div>
+  ${items.map((q,i)=>`<div class="field"><p class="fl" id="q-${kind}-${i}" style="font-weight:500;font-size:14.5px">${i+1}. ${esc(q)}</p><div class="scale" role="group" aria-labelledby="q-${kind}-${i}">${FREQ.map((f,v)=>h('button',{'data-act':'q-a','data-k':kind,'data-i':i,'data-v':v,'aria-pressed':answers[i]===v?'true':'false','aria-label':(i+1)+'. '+q+': '+f},v)).join('')}</div><div class="scale-legend" aria-hidden="true"><span>Not at all</span><span>Nearly every day</span></div></div>`).join('')}
+  ${done?`<div class="callout ${score>=15?'alert':score>=10?'warn':'ok'}"><span class="ctitle">Score: ${score} of ${items.length*3}, ${band}</span>${kind==='phq9'?'For context: elevated depressive symptoms are found in 45–68% of perimenopausal women versus 28–31% before. Women are 2–4× more likely to have a major depressive episode during the transition and early postmenopause. Prior depression is the strongest predictor.':'GAD-7 is the standard anxiety measure. The bands are its usual published ones; no validation specific to menopausal women could be found, so read your trend over time rather than the label.'}${score>=10?'<p style="margin:8px 0 0"><b>A score in this range warrants a conversation with a clinician.</b> Take the number with you.</p>':''}</div>`:''}
+  ${risk?`<div class="callout alert" role="alert"><span class="ctitle">Please reach out today</span>You answered yes to thoughts of being better off dead or of hurting yourself. If you may act on these thoughts, have a plan, or cannot stay safe, call emergency services or go to the nearest emergency department now, and do not stay alone. In the US, call or text <a href="https://988lifeline.org/" target="_blank" rel="noopener noreferrer"><b>988</b></a>. In the UK or Republic of Ireland, call <a href="https://www.samaritans.org/how-we-can-help/contact-samaritan/" target="_blank" rel="noopener noreferrer"><b>116 123</b></a>. Elsewhere, use <a href="https://findahelpline.com/" target="_blank" rel="noopener noreferrer">Find A Helpline</a>.</div>`:''}
+  <div class="btn-row split"><button class="btn outline sm" data-act="q-reset" data-k="${kind}">Clear</button><button class="btn ink sm" data-act="q-save" data-k="${kind}" ${done?'':'disabled'}>Save ${done?'score of '+score:'score'}</button></div>
+  ${past.length?`<div class="label" style="margin:18px 0 6px">History</div>${past.slice().reverse().map(s=>kvRow(fmtDay(s.date),s.score+(s.band?' · '+esc(s.band):''))).join('')}`:''}`;
+}
+function sleepWinTool(){
+  const ds=rangeDates(14);
+  const sleeps=ds.map(d=>{const e=confirmedRecord(d);return e&&e.sleepH!=null?e.sleepH:null;}).filter(v=>v!=null);
+  const beds=ds.map(d=>{const e=confirmedRecord(d);return e&&e.inBedH!=null?e.inBedH:null;}).filter(v=>v!=null);
+  const paired=ds.map(confirmedRecord).filter(e=>e&&e.sleepH!=null&&e.inBedH!=null&&e.inBedH>0&&e.sleepH<=e.inBedH);
+  const aSleep=avg(sleeps), aBed=avg(beds), eff=paired.length?avg(paired.map(e=>e.sleepH/e.inBedH*100)):null;
+  const win=aSleep!=null&&aSleep>0?Math.max(5,Math.round(aSleep*4)/4):null;
+  return `<div class="callout info"><span class="ctitle">Why this is the effective part</span>In 150 postmenopausal women with chronic insomnia: sleep hygiene education alone produced <b>4%</b> remission. CBT-I produced <b>54%</b> at the end of treatment and <b>68% at six months</b>, with 40–43 more minutes of sleep a night. Sleep restriction is the engine.</div>
+  ${sleeps.length<5||win==null
+    ?(sleeps.length>=5&&aSleep===0?'<div class="callout alert"><span class="ctitle">Zero sleep is not a basis for sleep restriction</span>You recorded no sleep across these nights. Do not shorten your time in bed from this calculator; contact a clinician promptly and check the entries.</div>'
+      :'<div class="callout warn"><span class="ctitle">Log a few more nights first</span>You have '+sleeps.length+' '+plural(sleeps.length,'night')+' of sleep data in the last two weeks. About a week of honest logging (hours in bed and hours asleep, in the day’s details) is needed before this gives a sensible window.</div>')
+    :statTiles([[r1(aSleep)+'<small> h</small>','asleep','14-day average'],...(aBed!=null?[[r1(aBed)+'<small> h</small>','in bed']]:[]),...(eff!=null?[[Math.round(eff)+'<small>%</small>','efficiency',eff>=85?'extend the window':'hold the window']]:[])])
+      +`<h4>Your starting window: ${r1(win)} hours</h4><div class="field"><label class="fl" for="swk">Wake time you will keep every day</label><input id="swk" type="time" value="06:30" data-act="sw-calc" style="width:auto"></div><div id="sw-out" aria-live="polite">${swOut('06:30',win)}</div>`}
+  <h4>The rules while you do this</h4>
+  <ul class="tick"><li><b>Fixed wake time</b>, seven days a week, regardless of the night. This is the anchor.</li><li>Do not go to bed before the window opens, even exhausted.</li><li>Awake and frustrated: <b>get out of bed</b>. Somewhere dim and dull. Return when sleepy, not when it feels like you should.</li><li><b>No clock-watching.</b> Turn it away.</li><li>Bed for sleep and sex only.</li><li>Once efficiency passes about <b>85–90%</b>, extend the window by 15–30 minutes.</li><li>Expect to feel <b>worse in week one or two</b>. That is the mechanism, not failure.</li></ul>
+  <div class="callout alert"><span class="ctitle">Do not do this unsupervised if you have</span>Bipolar disorder · a seizure disorder · untreated sleep apnea. Sleep deprivation is a trigger in all three; work with a clinician instead. If you snore, wake unrefreshed, get morning headaches, or CBT-I does not work, ask to be tested for sleep apnea: it affects <b>20% of midlife women</b> and is routinely missed.</div>
+  <p class="xtiny">This implements the sleep-restriction component of CBT-I. It is not therapy; clinician- or programme-delivered CBT-I is better, and telephone-delivered CBT-I worked well in peri- and postmenopausal women.</p>`;
+}
+function swOut(wake,win){
+  if(win==null||win<=0) return '';
+  const [hh,mm]=wake.split(':').map(Number);
+  let t=hh*60+mm-Math.round(win*60); while(t<0) t+=1440;
+  return `<div class="callout ok" style="margin-bottom:0"><span class="ctitle">Earliest bedtime: ${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}</span>Not into bed before this, and up at ${wake} every day. When you are sleeping through most of the window, move the bedtime 15–30 minutes earlier.</div>`;
+}
+function breathTool(){
+  return `<div class="callout alert"><span class="ctitle">What this is and is not for</span><p>Slow-paced breathing has meta-analytic support for <b>stress (g = −0.35), anxiety (−0.32) and low mood (−0.40)</b>: small-to-medium effects. Ten of twelve trials used <i>slow</i> pacing and worked; the two using fast pacing did not.</p><p style="margin-bottom:0"><b>Rated Level I NOT recommended for hot flashes.</b> Larger trials found paced respiration no better than shallow breathing or usual care. Use it for anxiety, where it earns its place.</p></div>
+  <div class="center" style="padding:10px 0">
+    <div id="breath-ring" style="width:170px;height:170px;margin:8px auto 14px;border-radius:50%;border:1.5px solid var(--text);display:grid;place-items:center;transition:transform 4s ease-in-out">
+      <div><div id="breath-word" aria-live="polite" class="serif" style="font-size:1.3rem">Ready</div><div id="breath-count" class="xtiny">6 breaths a minute</div></div>
+    </div>
+    <div class="btn-row split"><button class="btn ink" data-act="breath-start">Start</button><button class="btn outline" data-act="breath-stop">Stop</button></div>
+    <p class="xtiny" style="margin-top:10px">About five seconds in, five out. Through the nose if comfortable. Two to five minutes is plenty.</p>
+  </div>
+  <p class="small muted">The meta-analysis authors warned against “miscalibration between hype and evidence”. A cheap, low-risk tool with a modest effect, not a cure for anything.</p>`;
+}
+const PMR_STEPS = [
+  ['Settle','Sit or lie somewhere you will not be interrupted. Let your breathing slow. Nothing to achieve here.'],
+  ['Hands and forearms','Clench both fists. Hold; feel the tension. Now release completely, and notice the difference for a few breaths.'],
+  ['Upper arms','Bend your elbows and tense your biceps. Hold. Release, and let your arms be heavy.'],
+  ['Shoulders','Lift your shoulders towards your ears. Hold. Drop them, and let them keep dropping.'],
+  ['Face','Scrunch your whole face: brow, eyes, jaw. Hold. Release, and let your jaw hang slightly open.'],
+  ['Neck','Press your head gently back against the surface behind you. Hold. Release.'],
+  ['Chest and back','Take a breath in and hold it, tensing your chest. Release with a long exhale.'],
+  ['Stomach','Tighten your abdominal muscles. Hold. Release, and let your belly soften completely.'],
+  ['Thighs','Press your legs together and tense your thighs. Hold. Release.'],
+  ['Calves','Point your toes towards your face to tense your calves. Hold. Release.'],
+  ['Feet','Curl your toes downwards. Hold. Release.'],
+  ['Whole body','Scan from your feet upwards. Anywhere still holding on, invite it to let go. Stay here as long as you like.']
+];
+function pmrTool(){
+  return `<p class="small">Systematic review of 46 publications across 16 countries and over 3,400 adults: supportive results for stress (24 studies), anxiety (21) and low mood (11), effect sizes small to very large. Sessions of <b>5–28 minutes</b> worked, and <b>length did not significantly affect outcomes</b>, so a short one counts.</p>
+  <div id="pmr-progress" class="progress" role="progressbar" aria-label="Relaxation progress" aria-valuemin="0" aria-valuemax="${PMR_STEPS.length}" aria-valuenow="0"><i id="pmr-bar" style="width:0%"></i></div>
+  <div aria-live="polite" aria-atomic="true"><h3 id="pmr-title" style="margin:12px 0 4px">Ready when you are</h3><p id="pmr-text" class="small">Tense each muscle group for about 5 seconds, then release for about 15 and pay attention to the contrast. The contrast is the active ingredient.</p></div>
+  <div class="btn-row split"><button class="btn ink" data-act="pmr-start">Start</button><button class="btn outline" data-act="pmr-stop">Stop</button></div>
+  <p class="xtiny" style="margin-top:12px">If you have an injury or pain anywhere, skip that group or tense only very gently.</p>`;
+}
+function refreshTriggerStatus(){
+  const t=DB.trigger;
+  if(!t||!t.active) return;
+  if(!pastOrTodayISO(t.start)){ t.active=false; t.status='stopped'; t.ended=todayISO(); save(); return; }
+  if(daysBetween(t.start,todayISO())>=28){ t.active=false; t.status='completed'; t.ended=addDays(t.start,27); save(); }
+}
+function triggerTool(){
+  refreshTriggerStatus();
+  const t=DB.trigger;
+  if(t&&t.active){
+    const day=Math.max(1,daysBetween(t.start,todayISO())+1), phase=day<=14?'removal':'reintroduction', dayIn=day<=14?day:day-14;
+    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro');
+    return `<div class="callout ok"><span class="ctitle">Test running: ${esc(t.item)}</span>Day ${day}, <b>${phase} phase</b>, day ${dayIn} of 14. Keep logging as normal; the comparison happens on its own.</div>
+    <div class="progress" role="progressbar" aria-label="Trigger test progress" aria-valuemin="0" aria-valuemax="28" aria-valuenow="${Math.min(28,day)}"><i style="width:${Math.min(100,Math.round(day/28*100))}%"></i></div>
+    ${triggerPhaseTiles(before,remove,reintro)}
+    ${day>=15?triggerComparison(remove,reintro,false):`<div class="callout info"><span class="ctitle">Reintroduction starts on day 15</span>A change during removal is only a clue. Bringing ${esc(t.item)} back for the second two weeks tests whether the pattern reverses.</div>`}
+    <button class="btn outline sm" data-act="trig-stop">End this test</button>
+    <p class="xtiny" style="margin-top:12px">A single-person, unblinded experiment with no control for everything else changing in your life. The fairest version available to you, which is not the same as proof.</p>`;
+  }
+  if(t){
+    const before=triggerStats(t,'base'), remove=triggerStats(t,'remove'), reintro=triggerStats(t,'reintro'), complete=t.status==='completed';
+    return `<div class="callout ${complete?'ok':'warn'}"><span class="ctitle">${complete?'Test complete':'Test ended early'}: ${esc(t.item)}</span>${complete?'Both 14-day phases done.':'The available numbers are shown, but an incomplete phase is much harder to interpret.'}</div>
+      ${triggerPhaseTiles(before,remove,reintro)}${triggerComparison(remove,reintro,complete)}
+      <button class="btn ink sm" data-act="trig-reset">Start another test</button>
+      <p class="xtiny" style="margin-top:12px">Personal observations, not proof of cause. Illness, weather, stress, treatment changes and ordinary variation all move the numbers.</p>`;
+  }
+  return `<div class="callout warn"><span class="ctitle">Trigger-avoidance is not a proven treatment</span>The Menopause Society states plainly that <b>there are no clinical trials assessing whether avoiding triggers relieves vasomotor symptoms</b>, and rates it not recommended. The most-quoted caffeine study was cross-sectional, and its own authors said they could not advise patients without further research.</div>
+  <p class="small">So why offer this? Because individual responses vary, and a structured two-week removal followed by reintroduction is far more informative than vaguely avoiding six things at once and never knowing which mattered.</p>
+  <div class="field"><label class="fl" for="trig">What do you want to test?</label><select id="trig">${['Alcohol','Caffeine','Spicy food','Sugar','Late meals','Hot drinks','Something else'].map(v=>`<option>${v}</option>`).join('')}</select></div>
+  <button class="btn ink" data-act="trig-start">Start the 28-day test</button>
+  <h4 style="margin-top:18px">How it works</h4>
+  <ul class="tick"><li><b>Days 1–14:</b> remove it completely. Change nothing else. Keep logging.</li><li><b>Days 15–28:</b> bring it back at your usual amount. Keep logging.</li><li>Hot flash counts and sleep are compared across the phases.</li><li>A difference under about one flash a day is noise. Be willing to conclude nothing happened; that is a useful answer.</li></ul>
+  <p class="xtiny">If alcohol is the thing you are testing, cutting it back is worth doing regardless. The evidence for that sits with breast cancer risk and sleep quality, not hot flashes.</p>`;
+}
+function triggerStats(t,which){
+  const offsets=which==='base'?[-14,-1]:which==='remove'?[0,13]:[14,27], ds=[];
+  for(let i=offsets[0];i<=offsets[1];i++){ const d=addDays(t.start,i); if(d<=todayISO()) ds.push(d); }
+  const hf=ds.map(d=>{const e=confirmedRecord(d);return e&&e.hf;}).filter(v=>v!=null), sleep=ds.map(d=>{const e=confirmedRecord(d);return e&&e.sleepH;}).filter(v=>v!=null);
+  return {hf:avg(hf),sleep:avg(sleep),hfN:hf.length,sleepN:sleep.length};
+}
+function triggerPhaseTiles(before,remove,reintro){
+  const tile=(label,s)=>[(s.hf!=null?r1(s.hf):'–')+'<small> fl.</small>',label,(s.sleep!=null?r1(s.sleep)+' h sleep':'no sleep logged')+' · '+s.hfN+' '+plural(s.hfN,'day')];
+  return statTiles([tile('Before',before),tile('Removal',remove),tile('Reintro',reintro)]);
+}
+function triggerComparison(remove,reintro,complete){
+  if(remove.hf==null||reintro.hf==null) return `<div class="callout warn"><span class="ctitle">Not enough paired phase data yet</span>Log hot flashes during both removal and reintroduction. Sleep averages appear when hours asleep are logged.</div>`;
+  const delta=reintro.hf-remove.hf, small=Math.abs(delta)<0.8;
+  const title=small?'No clear hot-flash difference':delta>0?'Hot flashes were lower during removal':'Hot flashes were higher during removal';
+  const sleepNote=remove.sleep!=null&&reintro.sleep!=null?' Average sleep was '+r1(remove.sleep)+' hours during removal and '+r1(reintro.sleep)+' after reintroduction.':'';
+  return `<div class="callout info"><span class="ctitle">${complete?'Final result':'Result so far'}: ${title}</span>Removal averaged ${r1(remove.hf)} flashes a day; reintroduction averaged ${r1(reintro.hf)}.${sleepNote} ${small?'A difference under about one flash a day is best treated as noise.':'A reversal after reintroduction is more suggestive than removal alone, but still cannot establish cause.'}</div>`;
+}
+function triggerBanner(){
+  refreshTriggerStatus();
+  const t=DB.trigger;
+  if(!t||!t.active) return '';
+  const day=daysBetween(t.start,todayISO())+1;
+  if(day<1||day>28) return '';
+  return `<div class="callout info"><span class="ctitle">Trigger test day ${day}: ${esc(t.item)}</span>${day<=14?'Removal phase. Keep it out and keep logging.':'Reintroduction phase. Back to your usual amount.'} <button class="textbtn" data-act="sheet" data-s="tool:trigger" style="padding:0;min-height:0;display:inline">Results</button></div>`;
+}
+function waistTool(){
+  const wa=entryDates().slice().reverse().map(d=>{const e=confirmedRecord(d);return e&&e.waist;}).find(v=>v!=null);
+  return `<p class="small">The International Atherosclerosis Society consensus argues waist should be treated as a <b>vital sign</b>. Modelled together with BMI, waist stays predictive of mortality while BMI becomes unrelated or even inversely related. A 10% larger waist meant 1.48× higher mortality after BMI adjustment; in coronary artery disease, 2.05×.</p>
+  ${wa!=null?statTiles([[r1(U.lOut(wa))+'<small> '+U.lLabel()+'</small>','your latest',wa>=105?'class I threshold':wa>=90?'above 90 cm':wa>=80?'above 80 cm':'below 80 cm']]):''}
+  <h4>Thresholds for women</h4>
+  <div class="tw"><table><tbody><tr><td>At normal weight</td><td><b>80 cm / 31.5 in</b></td></tr><tr><td>At overweight</td><td><b>90 cm / 35.4 in</b></td></tr><tr><td>Class I obesity</td><td>105 cm / 41.3 in</td></tr></tbody></table></div>
+  <p class="xtiny">Ethnicity-specific single cut-points for women include 80 cm for Chinese and Asian Indian women, 85 cm for Korean and Tunisian women, 90 cm for Japanese women.</p>
+  <h4>Measure it the same way every time</h4>
+  <ul class="tick"><li>Top of the hip bone, <b>or</b> midway between lowest rib and hip bone. These differ by about 2 cm in women: <b>pick one and never change</b>.</li><li>Bare skin, standing relaxed, tape snug but not compressing.</li><li>At the end of a normal exhale. Do not suck in.</li><li>Same time of day, ideally morning before eating.</li></ul>
+  <div class="callout ok"><span class="ctitle">The encouraging part</span>Diet and exercise reduce waist <b>with or without weight loss</b>; one large trial found about 5 cm of reduction versus control. Aerobic work moved it most (−2.30 cm across 101 trials in postmenopausal women).</div>
+  <p class="xtiny">Self-measurement correlates well with clinical measurement (r = 0.8–0.9) but typically underestimates by 1–3 cm. Irrelevant when you are tracking your own change.</p>`;
+}
+
+/* ---------- animated tool hooks ---------- */
+let breathTimer=null, pmrTimer=null, rideTimer=null, rideLeft=60;
+function runSheetHooks(id){
+  if(id==='appointment-brief') document.querySelectorAll('.qedit textarea').forEach(input=>{ const fit=()=>{input.style.height='auto';input.style.height=(input.scrollHeight+2)+'px';}; fit(); input.addEventListener('input',fit); });
+  if(id!=='tool:breath'&&breathTimer){ clearInterval(breathTimer); breathTimer=null; }
+  if(id!=='tool:pmr'&&pmrTimer){ clearInterval(pmrTimer); pmrTimer=null; }
+  if(id!=='tool:ride'&&rideTimer){ clearInterval(rideTimer); rideTimer=null; }
+}
+function breathStart(){
+  const ring=document.getElementById('breath-ring'), word=document.getElementById('breath-word'), cnt=document.getElementById('breath-count');
+  if(!ring) return;
+  if(breathTimer) clearInterval(breathTimer);
+  let phase=0, n=0;
+  const tick=()=>{
+    if(phase%2===0){ ring.style.transitionDuration='5s'; ring.style.transform='scale(1.22)'; word.textContent='Breathe in'; }
+    else { ring.style.transitionDuration='5s'; ring.style.transform='scale(0.86)'; word.textContent='Breathe out'; n++; cnt.textContent=n+' '+plural(n,'breath','breaths'); }
+    phase++;
+  };
+  tick(); breathTimer=setInterval(tick,5000);
+}
+function breathStop(){
+  if(breathTimer) clearInterval(breathTimer); breathTimer=null;
+  const ring=document.getElementById('breath-ring'), word=document.getElementById('breath-word');
+  if(ring){ ring.style.transform='scale(1)'; word.textContent='Stopped'; }
+}
+function pmrStart(){
+  if(pmrTimer) clearInterval(pmrTimer);
+  let i=0;
+  const show=()=>{
+    const t=document.getElementById('pmr-title'), x=document.getElementById('pmr-text'), b=document.getElementById('pmr-bar'), p=document.getElementById('pmr-progress');
+    if(!t){ clearInterval(pmrTimer); return; }
+    if(i>=PMR_STEPS.length){ t.textContent='Done'; x.textContent='Notice how your body feels now compared with when you started.'; b.style.width='100%'; if(p) p.setAttribute('aria-valuenow',PMR_STEPS.length); clearInterval(pmrTimer); pmrTimer=null; return; }
+    t.textContent=PMR_STEPS[i][0]; x.textContent=PMR_STEPS[i][1]; b.style.width=Math.round((i+1)/PMR_STEPS.length*100)+'%'; if(p) p.setAttribute('aria-valuenow',i+1); i++;
+  };
+  show(); pmrTimer=setInterval(show,45000);
+}
+function pmrStop(){ if(pmrTimer) clearInterval(pmrTimer); pmrTimer=null; const t=document.getElementById('pmr-title'); if(t) t.textContent='Stopped'; }
+function rideStart(){
+  const clock=document.getElementById('ride-clock'), word=document.getElementById('ride-word');
+  if(!clock) return;
+  if(rideTimer) clearInterval(rideTimer);
+  rideLeft=60; clock.textContent='60'; word.textContent='Cooler air. Lose a layer. Breathe out slowly.';
+  rideTimer=setInterval(()=>{
+    rideLeft--; const c=document.getElementById('ride-clock'), w=document.getElementById('ride-word'); if(!c){ clearInterval(rideTimer); rideTimer=null; return; }
+    c.textContent=String(Math.max(0,rideLeft));
+    if(rideLeft===40) w.textContent='Shoulders down. Let the heat move through.';
+    if(rideLeft===20) w.textContent='Nearly there. It is already fading.';
+    if(rideLeft<=0){ clearInterval(rideTimer); rideTimer=null; w.textContent='Done. Filed to the ledger.'; rideRecord(); }
+  },1000);
+}
+function rideRecord(){
+  const t=todayISO(), recent=dayMoments(t).filter(m=>m.k==='hf'&&!m.d&&hmMinutes(nowHM())-hmMinutes(m.t)<=30).pop();
+  if(recent) updateMoment(t,recent.id,{d:60});
+  else addMoment(t,{k:'hf',d:60});
+  save(true); render(true);
+}
+function rideStop(){ if(rideTimer) clearInterval(rideTimer); rideTimer=null; const w=document.getElementById('ride-word'); if(w) w.textContent='Stopped.'; }
+
+/* ============================================================
+   RENDER + ROUTES
+   ============================================================ */
+const ROUTE_ALIASES={journey:'dossier',care:'dossier',trends:'dossier',meds:'dossier',guide:'index',learn:'index',report:'appointment-report',settings:'profile',you:'profile',checkin:'today','today-details':'today'};
+const NATIVE_ROUTE={today:'today',dossier:'journey',index:'guide',profile:'profile','appointment-report':'appointment-report'};
+const VALID_ROUTES=['today','dossier','index','profile','appointment-report'];
 let lastNativeNavigationState='';
 function normalizeRoute(route){ return ROUTE_ALIASES[route]||route; }
+function applyTheme(){
+  const pref=DB&&DB.profile?DB.profile.theme:'auto';
+  const dark=pref==='dark'||(pref!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  const nightPage=!!document.querySelector('#app .view.night');
+  document.documentElement.classList.toggle('night-page',nightPage);
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content',dark||nightPage?'#000000':'#fbfbf9');
+}
 function syncNativeNavigationState(){
   if(window.__MENO_NATIVE__!==true) return;
-  const state={
-    route:curTab,
-    primary:Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab),
-    sheetOpen:sheetStack.length>0,
-    onboarded:DB.profile.onboarded===true
-  };
+  const state={route:NATIVE_ROUTE[curTab]||'today',primary:Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab),sheetOpen:sheetStack.length>0,onboarded:DB.profile.onboarded===true};
   const serialized=JSON.stringify(state);
   if(serialized===lastNativeNavigationState) return;
   if(postNativeEvent('navigation-state',state)) lastNativeNavigationState=serialized;
 }
 function setRoute(route,replace){
   route=normalizeRoute(route);
-  curTab=route;
-  if(route!=='today-details') curDate=todayISO();
+  if(!VALID_ROUTES.includes(route)) route='today';
+  curTab=route; curDate=todayISO();
   if(location.protocol!=='file:'){
     const hash='#'+route;
     if(location.hash!==hash) history[replace?'replaceState':'pushState'](null,'',hash);
   }
 }
-function topbarContent(){
-  const name=safeText(DB.profile.name,80).trim();
-  const hour=new Date().getHours();
-  const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
-  if(curTab==='today'){
-    const selected=parseISO(curDate).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-    return '<div class="top-copy"><h1>'+esc(selected)+'</h1>'
-      +'<span class="sub">'+esc((greeting+(name?', '+name:'')).toUpperCase())+'</span></div>';
-  }
-  const copy={
-    trends:['Patterns are taking shape','WHAT YOUR LOGS SHOW'],
-    meds:['Medications','TREATMENT & ADHERENCE'],
-    report:['Doctor report','YOUR CLINICIAN SUMMARY'],
-    settings:['Your compass','PROFILE, TOOLS & DATA'],
-    you:['Your compass','PROFILE, TOOLS & DATA'],
-    learn:['Know what helps','EVIDENCE WITHOUT THE HYPE'],
-    'today-details':['Detailed daily log','SLEEP, BODY & LIFESTYLE']
-  }[curTab];
-  return '<div class="top-copy"><h1>'+esc(copy[0])+'</h1><span class="sub">'+esc(copy[1])+'</span></div>';
-}
+let firstRunObserved=false;
 function render(preserveScroll){
-  if(curTab!=='today-details') curDate=todayISO();
-  const scrollY=preserveScroll ? window.scrollY : 0;
+  curDate=todayISO();
+  const scrollY=preserveScroll?window.scrollY:0;
   refreshTriggerStatus();
-  applyTheme();
-  document.body.classList.toggle('mc-onboarding',!DB.profile.onboarded);
-  document.body.classList.toggle('mc-primary-route',Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab));
+  document.body.classList.toggle('onboarding',!DB.profile.onboarded);
   if(!DB.profile.onboarded){
-    const nextStep=onboardingDraft().step, changedStep=onboardingViewedStep!==nextStep;
-    $('#app').innerHTML = viewOnboard();
-    observeOnboardingStep(nextStep);
-    if(changedStep){ window.scrollTo(0,0); document.getElementById('ob-heading')?.focus({preventScroll:true}); }
-    $('#tabs').style.display='none';
-    $('#topbar').style.display='none';
-    syncNativeNavigationState();
-    window.scrollTo(0,changedStep?0:scrollY);
+    $('#app').innerHTML=viewFirstRun();
+    if(!firstRunObserved){ firstRunObserved=true; postNativeEvent('onboarding-step',{step:0}); }
+    applyTheme(); syncNativeNavigationState(); window.scrollTo(0,preserveScroll?scrollY:0);
     return;
   }
-  const primary=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab);
-  $('#tabs').style.display=primary&&window.__MENO_NATIVE_TABS__!==true?'':'none';
-  $('#topbar').style.display='none';
-  const map = {today:viewHome, journey:viewJourney, care:viewCare, guide:viewGuide, checkin:viewCheckin, profile:viewYou, 'appointment-report':viewAppointmentReport, 'today-details':viewToday};
-  const view=map[curTab]||viewHome;
-  $('#app').innerHTML = view();
-  if(curTab==='guide'&&guideQuery) filterGuideResults();
-  const strip = document.querySelector('.dayscroll');
-  if(strip){
-    const sel = strip.querySelector('[aria-pressed="true"]');
-    if(sel) strip.scrollLeft = Math.max(0, sel.offsetLeft - strip.clientWidth/2 + sel.offsetWidth/2);
-  }
-  document.querySelectorAll('nav.tabs button').forEach(b=>{
-    b.setAttribute('aria-current', b.dataset.v===curTab?'page':'false');
-    const locked = nativeProLocked(b.dataset.v);
-    b.classList.toggle('pro-locked', locked);
-    if(locked) b.setAttribute('aria-label', (TAB_TITLES[b.dataset.v]||[b.dataset.v])[0]+' — peri Pro');
-    else b.removeAttribute('aria-label');
-  });
+  const map={today:viewToday,dossier:viewDossier,index:viewIndex,profile:viewYou,'appointment-report':viewReport};
+  $('#app').innerHTML=(map[curTab]||viewToday)();
+  applyTheme();
   window.scrollTo(0,preserveScroll?scrollY:0);
   if(!preserveScroll&&!sheetStack.length){
     const heading=document.querySelector('#app h1');
@@ -2437,103 +1703,211 @@ function render(preserveScroll){
   }
   syncNativeNavigationState();
 }
-
+function renderIndexResults(){
+  if(curTab!=='index') return;
+  const root=document.getElementById('index-results'); if(!root) return;
+  const fresh=document.createElement('div'); fresh.innerHTML=viewIndex();
+  const next=fresh.querySelector('#index-results'); if(next) root.innerHTML=next.innerHTML;
+  const ledger=document.querySelector('.ask-ledger'), nextLedger=fresh.querySelector('.ask-ledger');
+  if(ledger&&!nextLedger) ledger.remove();
+  else if(!ledger&&nextLedger) document.querySelector('.ask').insertAdjacentElement('afterend',nextLedger);
+}
 function nativeProLocked(area){
-  return window.__MENO_NATIVE__===true
-    && window.__MENO_NATIVE_SUBSCRIPTIONS__!==false
-    && window.__MENO_PRO_ACTIVE__!==true
-    && (normalizeRoute(area)==='journey'||normalizeRoute(area)==='appointment-report');
+  return window.__MENO_NATIVE__===true && window.__MENO_NATIVE_SUBSCRIPTIONS__!==false && window.__MENO_PRO_ACTIVE__!==true
+    && (normalizeRoute(area)==='dossier'||normalizeRoute(area)==='appointment-report');
 }
 function requestNativePro(area){
   if(!nativeProLocked(area)) return false;
-  try{
-    if(window.ReactNativeWebView){
-      const route=normalizeRoute(area), feature=route;
-      window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-pro-paywall',feature}));
-    }
-  }catch(e){}
-  toast('peri Pro unlocks Journey patterns and appointment reports');
+  try{ if(window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-pro-paywall',feature:NATIVE_ROUTE[normalizeRoute(area)]||normalizeRoute(area)})); }catch(e){}
+  toast('The dossier and the brief are part of peri Pro');
   return true;
 }
-window.addEventListener('menocompass-pro-changed',()=>{
-  if(nativeProLocked(curTab)) setRoute('today',true);
-  render(true);
-});
+window.addEventListener('menocompass-pro-changed',()=>{ if(nativeProLocked(curTab)) setRoute('today',true); render(true); });
 
-function revealCareForm(fieldId){
-  const field=document.getElementById(fieldId);
-  if(!field) return;
-  const form=field.closest('.tw-form-card')||field;
+function revealForm(fieldId){
+  const field=document.getElementById(fieldId); if(!field) return;
+  const form=field.closest('.form')||field;
   form.scrollIntoView({block:'start',behavior:'auto'});
   field.focus({preventScroll:true});
 }
+function actionDate(el){
+  if(el&&el.dataset.d&&validISODate(el.dataset.d)&&el.dataset.d<=todayISO()) return el.dataset.d;
+  return sheetDate(sheetStack[sheetStack.length-1]||'');
+}
+function commitDay(date){
+  const e=DB.entries[date]; if(!e) return;
+  if(hasEntryContent(safeEntryPayload(e))) confirmEntry(date); else unconfirmEntry(date);
+}
+/* A Medication row in the ledger and the tick in day.med are the same fact.
+   Deleting the row (moment=null after removal) clears the tick; moving the
+   row moves the time. Matched by the name the medication carried that day. */
+function reconcileMedRecord(date,moment,at){
+  const day=DB.entries[date]; if(!day||!day.med||!moment) return;
+  (Array.isArray(DB.medications)?DB.medications:[]).forEach(m=>{
+    if(medicationDetailsOn(m,date).name!==moment.n||!day.med[m.id]) return;
+    if(at==null) delete day.med[m.id]; else day.med[m.id]=Object.assign({},day.med[m.id],{at});
+  });
+  if(!Object.keys(day.med).length) delete day.med;
+}
+function fileMoment(date,moment,source){
+  const wasEmpty=!isConfirmedEntry(date);
+  const added=addMoment(date,moment);
+  if(!added){ toast('That day’s ledger is full'); return null; }
+  save(true);
+  if(wasEmpty) postNativeEvent('checkin-confirmed',{date});
+  if(source!=='silent') toast('Filed '+momentName(added)+' at '+added.t);
+  return added;
+}
+function startDictation(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ dictationOpen=true; renderSheet(true); return; }
+  try{
+    const rec=new SR(); rec.lang=navigator.language||'en-US'; rec.interimResults=false; rec.maxAlternatives=1;
+    rec.onresult=ev=>{ const text=ev.results&&ev.results[0]&&ev.results[0][0]?ev.results[0][0].transcript:''; if(text) fileUtterance(text); };
+    rec.onerror=()=>{ dictationOpen=true; renderSheet(true); };
+    rec.start(); toast('Listening');
+  }catch(e){ dictationOpen=true; renderSheet(true); }
+}
+function fileUtterance(text){
+  const t=todayISO(), items=parseUtterance(text);
+  if(!items.length) return;
+  let last=null;
+  items.forEach(m=>{ const added=fileMoment(t,m,'silent'); if(added) last=added; });
+  if(last) lastLogged=last.id;
+  dictationOpen=false;
+  toast(items.length===1?'Filed '+momentName(items[0])+' at '+items[0].t:'Filed '+items.map(momentName).join(', '));
+  if(sheetStack.length) renderSheet(false); else render(true);
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
 function handleAction(el, ev){
-  if(curTab!=='today-details') curDate=todayISO();
-  const a = el.dataset.act;
+  const a=el.dataset.act;
   if(companionAction(el)) return;
-  const e = () => entry(curDate);
+  const date=actionDate(el);
+  const e=()=>entry(date);
   switch(a){
     case 'tab': {
       const target=normalizeRoute(el.dataset.v);
       if(requestNativePro(target)) return;
+      if(target==='today') nightDeskDismissed=true;
       setRoute(target); sheetStack=[]; renderSheet(); render(); return;
     }
-    case 'start-checkin':
-      returnTab=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab)?curTab:'today';
-      curDate=todayISO(); checkinComplete=false; checkinStep=0; setRoute('checkin'); render(); return;
-    case 'checkin-step':
-      checkinStep=el.dataset.v==='1'?1:0; render();
-      document.getElementById('mc-check-heading')?.focus({preventScroll:true}); return;
     case 'open-profile':
       if(curTab!=='profile') returnTab=Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab)?curTab:(returnTab||'today');
       setRoute('profile'); render(); return;
-    case 'go-back': {
-      const target=curTab==='checkin'?(Object.prototype.hasOwnProperty.call(TAB_TITLES,returnTab)?returnTab:'today'):curTab==='today-details'?'checkin':curTab==='appointment-report'?'care':(returnTab||'today');
-      setRoute(target); checkinComplete=false; render(); return;
-    }
-    case 'back-checkin': setRoute('checkin'); render(); return;
-    case 'more-details': setRoute('today-details'); render(); return;
-    case 'confirm-log': {
-      const wasFirst=entryDates().length===0;
-      const ok=typeof confirmEntry==='function'?confirmEntry(curDate):draftHasContent(e());
-      if(!ok){ toast('Choose at least one symptom or add a note before confirming'); return; }
-      if(typeof confirmEntry!=='function'){ e().confirmed=true; e().draftDirty=false; }
-      checkinFirstSaved=wasFirst;
-      DB.profile.firstCheckinPending=false;
-      save(true);
-      postNativeEvent('checkin-confirmed',{date:curDate});
-      if(curDate===todayISO()){ checkinComplete=true; setRoute('checkin',true); render(); }
-      else { setRoute('journey'); render(); toast('Confirmed day updated'); }
-      return;
-    }
-    case 'back-journey': checkinComplete=false; setRoute('journey'); render(); return;
-    case 'checkin-add-treatment': checkinComplete=false; medFormOpen=true; medicationEditTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; setRoute('care'); render(); revealCareForm('med-name'); return;
-    case 'checkin-add-symptom': {
-      const key=el.dataset.v, date=todayISO();
-      if(curTab!=='checkin'||!PINNABLE_SYMPTOMS.includes(key)) return;
-      const added=checkinAddedSymptoms.get(date)||[];
-      if(!added.includes(key)) checkinAddedSymptoms.set(date,[...added,key]);
-      render(true);
-      document.querySelector('.jc-check-list [data-k="'+symptomPath(key)+'"]')?.focus();
-      return;
-    }
+    case 'go-back': setRoute(Object.prototype.hasOwnProperty.call(TAB_TITLES,returnTab)?returnTab:'today'); render(); return;
+    case 'go-dossier': setRoute(nativeProLocked('dossier')?'today':'dossier'); render(); return;
     case 'open-report':
       if(requestNativePro('appointment-report')) return;
       postNativeEvent('report-opened',{rangeDays:reportRange});
-      returnTab='care'; setRoute('appointment-report'); render(); return;
-    case 'go-care': setRoute('care'); render(); return;
+      returnTab='dossier'; sheetStack=[]; renderSheet(); setRoute('appointment-report'); render(); return;
     case 'report-range': reportRange=+el.dataset.v; render(true); return;
-    case 'finish-setup':
-      returnTab='today'; setRoute('profile'); render();
-      setTimeout(()=>document.querySelector('#pn,[data-act="sheet"][data-s="learn:stage"]')?.focus(),0);
+    case 'night-dismiss': nightDeskDismissed=true; render(); return;
+    case 'unlock-pro': requestNativePro('dossier'); return;
+    /* the ledger */
+    case 'log': {
+      const k=el.dataset.k; if(!MOMENT_KINDS[k]) return;
+      const added=fileMoment(todayISO(),{k},el.dataset.night?'night':'silent');
+      if(!added) return;
+      if(sheetStack.length){ lastLogged=added.id; renderSheet(false); }
+      else render(true);
       return;
-    case 'manage-subscription':
-      postNativeEvent('open-subscription-management'); return;
-    case 'analytics-settings': postNativeEvent('analytics-settings'); break;
-    case 'advertising-settings': postNativeEvent('advertising-settings'); break;
-    case 'erase-analytics': if(confirm('Turn off analytics and request deletion of this installation’s analytics events and recordings? Your health record is unaffected.')) postNativeEvent('erase-analytics'); break;
-    case 'app-lock-toggle':
-      postNativeEvent('set-app-lock',{enabled:el.dataset.enabled==='true'}); return;
+    }
+    case 'log-more': logMore=true; renderSheet(false); return;
+    case 'log-severity': {
+      const m=lastLogged&&updateMoment(todayISO(),lastLogged,{s:+el.dataset.v});
+      if(m){ save(true); renderSheet(false); }
+      return;
+    }
+    case 'dictate': startDictation(); return;
+    case 'moment': openSheet('moment:'+(el.dataset.d||todayISO())+':'+el.dataset.id); return;
+    case 'moment-severity': {
+      const m=updateMoment(date,el.dataset.id,{s:+el.dataset.v});
+      if(m){ save(true); renderSheet(false); }
+      return;
+    }
+    case 'moment-delete': {
+      const gone=dayMoments(date).find(x=>x.id===el.dataset.id);
+      if(removeMoment(date,el.dataset.id)){ if(gone&&gone.k==='med') reconcileMedRecord(date,gone,null); commitDay(date); save(true); closeSheet(); toast('Deleted'); refresh(); }
+      return;
+    }
+    case 'day-add': {
+      const kind=document.getElementById('past-kind'), time=document.getElementById('past-time');
+      if(!kind||!MOMENT_KINDS[kind.value]) return;
+      const t=time&&/^\d\d:\d\d$/.test(time.value)?time.value:'12:00';
+      if(fileMoment(date,{k:kind.value,t},'sheet')) renderSheet(false);
+      return;
+    }
+    /* close the day */
+    case 'close-rate': closeDraft=closeDraft||{}; closeDraft.rating=+el.dataset.v; renderSheet(false); return;
+    case 'close-toggle': closeDraft=closeDraft||{}; closeDraft[el.dataset.k]=!closeFact(el.dataset.k,closeDraft,DB.entries[date]||{}); renderSheet(false); return;
+    case 'close-save': {
+      const draft=closeDraft||{};
+      if(draft.rating==null){ toast('Pick a word for the day first'); return; }
+      const wasClosed=dayClosed(date);
+      if(!closeDay(date,closeAnswers(date,draft))){ toast('Nothing to close yet'); return; }
+      save(true);
+      if(!wasClosed) postNativeEvent('checkin-confirmed',{date});
+      sheetStack=[]; renderSheet(); render(); toast('Closed · '+DAY_RATINGS[draft.rating]);
+      return;
+    }
+    /* the day's fields */
+    case 'hf': {
+      const d=e(); if(dayMoments(date).some(m=>m.k==='hf')) return;
+      d.hf=Math.max(0,(d.hf==null?0:d.hf)+(+el.dataset.n)); commitDay(date); save(); refresh(); return;
+    }
+    case 'set': { const v=el.dataset.v; setPath(e(),el.dataset.k,v===''?null:(isNaN(v)?v:+v)); commitDay(date); save(); refresh(); return; }
+    case 'toggle': { const cur=getPath(e(),el.dataset.k); setPath(e(),el.dataset.k,cur?null:true); commitDay(date); save(); refresh(); return; }
+    case 'med-taken': {
+      const m=DB.medications.find(x=>x.id===el.dataset.id); if(!m) return;
+      const day=e(), records=day.med||(day.med={}), current=records[m.id], name=medicationDetailsOn(m,date).name;
+      if(current&&current.taken){ delete records[m.id]; const mm=dayMoments(date).find(x=>x.k==='med'&&x.n===name); if(mm) removeMoment(date,mm.id); }
+      else { const at=date===todayISO()?nowHM():(medicationDetailsOn(m,date).due||'09:00'); records[m.id]={taken:true,at}; addMoment(date,{k:'med',n:name,t:at}); }
+      commitDay(date); save(true); refresh(); return;
+    }
+    /* first run */
+    case 'fr-symptom': {
+      const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:[];
+      if(!MOMENT_KINDS[key]) return;
+      if(current.includes(key)) DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
+      else if(current.length>=6){ toast('Six is the limit. Swap one out.'); return; }
+      else DB.profile.pinnedSymptoms=[...current,key];
+      save(); render(true); document.querySelector('[data-act="fr-symptom"][data-v="'+key+'"]')?.focus({preventScroll:true}); return;
+    }
+    case 'fr-more': firstRun.more=true; render(true); return;
+    case 'fr-periods': DB.profile.periodStatus=safeEnum(el.dataset.v,PERIOD_STATUSES,''); save(); render(true); document.querySelector('[data-act="fr-periods"][data-v="'+el.dataset.v+'"]')?.focus({preventScroll:true}); return;
+    case 'fr-since': DB.profile.periodSince=safeEnum(el.dataset.v,PERIOD_SINCE,''); save(); render(true); document.querySelector('[data-act="fr-since"][data-v="'+el.dataset.v+'"]')?.focus({preventScroll:true}); return;
+    case 'fr-appt': firstRun.appointment=el.dataset.v; render(true); document.querySelector(firstRun.appointment==='yes'?'#fr-date':'[data-act="fr-appt"][data-v="no"]')?.focus({preventScroll:true}); return;
+    case 'fr-done': finishFirstRun(); return;
+    case 'profile-symptom': {
+      const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:focusedKeys();
+      if(current.includes(key)) DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
+      else if(current.filter(k=>!LOG_ALWAYS.includes(k)).length>=6){ toast('Six words at most'); return; }
+      else DB.profile.pinnedSymptoms=[...current,key];
+      save(true); render(true); return;
+    }
+    /* dossier */
+    case 'appointment-date-save': {
+      const field=document.getElementById('appt-date');
+      if(!field||!validISODate(field.value)){ toast('Choose a date'); return; }
+      appointmentData().brief.date=field.value; save(true); closeSheet(); render(true); toast('Appointment '+fmtDay(field.value)); return;
+    }
+    case 'appointment-date-clear': appointmentData().brief.date=''; save(true); closeSheet(); render(true); return;
+    case 'evidence-pin': {
+      const data=appointmentData(); if(data.evidence.length>=100){ toast('The evidence list is full'); return; }
+      data.evidence.push({id:'evidence-'+Date.now().toString(36),date:todayISO(),kind:'chapter',text:safeText(el.dataset.text,500),source:'index',ref:safeText(el.dataset.ref,60)});
+      save(true); refresh(); toast('Pinned to the dossier'); return;
+    }
+    case 'evidence-unpin': { const data=appointmentData(); data.evidence=data.evidence.filter(item=>item.ref!==el.dataset.ref); save(true); refresh(); return; }
+    case 'evidence-remove': { const data=appointmentData(); data.evidence=data.evidence.filter(item=>item.id!==el.dataset.id); save(true); refresh(); return; }
+    /* native shell */
+    case 'manage-subscription': postNativeEvent('open-subscription-management'); return;
+    case 'analytics-settings': postNativeEvent('analytics-settings'); return;
+    case 'advertising-settings': postNativeEvent('advertising-settings'); return;
+    case 'erase-analytics': if(confirm('Turn off analytics and request deletion of this installation’s analytics events? Your record is unaffected.')) postNativeEvent('erase-analytics'); return;
+    case 'app-lock-toggle': postNativeEvent('set-app-lock',{enabled:el.dataset.enabled==='true'}); return;
     case 'save-native-reminders': {
       const dailyEnabled=document.getElementById('daily-reminder-enabled'), dailyTime=document.getElementById('daily-reminder-time');
       const treatmentEnabled=document.getElementById('treatment-reminder-enabled'), treatmentDay=document.getElementById('treatment-reminder-day'), treatmentTime=document.getElementById('treatment-reminder-time');
@@ -2548,431 +1922,245 @@ function handleAction(el, ev){
       nativeHealthState.busy=true; render(true);
       if(!postNativeEvent('healthkit-sync',{userInitiated:true,lookbackDays:7})){ nativeHealthState.busy=false; render(true); toast('Apple Health is available only in the iPhone app'); }
       return;
-    case 'healthkit-clear':
-      if(confirm('Remove the saved Apple Health summary from peri? Apple Health itself will not be changed.')){ DB.healthKit=null; save(true); render(true); toast('Apple Health summary removed'); }
-      return;
-    case 'reset-onboarding':
-      openSheet('reset-onboarding-confirm'); return;
+    case 'healthkit-clear': if(confirm('Remove the saved Apple Health summary from peri? Apple Health itself is not changed.')){ DB.healthKit=null; save(true); render(true); } return;
+    case 'reset-onboarding': openSheet('reset-onboarding-confirm'); return;
     case 'confirm-reset-onboarding':
-      DB.profile.onboarded=false;
-      DB.profile.onboardingStep=0;
-      DB.profile.onboardingDeferred=false;
-      setRoute('today',true);
-      sheetStack=[]; renderSheet(); save(true); render();
-      toast('Onboarding reset — your health history is still here');
-      return;
-    case 'delete-local-data':
-      openSheet('delete-local-data-confirm'); return;
+      DB.profile.onboarded=false; DB.profile.onboardingStep=0; DB.profile.onboardingDeferred=false; firstRun={appointment:null,date:'',more:false};
+      setRoute('today',true); sheetStack=[]; renderSheet(); save(true); render(); return;
+    case 'delete-local-data': openSheet('delete-local-data-confirm'); return;
     case 'confirm-delete-local-data':
-      postNativeEvent('clear-native-private-data');
-      Store.clear();
-      DB=blankDB();
-      setRoute('today',true);
-      sheetStack=[]; renderSheet(); save(true); render();
-      toast('App profile and data deleted');
-      return;
-    case 'notes-toggle': notesOpen=!notesOpen; render(true); return;
-    case 'med-taken': {
-      const m=DB.medications.find(x=>x.id===el.dataset.id); if(!m) return;
-      const day=e(), records=day.med||(day.med={}), current=records[m.id];
-      if(current&&current.taken) delete records[m.id];
-      else records[m.id]={taken:true,at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
-      save(true); render(true); return;
-    }
-    case 'med-add': medFormOpen=true; medicationEditTarget=null; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; render(true); revealCareForm('med-name'); return;
-    case 'med-edit': {
-      const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
-      medicationEditTarget=med.id; medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null;
-      medDaysDraft=[...med.days]; render(true); revealCareForm('med-name'); return;
-    }
-    case 'med-cancel': medFormOpen=false; medicationEditTarget=null; render(true); return;
-    case 'med-day': {
-      const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort();
-      el.setAttribute('aria-pressed',medDaysDraft.includes(d)?'true':'false'); return;
-    }
+      postNativeEvent('clear-native-private-data'); Store.clear(); DB=blankDB(); firstRun={appointment:null,date:'',more:false};
+      setRoute('today',true); sheetStack=[]; renderSheet(); save(true); render(); toast('Deleted'); return;
+    /* treatments */
+    case 'med-add': medFormOpen=true; medicationEditTarget=null; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[0,1,2,3,4,5,6]; refresh(); revealForm('med-name'); return;
+    case 'med-edit': { const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return; medicationEditTarget=med.id; medFormOpen=true; treatmentChangeTarget=null; treatmentStopTarget=null; treatmentFollowUpTarget=null; medDaysDraft=[...med.days]; refresh(); revealForm('med-name'); return; }
+    case 'med-cancel': medFormOpen=false; medicationEditTarget=null; refresh(); return;
+    case 'med-day': { const d=+el.dataset.v; medDaysDraft=medDaysDraft.includes(d)?medDaysDraft.filter(x=>x!==d):[...medDaysDraft,d].sort(); el.setAttribute('aria-pressed',medDaysDraft.includes(d)?'true':'false'); return; }
     case 'med-edit-save': {
       const med=DB.medications.find(item=>item.id===el.dataset.id), name=document.getElementById('med-name');
       if(!med||!name) return;
       if(!name.value.trim()){ toast('Enter the medication and dose'); name.focus(); return; }
-      if(!medDaysDraft.length){ toast('Choose at least one scheduled day'); return; }
-      const before=safeMedicationDetails(med), after=safeMedicationDetails({
-        name:name.value.trim(), form:document.getElementById('med-form').value,
-        days:medDaysDraft, due:document.getElementById('med-due').value,
-        notes:document.getElementById('med-notes').value.trim()
-      });
+      if(!medDaysDraft.length){ toast('Choose at least one day'); return; }
+      const before=safeMedicationDetails(med), after=safeMedicationDetails({name:name.value.trim(),form:document.getElementById('med-form').value,days:medDaysDraft,due:document.getElementById('med-due').value,notes:document.getElementById('med-notes').value.trim()});
       if(JSON.stringify(before)!==JSON.stringify(after)){
         med.revisions=Array.isArray(med.revisions)?med.revisions:[];
-        if(med.revisions.length>=MAX_MEDICATION_HISTORY){ toast('This treatment’s history is full. Save a backup and create a new medication entry.'); return; }
-        med.revisions.push({date:todayISO(),before,after});
-        Object.assign(med,after);
+        if(med.revisions.length>=MAX_MEDICATION_HISTORY){ toast('This treatment’s history is full. Save a backup and start a new entry.'); return; }
+        med.revisions.push({date:todayISO(),before,after}); Object.assign(med,after);
       }
-      medFormOpen=false; medicationEditTarget=null; save(true); render(); toast('Medication details saved'); return;
+      medFormOpen=false; medicationEditTarget=null; save(true); refresh(); toast('Saved'); return;
     }
     case 'med-save': {
       const name=document.getElementById('med-name'), form=document.getElementById('med-form'), due=document.getElementById('med-due'), notes=document.getElementById('med-notes'), started=document.getElementById('med-started'), changeLabel=document.getElementById('med-change-label');
       if(!name||!name.value.trim()){ toast('Enter the medication and dose'); name&&name.focus(); return; }
-      if(!medDaysDraft.length){ toast('Choose at least one scheduled day'); return; }
+      if(!medDaysDraft.length){ toast('Choose at least one day'); return; }
       let id='med-'+Date.now().toString(36); while(DB.medications.some(m=>m.id===id)) id+='x';
       const targets=selectedTreatmentTargets('med');
-      if(targets.length>6){ toast('Choose up to six target symptoms'); return; }
-      if(started&&started.value&&!pastOrTodayISO(started.value)){ toast('Choose a start date on or before today'); started.focus(); return; }
-      if((targets.length||(changeLabel&&changeLabel.value.trim()))&&!(started&&started.value)){ toast('Add a start date for starting details or symptom follow-ups'); started&&started.focus(); return; }
+      if(targets.length>6){ toast('Six target symptoms at most'); return; }
+      if(started&&started.value&&!pastOrTodayISO(started.value)){ toast('The start date cannot be in the future'); started.focus(); return; }
+      if((targets.length||(changeLabel&&changeLabel.value.trim()))&&!(started&&started.value)){ toast('Add a start date for the note or the check-ins'); started&&started.focus(); return; }
       const med={id,name:name.value.trim(),form:form.value,days:[...medDaysDraft],due:due.value,notes:notes.value.trim(),started:started&&pastOrTodayISO(started.value)?started.value:'',ended:'',status:'active',stopReason:'',archivedAt:'',changes:[]};
       if(med.started&&(changeLabel&&changeLabel.value.trim()||targets.length)) med.changes.push(newTreatmentChange(med.started,changeLabel&&changeLabel.value.trim()||'Treatment started',targets));
-      DB.medications.push(med);
-      medFormOpen=false; save(true); render(); toast('Medication added'); return;
+      DB.medications.push(med); medFormOpen=false; save(true); refresh(); toast('Added'); return;
     }
-    case 'med-change': treatmentChangeTarget=el.dataset.id; treatmentStopTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); revealCareForm('change-date'); return;
-    case 'med-change-cancel': treatmentChangeTarget=null; render(true); return;
+    case 'med-change': treatmentChangeTarget=el.dataset.id; treatmentStopTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; refresh(); revealForm('change-date'); return;
+    case 'med-change-cancel': treatmentChangeTarget=null; refresh(); return;
     case 'med-change-save': {
-      const med=DB.medications.find(m=>m.id===el.dataset.id), date=document.getElementById('change-date'), label=document.getElementById('change-label');
-      if(!med||!date||!pastOrTodayISO(date.value)||!label||!label.value.trim()){ toast('Add a valid date and describe what changed'); return; }
-      const targets=selectedTreatmentTargets('change');
-      if(targets.length>6){ toast('Choose up to six target symptoms'); return; }
-      med.changes=Array.isArray(med.changes)?med.changes:[];
-      med.changes.push(newTreatmentChange(date.value,label.value.trim(),targets));
-      treatmentChangeTarget=null; save(true); render(); toast('Treatment change added to Journey'); return;
+      const med=DB.medications.find(m=>m.id===el.dataset.id), d=document.getElementById('change-date'), label=document.getElementById('change-label');
+      if(!med||!d||!pastOrTodayISO(d.value)||!label||!label.value.trim()){ toast('Add a valid date and say what changed'); return; }
+      const targets=selectedTreatmentTargets('change'); if(targets.length>6){ toast('Six target symptoms at most'); return; }
+      med.changes=Array.isArray(med.changes)?med.changes:[]; med.changes.push(newTreatmentChange(d.value,label.value.trim(),targets));
+      treatmentChangeTarget=null; save(true); refresh(); toast('Change recorded'); return;
     }
-    case 'med-stop': treatmentStopTarget=el.dataset.id; treatmentChangeTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; render(true); revealCareForm('stop-date'); return;
-    case 'med-stop-cancel': treatmentStopTarget=null; render(true); return;
+    case 'med-stop': treatmentStopTarget=el.dataset.id; treatmentChangeTarget=null; treatmentFollowUpTarget=null; medFormOpen=false; refresh(); revealForm('stop-date'); return;
+    case 'med-stop-cancel': treatmentStopTarget=null; refresh(); return;
     case 'med-stop-save': {
-      const med=DB.medications.find(item=>item.id===el.dataset.id), date=document.getElementById('stop-date'), reason=document.getElementById('stop-reason');
-      if(!med||!date||!pastOrTodayISO(date.value)||(medicationCurrentStart(med)&&date.value<medicationCurrentStart(med))){ toast('Choose a valid last day on or after the latest treatment start'); return; }
-      med.ended=date.value; med.status='stopped'; med.stopReason=reason?reason.value.trim():''; med.archivedAt='';
-      treatmentStopTarget=null; save(true); render(); toast('Treatment moved to stopped'); return;
+      const med=DB.medications.find(item=>item.id===el.dataset.id), d=document.getElementById('stop-date'), reason=document.getElementById('stop-reason');
+      if(!med||!d||!pastOrTodayISO(d.value)||(medicationCurrentStart(med)&&d.value<medicationCurrentStart(med))){ toast('Choose a valid last day on or after the latest start'); return; }
+      med.ended=d.value; med.status='stopped'; med.stopReason=reason?reason.value.trim():''; med.archivedAt='';
+      treatmentStopTarget=null; save(true); refresh(); toast('Stopped'); return;
     }
     case 'med-restart': {
       const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
       if(!confirm('Restart '+med.name+' from today?')) return;
       if(med.ended){
         med.pauses=Array.isArray(med.pauses)?med.pauses:[];
-        if(med.pauses.length>=MAX_MEDICATION_HISTORY){ toast('This treatment’s history is full. Save a backup and create a new medication entry.'); return; }
+        if(med.pauses.length>=MAX_MEDICATION_HISTORY){ toast('This treatment’s history is full. Save a backup and start a new entry.'); return; }
         med.pauses.push({stopped:med.ended,resumed:todayISO(),reason:med.stopReason||'',name:medicationDetailsOn(med,med.ended).name});
       }
       med.status='active'; med.ended=''; med.archivedAt=''; med.stopReason='';
-      med.changes=Array.isArray(med.changes)?med.changes:[];
-      med.changes.push(newTreatmentChange(todayISO(),'Treatment restarted',[]));
-      save(true); render(); toast('Treatment is active again'); return;
+      med.changes=Array.isArray(med.changes)?med.changes:[]; med.changes.push(newTreatmentChange(todayISO(),'Treatment restarted',[]));
+      save(true); refresh(); toast('Active again'); return;
     }
-    case 'med-archive': {
-      const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
-      if(!confirm('Archive '+med.name+'? Its history will stay in Journey and reports.')) return;
-      med.status='archived'; med.ended=med.ended||todayISO(); med.archivedAt=todayISO();
-      save(true); render(); toast('Treatment archived'); return;
-    }
-    case 'med-unarchive': {
-      const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return;
-      med.status='stopped'; med.archivedAt=''; med.ended=med.ended||todayISO();
-      save(true); render(); toast('Treatment moved back to stopped'); return;
-    }
+    case 'med-archive': { const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return; if(!confirm('Archive '+med.name+'? Its history stays in the dossier and the report.')) return; med.status='archived'; med.ended=med.ended||todayISO(); med.archivedAt=todayISO(); save(true); refresh(); return; }
+    case 'med-unarchive': { const med=DB.medications.find(item=>item.id===el.dataset.id); if(!med) return; med.status='stopped'; med.archivedAt=''; med.ended=med.ended||todayISO(); save(true); refresh(); return; }
     case 'treatment-followup-open': {
-      const target={medId:el.dataset.medId,changeIndex:+el.dataset.changeIndex,week:+el.dataset.week};
-      const item=findTreatmentFollowUp(target);
+      const target={medId:el.dataset.medId,changeIndex:+el.dataset.changeIndex,week:+el.dataset.week}, item=findTreatmentFollowUp(target);
       if(!item||item.followUp) return;
-      if(item.dueDate>todayISO()){ toast('This follow-up is not due yet'); return; }
-      treatmentFollowUpTarget=target; treatmentChangeTarget=null; treatmentStopTarget=null; medFormOpen=false; render(true); revealCareForm('followup-benefit'); return;
+      if(item.dueDate>todayISO()){ toast('Not due yet'); return; }
+      treatmentFollowUpTarget=target; treatmentChangeTarget=null; treatmentStopTarget=null; medFormOpen=false;
+      if(!sheetStack.includes('treatments')) openSheet('treatments'); else refresh();
+      revealForm('followup-benefit'); return;
     }
-    case 'treatment-followup-cancel': treatmentFollowUpTarget=null; render(true); return;
+    case 'treatment-followup-cancel': treatmentFollowUpTarget=null; refresh(); return;
     case 'treatment-followup-save': {
-      const target={medId:el.dataset.medId,changeIndex:+el.dataset.changeIndex,week:+el.dataset.week};
-      const item=findTreatmentFollowUp(target);
+      const target={medId:el.dataset.medId,changeIndex:+el.dataset.changeIndex,week:+el.dataset.week}, item=findTreatmentFollowUp(target);
       const benefit=document.getElementById('followup-benefit'), adherence=document.getElementById('followup-adherence'), sideEffectLevel=document.getElementById('followup-side-effect-level');
       const sideEffects=document.getElementById('followup-side-effects'), notes=document.getElementById('followup-notes');
       if(!item||item.followUp) return;
-      if(!benefit||benefit.value===''||!adherence||!adherence.value||!sideEffectLevel||!sideEffectLevel.value){ toast('Choose benefit, doses taken, and side effects'); return; }
+      if(!benefit||benefit.value===''||!adherence||!adherence.value||!sideEffectLevel||!sideEffectLevel.value){ toast('Choose benefit, doses taken and side effects'); return; }
       item.change.followUps=Array.isArray(item.change.followUps)?item.change.followUps.filter(record=>record&&record.week!==item.week):[];
-      item.change.followUps.push({
-        week:item.week,completed:todayISO(),benefit:+benefit.value,adherence:adherence.value,
-        sideEffectLevel:sideEffectLevel.value,sideEffects:sideEffects?sideEffects.value.trim():'',notes:notes?notes.value.trim():'',
-        outcome:treatmentWindowSnapshot(item.change.date,item.week*7-6,item.week*7,item.change.targets)
-      });
-      treatmentFollowUpTarget=null; save(true); render(); toast(item.week+'-week treatment follow-up saved'); return;
+      item.change.followUps.push({week:item.week,completed:todayISO(),benefit:+benefit.value,adherence:adherence.value,sideEffectLevel:sideEffectLevel.value,sideEffects:sideEffects?sideEffects.value.trim():'',notes:notes?notes.value.trim():'',outcome:treatmentWindowSnapshot(item.change.date,item.week*7-6,item.week*7,item.change.targets)});
+      treatmentFollowUpTarget=null; save(true); refresh(); toast(item.week+'-week check-in saved'); return;
     }
-    case 'med-remove': {
-      const i=DB.medications.findIndex(item=>item.id===el.dataset.id); if(i<0) return;
-      if(confirm('Permanently delete '+DB.medications[i].name+' and its treatment history?')){ DB.medications.splice(i,1); save(true); render(); toast('Treatment permanently deleted'); }
-      return;
-    }
-    case 'appointment-question-add': appointmentQuestionEditId='new'; render(true); revealCareForm('appointment-question'); return;
-    case 'appointment-question-edit': appointmentQuestionEditId=el.dataset.id; render(true); revealCareForm('appointment-question'); return;
+    case 'med-remove': { const i=DB.medications.findIndex(item=>item.id===el.dataset.id); if(i<0) return; if(confirm('Permanently delete '+DB.medications[i].name+' and its history?')){ DB.medications.splice(i,1); save(true); refresh(); } return; }
+    /* questions and plans */
+    case 'appointment-question-add': appointmentQuestionEditId='new'; render(true); revealForm('appointment-question'); return;
+    case 'appointment-question-edit': appointmentQuestionEditId=el.dataset.id; render(true); revealForm('appointment-question'); return;
     case 'appointment-question-cancel': appointmentQuestionEditId=null; render(true); return;
     case 'appointment-question-save': {
       const field=document.getElementById('appointment-question'), data=appointmentData();
-      if(!field||!field.value.trim()){ toast('Write a question first'); field&&field.focus(); return; }
+      if(!field||!field.value.trim()){ toast('Write the question first'); field&&field.focus(); return; }
       const existing=el.dataset.id?data.questions.find(item=>item.id===el.dataset.id):null;
       if(existing) existing.text=field.value.trim();
-      else {
-        let id='question-'+Date.now().toString(36); while(data.questions.some(item=>item.id===id)) id+='x';
-        data.questions.push({id,text:field.value.trim(),created:todayISO(),asked:false,askedAt:''});
-      }
-      appointmentQuestionEditId=null; save(true); render(); toast(existing?'Question updated':'Question added'); return;
+      else { let id='question-'+Date.now().toString(36); while(data.questions.some(item=>item.id===id)) id+='x'; data.questions.push({id,text:field.value.trim(),created:todayISO(),asked:false,askedAt:''}); }
+      appointmentQuestionEditId=null; save(true); render(true); return;
     }
-    case 'appointment-question-toggle': {
-      const item=appointmentData().questions.find(question=>question.id===el.dataset.id); if(!item) return;
-      item.asked=!item.asked; item.askedAt=item.asked?todayISO():''; save(true); render(true); return;
-    }
-    case 'appointment-question-remove': {
-      const data=appointmentData(), index=data.questions.findIndex(item=>item.id===el.dataset.id); if(index<0) return;
-      if(confirm('Remove this appointment question?')){ data.questions.splice(index,1); if(appointmentQuestionEditId===el.dataset.id) appointmentQuestionEditId=null; save(true); render(); }
-      return;
-    }
-    case 'after-visit-add': afterVisitPlanEditId='new'; render(true); revealCareForm('visit-date'); return;
-    case 'after-visit-edit': afterVisitPlanEditId=el.dataset.id; render(true); revealCareForm('visit-date'); return;
+    case 'appointment-question-toggle': { const item=appointmentData().questions.find(q=>q.id===el.dataset.id); if(!item) return; item.asked=!item.asked; item.askedAt=item.asked?todayISO():''; save(true); render(true); return; }
+    case 'appointment-question-remove': { const data=appointmentData(), index=data.questions.findIndex(item=>item.id===el.dataset.id); if(index<0) return; data.questions.splice(index,1); if(appointmentQuestionEditId===el.dataset.id) appointmentQuestionEditId=null; save(true); render(true); return; }
+    case 'after-visit-add': afterVisitPlanEditId='new'; render(true); revealForm('visit-date'); return;
+    case 'after-visit-edit': afterVisitPlanEditId=el.dataset.id; render(true); revealForm('visit-date'); return;
     case 'after-visit-cancel': afterVisitPlanEditId=null; render(true); return;
     case 'after-visit-save': {
-      const date=document.getElementById('visit-date'), summary=document.getElementById('visit-summary'), actionField=document.getElementById('visit-actions'), next=document.getElementById('visit-next'), data=appointmentData();
-      if(!date||!pastOrTodayISO(date.value)){ toast('Choose a valid visit date'); return; }
+      const d=document.getElementById('visit-date'), summary=document.getElementById('visit-summary'), actionField=document.getElementById('visit-actions'), next=document.getElementById('visit-next'), data=appointmentData();
+      if(!d||!pastOrTodayISO(d.value)){ toast('Choose a valid visit date'); return; }
       const summaryText=summary?summary.value.trim():'', lines=(actionField?actionField.value:'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean).slice(0,30);
       const nextVisit=next&&next.value&&validISODate(next.value)?next.value:'';
-      if(!summaryText&&!lines.length&&!nextVisit){ toast('Add a decision, next step, or follow-up date'); return; }
+      if(!summaryText&&!lines.length&&!nextVisit){ toast('Add a decision, a next step or a date'); return; }
       const existing=el.dataset.id?data.plans.find(item=>item.id===el.dataset.id):null;
       let id=existing?existing.id:'visit-'+Date.now().toString(36); while(!existing&&data.plans.some(item=>item.id===id)) id+='x';
       const prior=existing&&Array.isArray(existing.actions)?existing.actions:[];
-      const actions=lines.map((text,index)=>{
-        const match=prior.find(item=>item.text===text);
-        return match?{id:match.id,text,done:match.done===true}:{id:id+'-action-'+index+'-'+Date.now().toString(36),text,done:false};
-      });
-      const plan={id,date:date.value,summary:summaryText,actions,nextVisit};
+      const actions=lines.map((text,index)=>{ const match=prior.find(item=>item.text===text); return match?{id:match.id,text,done:match.done===true}:{id:id+'-action-'+index+'-'+Date.now().toString(36),text,done:false}; });
+      const plan={id,date:d.value,summary:summaryText,actions,nextVisit};
       if(existing) data.plans[data.plans.indexOf(existing)]=plan; else data.plans.push(plan);
       data.plans.sort((a,b)=>b.date.localeCompare(a.date));
-      afterVisitPlanEditId=null; save(true); render(); toast(existing?'After-visit plan updated':'After-visit plan saved'); return;
+      afterVisitPlanEditId=null; save(true); render(true); return;
     }
-    case 'after-visit-action-toggle': {
-      const plan=appointmentData().plans.find(item=>item.id===el.dataset.planId), action=plan&&plan.actions.find(item=>item.id===el.dataset.actionId); if(!action) return;
-      action.done=!action.done; save(true); render(true); return;
-    }
-    case 'after-visit-remove': {
-      const data=appointmentData(), index=data.plans.findIndex(item=>item.id===el.dataset.id); if(index<0) return;
-      if(confirm('Remove this after-visit plan?')){ data.plans.splice(index,1); if(afterVisitPlanEditId===el.dataset.id) afterVisitPlanEditId=null; save(true); render(); }
-      return;
-    }
-    case 'lab-add': labFormOpen=true; render(true); revealCareForm('lab-name'); return;
+    case 'after-visit-action-toggle': { const plan=appointmentData().plans.find(item=>item.id===el.dataset.planId), action=plan&&plan.actions.find(item=>item.id===el.dataset.actionId); if(!action) return; action.done=!action.done; save(true); render(true); return; }
+    case 'after-visit-remove': { const data=appointmentData(), index=data.plans.findIndex(item=>item.id===el.dataset.id); if(index<0) return; if(confirm('Remove this plan?')){ data.plans.splice(index,1); if(afterVisitPlanEditId===el.dataset.id) afterVisitPlanEditId=null; save(true); render(true); } return; }
+    case 'lab-add': labFormOpen=true; render(true); revealForm('lab-name'); return;
     case 'lab-cancel': labFormOpen=false; render(true); return;
     case 'lab-save': {
-      const name=document.getElementById('lab-name'), date=document.getElementById('lab-date'), value=document.getElementById('lab-value'), unit=document.getElementById('lab-unit');
-      if(!name.value.trim()||!value.value.trim()||!pastOrTodayISO(date.value)){ toast('Enter a test, date, and result'); return; }
-      DB.labs.unshift({id:'lab-'+Date.now().toString(36),name:name.value.trim(),date:date.value,value:value.value.trim(),unit:unit.value.trim()});
-      labFormOpen=false; save(true); render(); toast('Lab result added'); return;
+      const name=document.getElementById('lab-name'), d=document.getElementById('lab-date'), value=document.getElementById('lab-value'), unit=document.getElementById('lab-unit');
+      if(!name.value.trim()||!value.value.trim()||!pastOrTodayISO(d.value)){ toast('Enter a test, a date and a result'); return; }
+      DB.labs.unshift({id:'lab-'+Date.now().toString(36),name:name.value.trim(),date:d.value,value:value.value.trim(),unit:unit.value.trim()});
+      labFormOpen=false; save(true); render(true); return;
     }
-    case 'lab-remove': {
-      const i=+el.dataset.i; if(DB.labs[i]&&confirm('Remove '+DB.labs[i].name+' result?')){ DB.labs.splice(i,1); save(true); render(); }
-      return;
-    }
-    case 'day': curDate = el.dataset.d; render(); return;
-    case 'range': trendRange = +el.dataset.v; render(); return;
-    case 'hf': {
-      const cur = e().hf==null?0:e().hf;
-      const nv = Math.max(0, cur + (+el.dataset.n));
-      e().hf = nv; if(typeof markEntryDraft==='function') markEntryDraft(curDate); save(); render(true); return;
-    }
-    case 'set': {
-      const v = el.dataset.v;
-      setPath(e(), el.dataset.k, v===''?null:(isNaN(v)?v:+v));
-      if(typeof markEntryDraft==='function') markEntryDraft(curDate); save(); render(true); return;
-    }
-    case 'toggle': {
-      const cur = getPath(e(), el.dataset.k);
-      setPath(e(), el.dataset.k, cur?null:true);
-      if(typeof markEntryDraft==='function') markEntryDraft(curDate); save(); render(true); return;
-    }
-    case 'theme': DB.profile.theme = el.value; save(true); render(true); return;
+    case 'lab-remove': { const i=+el.dataset.i; if(DB.labs[i]&&confirm('Remove '+DB.labs[i].name+'?')){ DB.labs.splice(i,1); save(true); refresh(); } return; }
+    /* sheets */
     case 'sheet':
       if(el.dataset.s==='report'){ if(requestNativePro('appointment-report')) return; returnTab=curTab; setRoute('appointment-report'); render(); return; }
       openSheet(el.dataset.s); return;
     case 'close': closeSheet(); return;
     case 'bg': if(ev.target===el) closeSheet(); return;
-    case 'go': {
-      const g = el.dataset.v;
-      if(requestNativePro(g)) return;
-      if(g.startsWith('learn:')||g.startsWith('tool:')) openSheet(g);
-      else openSheet(g);
-      return;
-    }
+    case 'go': { const g=el.dataset.v; if(g==='screening'||g==='redflags'||g.startsWith('learn:')||g.startsWith('tool:')) openSheet(g); return; }
     case 'stage-a': stageEditing=true; stageAns[el.dataset.k]=el.dataset.v; stageStep++; renderSheet(); return;
-    case 'stage-back': {
-      stageStep = Math.max(0, stageStep-1);
-      const q = stageQueue(stageAns)[stageStep];
-      if(q) delete stageAns[q.id];
-      renderSheet(); return;
-    }
+    case 'stage-back': { stageStep=Math.max(0,stageStep-1); const q=stageQueue(stageAns)[stageStep]; if(q) delete stageAns[q.id]; renderSheet(); return; }
     case 'stage-restart': resetStageDraft(); renderSheet(); return;
-    case 'q-a': {
-      const kind=el.dataset.k;
-      if(qDrafts[kind]) qDrafts[kind][+el.dataset.i]=+el.dataset.v;
-      renderSheet(); return;
-    }
+    case 'q-a': { const kind=el.dataset.k; if(qDrafts[kind]) qDrafts[kind][+el.dataset.i]=+el.dataset.v; renderSheet(); return; }
     case 'q-reset': if(qDrafts[el.dataset.k]) qDrafts[el.dataset.k]={}; renderSheet(); return;
     case 'q-save': {
-      const kind = el.dataset.k;
-      const items = kind==='phq9'?PHQ9:GAD7;
-      const answers=qDrafts[kind];
-      if(!answers || !items.every((_,i)=>answers[i]!=null)){ toast('Answer every question first'); return; }
-      const score = items.reduce((total,_,i)=>total+answers[i],0);
-      const band = kind==='phq9' ? (score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe')
-                                 : (score<5?'minimal':score<10?'mild':score<15?'moderate':'severe');
-      DB.scores.push({date:todayISO(), type:kind, score, band});
-      save(true); qDrafts[kind]={}; toast('Score saved'); renderSheet(); return;
+      const kind=el.dataset.k, items=kind==='phq9'?PHQ9:GAD7, answers=qDrafts[kind];
+      if(!answers||!items.every((_,i)=>answers[i]!=null)){ toast('Answer every question first'); return; }
+      const score=items.reduce((total,_,i)=>total+answers[i],0);
+      const band=kind==='phq9'?(score<5?'minimal':score<10?'mild':score<15?'moderate':score<20?'moderately severe':'severe'):(score<5?'minimal':score<10?'mild':score<15?'moderate':'severe');
+      DB.scores.push({date:todayISO(),type:kind,score,band}); save(true); qDrafts[kind]={}; toast('Score saved'); renderSheet(); return;
     }
     case 'breath-start': breathStart(); return;
     case 'breath-stop': breathStop(); return;
     case 'pmr-start': pmrStart(); return;
     case 'pmr-stop': pmrStop(); return;
-    case 'trig-start': {
-      const sel=document.getElementById('trig');
-      DB.trigger = {active:true, status:'running', item: sel?sel.value:'Alcohol', start: todayISO()};
-      save(true); toast('Trigger test started'); renderSheet(); return;
-    }
-    case 'trig-stop':
-      if(DB.trigger){ DB.trigger.active=false; DB.trigger.status='stopped'; DB.trigger.ended=todayISO(); }
-      save(true); renderSheet(); return;
+    case 'ride-start': rideStart(); return;
+    case 'ride-stop': rideStop(); return;
+    case 'trig-start': { const sel=document.getElementById('trig'); DB.trigger={active:true,status:'running',item:sel?sel.value:'Alcohol',start:todayISO()}; save(true); toast('Trigger test started'); renderSheet(); return; }
+    case 'trig-stop': if(DB.trigger){ DB.trigger.active=false; DB.trigger.status='stopped'; DB.trigger.ended=todayISO(); } save(true); renderSheet(); return;
     case 'trig-reset': DB.trigger=null; save(true); renderSheet(); return;
     case 'export-encrypted-backup': {
       const password=document.getElementById('encrypted-backup-password'), confirmation=document.getElementById('encrypted-backup-confirm');
-      if(!password||password.value.length<10){ toast('Use a backup password with at least 10 characters'); password&&password.focus(); return; }
-      if(!confirmation||confirmation.value!==password.value){ toast('The backup passwords do not match'); confirmation&&confirmation.focus(); return; }
-      if(postNativeEvent('export-encrypted-backup',{state:JSON.stringify(DB),password:password.value,name:'meno-compass-backup-'+todayISO()+'.menocompass'})){
-        password.value=''; confirmation.value=''; toast('Encrypting your backup…');
-      }
+      if(!password||password.value.length<10){ toast('Use at least 10 characters'); password&&password.focus(); return; }
+      if(!confirmation||confirmation.value!==password.value){ toast('The passwords do not match'); confirmation&&confirmation.focus(); return; }
+      if(postNativeEvent('export-encrypted-backup',{state:JSON.stringify(DB),password:password.value,name:'peri-backup-'+todayISO()+'.menocompass'})){ password.value=''; confirmation.value=''; toast('Encrypting'); }
       return;
     }
-    case 'import-encrypted-backup': {
-      const password=document.getElementById('encrypted-restore-password');
-      if(!password||!password.value){ toast('Enter the password used for this backup'); password&&password.focus(); return; }
-      if(postNativeEvent('import-encrypted-backup',{password:password.value})){ password.value=''; toast('Choose your encrypted backup…'); }
-      return;
-    }
-    case 'export-json': download('meno-compass-backup-'+todayISO()+'.json', JSON.stringify(DB,null,2), 'application/json'); return;
-    case 'export-csv': download('meno-compass-'+todayISO()+'.csv', toCSV(), 'text/csv'); return;
-    case 'copy-dump': {
-      const ta=document.getElementById('dump');
-      if(ta){ ta.select(); try{ document.execCommand('copy'); toast('Copied'); }catch(x){ toast('Select and copy manually'); } }
-      return;
-    }
+    case 'import-encrypted-backup': { const password=document.getElementById('encrypted-restore-password'); if(!password||!password.value){ toast('Enter the backup password'); password&&password.focus(); return; } if(postNativeEvent('import-encrypted-backup',{password:password.value})){ password.value=''; toast('Choose the backup file'); } return; }
+    case 'export-json': download('peri-backup-'+todayISO()+'.json',JSON.stringify(DB,null,2),'application/json'); return;
+    case 'export-csv': download('peri-'+todayISO()+'.csv',toCSV(),'text/csv'); return;
+    case 'copy-dump': { const ta=document.getElementById('dump'); if(ta){ ta.select(); try{ document.execCommand('copy'); toast('Copied'); }catch(x){ toast('Select and copy manually'); } } return; }
     case 'import-json': {
       const ta=document.getElementById('restore');
       if(!ta||!ta.value.trim()){ toast('Paste a backup first'); return; }
-      if(ta.value.length>5000000){ toast('That backup is larger than the 5 MB limit'); return; }
-      try{
-        const obj=JSON.parse(ta.value);
-        DB = validateBackup(obj); save(true); sheetStack=[]; renderSheet(); render(); toast('Backup restored and checked');
-      }catch(x){ toast('That does not look like a valid backup'); }
+      if(ta.value.length>5000000){ toast('Larger than the 5 MB limit'); return; }
+      try{ DB=validateBackup(JSON.parse(ta.value)); save(true); sheetStack=[]; renderSheet(); render(); toast('Restored and checked'); }
+      catch(x){ toast('That is not a valid backup'); }
       return;
     }
-    case 'wipe': openSheet('delete-local-data-confirm'); return;
     case 'print': {
-      const name='meno-compass-report-'+todayISO()+'.pdf';
-      if(postNativeEvent('share-report',{name,html:printableReportHtml()})){
-        toast('Preparing your report…');
-        return;
-      }
+      const name='peri-brief-'+todayISO()+'.pdf';
+      if(postNativeEvent('share-report',{name,html:printableReportHtml()})){ toast('Preparing the brief'); return; }
       window.print(); return;
     }
-    case 'ob-next': {
-      const draft=onboardingDraft();
-      if(draft.step===1&&!draft.symptoms.length || draft.step===2&&!draft.intent) return;
-      updateOnboarding({step:Math.min(3,draft.step+1)});
-      return;
-    }
-    case 'ob-back':
-      updateOnboarding({step:Math.max(0,onboardingDraft().step-1)});
-      return;
-    case 'ob-intent': updateOnboarding({intent:el.dataset.v},'[data-act="ob-intent"][data-v="'+el.dataset.v+'"]'); return;
-    case 'ob-more': onboardingMore=!onboardingMore; render(true); document.querySelector('[data-act="ob-more"]')?.focus({preventScroll:true}); return;
-    case 'ob-starter': {
-      const draft=onboardingDraft();
-      updateOnboarding({step:3,symptoms:draft.symptoms.length?draft.symptoms:PeriOnboarding.defaults,intent:draft.intent||'understand'}); return;
-    }
-    case 'ob-feeling':
-      DB.profile.onboardingFeeling=safeEnum(el.dataset.v,Object.keys(ONBOARDING_FEELINGS),''); save(true); render(true); return;
-    case 'ob-symptom': {
-      const key=el.dataset.v, current=onboardingDraft().symptoms;
-      if(!PINNABLE_SYMPTOMS.includes(key)) return;
-      if(!current.includes(key)&&current.length>=6){ toast('You can follow up to six. Remove one to make room for another.'); postNativeEvent('onboarding-selection-limit'); return; }
-      updateOnboarding({symptoms:current.includes(key)?current.filter(k=>k!==key):[...current,key]},'[data-act="ob-symptom"][data-v="'+key+'"]'); return;
-    }
-    case 'profile-symptom': {
-      const key=el.dataset.v, current=Array.isArray(DB.profile.pinnedSymptoms)?[...DB.profile.pinnedSymptoms]:focusedKeys();
-      if(current.includes(key)){
-        if(current.length<=1){ toast('Keep at least one focused symptom'); return; }
-        DB.profile.pinnedSymptoms=current.filter(k=>k!==key);
-      } else {
-        if(current.length>=6){ toast('Choose up to six symptoms'); return; }
-        DB.profile.pinnedSymptoms=[...current,key];
-      }
-      save(true); render(true); return;
-    }
-    case 'ob-done': {
-      const draft=onboardingDraft();
-      if(!draft.symptoms.length||!draft.intent) return;
-      finishOnboarding();
-      return;
-    }
-    case 'ob-skip':
-      finishOnboarding(true); setRoute('today',true); render();
-      return;
   }
 }
 
-function setFieldError(el, message){
+function setFieldError(el,message){
   el.setCustomValidity(message||'');
-  if(message){ el.setAttribute('aria-invalid','true'); el.title=message; }
-  else { el.removeAttribute('aria-invalid'); el.removeAttribute('title'); }
+  if(message){ el.setAttribute('aria-invalid','true'); el.title=message; } else { el.removeAttribute('aria-invalid'); el.removeAttribute('title'); }
   return !message;
 }
 function readNumberInput(el){
   setFieldError(el,'');
-  if(el.validity && el.validity.badInput){
-    setFieldError(el,'Enter a number.'); return {ok:false,value:null};
-  }
+  if(el.validity&&el.validity.badInput){ setFieldError(el,'Enter a number.'); return {ok:false,value:null}; }
   if(el.value==='') return {ok:true,value:null};
   const value=Number(el.value);
-  if(!Number.isFinite(value)){
-    setFieldError(el,'Enter a finite number.'); return {ok:false,value:null};
-  }
+  if(!Number.isFinite(value)){ setFieldError(el,'Enter a finite number.'); return {ok:false,value:null}; }
   const min=el.min!==''?Number(el.min):null, max=el.max!==''?Number(el.max):null;
-  if((min!=null&&value<min)||(max!=null&&value>max)){
-    const range=min!=null&&max!=null?' from '+min+' to '+max:min!=null?' of at least '+min:' no more than '+max;
-    setFieldError(el,'Enter a value'+range+'.'); return {ok:false,value:null};
-  }
+  if((min!=null&&value<min)||(max!=null&&value>max)){ const range=min!=null&&max!=null?' from '+min+' to '+max:min!=null?' of at least '+min:' no more than '+max; setFieldError(el,'Enter a value'+range+'.'); return {ok:false,value:null}; }
   return {ok:true,value};
 }
 function readDateInput(el){
   setFieldError(el,'');
   if(el.value==='') return {ok:true,value:null};
-  if(!pastOrTodayISO(el.value)){
-    setFieldError(el,'Choose a valid date that is not in the future.');
-    return {ok:false,value:null};
-  }
-  if(el.min && el.value<el.min){
-    setFieldError(el,'Choose a date on or after '+el.min+'.');
-    return {ok:false,value:null};
-  }
+  if(!pastOrTodayISO(el.value)){ setFieldError(el,'Choose a valid date that is not in the future.'); return {ok:false,value:null}; }
+  if(el.min&&el.value<el.min){ setFieldError(el,'Choose a date on or after '+el.min+'.'); return {ok:false,value:null}; }
   return {ok:true,value:el.value};
 }
-
 function handleInput(el){
-  if(curTab!=='today-details') curDate=todayISO();
-  const a = el.dataset.act;
-  if(a==='guide-search'){
-    guideQuery=el.value||''; filterGuideResults(); return;
+  const a=el.dataset.act, date=actionDate(el);
+  if(a==='index-search'){ indexQuery=el.value||''; renderIndexResults(); return; }
+  if(a==='fr-age'){
+    const parsed=readNumberInput(el); if(!parsed.ok) return;
+    DB.profile.birthYear=parsed.value==null?null:new Date().getFullYear()-Math.round(parsed.value);
+    save(); const finding=document.querySelector('.page-firstrun .finding'); if(finding){ const fresh=document.createElement('div'); fresh.innerHTML=viewFirstRun(); finding.outerHTML=fresh.querySelector('.finding').outerHTML; }
+    return;
+  }
+  if(a==='fr-date'){ firstRun.date=validISODate(el.value)?el.value:''; return; }
+  if(a==='moment-time'||a==='moment-note'||a==='moment-hours'){
+    const patch=a==='moment-time'?{t:el.value}:a==='moment-note'?{n:el.value}:{v:el.value===''?null:+el.value};
+    if(a==='moment-time'&&!/^\d\d:\d\d$/.test(el.value)) return;
+    const moved=updateMoment(date,el.dataset.id,patch);
+    if(moved){ if(a==='moment-time'&&moved.k==='med') reconcileMedRecord(date,moved,moved.t); save(); }
+    return;
   }
   if(a==='num'){
-    const k = el.dataset.k, conv = el.dataset.conv;
+    const k=el.dataset.k, conv=el.dataset.conv;
     const parsed=el.type==='number'?readNumberInput(el):{ok:true,value:el.value.trim()||null};
     if(!parsed.ok) return;
     let v=parsed.value;
-    const day=entry(curDate);
-    if(v!=null && k==='sleepH' && day.inBedH!=null && v>day.inBedH){
-      setFieldError(el,'Hours asleep cannot be greater than hours in bed.'); return;
-    }
-    if(v!=null && k==='inBedH' && day.sleepH!=null && day.sleepH>v){
-      setFieldError(el,'Hours in bed cannot be less than hours asleep.'); return;
-    }
-    if(v!=null && conv==='w') v = U.wIn(v);
-    if(v!=null && conv==='l') v = U.lIn(v);
-    setPath(day, k, v);
-    if(typeof markEntryDraft==='function') markEntryDraft(curDate);
-    save(); return;
+    const day=entry(date);
+    if(v!=null&&k==='sleepH'&&day.inBedH!=null&&v>day.inBedH){ setFieldError(el,'Hours asleep cannot exceed hours in bed.'); return; }
+    if(v!=null&&k==='inBedH'&&day.sleepH!=null&&day.sleepH>v){ setFieldError(el,'Hours in bed cannot be less than hours asleep.'); return; }
+    if(v!=null&&conv==='w') v=U.wIn(v);
+    if(v!=null&&conv==='l') v=U.lIn(v);
+    setPath(day,k,v); commitDay(date); save(); return;
   }
   if(a==='prof'){
     const k=el.dataset.k, conv=el.dataset.conv;
@@ -2982,99 +2170,69 @@ function handleInput(el){
     else parsed={ok:true,value:k==='name'?safeText(el.value,80):el.value};
     if(!parsed.ok) return;
     let v=parsed.value;
-    if(k==='birthYear'&&v!=null&&!Number.isInteger(v)){
-      setFieldError(el,'Enter a whole birth year.'); return;
-    }
-    if(el.tagName==='SELECT' && !isNaN(v) && k==='proteinGpk') v=+v;
-    if(v!=null && v!=='' && conv==='w') v=U.wIn(v);
-    if(v!=null && v!=='' && conv==='l') v=U.lIn(v);
-    DB.profile[k] = (v===''?null:v);
+    if(k==='birthYear'&&v!=null&&!Number.isInteger(v)){ setFieldError(el,'Enter a whole birth year.'); return; }
+    if(el.tagName==='SELECT'&&!isNaN(v)&&k==='proteinGpk') v=+v;
+    if(v!=null&&v!==''&&conv==='w') v=U.wIn(v);
+    if(v!=null&&v!==''&&conv==='l') v=U.lIn(v);
+    DB.profile[k]=(v===''?null:v);
+    if(k==='periodStatus') DB.profile.periodStatus=safeEnum(v||'',PERIOD_STATUSES,'');
+    if(k==='periodSince') DB.profile.periodSince=safeEnum(v||'',PERIOD_SINCE,'');
     refreshStageForProfile(k);
     save();
-    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries') render(true);
+    if(k==='theme') applyTheme();
+    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries'||k==='periodStatus'||k==='periodSince') render(true);
     return;
   }
-  if(a==='screen'){
-    const parsed=readDateInput(el);
-    if(!parsed.ok) return;
-    const rec=DB.screening[el.dataset.k]||{};
-    rec.last=parsed.value;
-    DB.screening[el.dataset.k]=rec;
-    save(); return;
-  }
+  if(a==='screen'){ const parsed=readDateInput(el); if(!parsed.ok) return; const rec=DB.screening[el.dataset.k]||{}; rec.last=parsed.value; DB.screening[el.dataset.k]=rec; save(); return; }
   if(a==='screen-int'){
-    const id=el.dataset.k, rule=SCREENING_RULES[id], years=+el.value;
-    const age=DB.profile.birthYear ? new Date().getFullYear()-DB.profile.birthYear : null;
-    if(!rule || !screeningIntervals(rule,age).includes(years)) return;
-    const rec=DB.screening[id]||{};
-    rec.intervalYears=years; DB.screening[id]=rec; save(); return;
+    const id=el.dataset.k, rule=SCREENING_RULES[id], years=+el.value, age=DB.profile.birthYear?new Date().getFullYear()-DB.profile.birthYear:null;
+    if(!rule||!screeningIntervals(rule,age).includes(years)) return;
+    const rec=DB.screening[id]||{}; rec.intervalYears=years; DB.screening[id]=rec; save(); return;
   }
-  if(a==='prot-calc'){
-    const w=document.getElementById('ptw'), g=document.getElementById('ptg');
-    const parsed=readNumberInput(w);
-    const kg = parsed.ok&&parsed.value!=null ? U.wIn(parsed.value) : null;
-    document.getElementById('prot-out').innerHTML = proteinOut(kg, +g.value);
-    return;
-  }
+  if(a==='prot-calc'){ const w=document.getElementById('ptw'), g=document.getElementById('ptg'); const parsed=readNumberInput(w); const kg=parsed.ok&&parsed.value!=null?U.wIn(parsed.value):null; document.getElementById('prot-out').innerHTML=proteinOut(kg,+g.value); return; }
   if(a==='sw-calc'){
-    const ds=rangeDates(14);
-    const sleeps=ds.map(d=>{const x=confirmedRecord(d);return x&&x.sleepH!=null?x.sleepH:null;}).filter(v=>v!=null);
-    const aSleep=avg(sleeps); const win = aSleep!=null&&aSleep>0?Math.max(5,Math.round(aSleep*4)/4):null;
-    document.getElementById('sw-out').innerHTML = swOut(el.value, win);
-    return;
+    const ds=rangeDates(14), sleeps=ds.map(d=>{const x=confirmedRecord(d);return x&&x.sleepH!=null?x.sleepH:null;}).filter(v=>v!=null);
+    const aSleep=avg(sleeps), win=aSleep!=null&&aSleep>0?Math.max(5,Math.round(aSleep*4)/4):null;
+    document.getElementById('sw-out').innerHTML=swOut(el.value,win); return;
   }
 }
 
 /* ---------- export ---------- */
 function csvText(value){
   let text=String(value==null?'':value);
-  /* Spreadsheet apps may execute cells beginning with formula characters,
-     even when the CSV field is quoted. Prefix user-authored text defensively. */
   if(/^[=+\-@\t\r]/.test(text)) text="'"+text;
   return '"'+text.replace(/"/g,'""')+'"';
 }
 function toCSV(){
-  const cols = ['date','hot_flashes','night_sweats_0_4','hours_in_bed','hours_asleep','sleep_efficiency_pct',
-    ...SYMS.map(s=>s.k), 'burden_score_0_44_unvalidated','weight_kg','waist_cm','bleeding','strength_session','balance','pelvic_floor',
-    'aerobic_min','protein_target_met','calcium_2plus','fibre_ok','alcohol_drinks','caffeine_cups','notes'];
-  const rows = [cols.join(',')];
+  const cols=['date','day_rating_0_4','hot_flashes','night_sweats_0_4','night_wakes','hours_in_bed','hours_asleep','sleep_efficiency_pct',
+    ...SYMS.map(s=>s.k),'burden_score_0_44_unvalidated','weight_kg','waist_cm','bleeding','strength_session','balance','pelvic_floor',
+    'aerobic_min','protein_target_met','calcium_2plus','fibre_ok','alcohol_drinks','caffeine_cups','ledger_entries','notes'];
+  const rows=[cols.join(',')];
   entryDates().forEach(d=>{
     const e=confirmedRecord(d), s=e.sym||{}, ac=e.act||{}, nu=e.nut||{};
-    const eff = (e.sleepH!=null&&e.inBedH!=null&&e.inBedH>0)?Math.round(e.sleepH/e.inBedH*100):'';
-    const r = [d, e.hf??'', e.ns??'', e.inBedH??'', e.sleepH??'', eff,
-      ...SYMS.map(x=>s[x.k]??''), burden(e)??'',
-      e.wt!=null?r1(e.wt):'', e.waist!=null?r1(e.waist):'', e.bleed||'',
-      ac.res?1:'', ac.bal?1:'', ac.pf?1:'', ac.aero??'',
-      nu.prot==null?'':(nu.prot?1:0), nu.cal?1:'', nu.fib?1:'', nu.alc??'', nu.caf??'',
-      csvText(e.notes||'')];
-    rows.push(r.join(','));
+    const eff=(e.sleepH!=null&&e.inBedH!=null&&e.inBedH>0)?Math.round(e.sleepH/e.inBedH*100):'';
+    rows.push([d,e.rating??'',e.hf??'',e.ns??'',e.wakes??'',e.inBedH??'',e.sleepH??'',eff,...SYMS.map(x=>s[x.k]??''),burden(e)??'',
+      e.wt!=null?r1(e.wt):'',e.waist!=null?r1(e.waist):'',e.bleed||'',ac.res?1:'',ac.bal?1:'',ac.pf?1:'',ac.aero??'',
+      nu.prot==null?'':(nu.prot?1:0),nu.cal?1:'',nu.fib?1:'',nu.alc??'',nu.caf??'',(e.moments||[]).length,csvText(e.notes||'')].join(','));
   });
-  if(DB.scores.length){
-    rows.push('');
-    rows.push('questionnaire_date,type,score,band');
-    DB.scores.forEach(s=>rows.push([s.date,s.type,s.score,s.band||''].join(',')));
-  }
+  const moments=entryDates().flatMap(d=>(confirmedRecord(d).moments||[]).map(m=>[d,m.t,m.k,m.s??'',m.d??'',m.v??'',csvText(m.n||'')].join(',')));
+  if(moments.length){ rows.push(''); rows.push('ledger_date,time,kind,severity_1_3,duration_s,hours,note'); rows.push(...moments); }
+  if(DB.scores.length){ rows.push(''); rows.push('questionnaire_date,type,score,band'); DB.scores.forEach(s=>rows.push([s.date,s.type,s.score,s.band||''].join(','))); }
   return rows.join('\n');
 }
-function download(name, text, mime){
-  if(postNativeEvent('share-file',{name,contents:text,mime})){
-    toast('Preparing '+name+'…');
-    return;
-  }
+function download(name,text,mime){
+  if(postNativeEvent('share-file',{name,contents:text,mime})){ toast('Preparing '+name); return; }
   try{
-    const blob = new Blob([text], {type:mime});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const blob=new Blob([text],{type:mime}), url=URL.createObjectURL(blob), a=document.createElement('a');
     a.href=url; a.download=name; document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },500);
     toast('Downloaded '+name);
-  }catch(x){ toast('Download blocked — use the copy box instead'); }
+  }catch(x){ toast('Download blocked; use the copy box instead'); }
 }
-
 function printableReportHtml(){
   const clone=document.documentElement.cloneNode(true);
   clone.querySelectorAll('script').forEach(node=>node.remove());
-  clone.querySelector('title').textContent='peri appointment report';
+  clone.querySelector('title').textContent='peri brief';
   return '<!doctype html>'+clone.outerHTML;
 }
 
@@ -3085,102 +2243,61 @@ function boot(){
   window.addEventListener('menocompass-native-backup-import',handleNativeBackupImport);
   window.addEventListener('menocompass-native-share-result',handleNativeShareResult);
   window.addEventListener('menocompass-healthkit-result',handleHealthKitResult);
-  window.addEventListener('menocompass-native-navigation-request',()=>{
-    lastNativeNavigationState='';
-    syncNativeNavigationState();
-  });
-  const prefilled=prefillTodayFromYesterday();
-  if(prefilled||window.__MENO_NATIVE__===true) save(true);
-  document.body.insertAdjacentHTML('afterbegin',
-    '<header class="topbar" id="topbar"></header><main id="app"></main>'
-    + '<nav class="tabs" id="tabs" aria-label="Primary"><div class="mc-sidebar-brand"><span class="mc-brand-icon">'+PERI_BRAND_ICON+'</span><span>peri<small>YOUR PERSONAL COMPANION</small></span></div><span class="mc-nav-label">YOUR SPACE</span><div class="inner">'
-    + Object.entries(TAB_TITLES).map(([k,v])=>h('button',{'data-act':'tab','data-v':k},IC[k]+'<span>'+v[0]+'</span>')).join('')
-    + '</div><div class="mc-sidebar-bottom"><div>'+PULSE_IC.privacy+'<p>Just for you.<br><span>Your health story stays<br>on this device.</span></p></div><button data-act="open-profile">'+PULSE_IC.profile+'<span>Profile &amp; settings</span></button></div></nav><div id="sheet-host"></div>');
-  document.addEventListener('click', ev=>{
-    const externalLink = ev.target.closest('a[href]');
-    if(externalLink && window.__MENO_NATIVE__===true && window.ReactNativeWebView && /^https?:\/\//i.test(externalLink.href)){
-      ev.preventDefault();
-      window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-external-link',url:externalLink.href}));
-      return;
+  window.addEventListener('menocompass-native-navigation-request',()=>{ lastNativeNavigationState=''; syncNativeNavigationState(); });
+  if(window.__MENO_NATIVE__===true) save(true);
+  document.body.insertAdjacentHTML('afterbegin','<main id="app"></main><div id="sheet-host"></div>');
+  document.addEventListener('click',ev=>{
+    const externalLink=ev.target.closest('a[href]');
+    if(externalLink&&window.__MENO_NATIVE__===true&&window.ReactNativeWebView&&/^https?:\/\//i.test(externalLink.href)){
+      ev.preventDefault(); window.ReactNativeWebView.postMessage(JSON.stringify({type:'open-external-link',url:externalLink.href})); return;
     }
-    const el = ev.target.closest('[data-act]');
+    const el=ev.target.closest('[data-act]');
     if(!el) return;
-    /* The sheet backdrop carries data-act="bg" and wraps everything inside the
-       sheet, so never preventDefault for it — that would block native
-       <details> toggling, text selection and link taps within the sheet. */
-    if(el.dataset.act==='bg'){
-      if(ev.target===el){ ev.preventDefault(); closeSheet(); }
-      return;
-    }
-    if(el.tagName!=='BUTTON' && el.tagName!=='A') return;
+    if(el.dataset.act==='bg'){ if(ev.target===el){ ev.preventDefault(); closeSheet(); } return; }
+    if(el.tagName!=='BUTTON'&&el.tagName!=='A') return;
     ev.preventDefault();
-    handleAction(el, ev);
+    handleAction(el,ev);
   });
-  document.addEventListener('input', ev=>{
-    const el = ev.target.closest('[data-act]');
-    if(el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA')) handleInput(el);
-  });
-  document.addEventListener('change', ev=>{
-    const el = ev.target.closest('[data-act]');
-    if(el && el.tagName==='SELECT') { if(el.dataset.act==='theme'){ handleAction(el, ev); } else handleInput(el); }
-    if(el && el.type==='date') handleInput(el);
-    if(el && el.type==='time') handleInput(el);
-  });
-  document.addEventListener('keydown', keepFocusInSheet);
-  document.addEventListener('keydown', ev=>{
-    if(DB.profile.onboarded || !ev.target.matches('[data-act="ob-intent"]') || !['ArrowDown','ArrowRight','ArrowUp','ArrowLeft','Home','End'].includes(ev.key)) return;
+  document.addEventListener('submit',ev=>{
+    const form=ev.target.closest('form[data-act="dictate-form"]'); if(!form) return;
     ev.preventDefault();
-    const keys=PeriOnboarding.goals.map(goal=>goal.key), current=keys.indexOf(ev.target.dataset.v);
-    const next=ev.key==='Home'?0:ev.key==='End'?keys.length-1:(current+(['ArrowDown','ArrowRight'].includes(ev.key)?1:-1)+keys.length)%keys.length;
-    updateOnboarding({intent:keys[next]},'[data-act="ob-intent"][data-v="'+keys[next]+'"]');
+    const input=form.querySelector('input'); if(input&&input.value.trim()) fileUtterance(input.value.trim());
   });
-  if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
-  window.addEventListener('menocompass-prepare-update', ev=>{
+  document.addEventListener('input',ev=>{ const el=ev.target.closest('[data-act]'); if(el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA')) handleInput(el); });
+  document.addEventListener('change',ev=>{
+    const el=ev.target.closest('[data-act]'); if(!el) return;
+    if(el.tagName==='SELECT'||el.type==='date'||el.type==='time') handleInput(el);
+  });
+  document.addEventListener('keydown',keepFocusInSheet);
+  if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',applyTheme);
+  window.addEventListener('menocompass-prepare-update',ev=>{
     const focused=document.activeElement;
-    const safe=DB.profile.onboarded===true && sheetStack.length===0
-      && ['today','journey','guide'].includes(curTab)
-      && !(focused && focused.matches('input,textarea,select,[contenteditable="true"]'));
+    const safe=DB.profile.onboarded===true&&sheetStack.length===0&&['today','dossier','index'].includes(curTab)&&!(focused&&focused.matches('input,textarea,select,[contenteditable="true"]'));
     if(safe) flush();
-    postNativeEvent('ota-restart-state',{
-      id:ev.detail?.id, safe, ...(safe?{state:JSON.stringify(DB)}:{})
-    });
+    postNativeEvent('ota-restart-state',{id:ev.detail?.id,safe,...(safe?{state:JSON.stringify(DB)}:{})});
   });
   window.addEventListener('beforeunload', flush);
-  window.addEventListener('pagehide', ()=>{ leaveOnboardingStep(); flush(); });
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState==='hidden'){ leaveOnboardingStep(); flush(); }
-    else if(!DB.profile.onboarded) observeOnboardingStep(onboardingDraft().step);
+  window.addEventListener('pagehide',flush);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flush(); else if(DB.profile.onboarded&&curTab==='today'&&!sheetStack.length) render(true); });
+  window.addEventListener('storage',ev=>{
+    if(ev.key!==Store.key||dirty) return;
+    try{ DB=ev.newValue?migrate(JSON.parse(ev.newValue)):blankDB(); render(true); if(sheetStack.length) renderSheet(); toast(ev.newValue?'Updated from another tab':'Cleared in another tab'); }
+    catch(e){ /* Ignore malformed writes from another script on the origin. */ }
   });
-  window.addEventListener('storage', ev=>{
-    if(ev.key!==Store.key || dirty) return;
-    try{
-      DB=ev.newValue ? migrate(JSON.parse(ev.newValue)) : blankDB();
-      render(true); if(sheetStack.length) renderSheet();
-      toast(ev.newValue?'Updated from another tab':'Data was cleared in another tab');
-    }catch(e){ /* Ignore malformed writes from another script on the origin. */ }
-  });
-  const validRoutes=['today','journey','care','guide','checkin','profile','appointment-report','today-details'];
+  const applyHash=(initial)=>{
+    const raw=(location.hash||'').replace('#',''), route=normalizeRoute(raw);
+    if(raw==='redflags'){ if(!sheetStack.includes('redflags')) openSheet('redflags'); return; }
+    if(VALID_ROUTES.includes(route)){ curTab=route; if(route==='today') nightDeskDismissed=nightDeskDismissed||raw==='checkin'; if(!initial){ sheetStack=[]; renderSheet(); render(); } }
+    if(raw==='checkin'&&DB.profile.onboarded){ if(initial) render(); openSheet('log'); }
+    if(raw==='care'&&DB.profile.onboarded&&!nativeProLocked('dossier')){ if(initial) render(); openSheet('treatments'); }
+  };
   const rawHash=(location.hash||'').replace('#',''), hash=normalizeRoute(rawHash);
-  if(validRoutes.includes(hash)) curTab = hash;
-  if(DB.profile.onboarded && DB.profile.firstCheckinPending && !entryDates().length && (!rawHash || hash==='today')){
-    returnTab='today'; curDate=todayISO(); setRoute('checkin',true);
-  }
+  if(VALID_ROUTES.includes(hash)) curTab=hash;
   render();
-  if(window.__MENO_NATIVE__===true) setTimeout(()=>{
-    requestAnimationFrame(()=>postNativeEvent('webview-ready'));
-    postNativeEvent('get-native-privacy-status');
-    postNativeEvent('healthkit-status');
-  },0);
-  if(hash==='redflags') openSheet('redflags');
-  window.addEventListener('hashchange', ()=>{
-    const hh=normalizeRoute((location.hash||'').replace('#',''));
-    if(validRoutes.includes(hh)){ curTab=hh; sheetStack=[]; renderSheet(); render(); }
-    else if(hh==='redflags') openSheet('redflags');
-  });
-  window.addEventListener('popstate',()=>{
-    const route=normalizeRoute((location.hash||'#today').replace('#',''));
-    if(validRoutes.includes(route)){ curTab=route; sheetStack=[]; renderSheet(); render(); }
-  });
+  if(window.__MENO_NATIVE__===true) setTimeout(()=>{ requestAnimationFrame(()=>postNativeEvent('webview-ready')); postNativeEvent('get-native-privacy-status'); postNativeEvent('healthkit-status'); },0);
+  if(rawHash==='redflags'||rawHash==='checkin'||rawHash==='care') applyHash(true);
+  window.addEventListener('hashchange',()=>applyHash(false));
+  window.addEventListener('popstate',()=>{ const route=normalizeRoute((location.hash||'#today').replace('#','')); if(VALID_ROUTES.includes(route)&&route!==curTab){ curTab=route; sheetStack=[]; renderSheet(); render(); } });
   if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }

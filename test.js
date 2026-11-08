@@ -37,30 +37,68 @@ function isoOffset(offset){
   const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+offset);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+/* The night desk takes over the page between 22:00 and 06:00, so every
+   browser context pins its clock to a fixed time of day (same calendar day). */
+async function pinClock(context,hour,minute){
+  await context.addInitScript(({hour,minute})=>{
+    const RealDate=Date; const fixed=new RealDate(); fixed.setHours(hour,minute,0,0);
+    const offset=fixed.getTime()-RealDate.now();
+    class PinnedDate extends RealDate { constructor(...args){ if(args.length) super(...args); else super(RealDate.now()+offset); } static now(){ return RealDate.now()+offset; } }
+    window.Date=PinnedDate;
+  },{hour,minute});
+}
 function profile(overrides={}){
-  return Object.assign({name:'Test',birthYear:1974,region:'us',units:'imperial',lastPeriod:'',surgeryDate:'',uterus:'intact',ovaries:'kept',bone:'unknown',proteinGpk:1.2,weightGoal:null,waistGoal:null,theme:'dark',stage:null,stageAnswers:null,onboarded:true,onboardingStep:3,onboardingDeferred:false,intent:'understand',pinnedSymptoms:['hf','ns','fog','energy','joint','anx']},overrides);
+  return Object.assign({name:'Test',birthYear:1974,region:'us',units:'imperial',lastPeriod:'',surgeryDate:'',uterus:'intact',ovaries:'kept',bone:'unknown',proteinGpk:1.2,weightGoal:null,waistGoal:null,theme:'light',stage:null,stageAnswers:null,onboarded:true,onboardingVersion:4,onboardingStep:0,onboardingDeferred:false,intent:'understand',pinnedSymptoms:['hf','ns','fog','energy','joint','anx'],periodStatus:'gaps'},overrides);
 }
 function confirmed(payload){
   const copy=JSON.parse(JSON.stringify(payload));
   return Object.assign({},payload,{confirmed:true,draftDirty:false,confirmedData:copy});
 }
-function seededState(dayCount=16){
+/* Sixteen days with a legible shape: three afternoon flashes on five of
+   every seven days, two night wakes between 02:00 and 04:00 on sweat nights. */
+function seededState(dayCount=16,options={}){
   const entries={};
   for(let i=dayCount-1;i>=0;i--){
-    const payload={hf:1+(i%4),ns:i%3,sym:{fog:i%2,energy:1+(i%3),joint:1,anx:i%2},act:{res:i%4===0,aero:i%2?20:0},nut:{alc:i%5===0?1:0},sleepH:6.5+(i%2)*.5,inBedH:8,notes:i===2?'A useful note.':''};
+    const flashDay=i%7!==3&&i%7!==6, sweatNight=i%7<5;
+    const moments=[];
+    if(sweatNight){ moments.push({id:'w'+i+'a',t:'02:40',k:'woke'},{id:'s'+i,t:'02:41',k:'ns'},{id:'w'+i+'b',t:'03:30',k:'woke'}); }
+    if(flashDay){ moments.push({id:'h'+i+'a',t:'13:10',k:'hf',s:2},{id:'h'+i+'b',t:'14:30',k:'hf',s:3},{id:'h'+i+'c',t:'15:20',k:'hf',s:1}); }
+    else moments.push({id:'h'+i+'m',t:'09:15',k:'hf',s:1});
+    const payload={hf:flashDay?3:1,ns:sweatNight?2:0,wakes:sweatNight?2:0,rating:(i%5),sym:{fog:sweatNight?2:0,energy:1+(i%3),joint:1,anx:i%2,sleepq:sweatNight?3:1},act:{res:i%4===0,aero:i%2?20:0},nut:{alc:i%5===0?1:0},sleepH:sweatNight?6:7.5,inBedH:8,notes:i===2?'A useful note.':'',moments};
+    if(options.plain){ delete payload.moments; delete payload.wakes; delete payload.rating; }
     entries[isoOffset(-i)]=confirmed(payload);
   }
-  return {v:5,profile:profile(),entries,medications:[{id:'estradiol',name:'Estradiol patch',form:'patch',days:[0,1,2,3,4,5,6],due:'08:00',notes:'',started:isoOffset(-10),ended:'',changes:[{date:isoOffset(-3),label:'Changed from 25 mcg to 50 mcg'}]}],labs:[{id:'lab-1',name:'Estradiol',date:isoOffset(-5),value:'312',unit:'pmol/L'}],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-dayCount),lastOpen:isoOffset(0)}};
+  return {v:options.plain?8:9,profile:profile(),entries,medications:[{id:'estradiol',name:'Estradiol patch',form:'patch',days:[0,1,2,3,4,5,6],due:'08:00',notes:'',started:isoOffset(-10),ended:'',changes:[{date:isoOffset(-3),label:'Changed from 25 mcg to 50 mcg'}]}],labs:[{id:'lab-1',name:'Estradiol',date:isoOffset(-5),value:'312',unit:'pmol/L'}],screening:{},scores:[],trigger:null,appointments:{questions:[],plans:[],brief:{concerns:[],goal:'',date:isoOffset(12)},evidence:[]},meta:{created:isoOffset(-dayCount),lastOpen:isoOffset(0)}};
 }
 async function injectState(context,state){
   await context.addInitScript(value=>localStorage.setItem('menocompass.v1',JSON.stringify(value)),state);
 }
+/* The native shell owns persistence: it re-injects the last persisted state on launch. */
+async function nativeReload({context,page}){
+  const persisted=await page.evaluate(()=>{ flush(); return window.__nativeMessages.filter(m=>m.type==='persist-state').slice(-1)[0].state; });
+  await context.addInitScript(state=>{ window.__MENO_PERSISTED_STATE__=state; },persisted);
+  await page.reload();
+}
+async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,hour=14,minute=14,viewport={width:390,height:844}}={}){
+  const context=await browser.newContext({viewport,deviceScaleFactor:2});
+  await pinClock(context,hour,minute);
+  if(native) await context.addInitScript(({active,state})=>{
+    window.__MENO_NATIVE__=true; window.__MENO_PRO_ACTIVE__=active; window.__nativeMessages=[];
+    window.ReactNativeWebView={postMessage:payload=>window.__nativeMessages.push(JSON.parse(payload))};
+    if(state) window.__MENO_PERSISTED_STATE__=JSON.stringify(state);
+  },{active:pro,state});
+  else if(state) await injectState(context,state);
+  const page=await context.newPage(); monitor(page,label,baseUrl);
+  page.on('dialog',dialog=>dialog.accept());
+  return {context,page};
+}
 
 (async()=>{
   let browser;
+  const contexts=[];
   try {
     check('root index mirror matches dist',fs.readFileSync(path.join(__dirname,'index.html')).equals(fs.readFileSync(path.join(DIST,'index.html'))));
-    check('selected design reference is present',fs.existsSync(path.join(__dirname,'design-reference','daily-compass-selected.png')));
+    check('the app bundle has no mascot and no retired fonts',(()=>{ const html=fs.readFileSync(path.join(DIST,'index.html'),'utf8'); return !/__PIP_|pip-guide|Bricolage/.test(html)&&html.includes('fraunces-latin-opsz-normal.woff2')&&html.includes('instrument-sans-latin-wght-normal.woff2'); })());
 
     console.log('\n== Native and release contracts ==');
     const nativeApp=fs.readFileSync(path.join(__dirname,'mobile','App.native.tsx'),'utf8');
@@ -68,419 +106,244 @@ async function injectState(context,state){
     const review=fs.readFileSync(path.join(__dirname,'mobile','reviewPrompt.native.ts'),'utf8');
     const telemetry=fs.readFileSync(path.join(__dirname,'mobile','telemetry.native.ts'),'utf8');
     const metro=fs.readFileSync(path.join(__dirname,'mobile','metro.config.js'),'utf8');
-    const publishUpdate=fs.readFileSync(path.join(__dirname,'mobile','scripts','publish-update.cjs'),'utf8');
     const expoApp=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','app.json'),'utf8')).expo;
     const dynamicAppConfig=fs.readFileSync(path.join(__dirname,'mobile','app.config.js'),'utf8');
     const widgetPrivacyManifest=fs.readFileSync(path.join(__dirname,'mobile','widgets','PrivacyInfo.xcprivacy'),'utf8');
     const eas=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','eas.json'),'utf8'));
     const mobilePackage=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','package.json'),'utf8'));
     const tiktokModuleConfig=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','expo-module.config.json'),'utf8'));
-    const tiktokSwift=fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','ios','MenoCompassTikTokBusinessModule.swift'),'utf8');
     const reviewNotes=fs.readFileSync(path.join(__dirname,'mobile','APP_REVIEW_NOTES_1.2.0.md'),'utf8');
     const exportCompliance=fs.readFileSync(path.join(__dirname,'mobile','EXPORT_COMPLIANCE_1.2.0.md'),'utf8');
     const reviewNotesPayload=reviewNotes.split('## Paste into the Notes field')[1]?.split('## Submission attachments')[0]?.trim()||'';
     const releaseQa=fs.readFileSync(path.join(__dirname,'mobile','RELEASE_QA_1.2.0.md'),'utf8');
-    const screenshotGenerator=fs.readFileSync(path.join(__dirname,'mobile','store-assets','generate-screenshots.js'),'utf8');
     const store=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','store.config.json'),'utf8'));
     const storeDescription=store.apple.info['en-US'].description;
     const supportCopy=fs.readFileSync(path.join(__dirname,'support.html'),'utf8');
     const privacyCopy=fs.readFileSync(path.join(__dirname,'privacy.html'),'utf8');
     check('inactive iOS entitlement is gated before WebView',nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")>=0&&nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")<nativeApp.lastIndexOf('<WebView'));
-    check('new customers can return to their preview while health records remain gated',fs.readFileSync(path.join(__dirname,'mobile','TrackedPaywall.native.tsx'),'utf8').includes('displayCloseButton: allowDismiss')&&nativeApp.includes('allowDismiss={showOnboardingPreview}'));
     check('zero-price App Store offers fail closed',nativeApp.includes('introPrice?.price === 0'));
     check('native persistence refreshes the active snapshot',nativeApp.includes('setPersistedState(canonical)')&&nativeApp.includes('setExperienceReady(persistedStateIsOnboarded(canonical))'));
     check('store copy discloses no free tier or trial',storeDescription.includes('There is no free tier or free trial.'));
-    check('store copy matches Journey and report ranges',storeDescription.includes('treatment changes together in Journey')&&storeDescription.includes('30-, 90-, or 180-day report')&&!storeDescription.includes('7, 30, and 90 days'));
-    check('support and privacy use the new navigation',supportCopy.includes('In Care, add treatments and lab results')&&supportCopy.includes('open Profile')&&privacyCopy.includes('From Profile under <strong>Account &amp; data</strong>')&&!supportCopy.includes('from Meds')&&!supportCopy.includes('open Settings'));
+    check('support and privacy describe the page, the dossier and You',supportCopy.includes('<strong>Dossier</strong>')&&supportCopy.includes('Close the day')&&supportCopy.includes('open <strong>You</strong>')&&privacyCopy.includes('From You under <strong>Export or restore</strong>')&&!/Open Profile|from Meds|open Settings/.test(supportCopy));
     check('review prompts follow successful check-ins at milestones 2, 5, and 20',review.includes('appReviewMilestones = [2, 5, 20] as const')&&review.includes('registerSuccessfulMoment')&&!review.includes('registerAppOpening'));
-    check('direct marketing SDKs are excluded in favor of ATT-gated AppsFlyer',
-      tiktokModuleConfig.platforms.length===0
-      &&!mobilePackage.dependencies['react-native-fbsdk-next']
-      &&!telemetry.includes('initializeTikTok'));
-    check('EAS Update is configured for versioned production releases',
-      !!mobilePackage.dependencies['expo-updates']
-      &&expoApp.version===mobilePackage.version
-      &&expoApp.runtimeVersion===`${expoApp.version}-native-tracking-2`
-      &&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`
-      &&eas.build.production.channel==='production'
-      &&eas.build.production.uploadSourceMaps===true
-      &&mobilePackage.scripts['ota:production:ios']?.includes('env:exec production'));
-    check('native Liquid Glass tabs use runtime and accessibility fallbacks',
-      !!mobilePackage.dependencies['expo-glass-effect']
-      &&!!mobilePackage.dependencies['expo-symbols']
-      &&nativeGlassTabs.includes('isLiquidGlassAvailable()')
-      &&nativeGlassTabs.includes('isGlassEffectAPIAvailable()')
-      &&nativeGlassTabs.includes('isReduceTransparencyEnabled()')
-      &&nativeGlassTabs.includes('fallbackSurface')
-      &&nativeApp.includes('<NativeGlassTabs')
-      &&nativeApp.includes("message?.type === 'navigation-state'"));
-    check('Expo Observe remains the performance and product-event layer',
-      !!mobilePackage.dependencies['expo-observe']
-      &&nativeApp.includes('ObserveRoot.wrap')
-      &&nativeApp.includes('markInteractive')
-      &&telemetry.includes('Observe.configure')
-      &&telemetry.includes('Observe.logEvent'));
-    check('sanitized Sentry diagnostics and consented Observe have separate gates',
-      !!mobilePackage.dependencies['@sentry/react-native']
-      &&dynamicAppConfig.includes('@sentry/react-native')
-      &&metro.includes('getSentryExpoConfig')
-      &&telemetry.includes('Observe.configure({ dispatchingEnabled: false')
-      &&telemetry.includes('Observe.reportError(safeError(error))'));
-    check('diagnostic privacy declarations and copy cover the new tracking runtime',
-      dynamicAppConfig.includes('NSPrivacyCollectedDataTypeCrashData')
-      &&privacyCopy.includes('Sentry') && privacyCopy.includes('analytics starts off'));
-    const splashPlugin=expoApp.plugins.find(plugin=>Array.isArray(plugin)&&plugin[0]==='expo-splash-screen');
-    check('branded native launch screen is explicitly configured',
-      !!mobilePackage.dependencies['expo-splash-screen']
-      &&splashPlugin?.[1]?.image==='./assets/splash-icon.png'
-      &&splashPlugin?.[1]?.backgroundColor==='#244b43');
-    check('app and widget declare the App Group UserDefaults privacy reason',
-      dynamicAppConfig.includes("APP_GROUP_DEFAULTS_REASON = '1C8F.1'")
-      &&dynamicAppConfig.includes("plugins.push('./widgets/withWidgetPrivacyManifest.js')")
-      &&widgetPrivacyManifest.includes('<string>1C8F.1</string>'));
-    check('new custom encryption receives an explicit App Store determination',
-      expoApp.ios?.config?.usesNonExemptEncryption==null
-      &&exportCompliance.includes('AES.GCM')
-      &&exportCompliance.includes('PBKDF2')
-      &&releaseQa.includes('| Encryption export compliance |'));
-    check('native exports use validated share and PDF bridges',
-      !!mobilePackage.dependencies['expo-sharing']
-      &&!!mobilePackage.dependencies['expo-print']
-      &&nativeApp.includes("message?.type === 'share-file'")
-      &&nativeApp.includes("message?.type === 'share-report'")
-      &&nativeApp.includes('maxNativeShareContentLength')
-      &&nativeApp.includes('Print.printToFileAsync')
-      &&nativeApp.includes('Sharing.shareAsync'));
-    check('native WebView allows zoom and text selection',
-      nativeApp.includes('maximum-scale=5')
-      &&!nativeApp.includes('user-scalable=no')
-      &&nativeApp.includes('textInteractionEnabled'));
-    check('versioned App Review notes cover the gated reviewer path and fit the Notes field',
-      Buffer.byteLength(reviewNotesPayload,'utf8')<=4000
-      &&reviewNotesPayload.length>0
-      &&reviewNotes.includes('Restore Purchases')
-      &&reviewNotes.includes('has no account')
-      &&reviewNotes.includes('Manage Apple subscription')
-      &&reviewNotes.includes('TikTok is not initialized until'));
-    check('release QA record covers native devices, ATT, purchases, restore, and OTA',
-      releaseQa.includes('Small iPhone')
-      &&releaseQa.includes('Pro Max iPhone')
-      &&releaseQa.includes('iPad (portrait + landscape)')
-      &&releaseQa.includes('Restore on fresh install')
-      &&releaseQa.includes('OTA smoke test'));
-    check('store screenshots avoid unmeasured timing promises',screenshotGenerator.includes('Private daily symptom log')&&!/about (20|30) seconds/.test(screenshotGenerator));
+    check('direct marketing SDKs are excluded in favor of ATT-gated AppsFlyer',tiktokModuleConfig.platforms.length===0&&!mobilePackage.dependencies['react-native-fbsdk-next']&&!telemetry.includes('initializeTikTok'));
+    check('EAS Update is configured for versioned production releases',!!mobilePackage.dependencies['expo-updates']&&expoApp.version===mobilePackage.version&&expoApp.runtimeVersion===`${expoApp.version}-native-tracking-2`&&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`&&eas.build.production.channel==='production'&&eas.build.production.uploadSourceMaps===true&&mobilePackage.scripts['ota:production:ios']?.includes('env:exec production'));
+    check('native Liquid Glass tabs use runtime and accessibility fallbacks',!!mobilePackage.dependencies['expo-glass-effect']&&!!mobilePackage.dependencies['expo-symbols']&&nativeGlassTabs.includes('isLiquidGlassAvailable()')&&nativeGlassTabs.includes('isGlassEffectAPIAvailable()')&&nativeGlassTabs.includes('isReduceTransparencyEnabled()')&&nativeGlassTabs.includes('fallbackSurface')&&nativeApp.includes('<NativeGlassTabs')&&nativeApp.includes("message?.type === 'navigation-state'"));
+    check('Expo Observe remains the performance and product-event layer',!!mobilePackage.dependencies['expo-observe']&&nativeApp.includes('ObserveRoot.wrap')&&nativeApp.includes('markInteractive')&&telemetry.includes('Observe.configure')&&telemetry.includes('Observe.logEvent'));
+    check('sanitized Sentry diagnostics and consented Observe have separate gates',!!mobilePackage.dependencies['@sentry/react-native']&&dynamicAppConfig.includes('@sentry/react-native')&&metro.includes('getSentryExpoConfig')&&telemetry.includes('Observe.configure({ dispatchingEnabled: false')&&telemetry.includes('Observe.reportError(safeError(error))'));
+    check('diagnostic privacy declarations and copy cover the new tracking runtime',dynamicAppConfig.includes('NSPrivacyCollectedDataTypeCrashData')&&privacyCopy.includes('Sentry')&&privacyCopy.includes('analytics starts off'));
+    check('app and widget declare the App Group UserDefaults privacy reason',dynamicAppConfig.includes("APP_GROUP_DEFAULTS_REASON = '1C8F.1'")&&dynamicAppConfig.includes("plugins.push('./widgets/withWidgetPrivacyManifest.js')")&&widgetPrivacyManifest.includes('<string>1C8F.1</string>'));
+    check('new custom encryption receives an explicit App Store determination',expoApp.ios?.config?.usesNonExemptEncryption==null&&exportCompliance.includes('AES.GCM')&&exportCompliance.includes('PBKDF2')&&releaseQa.includes('| Encryption export compliance |'));
+    check('native exports use validated share and PDF bridges',!!mobilePackage.dependencies['expo-sharing']&&!!mobilePackage.dependencies['expo-print']&&nativeApp.includes("message?.type === 'share-file'")&&nativeApp.includes("message?.type === 'share-report'")&&nativeApp.includes('maxNativeShareContentLength')&&nativeApp.includes('Print.printToFileAsync')&&nativeApp.includes('Sharing.shareAsync'));
+    check('native WebView allows zoom and text selection',nativeApp.includes('maximum-scale=5')&&!nativeApp.includes('user-scalable=no')&&nativeApp.includes('textInteractionEnabled'));
+    check('versioned App Review notes cover the gated reviewer path and fit the Notes field',Buffer.byteLength(reviewNotesPayload,'utf8')<=4000&&reviewNotesPayload.length>0&&reviewNotes.includes('Restore Purchases')&&reviewNotes.includes('has no account')&&reviewNotes.includes('Manage Apple subscription'));
     const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'manifest.webmanifest'),'utf8'));
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
-    check('manifest uses the new Journey route',shortcutUrls.includes('#journey')&&!shortcutUrls.includes('#trends'));
+    check('manifest shortcuts open the log, the dossier, the index and red flags',shortcutUrls.includes('#checkin')&&shortcutUrls.includes('#dossier')&&shortcutUrls.includes('#index')&&shortcutUrls.includes('#redflags')&&manifest.theme_color==='#fbfbf9');
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version includes isolated public pages',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v21'));
+    check('offline cache version was bumped with the new fonts',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v22')&&serviceWorker.includes('fraunces-latin-opsz-normal.woff2')&&!serviceWorker.includes('bricolage'));
+    check('the native sync inlines every local font',fs.readFileSync(path.join(__dirname,'mobile','scripts','sync-web.cjs'),'utf8').includes('fontPattern'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
     await new Promise((resolve,reject)=>{ server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
     const baseUrl=`http://127.0.0.1:${server.address().port}`;
     browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
 
-    console.log('\n== Onboarding and four-part shell ==');
-    const onboardingContext=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2});
-    await onboardingContext.addInitScript(()=>{
-      window.__MENO_NATIVE__=true;
-      window.__MENO_PRO_ACTIVE__=true;
-      window.__nativeMessages=[];
-      window.ReactNativeWebView={postMessage:payload=>window.__nativeMessages.push(JSON.parse(payload))};
-    });
-    const page=await onboardingContext.newPage(); monitor(page,'onboarding',baseUrl);
+    console.log('\n== First run: a letter with blanks ==');
+    const first=await newPage(browser,baseUrl,'first-run',{native:true}); contexts.push(first.context);
+    const page=first.page;
     await page.goto(baseUrl+'/index.html');
-    check('onboarding opens with the new promise',await page.getByRole('heading',{name:'Let’s make room for you.'}).isVisible());
-    check('onboarding keeps health entries local',(await page.locator('.ob-trust').innerText()).includes('Your health entries stay on this device.'));
-    check('bottom navigation is hidden during setup',!(await page.locator('nav.tabs').isVisible()));
-    await page.getByRole('button',{name:'Find my starting point'}).click();
-    check('concern selection starts empty',await page.locator('.ob-choice[aria-pressed="true"]').count()===0);
-    for(const label of ['Hot flashes','Night sweats','Brain fog','Fatigue']) await page.getByRole('button',{name:label,exact:true}).click();
-    await page.getByRole('button',{name:'See all concerns'}).click();
-    for(const label of ['Joint pain','Anxiety']) await page.getByRole('button',{name:label,exact:true}).click();
-    await page.getByRole('button',{name:'These matter to me'}).click();
-    check('intent step is shown',await page.getByRole('heading',{name:'What would help you most?'}).isVisible());
-    await page.getByRole('radio',{name:'Keep track of treatment'}).click();
-    await page.getByRole('button',{name:'See my check-in'}).click();
-    check('preview has chosen concerns without collecting clinical context',await page.getByRole('heading',{name:'Your check-in, made for you.'}).isVisible()&&await page.locator('.ob-preview li').count()===6&&await page.locator('input,select').count()===0);
-    await page.getByRole('button',{name:'Start my first check-in'}).click();
-    check('setup leads into the first real check-in without inventing a log',await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible()&&await page.evaluate(()=>entryDates().length===0));
-    await page.getByRole('button',{name:'Today',exact:true}).click();
-    check('empty Today reflects the selected starting point',await page.getByRole('heading',{name:'Your check-in is ready.'}).isVisible());
-    const onboardingEvents=await page.evaluate(()=>window.__nativeMessages.filter(message=>message.type!=='persist-state'));
-    check('native bridge records onboarding steps and completion',
-      onboardingEvents.some(message=>message.type==='onboarding-step'&&message.step===1)
-      &&onboardingEvents.some(message=>message.type==='onboarding-finished'&&message.skipped===false),
-      JSON.stringify(onboardingEvents));
-    const tabs=await page.locator('nav.tabs .inner button').allTextContents();
-    check('shell has exactly Today, Journey, Care, Guide',JSON.stringify(tabs)===JSON.stringify(['Today','Journey','Care','Guide']),JSON.stringify(tabs));
-    check('Tools, Safety, and Profile are global actions',await page.getByRole('button',{name:'Open tools'}).isVisible()&&await page.getByRole('button',{name:'Safety guidance'}).isVisible()&&await page.getByRole('button',{name:'Open Profile'}).isVisible());
+    check('the first page is the letter',await page.getByRole('heading',{name:'Fill in the blanks. That is the whole setup.'}).isVisible()&&await page.locator('.masthead-nav').count()===0);
+    check('the page cannot open before a concern is chosen',await page.getByRole('button',{name:'Open today’s page'}).isDisabled());
+    for(const key of ['sleepq','hf','fog','ns']) await page.locator('[data-act="fr-symptom"][data-v="'+key+'"]').click();
+    await page.getByLabel('Your age').fill('47');
+    await page.locator('[data-act="fr-periods"][data-v="stopped"]').click();
+    check('a stopped cycle asks how long ago before it stages anything',await page.locator('[data-act="fr-since"]').count()===3&&await page.getByRole('heading',{name:'Fill in the rest and the finding appears.'}).isVisible());
+    await page.locator('[data-act="fr-since"][data-v="2to6"]').click();
+    check('the elapsed time decides the postmenopause stage',await page.getByRole('heading',{name:'Postmenopause.'}).isVisible());
+    await page.locator('[data-act="fr-periods"][data-v="gaps"]').click();
+    check('the elapsed-time blank leaves with the stopped cycle',await page.locator('[data-act="fr-since"]').count()===0);
+    await page.locator('[data-act="fr-appt"][data-v="yes"]').click();
+    await page.getByLabel('Appointment date').fill(isoOffset(12));
+    check('the finding appears from age, cycle and concerns',await page.getByRole('heading',{name:'Most likely: late perimenopause.'}).isVisible());
+    await nativeReload(first);
+    check('letter answers survive a reload without finishing',await page.evaluate(()=>!DB.profile.onboarded&&DB.profile.pinnedSymptoms.join(',')==='sleepq,hf,fog,ns'&&DB.profile.periodStatus==='gaps'&&DB.profile.birthYear===new Date().getFullYear()-47)&&await page.locator('[data-act="fr-symptom"][data-v="hf"][aria-pressed="true"]').count()===1);
+    await page.locator('[data-act="fr-appt"][data-v="yes"]').click();
+    await page.getByLabel('Appointment date').fill(isoOffset(12));
+    await page.getByRole('button',{name:'Open today’s page'}).click();
+    await page.waitForSelector('.page-today');
+    const afterLetter=await page.evaluate(()=>({onboarded:DB.profile.onboarded,version:DB.profile.onboardingVersion,stage:DB.profile.stage,intent:DB.profile.intent,date:DB.appointments.brief.date,entries:entryDates().length,messages:window.__nativeMessages.filter(m=>m.type!=='persist-state').map(m=>m.type+(m.route?':'+m.route:''))}));
+    check('finishing the letter stages, dates the appointment and invents no pages',afterLetter.onboarded&&afterLetter.version===4&&afterLetter.stage==='Late menopausal transition'&&afterLetter.intent==='appointment'&&afterLetter.date===isoOffset(12)&&afterLetter.entries===0,JSON.stringify(afterLetter));
+    check('native bridge sees the letter and its completion',afterLetter.messages.includes('onboarding-step')&&afterLetter.messages.includes('onboarding-finished')&&afterLetter.messages.includes('navigation-state:today'),JSON.stringify(afterLetter.messages));
+    const tabs=await page.locator('.masthead-nav button').allTextContents();
+    check('the masthead has exactly Today, Dossier, Index',JSON.stringify(tabs)===JSON.stringify(['Today','Dossier','Index']),JSON.stringify(tabs));
+    check('You is reachable from the masthead',await page.getByRole('button',{name:'You: profile, record and settings'}).isVisible());
 
-    console.log('\n== Prominent tool access ==');
-    const todayTools=page.locator('.mc-home-resources');
-    const todayToolLabels=await todayTools.locator('button b').allTextContents();
-    check('Today surfaces three focused resources and the global tool library',
-      await todayTools.isVisible()
-      &&await todayTools.locator('button').count()===3
-      &&JSON.stringify(todayToolLabels)===JSON.stringify(['A moment to breathe','Make sense of sleep','Check in with your mood'])
-      &&await todayTools.locator('[data-s="tool:breath"]').isVisible()
-      &&await todayTools.locator('[data-s="learn:sleep"]').isVisible()
-      &&await todayTools.locator('[data-s="tool:phq9"]').isVisible()
-      &&await page.getByRole('button',{name:'Open tools',exact:true}).isVisible(),
-      JSON.stringify(todayToolLabels));
-    const todayUrl=page.url();
-    const breatheTrigger=todayTools.getByRole('button',{name:/^A moment to breathe/});
-    await breatheTrigger.click();
-    check('Today opens Paced breathing directly',
-      await page.getByRole('dialog').getByRole('heading',{name:'Paced breathing',exact:true}).isVisible()
-      &&await page.getByRole('dialog').getByText('6 breaths per minute',{exact:true}).isVisible());
-    await page.getByRole('button',{name:'Close Paced breathing'}).click();
-    await page.waitForFunction(()=>document.activeElement?.dataset?.s==='tool:breath');
-    check('closing a direct tool preserves Today and restores its trigger',
-      page.url()===todayUrl
-      &&await page.getByRole('dialog').count()===0
-      &&await breatheTrigger.evaluate(el=>document.activeElement===el)
-      &&await page.evaluate(()=>breathTimer===null));
-    await page.getByRole('button',{name:'Open tools',exact:true}).click();
-    const toolsDialog=page.getByRole('dialog');
-    const toolGroupShape=await toolsDialog.locator('.jc-tools-library > section').evaluateAll(groups=>groups.map(group=>({
-      name:group.querySelector('h3')?.textContent?.trim()||'',
-      count:group.querySelectorAll('.jc-tool-row').length
-    })));
-    check('All tools shows exactly eight tools in three useful groups',
-      await toolsDialog.getByRole('heading',{name:'Tools',exact:true}).isVisible()
-      &&await toolsDialog.locator('.jc-tool-row').count()===8
-      &&JSON.stringify(toolGroupShape)===JSON.stringify([
-        {name:'Quick relief',count:2},
-        {name:'Check in',count:2},
-        {name:'Plan & learn',count:4}
-      ]),
-      JSON.stringify(toolGroupShape));
-    const waistRow=toolsDialog.getByRole('button',{name:/Waist reference/});
-    await waistRow.scrollIntoViewIfNeeded();
-    const libraryScrollTop=await toolsDialog.evaluate(el=>el.scrollTop);
-    await waistRow.click();
-    check('a nested tool clearly returns to the library',
-      await page.getByRole('dialog').getByRole('heading',{name:'Waist reference',exact:true}).isVisible()
-      &&await page.getByRole('button',{name:'Back to Tools'}).isVisible());
-    await page.getByRole('button',{name:'Back to Tools'}).click();
-    await page.waitForFunction(()=>document.activeElement?.dataset?.s==='tool:waist');
-    check('returning from a nested tool restores library position and focus',
-      await toolsDialog.evaluate((el,prior)=>el.scrollTop>=prior-2,libraryScrollTop)
-      &&await toolsDialog.getByRole('button',{name:/Waist reference/}).evaluate(el=>document.activeElement===el));
-    await toolsDialog.getByRole('button',{name:'Close Tools'}).click();
-    await page.screenshot({path:path.join(TEST_RESULTS,'journey-shell-today.png')});
+    console.log('\n== Today’s page and the ledger ==');
+    check('an empty record is said plainly',await page.locator('.finding .label').innerText().then(t=>t==='THE RECORD'||t==='The record')&&await page.getByText('Nothing on record yet. Log the first thing that happens.').isVisible()&&await page.locator('.ledger-row.empty').count()===1);
+    check('the appointment countdown is on the page',await page.getByText(/Dossier · appointment in 12 days/).isVisible());
+    await page.getByRole('button',{name:'Log',exact:true}).click();
+    const logSheet=page.getByRole('dialog');
+    check('the log sheet is black and leads with the always-on words',await page.locator('.sheet.night').count()===1&&await logSheet.locator('.bigrow').first().innerText().then(t=>t.startsWith('Hot flash'))&&await logSheet.getByRole('button',{name:'Log Night sweat now'}).isVisible()&&await logSheet.getByRole('button',{name:'Log Woke now'}).isVisible()&&await logSheet.getByRole('button',{name:'Log Brain fog now'}).isVisible());
+    await logSheet.getByRole('button',{name:'Log Hot flash now'}).click();
+    await logSheet.getByRole('button',{name:'Strong',exact:true}).click();
+    await logSheet.getByRole('button',{name:'Log Brain fog now'}).click();
+    await logSheet.getByRole('button',{name:/^More…/}).click();
+    check('more words reveal the rest of the vocabulary',await logSheet.getByRole('button',{name:'Log Bleeding now'}).isVisible()&&await logSheet.getByRole('button',{name:'Log Palpitations now'}).isVisible());
+    await logSheet.locator('.sheet-bar .done').click();
+    const ledgerState=await page.evaluate(()=>{ const t=todayISO(), e=confirmedEntry(t); return {count:entryDates().length,hf:e.hf,fog:e.sym.fog,moments:e.moments.map(m=>m.k+':'+(m.s||'')),rows:document.querySelectorAll('.page-today button.ledger-row').length,confirmedEvents:window.__nativeMessages.filter(m=>m.type==='checkin-confirmed').length}; });
+    check('one tap files a moment and the day counts at once',ledgerState.count===1&&ledgerState.hf===1&&ledgerState.fog===2&&JSON.stringify(ledgerState.moments)===JSON.stringify(['hf:3','fog:'])&&ledgerState.rows===2&&ledgerState.confirmedEvents===1,JSON.stringify(ledgerState));
+    check('the record headline replaces the empty statement',await page.getByText('Day 1 of the record. Findings need about a week of pages.').isVisible());
+    await page.locator('.page-today button.ledger-row').first().click();
+    const momentSheet=page.getByRole('dialog');
+    await momentSheet.getByRole('button',{name:'Mild',exact:true}).click();
+    await momentSheet.getByLabel('Time').fill('11:02');
+    await momentSheet.locator('.sheet-bar .done').click();
+    const edited=await page.evaluate(()=>{ const m=dayMoments(todayISO())[0]; return {k:m.k,s:m.s,t:m.t,text:document.querySelector('.page-today .ledger-row .t').textContent}; });
+    check('a ledger row can be re-timed and re-graded',edited.k==='hf'&&edited.s===1&&edited.t==='11:02'&&edited.text==='11:02',JSON.stringify(edited));
+    await page.locator('.page-today button.ledger-row').last().click();
+    await page.getByRole('dialog').getByRole('button',{name:'Delete this entry'}).click();
+    check('deleting the last moment of a kind clears its day field',await page.evaluate(()=>{ const e=confirmedEntry(todayISO()); return e.sym.fog===undefined&&e.hf===1&&dayMoments(todayISO()).length===1; }));
+    await page.getByRole('button',{name:'Close the day',exact:true}).click();
+    const closeSheet=page.getByRole('dialog');
+    check('close the day is one question and four facts',await closeSheet.locator('.words button').count()===5&&await closeSheet.locator('.check').count()===4&&await closeSheet.getByText('1 flash',{exact:false}).isVisible());
+    await closeSheet.getByRole('button',{name:'Close the day',exact:true}).click();
+    check('closing needs a word for the day',await page.getByRole('dialog').count()===1);
+    await closeSheet.getByRole('button',{name:'Fair',exact:true}).click();
+    await closeSheet.locator('.check[data-k="alcohol"]').click();
+    await closeSheet.getByRole('button',{name:'Close the day',exact:true}).click();
+    const closed=await page.evaluate(()=>{ const e=confirmedEntry(todayISO()); return {rating:e.rating,alc:e.nut.alc,res:e.act.res,bleed:e.bleed,button:document.querySelector('.actions .btn:not(.wide)').textContent.trim()}; });
+    check('closing files the rating and explicit zeros',closed.rating===2&&closed.alc===1&&closed.res===false&&closed.bleed==='none'&&closed.button==='Closed · Fair',JSON.stringify(closed));
+    await nativeReload(first);
+    check('the page survives a reload',await page.getByRole('button',{name:'Closed · Fair'}).isVisible()&&await page.evaluate(()=>entryDates().length===1&&confirmedEntry(todayISO()).rating===2));
+    await page.getByRole('button',{name:'Earlier pages'}).click();
+    await page.getByRole('dialog').locator('[data-act="sheet"][data-s="day:'+isoOffset(-1)+'"]').click();
+    await page.getByRole('dialog').locator('#past-kind').selectOption('ns');
+    await page.getByRole('dialog').locator('#past-time').fill('02:15');
+    await page.getByRole('dialog').getByRole('button',{name:'Add',exact:true}).click();
+    const pastDay=await page.evaluate(d=>{ const e=confirmedEntry(d); return {ns:e&&e.ns,moment:e&&e.moments[0].t,today:confirmedEntry(todayISO()).ns}; },isoOffset(-1));
+    check('an earlier page takes an entry without touching today',pastDay.ns===2&&pastDay.moment==='02:15'&&pastDay.today===undefined,JSON.stringify(pastDay)+' (an unrated sweat rolls up as moderate on the 0–4 scale)');
+    await page.locator('.sheet-bar .done').click();
+    await page.locator('.sheet-bar .done').click();
+    await page.screenshot({path:path.join(TEST_RESULTS,'today-first-day.png')});
 
-    console.log('\n== Draft, confirmation, and atomic update ==');
-    check('Today starts with a clear Check in action and an honest starting focus',await page.locator('.mc-checkin-card [data-act="start-checkin"]').count()===1&&await page.getByRole('button',{name:'Check in',exact:true}).isVisible()&&await page.getByRole('heading',{name:'Your check-in is ready.'}).isVisible()&&await page.getByRole('progressbar').count()===0);
-    await page.getByRole('button',{name:'Check in',exact:true}).click();
-    check('check-in is focused and hides bottom navigation',await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
-    check('check-in explains the confirmation boundary',await page.getByText('Nothing counts in your patterns until you confirm.').isVisible());
-    check('focused check-in has six symptom controls',await page.locator('.jc-check-row').count()===6);
-    await page.getByRole('button',{name:'One more hot flash'}).click();
-    await page.getByRole('button',{name:'One more hot flash'}).click();
-    await page.getByRole('button',{name:'Night sweats: Moderate'}).click();
-    await page.locator('.jc-add-symptom summary').click();
-    check('adding a symptom opens choices inside check-in',await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible()&&await page.locator('[data-act="checkin-add-symptom"]').count()===12);
-    await page.locator('[data-act="checkin-add-symptom"][data-v="head"]').click();
-    check('selected symptom adds an unrated field without changing profile or prior ratings',await page.locator('.jc-check-row').count()===7&&await page.locator('.jc-check-list [data-k="sym.head"][aria-pressed="true"]').count()===0&&await page.getByRole('button',{name:'Night sweats: Moderate'}).getAttribute('aria-pressed')==='true'&&await page.evaluate(()=>DB.profile.pinnedSymptoms.length===6&&!DB.profile.pinnedSymptoms.includes('head')));
-    await page.locator('.jc-check-list [data-k="sym.head"][data-v="2"]').click();
-    const symptomContext=await browser.newContext({viewport:{width:390,height:844}});
-    await injectState(symptomContext,await page.evaluate(()=>JSON.parse(JSON.stringify(DB))));
-    const symptomPage=await symptomContext.newPage();
-    await symptomPage.goto(baseUrl+'/index.html#checkin');
-    check('extra symptom and rating restore from saved data',await symptomPage.locator('.jc-check-row').count()===7&&await symptomPage.locator('.jc-check-list [data-k="sym.head"][data-v="2"]').getAttribute('aria-pressed')==='true');
-    await symptomContext.close();
-    await page.locator('.jc-add-symptom summary').click();
-    check('already added symptoms cannot be added twice',await page.locator('[data-act="checkin-add-symptom"][data-v="head"]').count()===0);
-    await page.locator('.jc-add-symptom summary').click();
-    check('symptoms come first with optional context and expandable rating help',await page.locator('.mc-check-steps button').count()===2&&await page.locator('.jc-note').count()===0&&await page.locator('.jc-scale-guide details').getAttribute('open')===null);
-    await page.getByRole('button',{name:'Add context',exact:true}).click();
-    check('context review preserves ratings and offers treatment and detail access',await page.locator('.mc-check-summary').innerText().then(text=>text.includes('Hot flashes')&&text.includes('2 flashes')&&text.includes('Moderate'))&&await page.getByText('Today’s treatment',{exact:true}).isVisible()&&await page.getByRole('button',{name:/^Add more detail/}).isVisible());
-    await page.getByLabel('Anything worth remembering?').fill('A quiet walk helped today.');
-    await page.getByRole('button',{name:'Edit ratings',exact:true}).click();
-    check('moving between check-in steps preserves the autosaved draft',await page.getByRole('button',{name:'Night sweats: Moderate',exact:true}).getAttribute('aria-pressed')==='true'&&await page.evaluate(()=>entry(todayISO()).notes==='A quiet walk helped today.'&&entryDates().length===0));
-    await page.locator('.jc-back').click();
-    check('unfinished work returns as a draft without inventing progress',await page.getByRole('button',{name:'Finish check-in'}).isVisible()&&await page.getByRole('heading',{name:'Your check-in is ready.'}).isVisible()&&await page.getByRole('progressbar').count()===0);
-    await page.getByRole('button',{name:'Journey',exact:true}).click();
-    check('drafts do not count as confirmed',await page.getByText('0 confirmed days').isVisible()&&await page.getByText('Weekly comparisons need at least 4 confirmed days in each window.').isVisible());
-    await page.getByRole('button',{name:'Finish check-in'}).click();
-    await page.getByRole('button',{name:'Confirm today’s log'}).click();
-    check('confirming a check-in emits a native success moment',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='checkin-confirmed')));
-    check('first confirmation celebrates the actual saved record',await page.getByRole('heading',{name:'Your first check-in is saved.'}).isVisible()&&await page.evaluate(()=>entryDates().length===1&&!DB.profile.firstCheckinPending));
-    await page.getByRole('button',{name:'See my first check-in'}).click();
-    check('Journey uses the confirmed snapshot',await page.getByText(/Hot flashes: 2 flashes/).isVisible());
-    await page.getByRole('button',{name:'Edit today'}).click();
-    await page.getByRole('button',{name:'One more hot flash'}).click();
-    await page.locator('.jc-back').click();
-    const journeyDraftText=await page.locator('#app').innerText();
-    check('editing preserves the prior confirmed snapshot',journeyDraftText.includes('Draft saved — confirmed version stays in patterns')&&journeyDraftText.includes('Hot flashes: 2 flashes')&&journeyDraftText.includes('1 confirmed day'));
-    await page.getByRole('button',{name:'Finish check-in'}).click();
-    await page.getByRole('button',{name:'Confirm today’s log'}).click();
-    await page.getByRole('button',{name:'Back to Journey'}).click();
-    const journeyUpdatedText=await page.locator('#app').innerText();
-    check('reconfirmation updates in place without adding a day',journeyUpdatedText.includes('Hot flashes: 3 flashes')&&journeyUpdatedText.includes('1 confirmed day'));
+    console.log('\n== Findings and the dossier ==');
+    const seeded=await newPage(browser,baseUrl,'seeded',{state:seededState(16),native:true}); contexts.push(seeded.context);
+    const seededPage=seeded.page;
+    await seededPage.goto(baseUrl+'/index.html');
+    const findingIds=await seededPage.evaluate(()=>findings().map(f=>f.id));
+    check('the ledger’s shape becomes findings',findingIds.includes('hf-cluster-afternoon')&&findingIds.includes('wake-window')&&findingIds.includes('sweat-wakes')&&findingIds.includes('fog-after-nights'),JSON.stringify(findingIds));
+    const headline=await seededPage.locator('.finding h1').innerText();
+    check('today’s page leads with a pattern, not a nag',/^Three flashes, all in the afternoon\. Your mornings are clear\.$|^Flashes cluster in the afternoon\.|^You wake between/.test(headline),headline);
+    check('the headline says where it was filed',await seededPage.getByText(/Filed to the dossier as finding 0\d\./).isVisible());
+    await seededPage.getByRole('button',{name:'Dossier',exact:true}).click();
+    const sections=await seededPage.locator('.sec-head h2').allTextContents();
+    check('the dossier has its seven numbered sections',JSON.stringify(sections)===JSON.stringify(['Where you are','Findings','Treatments','Questions','Evidence','After the visit','Opening statement']),JSON.stringify(sections));
+    const stats=await seededPage.locator('.stats .stat .k').allTextContents();
+    check('the stats strip counts down to the appointment',stats[0].includes('days to go')&&stats[1].includes('days recorded')&&await seededPage.locator('.stats .stat .v').first().innerText().then(t=>t.trim()==='12'),JSON.stringify(stats));
+    check('findings carry a numeral, a window and a filed date',await seededPage.locator('.fnd').first().locator('.big').isVisible()&&await seededPage.locator('.fnd .note').first().innerText().then(t=>/^Filed /.test(t)));
+    check('the dossier names the treatment and the stopped list honestly',await seededPage.locator('.sec').filter({hasText:'Treatments'}).getByText('Estradiol patch').isVisible());
+    await seededPage.getByRole('button',{name:'Export the one-page brief'}).click();
+    check('the brief is its own route',await seededPage.getByRole('heading',{name:'The brief.'}).isVisible()&&await seededPage.locator('.masthead-nav').count()===0&&await seededPage.getByText('Based on 16 recorded days').isVisible());
+    check('the brief carries findings, treatments and a window label',await seededPage.locator('.report-page .rsec').filter({hasText:'Findings'}).isVisible()&&await seededPage.locator('.report-page').getByText('Changed from 25 mcg to 50 mcg').isVisible()&&await seededPage.locator('.report-page').getByText(/Summary · last 30 days/).isVisible());
+    await seededPage.getByRole('button',{name:'30 days'}).click();
+    check('range controls update the brief',await seededPage.locator('.report-page').getByText('Brief for the appointment · 30 days').isVisible());
+    await seededPage.getByRole('button',{name:'Print or save as PDF'}).click();
+    const nativeReportShare=await seededPage.evaluate(()=>window.__nativeMessages.filter(message=>message.type==='share-report').slice(-1)[0]);
+    check('native report export sends the rendered brief without scripts',nativeReportShare?.name?.endsWith('.pdf')&&nativeReportShare?.html?.includes('Brief for the appointment · 30 days')&&!/<script\b/i.test(nativeReportShare?.html||''));
+    const nativeFileShare=await seededPage.evaluate(()=>{ download('bridge-check.json','{"ok":true}','application/json'); return window.__nativeMessages.filter(message=>message.type==='share-file').slice(-1)[0]; });
+    check('native data export bypasses WebView downloads with typed contents',nativeFileShare?.name==='bridge-check.json'&&nativeFileShare?.mime==='application/json'&&nativeFileShare?.contents==='{"ok":true}');
+    const navState=await seededPage.evaluate(()=>window.__nativeMessages.filter(m=>m.type==='navigation-state').map(m=>m.route+':'+m.primary));
+    check('navigation state keeps the native tab names',navState.includes('journey:true')&&navState.includes('appointment-report:false'),JSON.stringify(navState));
+    await seededPage.getByRole('button',{name:'Dossier',exact:true}).first().click();
+    await seededPage.getByRole('button',{name:'Rehearse the opening'}).click();
+    check('rehearsal asks for the brief when there is none',await seededPage.getByRole('dialog').getByText('Nothing to rehearse yet.').isVisible());
+    await seededPage.locator('.sheet-bar .done').click();
+    await seededPage.screenshot({path:path.join(TEST_RESULTS,'dossier.png'),fullPage:true});
 
-    console.log('\n== Care, treatment events, report, Guide, and Profile ==');
-    await page.getByRole('button',{name:'Care',exact:true}).click();
-    check('Care uses the selected hierarchy',await page.getByRole('heading',{name:'Your care',exact:true}).isVisible()&&await page.getByText('Today’s care').isVisible()&&await page.getByText('Appointment report',{exact:true}).isVisible());
-    await page.getByRole('button',{name:'Add a medication'}).click();
-    await page.getByLabel('Medication and dose').fill('Estradiol patch');
-    await page.getByLabel('Starting details (optional)').fill('Started 25 mcg');
-    await page.getByLabel('Start date (optional)').fill(isoOffset(-7));
-    await page.getByRole('button',{name:'Save medication'}).click();
-    check('a dated treatment can be added',await page.locator('.jc-treatment').filter({hasText:'Estradiol patch'}).isVisible());
-    await page.getByRole('button',{name:'Record change'}).click();
-    await page.getByLabel('What changed?').fill('Changed from 25 mcg to 50 mcg');
-    await page.getByRole('button',{name:'Save change'}).click();
-    await page.getByRole('button',{name:'Journey',exact:true}).click();
-    check('real treatment changes appear in Journey',await page.locator('.jc-timeline-event.treatment').filter({hasText:'Changed from 25 mcg to 50 mcg'}).getByRole('heading',{name:'Estradiol patch changed',exact:true}).isVisible()&&await page.getByText('Observed association—not proof of cause and effect.').isVisible());
-    await page.getByRole('button',{name:'Care',exact:true}).click();
-    await page.getByRole('button',{name:'Prepare appointment report'}).click();
-    check('report is a dedicated route',await page.getByRole('heading',{name:'Appointment report'}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
-    check('report states confirmed provenance',await page.getByText(/Based on 1 confirmed day/).isVisible());
-    await page.getByRole('button',{name:'30 days'}).click();
-    check('range controls materially update the report',await page.getByText('Appointment report · 30 days').isVisible());
-    await page.getByRole('button',{name:'Print / save as PDF'}).click();
-    const nativeReportShare=await page.evaluate(()=>window.__nativeMessages.filter(message=>message.type==='share-report').slice(-1)[0]);
-    check('native report export sends current rendered HTML without executable scripts',
-      nativeReportShare?.name?.endsWith('.pdf')
-      &&nativeReportShare?.html?.includes('Appointment report · 30 days')
-      &&!/<script\b/i.test(nativeReportShare?.html||''));
-    const nativeFileShare=await page.evaluate(()=>{
-      download('bridge-check.json','{"ok":true}','application/json');
-      return window.__nativeMessages.filter(message=>message.type==='share-file').slice(-1)[0];
+    console.log('\n== The index ==');
+    await seededPage.getByRole('button',{name:'Index',exact:true}).click();
+    check('the index quotes her own ledger before any chapter',await seededPage.locator('.ask-ledger').innerText().then(t=>t.startsWith('In your ledger:')));
+    check('chapters are grouped and numbered',await seededPage.locator('.entry').count()===15+9&&await seededPage.locator('.entry .path').first().innerText().then(t=>t==='CHAPTER 1 OF 15'||t==='Chapter 1 of 15'));
+    await seededPage.getByRole('searchbox',{name:'Search the index'}).fill('waking at 3 am');
+    check('a question finds the sleep chapter first',await seededPage.locator('#index-results .entry .head').first().innerText().then(t=>t==='Sleep'));
+    await seededPage.locator('#index-results .entry').first().click();
+    const chapter=seededPage.getByRole('dialog');
+    check('a chapter opens with its content and a pin',await chapter.getByRole('heading',{name:'Sleep',exact:true}).isVisible()&&await chapter.getByRole('button',{name:'Pin to the dossier'}).isVisible());
+    await chapter.getByRole('button',{name:'Pin to the dossier'}).click();
+    check('pinning a chapter files evidence',await seededPage.evaluate(()=>DB.appointments.evidence.length===1&&DB.appointments.evidence[0].ref==='learn:sleep')&&await chapter.getByRole('button',{name:'Unpin'}).isVisible());
+    await chapter.locator('.sheet-bar .done').click();
+    await seededPage.getByRole('button',{name:'Dossier',exact:true}).click();
+    check('pinned evidence shows in the dossier',await seededPage.locator('.sec').filter({hasText:'Evidence'}).getByText('Sleep (chapter)').isVisible());
+
+    console.log('\n== Pro gating on iOS ==');
+    const locked=await newPage(browser,baseUrl,'pro-locked',{state:seededState(16),native:true,pro:false}); contexts.push(locked.context);
+    await locked.page.goto(baseUrl+'/index.html#dossier');
+    check('a locked dossier shows the offer, not the record',await locked.page.locator('.lock').isVisible()&&await locked.page.getByRole('button',{name:'Unlock peri Pro'}).isVisible()&&await locked.page.locator('.sec').count()===0);
+    await locked.page.getByRole('button',{name:'Unlock peri Pro'}).click();
+    const paywall=await locked.page.evaluate(()=>window.__nativeMessages.filter(m=>m.type==='open-pro-paywall').map(m=>m.feature));
+    check('unlocking asks the native shell for the paywall',paywall.includes('journey'),JSON.stringify(paywall));
+    const lockMap=await locked.page.evaluate(()=>{ const ios=[nativeProLocked('dossier'),nativeProLocked('appointment-report'),nativeProLocked('today'),nativeProLocked('index')]; window.__MENO_NATIVE_SUBSCRIPTIONS__=false; const android=[nativeProLocked('dossier'),nativeProLocked('appointment-report')]; delete window.__MENO_NATIVE_SUBSCRIPTIONS__; return {ios,android}; });
+    check('only the dossier and the brief are gated, and only where subscriptions exist',JSON.stringify(lockMap)===JSON.stringify({ios:[true,true,false,false],android:[false,false]}),JSON.stringify(lockMap));
+    check('today, the log sheet and the index stay free',await locked.page.evaluate(()=>{ setRoute('today'); render(); return !!document.querySelector('.page-today'); })&&await locked.page.getByRole('button',{name:'Log',exact:true}).isVisible());
+
+    console.log('\n== The night desk ==');
+    const night=await newPage(browser,baseUrl,'night',{state:seededState(16),hour:3,minute:12}); contexts.push(night.context);
+    await night.page.goto(baseUrl+'/index.html');
+    check('between 22:00 and 06:00 the page is the night desk',await night.page.locator('.page-night').isVisible()&&await night.page.locator('.clock').innerText().then(t=>t==='03:12')&&await night.page.getByRole('button',{name:/^Woke/}).isVisible());
+    await night.page.getByRole('button',{name:/^Woke/}).click();
+    const nightState=await night.page.evaluate(()=>{ const m=dayMoments(todayISO()).filter(x=>x.k==='woke'); return {wakes:confirmedEntry(todayISO()).wakes,times:m.map(x=>x.t),heading:document.querySelector('.clock-sub').textContent,body:document.querySelector('.page-night .small').textContent}; });
+    check('a wake files with the time and the desk counts it',nightState.times.includes('03:12')&&nightState.wakes===3&&nightState.heading==='Awake again.'&&nightState.body.startsWith('Fourth time tonight.'),JSON.stringify(nightState));
+    await night.page.getByRole('button',{name:'Open today’s page'}).click();
+    check('the page is one tap away at night',await night.page.locator('.page-today').isVisible());
+    await night.page.screenshot({path:path.join(TEST_RESULTS,'night-desk.png')});
+
+    console.log('\n== Migration and validation ==');
+    const legacy=await newPage(browser,baseUrl,'migration-v4',{state:{v:4,profile:{name:'Legacy',birthYear:1970,region:'us',units:'metric',onboarded:true},entries:{[isoOffset(-2)]:{hf:4,sym:{fog:2},act:{},nut:{}}},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-3)}}}); contexts.push(legacy.context);
+    await legacy.page.goto(baseUrl+'/index.html');
+    const migration=await legacy.page.evaluate(()=>({version:DB.v,count:entryDates().length,snapshot:!!confirmedEntry(Object.keys(DB.entries)[0]),pins:DB.profile.pinnedSymptoms.length,onboarded:DB.profile.onboarded,page:!!document.querySelector('.page-today')}));
+    check('v4 logs migrate to v9 confirmed days and open the page',migration.version===9&&migration.count===1&&migration.snapshot&&migration.pins===6&&migration.onboarded&&migration.page,JSON.stringify(migration));
+    const plain=await newPage(browser,baseUrl,'migration-v8',{state:seededState(16,{plain:true})}); contexts.push(plain.context);
+    await plain.page.goto(baseUrl+'/index.html');
+    const v8=await plain.page.evaluate(()=>({version:DB.v,count:entryDates().length,moments:dayMoments(todayISO()).length,headline:document.querySelector('.finding h1').textContent}));
+    check('v8 records without a ledger still count and still read',v8.version===9&&v8.count===16&&v8.moments===0&&!/Nothing on record/.test(v8.headline),JSON.stringify(v8));
+    const validation=await plain.page.evaluate(()=>{
+      const raw=JSON.parse(JSON.stringify(DB)), t=todayISO();
+      raw.entries[t].confirmedData.moments=[{id:'ok',t:'14:14',k:'hf',s:3},{id:'bad-time',t:'25:99',k:'hf'},{id:'bad-kind',t:'10:00',k:'unicorn'},{id:'bad-sev',t:'10:10',k:'fog',s:9},{id:'note',t:'09:00',k:'note',n:'<b>x</b>'.repeat(200)}];
+      raw.entries[t].confirmedData.rating=7; raw.entries[t].confirmedData.wakes=-1;
+      raw.appointments.evidence=[{id:'e1',date:t,kind:'chapter',text:'Sleep',ref:'learn:sleep'},{id:'e2',date:'not-a-date',text:'drop'},{text:'no id',date:t,kind:'weird'}];
+      raw.findings={'wake-window':t,'BAD ID':t,'future':'2999-01-01'};
+      const clean=validateBackup(raw);
+      const e=clean.entries[t].confirmedData;
+      return {moments:e.moments.map(m=>m.id+(m.s?':'+m.s:'')),noteLength:e.moments.find(m=>m.id==='note').n.length,rating:e.rating,wakes:e.wakes,evidence:clean.appointments.evidence.map(x=>x.id+':'+x.kind),findings:Object.keys(clean.findings)};
     });
-    check('native data export bypasses WebView downloads with typed contents',
-      nativeFileShare?.name==='bridge-check.json'
-      &&nativeFileShare?.mime==='application/json'
-      &&nativeFileShare?.contents==='{"ok":true}');
-    await page.getByRole('button',{name:'Back to Care'}).click();
-    await page.getByRole('button',{name:'Guide',exact:true}).click();
-    check('Guide starts with search and a recommendation',await page.getByRole('searchbox',{name:'Search Guide'}).isVisible()&&await page.getByText('Matched to your focus',{exact:true}).isVisible());
-    const guideToolkit=page.getByRole('region',{name:'Tools for right now'});
-    const guideToolLabels=await guideToolkit.locator('.jc-tool-card b').allTextContents();
-    const guideToolkitPlacement=await guideToolkit.evaluate(el=>{
-      const recommendation=document.querySelector('.jc-for-you');
-      const results=document.querySelector('#guide-results');
-      const before=node=>!!node&&!!(el.compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING);
-      return {top:el.getBoundingClientRect().top,viewport:window.innerHeight,beforeRecommendation:before(recommendation),beforeResults:before(results)};
-    });
-    check('Guide places four direct tools high on the page, after the matched recommendation and before education groups',
-      await guideToolkit.isVisible()
-      &&await guideToolkit.locator('.jc-tool-card').count()===4
-      &&JSON.stringify(guideToolLabels)===JSON.stringify(['Breathe','Release tension','Plan sleep','Test a trigger'])
-      &&await guideToolkit.getByRole('button',{name:'Breathe — open Paced breathing'}).isVisible()
-      &&await guideToolkit.getByRole('button',{name:'Release tension — open Progressive muscle relaxation'}).isVisible()
-      &&await guideToolkit.getByRole('button',{name:'Plan sleep — open Sleep window calculator'}).isVisible()
-      &&await guideToolkit.getByRole('button',{name:'Test a trigger — open 28-day trigger test'}).isVisible()
-      &&await guideToolkit.getByRole('button',{name:'See all 8 tools',exact:true}).isVisible()
-      &&guideToolkitPlacement.top<guideToolkitPlacement.viewport
-      &&!guideToolkitPlacement.beforeRecommendation
-      &&guideToolkitPlacement.beforeResults,
-      JSON.stringify({labels:guideToolLabels,placement:guideToolkitPlacement}));
-    const guideSleepTrigger=guideToolkit.getByRole('button',{name:'Plan sleep — open Sleep window calculator'});
-    await guideSleepTrigger.click();
-    check('Guide opens a featured tool directly',
-      await page.getByRole('dialog').getByRole('heading',{name:'Sleep window calculator',exact:true}).isVisible());
-    await page.getByRole('button',{name:'Close Sleep window calculator'}).click();
-    await page.getByRole('searchbox',{name:'Search Guide'}).fill('sleep');
-    check('Guide search filters visible modules',await page.getByRole('button',{name:/^Sleep /}).isVisible()&&!(await page.getByRole('button',{name:/^Treatment options /}).isVisible()));
-    await page.getByRole('button',{name:'Open Profile'}).click();
-    check('Profile is global, not a fifth tab',await page.getByRole('heading',{name:'Profile',exact:true}).isVisible()&&!(await page.locator('nav.tabs').isVisible()));
-    await page.evaluate(()=>{
-      window.dispatchEvent(new CustomEvent('menocompass-native-privacy-result',{detail:{ok:true,deviceEncrypted:true,encryptedBackups:true,appLock:{available:true,enabled:false,label:'Face ID'},reminders:{permission:'not-determined',preferences:{dailyCheckIn:{enabled:false,hour:20,minute:0},treatmentFollowUp:{enabled:false,weekday:2,hour:10,minute:0}}}}}));
-      window.dispatchEvent(new CustomEvent('menocompass-healthkit-result',{detail:{ok:true,status:{available:true,requestStatus:'shouldRequest',readOnly:true}}}));
-    });
-    check('native privacy controls explain encryption, Face ID, and in-context reminders',
-      await page.getByText('Your native peri record is encrypted at rest with a device-bound key.').isVisible()
-      &&await page.getByRole('button',{name:'Turn on'}).isVisible()
-      &&await page.getByRole('button',{name:'Save reminder settings'}).isVisible());
-    await page.getByRole('button',{name:'Turn on'}).click();
-    await page.locator('#daily-reminder-enabled').check();
-    await page.getByLabel('Daily check-in reminder time').fill('19:30');
-    await page.getByRole('button',{name:'Save reminder settings'}).click();
-    await page.getByRole('button',{name:'Connect Apple Health'}).click();
-    const nativePrivacyMessages=await page.evaluate(()=>window.__nativeMessages.filter(message=>['set-app-lock','configure-reminders','healthkit-sync'].includes(message.type)));
-    check('privacy and Health controls use explicit native actions',
-      nativePrivacyMessages.some(message=>message.type==='set-app-lock'&&message.enabled===true)
-      &&nativePrivacyMessages.some(message=>message.type==='configure-reminders'&&message.requestPermission===true&&message.preferences.dailyCheckIn.hour===19&&message.preferences.dailyCheckIn.minute===30)
-      &&nativePrivacyMessages.some(message=>message.type==='healthkit-sync'&&message.userInitiated===true));
-    await page.getByRole('button',{name:'Export or restore data'}).click();
-    check('native data tools offer a portable encrypted backup',await page.getByRole('button',{name:'Save encrypted backup'}).isVisible()&&await page.getByRole('button',{name:'Choose encrypted backup'}).isVisible());
-    await page.getByLabel('Backup password · at least 10 characters').fill('private-passphrase');
-    await page.getByLabel('Confirm password').fill('private-passphrase');
-    await page.getByRole('button',{name:'Save encrypted backup'}).click();
-    check('encrypted export passes the current canonical record to native code',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='export-encrypted-backup'&&message.password==='private-passphrase'&&JSON.parse(message.state).v===8)));
-    await page.getByRole('button',{name:'Close Export & import'}).click();
-    check('warm paper appearance is coherent even with a saved dark preference',await page.evaluate(()=>{DB.profile.theme='dark';applyTheme();return document.documentElement.getAttribute('data-theme')==='light'&&document.querySelector('meta[name="theme-color"]').content==='#f7f5ef';}));
-    check('Profile exposes reset and deletion controls',await page.getByRole('button',{name:'Reset onboarding'}).isVisible()&&await page.getByRole('button',{name:'Delete app profile & data'}).isVisible());
-    await page.getByRole('button',{name:'Manage Apple subscription'}).click();
-    check('native Profile exposes Apple subscription management',await page.evaluate(()=>window.__nativeMessages.some(message=>message.type==='open-subscription-management')));
-    await page.getByRole('button',{name:'Safety guidance'}).click();
-    check('Safety remains globally reachable',await page.getByRole('dialog').isVisible()&&await page.getByRole('heading',{name:'Red flags'}).isVisible());
-    await page.getByRole('button',{name:/Close Red flags/}).click();
+    check('backup validation keeps the ledger strict',JSON.stringify(validation.moments)===JSON.stringify(['note','bad-sev','ok:3'])&&validation.noteLength===280&&validation.rating===undefined&&validation.wakes===undefined&&JSON.stringify(validation.evidence)===JSON.stringify(['e1:chapter','evidence-2:note'])&&JSON.stringify(validation.findings)===JSON.stringify(['wake-window']),JSON.stringify(validation));
+    const csv=await plain.page.evaluate(()=>{ addMoment(todayISO(),{k:'hf',t:'16:00',s:2,n:'=SUM(1)'}); const text=toCSV(); return {header:text.split('\n')[0],ledger:text.includes('ledger_date,time,kind,severity_1_3,duration_s,hours,note'),escaped:text.includes('"\'=SUM(1)"')}; });
+    check('CSV carries the day rating, wakes and a ledger table with formula-safe notes',csv.header.includes('day_rating_0_4')&&csv.header.includes('night_wakes')&&csv.ledger&&csv.escaped,JSON.stringify(csv));
 
-    console.log('\n== Reset onboarding and local-data deletion ==');
-    const resetContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(resetContext,seededState(3));
-    const resetPage=await resetContext.newPage(); monitor(resetPage,'reset-controls',baseUrl); await resetPage.goto(baseUrl+'/index.html#profile');
-    await resetPage.getByRole('button',{name:'Reset onboarding'}).click();
-    check('reset explains that health history is preserved',await resetPage.getByRole('dialog').getByText(/Only onboarding progress is reset/).isVisible());
-    await resetPage.getByRole('dialog').getByRole('button',{name:'Reset onboarding',exact:true}).click();
-    const resetState=await resetPage.evaluate(()=>({onboarded:DB.profile.onboarded,step:DB.profile.onboardingStep,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length,name:DB.profile.name}));
-    check('reset restarts setup without erasing personal history',!resetState.onboarded&&resetState.step===0&&resetState.entries===3&&resetState.medications===1&&resetState.labs===1&&resetState.name==='Test',JSON.stringify(resetState));
-    check('reset returns to the first onboarding screen',await resetPage.getByRole('heading',{name:'Let’s make room for you.'}).isVisible());
-
-    const deleteContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(deleteContext,seededState(3));
-    const deletePage=await deleteContext.newPage(); monitor(deletePage,'delete-controls',baseUrl); await deletePage.goto(baseUrl+'/index.html#profile');
-    await deletePage.getByRole('button',{name:'Delete app profile & data'}).click();
-    check('delete confirmation separates Apple subscriptions',await deletePage.getByRole('dialog').getByText('Apple subscriptions are separate').isVisible());
-    await deletePage.getByRole('dialog').getByRole('button',{name:'Cancel'}).click();
-    check('cancel leaves local data intact',(await deletePage.evaluate(()=>Object.keys(DB.entries).length))===3);
-    await deletePage.getByRole('button',{name:'Delete app profile & data'}).click();
-    await deletePage.getByRole('dialog').getByRole('button',{name:'Delete everything permanently'}).click();
-    const deletedState=await deletePage.evaluate(()=>({onboarded:DB.profile.onboarded,name:DB.profile.name,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length}));
-    check('delete clears the complete local profile and returns to setup',!deletedState.onboarded&&deletedState.name===''&&deletedState.entries===0&&deletedState.medications===0&&deletedState.labs===0&&await deletePage.getByRole('heading',{name:'Let’s make room for you.'}).isVisible(),JSON.stringify(deletedState));
-
-    console.log('\n== Confirmed-data core contracts ==');
-    const seededContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(seededContext,seededState(16));
-    const seededPage=await seededContext.newPage(); monitor(seededPage,'seeded',baseUrl); await seededPage.goto(baseUrl+'/index.html#journey');
-    check('calendar coverage unlocks weekly pattern language',await seededPage.getByText('16 confirmed days').isVisible()&&await seededPage.getByText('Calendar coverage: 7/7 recent days · 7/7 prior days.').isVisible()&&await seededPage.getByText('Comparisons are ready — keep confirming changes.').isVisible());
-    check('seeded dated treatment change is on the timeline',await seededPage.locator('.jc-timeline-event.treatment').filter({hasText:'Changed from 25 mcg to 50 mcg'}).getByRole('heading',{name:'Estradiol patch changed',exact:true}).isVisible());
-    const atomic=await seededPage.evaluate(()=>{
-      const t=todayISO(),before=confirmedEntry(t).hf,day=entry(t); day.hf=99; markEntryDraft(t); save(true);
-      const report=reportSheet(30).body;
-      return {before,confirmed:confirmedEntry(t).hf,draft:day.hf,count:entryDates().length,reportHas99:report.includes('>99<')};
-    });
-    check('poison drafts stay out of snapshots and reports',atomic.before===atomic.confirmed&&atomic.draft===99&&atomic.count===16&&!atomic.reportHas99,JSON.stringify(atomic));
-
-    console.log('\n== Structured treatment follow-ups ==');
+    console.log('\n== Treatments and check-ins ==');
     const followupState=seededState(50);
-    followupState.medications[0].started=isoOffset(-60);
-    followupState.medications[0].changes=[];
-    const followupContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(followupContext,followupState);
-    const followupPage=await followupContext.newPage(); monitor(followupPage,'treatment-followup',baseUrl); await followupPage.goto(baseUrl+'/index.html#care');
-    await followupPage.getByRole('button',{name:'Record change'}).click();
-    await followupPage.getByLabel('Change date').fill(isoOffset(-42));
-    await followupPage.getByLabel('What changed?').fill('Dose increased to 50 mcg');
-    await followupPage.getByRole('checkbox',{name:'Hot flashes'}).check();
-    await followupPage.getByRole('checkbox',{name:'Brain fog'}).check();
-    await followupPage.getByRole('button',{name:'Save change'}).click();
-    check('a treatment change captures targets and schedules two follow-ups',
-      await followupPage.getByRole('heading',{name:'2-week check · Estradiol patch'}).isVisible()
-      &&await followupPage.getByRole('heading',{name:'6-week check · Estradiol patch'}).isVisible());
-    const sixWeekCard=followupPage.locator('.jc-followup-card').filter({has:followupPage.getByRole('heading',{name:'6-week check · Estradiol patch'})});
-    await sixWeekCard.getByRole('button',{name:'Complete follow-up'}).click();
-    check('follow-up shows matched baseline and outcome windows',
-      await followupPage.getByText('Matched 7-day windows',{exact:true}).isVisible()
-      &&await followupPage.getByText(/7\/7.*before.*7\/7.*week 6/).first().isVisible());
-    await followupPage.screenshot({path:path.join(TEST_RESULTS,'treatment-followup.png'),fullPage:true});
-    await followupPage.getByLabel('Benefit noticed').selectOption('3');
-    await followupPage.getByLabel('Doses taken').selectOption('most');
-    await followupPage.getByLabel('Side effects',{exact:true}).selectOption('mild');
-    await followupPage.getByLabel('Side-effect details (optional)').fill('Brief breast tenderness');
-    await followupPage.getByLabel('Anything to ask at your next appointment? (optional)').fill('Should the dose stay the same?');
-    await followupPage.getByRole('button',{name:'Save follow-up'}).click();
+    followupState.medications[0].started=isoOffset(-60); followupState.medications[0].changes=[];
+    const followup=await newPage(browser,baseUrl,'treatment-followup',{state:followupState}); contexts.push(followup.context);
+    const followupPage=followup.page;
+    await followupPage.goto(baseUrl+'/index.html#care');
+    const treatments=followupPage.getByRole('dialog');
+    check('the native Care tab opens the treatments sheet over the dossier',await treatments.getByRole('heading',{name:'Treatments'}).isVisible()&&await followupPage.locator('.page-dossier').count()===1);
+    await treatments.getByRole('button',{name:'Record a change'}).click();
+    await treatments.getByLabel('Date').fill(isoOffset(-42));
+    await treatments.getByLabel('What changed').fill('Dose increased to 50 mcg');
+    await treatments.getByRole('checkbox',{name:'Hot flashes'}).check();
+    await treatments.getByRole('checkbox',{name:'Brain fog'}).check();
+    await treatments.getByRole('button',{name:'Save change'}).click();
+    check('a treatment change with targets schedules two check-ins',await treatments.getByText(/2-week check · Estradiol patch/).isVisible()&&await treatments.getByText(/6-week check · Estradiol patch/).isVisible());
+    await treatments.locator('.kv').filter({hasText:'6-week check'}).getByRole('button',{name:'Complete the check-in'}).click();
+    check('the check-in shows matched baseline and outcome windows',await treatments.getByText('Matched 7-day windows.',{exact:true}).isVisible()&&await treatments.getByText(/7\/7.*before.*7\/7.*week 6/).first().isVisible());
+    await treatments.getByLabel('Benefit noticed').selectOption('3');
+    await treatments.getByLabel('Doses taken').selectOption('most');
+    await treatments.getByLabel('Side effects',{exact:true}).selectOption('mild');
+    await treatments.getByLabel('Side-effect details (optional)').fill('Brief breast tenderness');
+    await treatments.getByLabel('To raise at the next appointment (optional)').fill('Should the dose stay the same?');
+    await treatments.getByRole('button',{name:'Save check-in'}).click();
     const storedFollowUp=await followupPage.evaluate(()=>{
       const change=DB.medications[0].changes[0], clean=validateBackup(JSON.parse(JSON.stringify(DB))).medications[0].changes[0];
       const completedItem=treatmentFollowUpItems().find(item=>item.week===6);
@@ -490,132 +353,99 @@ async function injectState(context,state){
       const outcomeAfterEdit=treatmentComparisonData(completedItem).find(row=>row.key==='hf').current.average;
       todayRecord.hf=originalTodayHotFlashes;
       const tampered=JSON.parse(JSON.stringify(DB)), tamperedChange=tampered.medications[0].changes[0];
-      tamperedChange.baseline.windowStart=addDays(tamperedChange.date,-21);
-      tamperedChange.baseline.windowEnd=addDays(tamperedChange.date,-15);
+      tamperedChange.baseline.windowStart=addDays(tamperedChange.date,-21); tamperedChange.baseline.windowEnd=addDays(tamperedChange.date,-15);
       tamperedChange.followUps[0].completed=addDays(tamperedChange.date,1);
       const sanitized=validateBackup(tampered).medications[0].changes[0];
-      return {
-        version:DB.v,targets:change.targets,baselineStart:change.baseline.windowStart,
-        baselineHotFlashDays:change.baseline.values.hf.n,followUp:clean.followUps[0],
-        outcomeStayedFrozen:recordedOutcome===outcomeAfterEdit,
-        forgedBaselineRemoved:sanitized.baseline===null,prematureFollowUpRemoved:sanitized.followUps.length===0
-      };
+      return {version:DB.v,targets:change.targets,baselineStart:change.baseline.windowStart,baselineHotFlashDays:change.baseline.values.hf.n,followUp:clean.followUps[0],outcomeStayedFrozen:recordedOutcome===outcomeAfterEdit,forgedBaselineRemoved:sanitized.baseline===null,prematureFollowUpRemoved:sanitized.followUps.length===0};
     });
-    check('baseline and follow-up answers survive strict backup validation',
-      storedFollowUp.version===8
-      &&JSON.stringify(storedFollowUp.targets)===JSON.stringify(['hf','fog'])
-      &&storedFollowUp.baselineStart===isoOffset(-49)
-      &&storedFollowUp.baselineHotFlashDays===7
-      &&storedFollowUp.followUp.week===6
-      &&storedFollowUp.followUp.benefit===3
-      &&storedFollowUp.followUp.adherence==='most'
-      &&storedFollowUp.followUp.sideEffectLevel==='mild'
-      &&storedFollowUp.followUp.sideEffects==='Brief breast tenderness'
-      &&storedFollowUp.followUp.outcome.values.hf.n===7
-      &&storedFollowUp.outcomeStayedFrozen
-      &&storedFollowUp.forgedBaselineRemoved
-      &&storedFollowUp.prematureFollowUpRemoved,JSON.stringify(storedFollowUp));
-    await followupPage.getByRole('button',{name:'Prepare appointment report'}).click();
-    check('clinician report includes structured follow-up and careful causality language',
-      await followupPage.getByText('Treatment follow-ups',{exact:true}).isVisible()
-      &&await followupPage.getByText('Clear benefit',{exact:true}).isVisible()
-      &&await followupPage.getByText('Most scheduled doses',{exact:true}).isVisible()
-      &&await followupPage.getByText(/Mild · Brief breast tenderness/).isVisible()
-      &&await followupPage.getByText('Observed association—not proof that the treatment caused the change.',{exact:true}).isVisible());
+    check('baseline and check-in answers survive strict backup validation',storedFollowUp.version===9&&JSON.stringify(storedFollowUp.targets)===JSON.stringify(['hf','fog'])&&storedFollowUp.baselineStart===isoOffset(-49)&&storedFollowUp.baselineHotFlashDays===7&&storedFollowUp.followUp.week===6&&storedFollowUp.followUp.benefit===3&&storedFollowUp.followUp.adherence==='most'&&storedFollowUp.followUp.sideEffectLevel==='mild'&&storedFollowUp.followUp.sideEffects==='Brief breast tenderness'&&storedFollowUp.followUp.outcome.values.hf.n===7&&storedFollowUp.outcomeStayedFrozen&&storedFollowUp.forgedBaselineRemoved&&storedFollowUp.prematureFollowUpRemoved,JSON.stringify(storedFollowUp));
+    await treatments.locator('.sheet-bar .done').click();
+    await followupPage.getByRole('button',{name:'Export the one-page brief'}).click();
+    check('the brief includes the check-in with careful causality language',await followupPage.getByText('Treatment check-ins',{exact:true}).isVisible()&&await followupPage.getByText(/Clear benefit; most scheduled doses; side effects mild \(Brief breast tenderness\)/).isVisible()&&await followupPage.getByText(/Observed associations, not proof of cause/).isVisible());
 
-    console.log('\n== Appointment planning and treatment lifecycle ==');
-    const planningContext=await browser.newContext({viewport:{width:390,height:844}}); await injectState(planningContext,seededState(16));
-    const planningPage=await planningContext.newPage(); monitor(planningPage,'appointment-planning',baseUrl); await planningPage.goto(baseUrl+'/index.html#care');
-    await planningPage.getByRole('button',{name:'Add question'}).click();
-    await planningPage.getByLabel('Question for your clinician').fill('Should we change the dose before my next visit?');
-    await planningPage.getByRole('button',{name:'Add question',exact:true}).click();
-    await planningPage.getByRole('button',{name:'Edit',exact:true}).first().click();
+    console.log('\n== Questions, plans and the treatment lifecycle ==');
+    const planning=await newPage(browser,baseUrl,'planning',{state:seededState(16)}); contexts.push(planning.context);
+    const planningPage=planning.page;
+    await planningPage.goto(baseUrl+'/index.html#dossier');
+    await planningPage.getByRole('button',{name:'Add a question'}).click();
     await planningPage.getByLabel('Question for your clinician').fill('Should we change the dose based on my tracked symptoms?');
-    await planningPage.getByRole('button',{name:'Save question'}).click();
-    check('appointment questions can be added and edited',await planningPage.getByText('Should we change the dose based on my tracked symptoms?',{exact:true}).isVisible());
-    await planningPage.getByRole('button',{name:'Add plan'}).click();
-    await planningPage.getByLabel('What you and your clinician decided').fill('Keep the current dose and review after the lab result.');
-    await planningPage.getByLabel('Next steps · one per line').fill('Book the lab\nTrack night sweats for two weeks');
+    await planningPage.locator('.sec').filter({hasText:'Questions'}).getByRole('button',{name:'Add',exact:true}).click();
+    check('a question joins the numbered list',await planningPage.locator('.qn .q').filter({hasText:'Should we change the dose based on my tracked symptoms?'}).isVisible());
+    await planningPage.locator('.sec').filter({hasText:'After the visit'}).getByRole('button',{name:'Add',exact:true}).click();
+    await planningPage.getByLabel('What was decided').fill('Keep the current dose and review after the lab result.');
+    await planningPage.getByLabel('Next steps, one per line').fill('Book the lab\nTrack night sweats for two weeks');
     await planningPage.getByRole('button',{name:'Add plan',exact:true}).click();
     await planningPage.getByRole('button',{name:'Book the lab'}).click();
-    const treatmentRow=planningPage.locator('.jc-treatment.active').filter({hasText:'Estradiol patch'});
-    await treatmentRow.getByRole('button',{name:'Stop',exact:true}).click();
-    await planningPage.getByLabel('Reason or clinician instruction (optional)').fill('Paused after clinician review');
-    await planningPage.getByRole('button',{name:'Save as stopped'}).click();
-    check('stopping a treatment removes it from today while preserving its record',
-      await planningPage.locator('.jc-treatment.stopped').filter({hasText:'Paused after clinician review'}).isVisible()
-      &&!(await planningPage.locator('.jc-open-list').getByText('Estradiol patch',{exact:true}).isVisible()));
-    planningPage.once('dialog',dialog=>dialog.accept());
-    await planningPage.getByRole('button',{name:'Archive',exact:true}).click();
-    await planningPage.getByText('1 archived treatment').click();
-    check('stopped treatments can be archived without deletion',await planningPage.locator('.jc-treatment.archived').filter({hasText:'Estradiol patch'}).isVisible());
-    await planningPage.screenshot({path:path.join(TEST_RESULTS,'appointment-planning-and-archive.png'),fullPage:true});
-    const planningState=await planningPage.evaluate(()=>{
-      const raw=JSON.parse(JSON.stringify(DB)), clean=validateBackup(raw);
-      return {version:clean.v,question:clean.appointments.questions[0],plan:clean.appointments.plans[0],med:clean.medications[0],scheduled:scheduledMeds(todayISO()).length};
+    await planningPage.locator('.sec').filter({hasText:'Treatments'}).getByRole('button',{name:'Manage'}).click();
+    const lifecycle=planningPage.getByRole('dialog');
+    await lifecycle.getByRole('button',{name:'Stop',exact:true}).click();
+    await lifecycle.getByLabel('Reason (optional)').fill('Paused after clinician review');
+    await lifecycle.getByRole('button',{name:'Save as stopped'}).click();
+    check('stopping a treatment keeps its record and removes it from the day',await lifecycle.getByText(/Stopped .*Paused after clinician review/).isVisible()&&await planningPage.evaluate(()=>scheduledMeds(todayISO()).length===0));
+    await lifecycle.getByRole('button',{name:'Archive',exact:true}).click();
+    await lifecycle.locator('details.plain summary').filter({hasText:'1 archived'}).click();
+    check('stopped treatments can be archived without deletion',await lifecycle.getByRole('button',{name:'Unarchive'}).isVisible());
+    await lifecycle.locator('.sheet-bar .done').click();
+    const planningState=await planningPage.evaluate(()=>{ const clean=validateBackup(JSON.parse(JSON.stringify(DB))); return {version:clean.v,question:clean.appointments.questions[0].text,plan:clean.appointments.plans[0],med:clean.medications[0].status,reason:clean.medications[0].stopReason}; });
+    check('questions, plans and the lifecycle survive strict validation',planningState.version===9&&planningState.question==='Should we change the dose based on my tracked symptoms?'&&planningState.plan.summary==='Keep the current dose and review after the lab result.'&&planningState.plan.actions.length===2&&planningState.plan.actions[0].done===true&&planningState.med==='archived'&&planningState.reason==='Paused after clinician review',JSON.stringify(planningState));
+    await planningPage.getByRole('button',{name:'Export the one-page brief'}).click();
+    check('the brief carries the question, the plan and the stopped treatment',await planningPage.getByText('Should we change the dose based on my tracked symptoms?',{exact:true}).isVisible()&&await planningPage.getByText('Keep the current dose and review after the lab result.',{exact:true}).isVisible()&&await planningPage.getByText(/stopped .*Paused after clinician review/).isVisible());
+
+    console.log('\n== You, data, reset and deletion ==');
+    const you=await newPage(browser,baseUrl,'you',{state:seededState(3),native:true}); contexts.push(you.context);
+    const youPage=you.page;
+    await youPage.goto(baseUrl+'/index.html#profile');
+    await youPage.evaluate(()=>{
+      window.dispatchEvent(new CustomEvent('menocompass-native-privacy-result',{detail:{ok:true,deviceEncrypted:true,encryptedBackups:true,appLock:{available:true,enabled:false,label:'Face ID'},reminders:{permission:'not-determined',preferences:{dailyCheckIn:{enabled:false,hour:20,minute:0},treatmentFollowUp:{enabled:false,weekday:2,hour:10,minute:0}}}}}));
+      window.dispatchEvent(new CustomEvent('menocompass-healthkit-result',{detail:{ok:true,status:{available:true,requestStatus:'shouldRequest',readOnly:true}}}));
     });
-    check('appointment plans and lifecycle survive strict backup validation',
-      planningState.version===8
-      &&planningState.question.text==='Should we change the dose based on my tracked symptoms?'
-      &&planningState.plan.summary==='Keep the current dose and review after the lab result.'
-      &&planningState.plan.actions.length===2&&planningState.plan.actions[0].done===true
-      &&planningState.med.status==='archived'&&planningState.med.stopReason==='Paused after clinician review'
-      &&planningState.scheduled===0,JSON.stringify(planningState));
-    await planningPage.getByRole('button',{name:'Prepare appointment report'}).click();
-    check('appointment report includes editable questions, plans, and stopped-treatment context',
-      await planningPage.getByText('Appointment questions & after-visit plans',{exact:true}).isVisible()
-      &&await planningPage.getByText('Should we change the dose based on my tracked symptoms?',{exact:true}).isVisible()
-      &&await planningPage.getByText('Keep the current dose and review after the lab result.',{exact:true}).isVisible()
-      &&await planningPage.getByText(/stopped .*Paused after clinician review/).isVisible());
+    check('You explains encryption, App Lock and reminders',await youPage.getByText('The record is encrypted at rest with a device-bound key.').isVisible()&&await youPage.getByRole('button',{name:'App Lock'}).isVisible()&&await youPage.getByRole('button',{name:'Save reminders'}).isVisible());
+    await youPage.getByRole('button',{name:'App Lock'}).click();
+    await youPage.locator('#daily-reminder-enabled').check();
+    await youPage.getByLabel('Daily reminder time').fill('19:30');
+    await youPage.getByRole('button',{name:'Save reminders'}).click();
+    await youPage.getByRole('button',{name:'Connect',exact:true}).click();
+    const nativePrivacyMessages=await youPage.evaluate(()=>window.__nativeMessages.filter(message=>['set-app-lock','configure-reminders','healthkit-sync'].includes(message.type)));
+    check('privacy and Health controls use explicit native actions',nativePrivacyMessages.some(m=>m.type==='set-app-lock'&&m.enabled===true)&&nativePrivacyMessages.some(m=>m.type==='configure-reminders'&&m.requestPermission===true&&m.preferences.dailyCheckIn.hour===19&&m.preferences.dailyCheckIn.minute===30)&&nativePrivacyMessages.some(m=>m.type==='healthkit-sync'&&m.userInitiated===true));
+    await youPage.getByRole('button',{name:/^Export or restore/}).click();
+    await youPage.getByLabel('Backup password · at least 10 characters').fill('private-passphrase');
+    await youPage.getByLabel('Confirm password').fill('private-passphrase');
+    await youPage.getByRole('button',{name:'Save encrypted backup'}).click();
+    check('encrypted export passes the canonical v9 record to native code',await youPage.evaluate(()=>window.__nativeMessages.some(m=>m.type==='export-encrypted-backup'&&m.password==='private-passphrase'&&JSON.parse(m.state).v===9)));
+    await youPage.locator('.sheet-bar .done').click();
+    check('appearance follows the setting: paper by default, night on request',await youPage.evaluate(()=>{ const was=document.documentElement.getAttribute('data-theme'); DB.profile.theme='dark'; applyTheme(); const dark=document.documentElement.getAttribute('data-theme'); const meta=document.querySelector('meta[name="theme-color"]').content; DB.profile.theme='light'; applyTheme(); return was==='light'&&dark==='dark'&&meta==='#000000'; }));
+    await youPage.getByRole('button',{name:'Apple subscription'}).click();
+    check('You exposes Apple subscription management on native',await youPage.evaluate(()=>window.__nativeMessages.some(m=>m.type==='open-subscription-management')));
+    await youPage.getByRole('button',{name:/Redo the first page/}).click();
+    await youPage.getByRole('dialog').getByRole('button',{name:'Redo it'}).click();
+    const resetState=await youPage.evaluate(()=>({onboarded:DB.profile.onboarded,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length,name:DB.profile.name,letter:!!document.querySelector('.page-firstrun')}));
+    check('redoing the first page keeps every record',!resetState.onboarded&&resetState.entries===3&&resetState.medications===1&&resetState.labs===1&&resetState.name==='Test'&&resetState.letter,JSON.stringify(resetState));
+    const del=await newPage(browser,baseUrl,'delete',{state:seededState(3)}); contexts.push(del.context);
+    await del.page.goto(baseUrl+'/index.html#profile');
+    await del.page.getByRole('button',{name:/Delete everything/}).click();
+    check('deletion separates Apple subscriptions',await del.page.getByRole('dialog').getByText('Apple subscriptions are separate').isVisible());
+    await del.page.getByRole('dialog').getByRole('button',{name:'Cancel'}).click();
+    check('cancel leaves the record intact',(await del.page.evaluate(()=>Object.keys(DB.entries).length))===3);
+    await del.page.getByRole('button',{name:/Delete everything/}).click();
+    await del.page.getByRole('dialog').getByRole('button',{name:'Delete permanently'}).click();
+    const deletedState=await del.page.evaluate(()=>({onboarded:DB.profile.onboarded,name:DB.profile.name,entries:Object.keys(DB.entries).length,medications:DB.medications.length,labs:DB.labs.length,letter:!!document.querySelector('.page-firstrun')}));
+    check('delete clears the record and returns to the letter',!deletedState.onboarded&&deletedState.name===''&&deletedState.entries===0&&deletedState.medications===0&&deletedState.labs===0&&deletedState.letter,JSON.stringify(deletedState));
 
-    const normalizedEntries={};
-    for(let i=13;i>=0;i--){
-      const recent=i<=6;
-      normalizedEntries[isoOffset(-i)]=confirmed({hf:recent?12:10,ns:0,sym:{fog:recent?2:1,joint:1},act:{},nut:{}});
-    }
-    const normalizedContext=await browser.newContext({viewport:{width:390,height:844}});
-    await injectState(normalizedContext,{v:5,profile:profile({pinnedSymptoms:['hf','fog','joint']}),entries:normalizedEntries,medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-13)}});
-    const normalizedPage=await normalizedContext.newPage(); monitor(normalizedPage,'normalized-weekly-pattern',baseUrl); await normalizedPage.goto(baseUrl+'/index.html#journey');
-    const normalizedPattern=await normalizedPage.evaluate(()=>weeklyPattern());
-    check('weekly ranking compares proportional change across unlike symptom units',normalizedPattern.text.startsWith('Brain fog has been higher')&&normalizedPattern.recentCount===7&&normalizedPattern.priorCount===7,JSON.stringify(normalizedPattern));
-    check('weekly insight shows the observation coverage',await normalizedPage.getByText('Coverage: 7/7 recent days · 7/7 prior days.',{exact:true}).isVisible());
+    console.log('\n== Desktop and quick routes ==');
+    const desktop=await newPage(browser,baseUrl,'desktop',{state:seededState(16),viewport:{width:1280,height:900}}); contexts.push(desktop.context);
+    await desktop.page.goto(baseUrl+'/index.html#journey');
+    const layout=await desktop.page.locator('#app').evaluate(el=>({width:el.getBoundingClientRect().width,left:el.getBoundingClientRect().left}));
+    check('the desktop keeps the page as a centred column',layout.width<=560&&layout.left>300&&await desktop.page.locator('.page-dossier').count()===1&&await desktop.page.locator('.masthead-nav [aria-current="page"]').count()===1,JSON.stringify(layout));
+    const quick=await newPage(browser,baseUrl,'quick-route',{state:seededState(16)}); contexts.push(quick.context);
+    await quick.page.goto(baseUrl+'/index.html#checkin');
+    check('the widget and shortcut route opens the log sheet',await quick.page.locator('.sheet.night').count()===1&&await quick.page.locator('.page-today').count()===1);
+    await quick.page.goto(baseUrl+'/index.html#redflags');
+    await quick.page.reload();
+    check('the red-flags route still opens the sheet',await quick.page.getByRole('dialog').getByRole('heading',{name:'Red flags'}).isVisible());
+    await desktop.page.screenshot({path:path.join(TEST_RESULTS,'dossier-desktop.png')});
 
-    const sparseEntries={};
-    [-1,-2,-3,-8,-9,-10,-30,-31,-32,-33,-34,-35,-36,-37].forEach((offset,i)=>{
-      sparseEntries[isoOffset(offset)]=confirmed({hf:i+1,ns:1,sym:{fog:2,joint:1},act:{},nut:{}});
-    });
-    const sparseContext=await browser.newContext({viewport:{width:390,height:844}});
-    await injectState(sparseContext,{v:5,profile:profile({pinnedSymptoms:['hf','fog','joint']}),entries:sparseEntries,medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-37)}});
-    const sparsePage=await sparseContext.newPage(); monitor(sparsePage,'sparse-weekly-pattern',baseUrl); await sparsePage.goto(baseUrl+'/index.html#journey');
-    const sparsePattern=await sparsePage.evaluate(()=>({text:weeklyPatternText(),windows:weeklyPatternWindows()}));
-    check('four-of-seven coverage is required in both calendar windows despite old logs',sparsePattern.text===null&&sparsePattern.windows.recentCount===3&&sparsePattern.windows.priorCount===3,JSON.stringify(sparsePattern));
-    check('insufficient calendar coverage is visible',await sparsePage.getByText('Calendar coverage: 3/7 recent days · 3/7 prior days.').isVisible()&&await sparsePage.getByText('Weekly comparisons need at least 4 confirmed days in each window.').isVisible());
-
-    const prefillContext=await browser.newContext();
-    const yesterday=isoOffset(-1);
-    await injectState(prefillContext,{v:5,profile:profile(),entries:{[yesterday]:confirmed({hf:7,ns:2,sym:{fog:3,energy:2,joint:1,anx:2},act:{},nut:{}})},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:yesterday}});
-    const prefillPage=await prefillContext.newPage(); monitor(prefillPage,'prefill',baseUrl); await prefillPage.goto(baseUrl+'/index.html');
-    const prefill=await prefillPage.evaluate(()=>{const t=todayISO(),e=DB.entries[t];return {hf:e&&e.hf,prefilled:e&&e.prefilledFrom,confirmed:!!confirmedEntry(t),count:entryDates().length};});
-    check('prefill preserves actual counts but remains unconfirmed',prefill.hf===7&&!!prefill.prefilled&&!prefill.confirmed&&prefill.count===1,JSON.stringify(prefill));
-
-    const migrationContext=await browser.newContext();
-    await injectState(migrationContext,{v:4,profile:{name:'Legacy',birthYear:1970,region:'us',units:'metric',onboarded:true},entries:{[isoOffset(-2)]:{hf:4,sym:{fog:2},act:{},nut:{}}},medications:[],labs:[],screening:{},scores:[],trigger:null,meta:{created:isoOffset(-3)}});
-    const migrationPage=await migrationContext.newPage(); monitor(migrationPage,'migration',baseUrl); await migrationPage.goto(baseUrl+'/index.html');
-    const migration=await migrationPage.evaluate(()=>({version:DB.v,count:entryDates().length,snapshot:!!confirmedEntry(Object.keys(DB.entries)[0]),pins:DB.profile.pinnedSymptoms.length}));
-    check('v4 logs migrate to v8 confirmed snapshots',migration.version===8&&migration.count===1&&migration.snapshot&&migration.pins===6,JSON.stringify(migration));
-
-    console.log('\n== Responsive and runtime quality ==');
-    const desktopContext=await browser.newContext({viewport:{width:1280,height:900}}); await injectState(desktopContext,seededState(16));
-    const desktopPage=await desktopContext.newPage(); monitor(desktopPage,'desktop',baseUrl); await desktopPage.goto(baseUrl+'/index.html#journey');
-    const desktopLayout=await desktopPage.locator('#app').evaluate(el=>({width:el.getBoundingClientRect().width,left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right}));
-    const desktopNavigation=await desktopPage.locator('nav.tabs').evaluate(el=>({width:el.getBoundingClientRect().width,left:el.getBoundingClientRect().left,top:el.getBoundingClientRect().top}));
-    check('desktop layout uses a sidebar and a spacious content surface',desktopLayout.width>=800&&desktopLayout.left>=desktopNavigation.width&&desktopLayout.right<=1280&&desktopNavigation.left===0&&desktopNavigation.top===0&&desktopNavigation.width===228,JSON.stringify({content:desktopLayout,navigation:desktopNavigation}));
-    check('one primary destination is current',await desktopPage.locator('nav.tabs [aria-current="page"]').count()===1);
-    await seededPage.screenshot({path:path.join(TEST_RESULTS,'journey-selected-flow.png')});
-    await desktopPage.screenshot({path:path.join(TEST_RESULTS,'journey-desktop.png')});
-
-    await require('./test-companion')({browser,baseUrl,check,monitor,seededState,testResults:TEST_RESULTS});
-    await onboardingContext.close(); await resetContext.close(); await deleteContext.close(); await seededContext.close(); await followupContext.close(); await planningContext.close(); await normalizedContext.close(); await sparseContext.close(); await prefillContext.close(); await migrationContext.close(); await desktopContext.close();
+    await require('./test-companion')({browser,baseUrl,check,monitor,seededState,newPage,nativeReload,isoOffset,testResults:TEST_RESULTS});
+    for(const context of contexts) await context.close();
     check('no page, console, request, or HTTP errors',runtimeErrors.length===0,runtimeErrors.join(' | '));
   } catch(error){
     failures.push('unhandled test exception');

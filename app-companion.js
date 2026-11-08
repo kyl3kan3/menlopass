@@ -1,9 +1,11 @@
-/* Private, deterministic support and care preparation. No network or AI service. */
+/* Right-now help and appointment preparation. Deterministic, on-device, no
+   network or model. The appointment brief (concerns, impact, goal, generated
+   questions) feeds the dossier's Questions and Opening statement sections. */
 const SUPPORT_OPTIONS = {
-  sleep:{label:'Can’t sleep',title:'Make a little room for rest',steps:['Make your space quiet and comfortably cool.','Let your shoulders soften. You do not have to solve tomorrow tonight.','Try the relaxation tool if it feels comfortable.'],tool:'pmr',toolLabel:'Try muscle relaxation',guide:'sleep'},
-  overwhelmed:{label:'Feeling overwhelmed',title:'One comfortable breath at a time',steps:['Sit somewhere comfortable, with your feet supported.','Breathe gently, only as deeply as feels comfortable. Do not force it.','Follow the breathing guide if you like. Stop if you feel dizzy or uncomfortable.'],tool:'breath',toolLabel:'Open breathing guide',guide:'mind'},
-  hot:{label:'Hot flash',title:'A moment to cool down',steps:['Try a fan or move somewhere cooler.','Loosen or remove a layer if you can.','Take a cool drink if you would like one.'],guide:'symptoms'},
-  fog:{label:'Brain fog',title:'Make the next step smaller',steps:['Pause and choose just one thing to do next.','Write yourself a short reminder, so you do not have to hold it all in your head.','Give yourself permission to take a break.'],guide:'mind'}
+  sleep:{label:'Can’t sleep',title:'Two minutes, then back to bed.',steps:['Keep the room cool and the light low.','Do not solve tomorrow tonight. It will still be there.','Run the wind-down below if you want something to do with the time.'],tool:'pmr',toolLabel:'Wind down · 2 min',guide:'sleep'},
+  overwhelmed:{label:'Overwhelmed',title:'One slow breath at a time.',steps:['Sit down. Feet on the floor.','Breathe out longer than you breathe in. Nothing forced.','Follow the pacer if you like. Stop if you feel dizzy.'],tool:'breath',toolLabel:'Breathe · 2 min',guide:'mind'},
+  hot:{label:'Hot flash',title:'Ride it out. It passes.',steps:['Cooler air if you can get it. A fan, a window, a step outside.','Lose a layer.','A cold drink. Then log it, so the timing goes on record.'],tool:'ride',toolLabel:'Ride it out · 60 s',guide:'symptoms'},
+  fog:{label:'Brain fog',title:'Make the next step smaller.',steps:['Pick one thing. Only one.','Write it down so your head does not have to hold it.','Take the break you were going to skip.'],guide:'mind'}
 };
 let supportFeedback=null;
 let briefDraft=null, briefStep=1, briefQuestionContext='';
@@ -26,45 +28,29 @@ function storySentence(row){
   const unit=row.key==='hf'?' per day':' / 4';
   return name+' was '+(row.direction==='steady'?'broadly steady':row.direction)+': '+r1(row.before)+unit+' → '+r1(row.after)+unit+' ('+row.prior.length+' previous and '+row.recent.length+' recent answers).';
 }
-function weeklyStoryMarkup(){
-  const story=weeklyStoryData();
-  const waiting=story.rows.filter(r=>!r.ready), ready=story.rows.some(r=>r.ready);
-  const windowLabel=esc(fmtDay(story.windows.prior[0]))+'–'+esc(fmtDay(story.windows.prior[6]))+' compared with '+esc(fmtDay(story.windows.recent[0]))+'–'+esc(fmtDay(story.windows.recent[6]));
-  const arrows={lower:PIP_IC.arrowDown,higher:PIP_IC.arrowUp,steady:PIP_IC.arrowRight};
-  const group=(direction,title)=>{
-    const rows=story.rows.filter(r=>r.direction===direction);
-    if(!rows.length) return '';
-    return `<div class="mc-story-group"><h3 class="${direction==='lower'?'fill':''}">${arrows[direction]||''}${title}</h3><span class="sr-only">${rows.length} ${rows.length===1?'symptom':'symptoms'}</span>${rows.map(r=>`<div class="mc-story-row"><span>${esc(symptomName(r.key))}</span><span class="mc-story-val" aria-hidden="true">${r1(r.before)} ${PIP_IC.arrowRight} ${r1(r.after)}<small>${r.key==='hf'?'/day':'/ 4'}</small></span><span class="sr-only">${esc(storySentence(r))}</span></div>`).join('')}</div>`;
-  };
-  const waitingMarkup=waiting.length?`<div class="mc-story-waiting">${ready?'<h3>Still taking shape</h3>':''}<ul class="mc-story-chips" aria-label="Symptoms awaiting enough answers">${waiting.map(r=>`<li>${esc(symptomName(r.key))}</li>`).join('')}</ul><p class="mc-muted">Comparisons need 4 confirmed answers for a symptom in each of the two 7-day calendar windows.</p></div>`:'';
-  return `<section class="mc-card mc-weekly${ready?'':' mc-weekly-empty'}" aria-labelledby="weekly-story-title"><span class="mc-eyebrow">Your weekly story</span>
-    ${ready?`<h2 id="weekly-story-title">Here’s what’s changing</h2><p class="mc-muted">${windowLabel}</p>${pip('guide',92)}`:`<div class="mc-story-empty"><span class="mc-story-empty-icon" aria-hidden="true">${PULSE_IC.journey}</span><h2 id="weekly-story-title">A little each day. A clearer picture.</h2><p>Your check-ins will help you see what’s changing. For now, keep noticing how you feel.</p>${pip('guide',96)}</div>`}
-    ${group('lower','Lower')}${group('higher','Higher')}${group('steady','Steady')}${waitingMarkup}
-    ${ready?'':'<button class="jc-secondary mc-story-checkin" data-act="start-checkin">Open today’s check-in</button>'}
-    ${story.events.length?`<div class="mc-story-group mc-story-events"><h3 class="plain">Treatment changes in these weeks</h3>${story.events.slice(0,5).map(e=>`<p><b>${esc(fmtDay(e.date))}</b> · ${esc(e.title)}. ${esc(e.body)}</p>`).join('')}<p class="mc-muted">Timing can be useful to discuss, but does not show what caused a change.</p></div>`:''}
-    <details class="mc-evidence"><summary>See supporting logs</summary><p>${windowLabel}.</p><p>Each symptom needs at least 4 confirmed answers in each 7-day calendar window. Small changes are described as steady; these are descriptive comparisons, not clinical thresholds. Missing answers are left out; drafts never replace confirmed answers.</p>${story.events.length?'':'<p>No treatment changes recorded in these two weeks.</p>'}${story.rows.map(r=>`<div><h3>${esc(symptomName(r.key))}</h3><p class="mc-muted">${r.prior.length}/7 previous · ${r.recent.length}/7 recent confirmed answers</p>${r.prior.concat(r.recent).length?`<ul>${r.prior.concat(r.recent).map(x=>`<li>${esc(fmtDay(x.date))}: ${x.value}${r.key==='hf'?' per day':' / 4'}</li>`).join('')}</ul>`:'<p>No confirmed answers in these weeks.</p>'}</div>`).join('')}</details>
-    <button class="jc-secondary" data-act="save-weekly-question">Save recap for my appointment</button></section>`;
-}
-function supportHomeCard(){
-  return `<section class="mc-support-entry"><button class="jc-secondary" data-act="sheet" data-s="support">I’m struggling right now</button><p>A little support, with no check-in required.</p></section>`;
-}
+
+/* ---------- right now ---------- */
 function supportSheet(kind){
   const option=SUPPORT_OPTIONS[kind];
   if(!option){
     const history=Array.isArray(DB.support)?DB.support:[];
     const helpful=Object.entries(SUPPORT_OPTIONS).map(([key,item])=>({key,item,count:history.filter(x=>x.kind===key&&x.helped==='yes').length})).filter(x=>x.count>0);
-    const icons={sleep:['night',PULSE_IC.moon],overwhelmed:['',PULSE_IC.wind],hot:['blush',TWILIGHT_IC.flame],fog:['sand',TWILIGHT_IC.cloud]};
-    return {title:'Support for right now',body:`<div class="mc-support"><div class="mc-support-head">${pip('guide',116)}<h3>I’m here.<small>What’s hardest right now? Pick one and we’ll take it in small steps.</small></h3></div><p class="mc-intro">What feels hardest right now?</p><div class="mc-support-grid">${Object.entries(SUPPORT_OPTIONS).map(([key,item])=>`<button data-act="support-open" data-kind="${key}" aria-label="${esc(item.label)}"><span class="mc-support-ic ${icons[key]?icons[key][0]:''}" aria-hidden="true">${icons[key]?icons[key][1]:''}</span><span>${esc(item.label)}<small>${esc(item.title)}</small></span>${IC.chev}</button>`).join('')}</div>
-      ${history.length?`<section class="mc-card"><h3>What has helped you</h3><p class="mc-muted">Based on your feedback, not a prediction.</p>${helpful.length?helpful.map(x=>`<button class="mc-helpful" data-act="support-open" data-kind="${x.key}"><b>${esc(x.item.title)}</b><span>Helpful ${x.count} ${x.count===1?'time':'times'}</span></button>`).join(''):'<p>Nothing marked helpful yet. It is okay to try something else.</p>'}<button class="jc-inline-action" data-act="support-clear">Clear support feedback</button></section>`:''}
-      <button class="jc-inline-action" data-act="sheet" data-s="redflags">When to get medical help</button><p class="mc-muted">If symptoms are new, severe, or worrying, seek medical advice. These tools offer comfort and practical support.</p></div>`};
+    return {title:'Right now',body:`<p class="lead">What is it?</p>
+      <div class="biglist">${Object.entries(SUPPORT_OPTIONS).map(([key,item])=>`<button class="bigrow sm" data-act="support-open" data-kind="${key}"><span>${esc(item.label)}</span><span class="s">${helpful.find(x=>x.key===key)?'helped '+helpful.find(x=>x.key===key).count+'×':''}</span></button>`).join('')}</div>
+      ${history.length?`<button class="textbtn muted" data-act="support-clear">Clear what-helped history</button>`:''}
+      <p class="footnote left">New, severe or worrying symptoms need medical advice, not a breathing exercise. <button class="textbtn" data-act="sheet" data-s="redflags">When to get help</button></p>`};
   }
   const response=supportFeedback&&supportFeedback.kind===kind?supportFeedback.helped:null;
   const source=kind==='overwhelmed'?'https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress/':'https://www.nhs.uk/conditions/menopause-and-perimenopause/things-you-can-do/';
-  return {title:option.label,body:`<div class="mc-support"><span class="mc-eyebrow">Take this at your pace</span><h3 class="mc-support-title">${option.title}</h3><ol class="mc-steps">${option.steps.map(step=>`<li>${step}</li>`).join('')}</ol>
-    ${option.tool?`<button class="jc-primary" data-act="sheet" data-s="tool:${option.tool}">${option.toolLabel}</button><p class="mc-muted">Come back here afterward to record how it felt.</p>`:''}
-    <section class="mc-feedback" aria-label="Support feedback"><h3>Did this help?</h3><p>Optional. Only saved on this device.</p><div class="mc-feedback-buttons">${[['yes','Yes'],['no','Not this time'],['unsure','Not sure']].map(([value,label])=>`<button class="btn ghost" data-act="support-feedback" data-kind="${kind}" data-value="${value}" aria-pressed="${response===value}">${label}</button>`).join('')}</div>${response?'<p role="status">Saved. You can change your answer.</p>':''}</section>
-    <button class="jc-inline-action" data-act="sheet" data-s="learn:${option.guide}">Explore related guidance</button><p class="mc-muted">${kind==='fog'?'Practical organization prompts. For broader self-care, see':'Self-care guidance adapted from'} <a href="${source}" target="_blank" rel="noopener noreferrer">NHS guidance</a>. Comfort measures do not replace treatment. If symptoms persist or disrupt your life, discuss them with your clinician.</p><button class="jc-inline-action" data-act="sheet" data-s="redflags">When to get medical help</button></div>`};
+  return {title:option.label,body:`<p class="lead">${esc(option.title)}</p><ol class="steps">${option.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol>
+    ${option.tool?`<button class="btn accent" data-act="sheet" data-s="tool:${option.tool}">${esc(option.toolLabel)}</button>`:''}
+    <div class="label" style="margin:22px 0 6px">Did it help</div>
+    <div class="seg ink" role="group" aria-label="Did this help">${[['yes','Yes'],['no','No'],['unsure','Unsure']].map(([value,label])=>`<button data-act="support-feedback" data-kind="${kind}" data-value="${value}" aria-pressed="${response===value}">${label}</button>`).join('')}</div>
+    ${response?'<p class="xtiny" role="status">Saved. Change it any time.</p>':'<p class="xtiny">Optional. Saved on this device only.</p>'}
+    <p class="footnote left">${kind==='fog'?'Practical prompts, not treatment.':'Comfort measures adapted from'} <a href="${source}" target="_blank" rel="noopener noreferrer">NHS self-care guidance</a>. If this keeps happening, it belongs in the dossier and in the room with your clinician. <button class="textbtn" data-act="sheet" data-s="learn:${option.guide}">Read the chapter</button></p>`};
 }
+
+/* ---------- appointment brief ---------- */
 function savedBrief(){ return appointmentData().brief||{concerns:[],goal:'',date:''}; }
 function appointmentSuggestionBrief(){
   const saved=savedBrief();
@@ -91,12 +77,12 @@ function captureBriefFields(){
 }
 function briefOpening(brief){
   if(!brief.concerns.length) return '';
-  const concerns=brief.concerns.map(c=>symptomName(c.key)+(c.impact?' — '+c.impact:'')).join('; ');
-  return 'I would like to talk about '+concerns+'.'+(brief.goal?' What I hope to get from this visit: '+brief.goal:'');
+  const concerns=brief.concerns.map(c=>symptomName(c.key).toLowerCase()+(c.impact?' ('+c.impact+')':'')).join('; ');
+  return 'I would like to talk about '+concerns+'.'+(brief.goal?' What I want from this visit: '+brief.goal:'');
 }
 function generateBriefQuestions(brief){
   const story=weeklyStoryData(PINNABLE_SYMPTOMS), date=todayISO();
-  const changes=(DB.medications||[]).flatMap(med=>(med.changes||[]).filter(change=>change.date>=addDays(date,-90)&&change.date<=date).map(change=>({medication:med.name,...change}))).sort((a,b)=>b.date.localeCompare(a.date));
+  const changes=(DB.medications||[]).flatMap(med=>(med.changes||[]).filter(change=>change.date>=addDays(date,-90)&&change.date<=date).map(change=>({medication:med.name,...change}))).sort((a,b)=>b.date.localeCompare(a.date)).map(change=>({...change,date:fmtDay(change.date)}));
   return buildAppointmentQuestions(brief,{
     profile:DB.profile,
     names:Object.fromEntries(PINNABLE_SYMPTOMS.map(key=>[key,symptomName(key)])),
@@ -110,37 +96,32 @@ function refreshBriefQuestions(){
   briefDraft.questions=generateBriefQuestions(briefDraft); briefDraft.generatedAt=todayISO(); briefQuestionContext=briefContextKey(briefDraft);
 }
 function briefQuestionSources(){
-  return '<details class="mc-evidence"><summary>About these suggestions</summary><p>Questions connect your concerns, confirmed logs, and recorded treatment history with topics worth discussing. They cannot diagnose the cause or decide which treatment is right for you. Review and edit anything that does not fit.</p><p>Discussion framework: <a href="https://www.nice.org.uk/guidance/ng197/chapter/recommendations" target="_blank" rel="noopener noreferrer">NICE shared decision making</a>. Menopause context: <a href="https://www.nice.org.uk/guidance/ng23/chapter/Recommendations" target="_blank" rel="noopener noreferrer">NICE menopause guidance</a> and <a href="https://www.nhs.uk/conditions/menopause-and-perimenopause/treatment/" target="_blank" rel="noopener noreferrer">NHS treatment overview</a>.</p></details>';
+  return '<details class="plain"><summary>Where these questions come from</summary><p>They connect your concerns, your logged days and your recorded treatment history with topics worth raising. They cannot diagnose a cause or choose a treatment. Edit anything that does not fit.</p><p>Discussion framework: <a href="https://www.nice.org.uk/guidance/ng197/chapter/recommendations" target="_blank" rel="noopener noreferrer">NICE shared decision making</a>. Menopause context: <a href="https://www.nice.org.uk/guidance/ng23/chapter/Recommendations" target="_blank" rel="noopener noreferrer">NICE menopause guidance</a> and <a href="https://www.nhs.uk/conditions/menopause-and-perimenopause/treatment/" target="_blank" rel="noopener noreferrer">NHS treatment overview</a>.</p></details>';
 }
 function briefQuestionsEditor(brief){
-  return '<section class="mc-question-editor"><h3>Questions you might not think to ask</h3><p>Use the suggestions that fit. Edit the wording, or untick a question to leave it out of your saved brief.</p>'+(brief.questions||[]).map((question,index)=>'<article class="mc-question-card"><label class="mc-question-include" for="brief-include-'+esc(question.id)+'"><input type="checkbox" id="brief-include-'+esc(question.id)+'"'+(question.selected!==false?' checked':'')+'>Include question '+(index+1)+'</label><label class="sr-only" for="brief-question-'+esc(question.id)+'">Question '+(index+1)+'</label><textarea id="brief-question-'+esc(question.id)+'" maxlength="1000">'+esc(question.text)+'</textarea><p><b>Why this may help:</b> '+esc(question.reason)+'</p></article>').join('')+'<button class="jc-inline-action" data-act="brief-refresh">Refresh suggestions from my latest record</button><p class="mc-muted">Refreshing replaces question edits. Your answers and suggestions stay on this device.</p>'+briefQuestionSources()+'<button class="jc-inline-action" data-act="sheet" data-s="redflags">When to seek medical help</button></section>';
+  return '<div class="label" style="margin:22px 0 10px">Questions you might not think to ask</div><p class="small muted">Keep the ones that fit. Edit the wording, or untick a question to leave it out.</p>'+(brief.questions||[]).map((question,index)=>'<div class="qedit"><label class="check sm" for="brief-include-'+esc(question.id)+'" style="border-bottom:0;padding-bottom:4px"><input type="checkbox" id="brief-include-'+esc(question.id)+'"'+(question.selected!==false?' checked':'')+'><span>Question '+(index+1)+'</span></label><label class="sr-only" for="brief-question-'+esc(question.id)+'">Question '+(index+1)+'</label><textarea id="brief-question-'+esc(question.id)+'" maxlength="1000">'+esc(question.text)+'</textarea><p class="xtiny"><b>Why:</b> '+esc(question.reason)+'</p></div>').join('')+'<button class="textbtn" data-act="brief-refresh">Regenerate from the latest record</button><p class="xtiny">Regenerating replaces your edits.</p>'+briefQuestionSources();
 }
 function briefSummaryMarkup(brief,editing){
   const story=weeklyStoryData(brief.concerns.map(c=>c.key));
   const questions=(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(question=>question.selected!==false&&question.text);
-  const questionMarkup=editing?'':'<h3>Questions to bring</h3>'+(questions.length?'<ol class="mc-saved-questions">'+questions.map(question=>'<li><b>'+esc(question.text)+'</b><p>'+esc(question.reason)+'</p></li>').join('')+'</ol>':'<p>No questions selected.</p>');
-  return '<div class="mc-brief-summary">'+questionMarkup+'<h3>How I’d like to start</h3><p class="mc-opening">'+esc(briefOpening(brief))+'</p>'+(brief.date?'<p>Appointment: '+esc(fmtDay(brief.date))+'</p>':'')+'<h3>Relevant observations</h3>'+story.rows.map(r=>'<p>'+esc(storySentence(r))+'</p>').join('')+'<p class="mc-muted">Previous week '+esc(fmtDay(story.windows.prior[0]))+'–'+esc(fmtDay(story.windows.prior[6]))+'; recent week '+esc(fmtDay(story.windows.recent[0]))+'–'+esc(fmtDay(story.windows.recent[6]))+'. Confirmed self-reports; these comparisons do not establish a cause.</p></div>';
+  const questionMarkup=editing?'':'<div class="label" style="margin:18px 0 6px">Questions to bring</div>'+(questions.length?questions.map((question,i)=>'<div class="qn"><span class="n">'+(i+1)+'</span><div><div class="q">'+esc(question.text)+'</div><div class="why">'+esc(question.reason)+'</div></div></div>').join(''):'<p class="small muted">No questions selected.</p>');
+  return '<div class="brief-summary">'+questionMarkup+'<div class="label" style="margin:18px 0 8px">Opening statement</div><p class="quote">“'+esc(briefOpening(brief))+'”</p>'+(brief.date?'<p class="small muted">Appointment '+esc(fmtDay(brief.date))+'.</p>':'')+'<div class="label" style="margin:18px 0 6px">Observations</div>'+story.rows.map(r=>'<p class="small">'+esc(storySentence(r))+'</p>').join('')+'<p class="xtiny">Previous week '+esc(fmtDay(story.windows.prior[0]))+'–'+esc(fmtDay(story.windows.prior[6]))+'; recent week '+esc(fmtDay(story.windows.recent[0]))+'–'+esc(fmtDay(story.windows.recent[6]))+'. Self-reported; comparisons do not establish cause.</p></div>';
 }
 function briefSheet(){
   if(!briefDraft) briefDraft=JSON.parse(JSON.stringify(savedBrief()));
   const brief=briefDraft;
   let body='';
-  if(briefStep===1) body=`<h3>Choose up to three concerns</h3><p>Start with what matters most to you. Your selection order sets the order in your brief.</p><div class="mc-concerns">${PINNABLE_SYMPTOMS.map(key=>`<button class="btn ghost" data-act="brief-toggle" data-key="${key}" aria-pressed="${brief.concerns.some(c=>c.key===key)}">${esc(symptomName(key))}</button>`).join('')}</div><button class="jc-primary" data-act="brief-next"${brief.concerns.length?'':' disabled'}>Next: everyday impact</button>`;
-  if(briefStep===2) body=`<h3>Help your clinician understand the impact</h3><p>A concrete example is enough. These fields are optional.</p>${brief.concerns.map(c=>`<label class="fl" for="brief-impact-${c.key}">${esc(symptomName(c.key))} — how does it affect your day?</label><textarea id="brief-impact-${c.key}" maxlength="500" placeholder="For example: I lose my place during meetings.">${esc(c.impact)}</textarea>`).join('')}<label class="fl" for="brief-goal">What would make this visit useful?</label><textarea id="brief-goal" maxlength="500" placeholder="For example: agree on a plan for sleep.">${esc(brief.goal)}</textarea><label class="fl" for="brief-date">Appointment date (optional)</label><input type="date" id="brief-date" value="${esc(brief.date)}"><div class="btn-row split"><button class="btn ghost" data-act="brief-back">Back</button><button class="btn primary" data-act="brief-next">Preview my brief</button></div>`;
-  if(briefStep===3) body=`${briefQuestionsEditor(brief)}${briefSummaryMarkup(brief,true)}<p class="mc-muted">Review your wording before saving. The brief will be included in your appointment report.</p><div class="btn-row split"><button class="btn ghost" data-act="brief-back">Edit impact</button><button class="btn primary" data-act="brief-save">Save appointment brief</button></div>`;
-  return {title:'Help me explain this',body:`<div class="mc-brief"><p class="mc-eyebrow">Step ${briefStep} of 3 · ${['Your concerns','Your everyday life','Your brief'][briefStep-1]}</p>${body}</div>`};
-}
-function appointmentCompanionCard(){
-  const brief=savedBrief(), saved=brief.concerns.length>0;
-  const rows=saved?`<div class="mc-brief-rows mc-note-rows">${brief.concerns.map(c=>`<div class="mc-note-row"><span class="mc-brief-k">${esc(symptomName(c.key))}</span><span class="mc-brief-v">${esc(safeText(c.impact,500).trim()||'Impact not described yet')}</span></div>`).join('')}${brief.goal?`<div class="mc-note-row"><span class="mc-brief-k">My goal</span><span class="mc-brief-v">${esc(brief.goal)}</span></div>`:''}</div>`:'';
-  return `<section class="mc-card mc-appointment"><div class="mc-note-head"><span class="mc-eyebrow">Help me explain this</span>${brief.date?`<span class="pip-chip soft">${TWILIGHT_IC.calendar}${esc(fmtDay(brief.date))}</span>`:''}</div><h2>${saved?'Appointment notes':'Help me explain this'}</h2>${saved?rows:'<p>Write down your concerns, how they affect your day, and what you want to discuss. Bring the brief with you.</p>'}<button class="jc-secondary" data-act="brief-start">${saved?'Edit my appointment brief':'Prepare my appointment brief'}</button>${saved?`<details class="mc-evidence"><summary>Read my saved brief</summary>${briefSummaryMarkup(brief)}</details><button class="jc-inline-action" data-act="brief-clear">Clear appointment brief</button>`:''}${brief.date?calendarButton(brief.date):''}<p class="mc-muted">After your visit, use After-visit plans below to record agreed actions and check them off.</p></section>`;
+  if(briefStep===1) body=`<p class="lead">What are the three things?</p><p class="small muted">The order you pick is the order in the brief.</p><div class="chips" style="margin:12px 0 22px">${PINNABLE_SYMPTOMS.map(key=>`<button class="chip" data-act="brief-toggle" data-key="${key}" aria-pressed="${brief.concerns.some(c=>c.key===key)}">${esc(symptomName(key))}</button>`).join('')}</div><button class="btn ink" data-act="brief-next"${brief.concerns.length?'':' disabled'}>Next: what it costs you</button>`;
+  if(briefStep===2) body=`<p class="lead">What does each one cost you?</p><p class="small muted">One concrete example each. Optional, but it is what makes a clinician listen.</p>${brief.concerns.map(c=>`<div class="field"><label class="fl" for="brief-impact-${c.key}">${esc(symptomName(c.key))}</label><textarea id="brief-impact-${c.key}" maxlength="500" placeholder="For example: I lose my place in meetings.">${esc(c.impact)}</textarea></div>`).join('')}<div class="field"><label class="fl" for="brief-goal">What would make the visit worth it?</label><textarea id="brief-goal" maxlength="500" placeholder="For example: a plan for sleep.">${esc(brief.goal)}</textarea></div><div class="field"><label class="fl" for="brief-date">Appointment date</label><input type="date" id="brief-date" value="${esc(brief.date)}"></div><div class="btn-row split"><button class="btn outline" data-act="brief-back">Back</button><button class="btn ink" data-act="brief-next">Preview the brief</button></div>`;
+  if(briefStep===3) body=`${briefQuestionsEditor(brief)}${briefSummaryMarkup(brief,true)}<div class="btn-row split" style="margin-top:18px"><button class="btn outline" data-act="brief-back">Back</button><button class="btn ink" data-act="brief-save">Save to the dossier</button></div>`;
+  return {title:'Brief · '+briefStep+' of 3',body};
 }
 function calendarButton(date){
-  return `<button class="jc-inline-action" data-act="appointment-calendar" data-date="${esc(date)}">Add ${esc(fmtDay(date))} to calendar</button><p class="mc-muted">Exports a generic “Appointment” calendar event at 9 am with a reminder one day before. Adjust the time and confirm it in your calendar. No health details are included.</p>`;
+  return `<button class="textbtn" data-act="appointment-calendar" data-date="${esc(date)}">Add ${esc(fmtDay(date))} to calendar</button><p class="xtiny">A generic “Appointment” event at 9 am with a reminder the day before. No health details are included.</p>`;
 }
 function visitReminderMarkup(){
   const dates=[...new Set(appointmentData().plans.map(p=>p.nextVisit).filter(d=>d&&d>=todayISO()))].sort();
-  return dates.length?`<section class="mc-card"><h3>Upcoming follow-ups</h3>${dates.map(calendarButton).join('')}</section>`:'';
+  return dates.length?`<div class="label" style="margin:18px 0 6px">Follow-ups booked</div>${dates.map(calendarButton).join('')}`:'';
 }
 function appointmentCalendar(date){
   if(!validISODate(date)) return null;
@@ -158,25 +139,14 @@ function companionAction(el){
     else {supportFeedback={date:todayISO(),kind,helped}; DB.support.push(supportFeedback); DB.support=DB.support.slice(-200);}
     save(true); renderSheet(false); return true;
   }
-  if(act==='support-clear'){DB.support=[]; supportFeedback=null; save(true); renderSheet(false); toast('Support feedback cleared'); return true;}
-  if(act==='save-weekly-question'){
-    const story=weeklyStoryData(), ready=story.rows.filter(r=>r.ready);
-    if(!ready.length){toast('Keep checking in — there is not enough data for a recap yet');return true;}
-    const recap='Weekly recap ending '+fmtDay(story.windows.recent[6])+', previous → recent: '+ready.map(r=>symptomName(r.key)+' '+r1(r.before)+' → '+r1(r.after)+(r.key==='hf'?' per day':' / 4')+' (n='+r.prior.length+'/'+r.recent.length+')').join('; ')+'.';
-    const overlap=story.events.length?' Overlap: '+fmtDay(story.events[0].date)+' '+story.events[0].title+'. Timing does not prove cause.':'';
-    const text=safeText(recap+overlap,470)+' What should we discuss?';
-    const data=appointmentData();
-    if(data.questions.some(q=>q.text===text)){toast('This recap is already in your appointment questions');return true;}
-    if(data.questions.length>=100){toast('Your question list is full. Remove an old question first.');return true;}
-    data.questions.push({id:'weekly-'+Date.now().toString(36),text,created:todayISO(),asked:false,askedAt:''});save(true);toast('Recap saved in Care → Appointment questions');return true;
-  }
+  if(act==='support-clear'){DB.support=[]; supportFeedback=null; save(true); renderSheet(false); toast('Cleared'); return true;}
   if(act==='brief-start'){beginBrief();return true;}
   if(act==='brief-toggle'){
     const key=el.dataset.key;if(!briefDraft||!PINNABLE_SYMPTOMS.includes(key))return true;
     const index=briefDraft.concerns.findIndex(c=>c.key===key);
     if(index>=0)briefDraft.concerns.splice(index,1);
     else if(briefDraft.concerns.length<3)briefDraft.concerns.push({key,impact:''});
-    else {toast('Choose up to three concerns');return true;}
+    else {toast('Three concerns at most');return true;}
     renderSheet(false);return true;
   }
   if(act==='brief-next'||act==='brief-back'){
@@ -188,9 +158,9 @@ function companionAction(el){
   if(act==='brief-save'){
     captureBriefFields();
     if(!briefDraft||!briefDraft.concerns.length)return true;
-    appointmentData().brief=safeAppointments({brief:briefDraft}).brief;save(true);closeSheet();render(true);toast('Appointment brief saved');return true;
+    appointmentData().brief=safeAppointments({brief:briefDraft}).brief;save(true);closeSheet();render(true);toast('Brief saved to the dossier');return true;
   }
-  if(act==='brief-clear'){appointmentData().brief={concerns:[],goal:'',date:''};briefDraft=null;save(true);render(true);toast('Appointment brief cleared');return true;}
+  if(act==='brief-clear'){appointmentData().brief={concerns:[],goal:'',date:''};briefDraft=null;save(true);render(true);toast('Brief cleared');return true;}
   if(act==='appointment-calendar'){const text=appointmentCalendar(el.dataset.date);if(text)download('appointment-'+el.dataset.date+'.ics',text,'text/calendar');return true;}
   return false;
 }
