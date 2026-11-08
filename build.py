@@ -27,23 +27,23 @@ ICONS = (
     "icon-512.png",
     "maskable-512.png",
 )
+# Fraunces (display, numerals) and Instrument Sans (UI), both SIL OFL 1.1.
+# The web build references these files; the native WebView bundle inlines them
+# (mobile/scripts/sync-web.cjs) so the app works with no network at all.
 FONT_FILES = (
-    "assets/fonts/bricolage-grotesque-latin.woff2",
-    "assets/fonts/OFL.txt",
+    "assets/fonts/fraunces-latin-opsz-normal.woff2",
+    "assets/fonts/fraunces-latin-opsz-italic.woff2",
+    "assets/fonts/instrument-sans-latin-wght-normal.woff2",
+    "assets/fonts/instrument-sans-latin-wght-italic.woff2",
+    "assets/fonts/OFL-fraunces.txt",
+    "assets/fonts/OFL-instrument-sans.txt",
 )
 NOTICE_FILES = ("assets/icons/LUCIDE_LICENSE.txt",)
-# Pip, the peri sprout companion. The poses are inlined as WebP data URIs so the
-# single-file bundle (and the native WebView copy) stays self-contained.
-PIP_IMAGES = {
-    "__PIP_GUIDE_LEAVES_DATA__": "assets/mascot/pip/app/pip-guide-leaves.webp",
-    "__PIP_GUIDE_BODY_DATA__": "assets/mascot/pip/app/pip-guide-body.webp",
-    "__PIP_PHONE_DATA__": "assets/mascot/pip/app/pip-phone.webp",
-}
-# The transparent check-in clip is a web-only enhancement (relative URL); the
-# native bundle falls back to the still pose because it has no base URL.
-PIP_VIDEO_FILES = ("assets/mascot/pip/crisp-v2/check-in.webm",)
-PIP_CLIP_MOV = "assets/mascot/pip/crisp-v2/check-in.mov"
-SOURCE_FILES = ("styles.css", "redesign.css", *JS_ORDER, *PWA_FILES, *CRAWLER_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES, *PIP_IMAGES.values(), *PIP_VIDEO_FILES)
+# Pip, the sprout, stays on the public install page and in marketing. The daily
+# UI no longer shows a mascot, so nothing is inlined into the app bundle.
+PUBLIC_ART = {"assets/mascot/pip/app/pip-guide.webp": "assets/mascot/pip-guide.webp"}
+SOURCE_FILES = ("styles.css", *JS_ORDER, *PWA_FILES, *CRAWLER_FILES, *PUBLIC_PAGES, *ICONS, *FONT_FILES, *NOTICE_FILES, *PUBLIC_ART.keys())
+THEME_COLOR = "#fbfbf9"
 
 
 def source_text(name: str) -> str:
@@ -69,19 +69,13 @@ def reset_dist() -> None:
 
 
 def build_html() -> str:
-    css = source_text("styles.css") + "\n\n" + source_text("redesign.css")
+    css = source_text("styles.css")
     icon_license = source_text("assets/icons/LUCIDE_LICENSE.txt")
     javascript = "\n\n".join(
         f"/* ==== {name} ==== */\n{source_text(name)}" for name in JS_ORDER
     )
     brand_icon = "data:image/png;base64," + base64.b64encode((ROOT / "icon-192.png").read_bytes()).decode("ascii")
     javascript = javascript.replace("__PERI_ICON_DATA__", brand_icon)
-    for marker, path in PIP_IMAGES.items():
-        data = "data:image/webp;base64," + base64.b64encode((ROOT / path).read_bytes()).decode("ascii")
-        javascript = javascript.replace(marker, data)
-    # Optional HEVC-with-alpha render of the same clip (Safari/WebKit). Export it
-    # from the Masko job listed in assets/mascot/pip/crisp-v2/animation-job.json.
-    javascript = javascript.replace("__PIP_CLIP_MOV__", "assets/mascot/check-in.mov" if (ROOT / PIP_CLIP_MOV).is_file() else "")
     favicon = base64.b64encode((ROOT / "favicon-64.png").read_bytes()).decode("ascii")
 
     return f"""<!DOCTYPE html>
@@ -92,10 +86,10 @@ def build_html() -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
-<title>peri — menopause tracker &amp; guide</title>
+<title>peri — the menopause record</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="description" content="A private daily tracker and evidence-based reference for perimenopause and menopause: symptoms, sleep, weight, movement, diet, skin, mood and sexual health. No account, no server.">
-<meta name="theme-color" content="#f7f5ef">
+<meta name="description" content="A private daily record for perimenopause and menopause: a ledger of what happened, the finding of the day, and a dossier for your appointment. No account, no server.">
+<meta name="theme-color" content="{THEME_COLOR}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="peri">
@@ -137,19 +131,14 @@ def main() -> None:
         shutil.copyfile(ROOT / name, DIST / "icons" / name)
     for name in FONT_FILES:
         shutil.copyfile(ROOT / name, DIST / name)
-    for name in PIP_VIDEO_FILES:
-        shutil.copyfile(ROOT / name, DIST / "assets" / "mascot" / Path(name).name)
-    # Public install page artwork (the app itself uses the inlined poses).
-    shutil.copyfile(ROOT / "assets/mascot/pip/app/pip-guide.webp", DIST / "assets" / "mascot" / "pip-guide.webp")
-    if (ROOT / PIP_CLIP_MOV).is_file():
-        shutil.copyfile(ROOT / PIP_CLIP_MOV, DIST / "assets" / "mascot" / Path(PIP_CLIP_MOV).name)
+    for source, target in PUBLIC_ART.items():
+        shutil.copyfile(ROOT / source, DIST / target)
 
     size_kib = len(html.encode("utf-8")) / 1024
     print(f"Built index.html and dist/index.html ({size_kib:.0f} KiB each)")
     print(f"Copied {len(PWA_FILES)} PWA files and {len(ICONS)} icons")
     print(f"Copied {len(PUBLIC_PAGES)} public policy/support pages")
-    print(f"Copied {len(FONT_FILES)} local font files")
-    print(f"Inlined {len(PIP_IMAGES)} Pip images and copied {len(PIP_VIDEO_FILES)} Pip clip(s)")
+    print(f"Copied {len(FONT_FILES)} local font files and {len(PUBLIC_ART)} public image(s)")
 
 
 if __name__ == "__main__":

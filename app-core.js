@@ -77,11 +77,25 @@ function postNativeEvent(type, attributes){
 }
 
 /* ---------- defaults & schema ---------- */
-const SCHEMA_V = 8;
+const SCHEMA_V = 9;
 const PROFILE_INTENTS = ['understand','treatment','appointment','record'];
 const ONBOARDING_FEELINGS = {calm:'Calm',hopeful:'Hopeful',mixed:'Up and down',overwhelmed:'Overwhelmed',low:'Low',unsure:'Not sure'};
 const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido','bloating','dizzy','irritable','overwhelmed'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
+const PERIOD_STATUSES = ['regular','changing','gaps','stopped','na'];
+/* The ledger vocabulary. Symptom kinds share keys with PINNABLE_SYMPTOMS so a
+   moment rolls up into the same day fields the insights engine already reads.
+   `woke`, `slept`, `bleed`, `med`, `breath` and `note` are ledger-only kinds. */
+const MOMENT_KINDS = {
+  hf:{n:'Hot flash',sym:false}, ns:{n:'Night sweat',sym:false}, woke:{n:'Woke',sym:false},
+  fog:{n:'Brain fog'}, mood:{n:'Low mood'}, anx:{n:'Anxiety'}, joint:{n:'Pain'}, head:{n:'Headache'},
+  palp:{n:'Palpitations'}, dizzy:{n:'Dizziness'}, bloating:{n:'Bloating'}, dry:{n:'Dryness'}, uri:{n:'Bladder'},
+  energy:{n:'Fatigue'}, itch:{n:'Itch'}, libido:{n:'Low libido'}, irritable:{n:'Irritable'}, overwhelmed:{n:'Overwhelmed'},
+  sleepq:{n:'Slept badly'},
+  bleed:{n:'Bleeding',sym:false}, slept:{n:'Slept',sym:false}, med:{n:'Medication',sym:false}, breath:{n:'Breathed',sym:false}, note:{n:'Note',sym:false}
+};
+const MOMENT_SEVERITY = ['','Mild','Moderate','Strong'];
+const MAX_MOMENTS_PER_DAY = 80;
 function blankDB(){
   return {
     v: SCHEMA_V,
@@ -89,12 +103,13 @@ function blankDB(){
       name:'', birthYear:null, region:'us', units:'imperial',
       lastPeriod:'', uterus:'unknown', ovaries:'unknown', surgeryDate:'', bone:'unknown',
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
-      theme:'dark', stage:null, stageAnswers:null, onboarded:false,
-      onboardingVersion:2, onboardingStep:0, onboardingDeferred:false, firstCheckinPending:false, intent:'', onboardingFeeling:'',
-      pinnedSymptoms:[]
+      theme:'light', stage:null, stageAnswers:null, onboarded:false,
+      onboardingVersion:4, onboardingStep:0, onboardingDeferred:false, firstCheckinPending:false, intent:'', onboardingFeeling:'',
+      pinnedSymptoms:[], periodStatus:''
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
-    appointments:{questions:[],plans:[],brief:{concerns:[],goal:'',date:''}}, support:[], healthKit:null,
+    appointments:{questions:[],plans:[],brief:{concerns:[],goal:'',date:''},evidence:[]}, support:[], healthKit:null,
+    findings:{},
     meta:{created:todayISO(), lastOpen:todayISO()}
   };
 }
@@ -136,10 +151,12 @@ function migrate(d){
   p.waistGoal=safeNumber(rawProfile.waistGoal,30,300);
   p.theme=safeEnum(rawProfile.theme,['auto','light','dark'],'auto');
   p.onboarded=rawProfile.onboarded===true;
-  p.onboardingVersion=safeEnum(rawProfile.onboardingVersion,[1,2,3],1);
+  p.onboardingVersion=safeEnum(rawProfile.onboardingVersion,[1,2,3,4],1);
   // Native experiment v3 has twelve steps; keep its progress intact through
   // load, backup restore, and the WebView's canonical persistence handshake.
-  p.onboardingStep=safeInteger(rawProfile.onboardingStep,0,p.onboardingVersion===3?11:3)||0;
+  // v4 is the first-run letter: one screen, so its step is always 0.
+  p.onboardingStep=p.onboardingVersion===4?0:(safeInteger(rawProfile.onboardingStep,0,p.onboardingVersion===3?11:3)||0);
+  p.periodStatus=safeEnum(rawProfile.periodStatus,PERIOD_STATUSES,'');
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
   p.firstCheckinPending=rawProfile.firstCheckinPending===true;
   p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
@@ -205,6 +222,11 @@ function migrate(d){
   out.healthKit=safeHealthKitSummary(d.healthKit);
   out.trigger=safeTrigger(d.trigger);
   if(out.trigger && birthDate && out.trigger.start<birthDate) out.trigger=null;
+  if(plainRecord(d.findings)){
+    Object.keys(d.findings).filter(id=>/^[a-z0-9-]{1,60}$/.test(id)).slice(0,200).forEach(id=>{
+      const seen=safePastDate(d.findings[id]); if(seen) out.findings[id]=seen;
+    });
+  }
   const meta=plainRecord(d.meta)?d.meta:{};
   out.meta.created=safePastDate(meta.created)||todayISO();
   out.meta.lastOpen=todayISO();
@@ -257,6 +279,23 @@ function safeEntryPayload(raw){
     ['alc','caf'].forEach(k=>{ const n=safeInteger(raw.nut[k],0,50); if(n!=null) out.nut[k]=n; });
   }
   const notes=safeText(raw.notes,4000); if(notes) out.notes=notes;
+  integer('rating',0,4); integer('wakes',0,30);
+  if(Array.isArray(raw.moments)){
+    const moments=raw.moments.slice(0,MAX_MOMENTS_PER_DAY).map(safeMoment).filter(Boolean).sort((a,b)=>a.t.localeCompare(b.t));
+    if(moments.length) out.moments=moments;
+  }
+  return out;
+}
+function safeMoment(raw){
+  if(!plainRecord(raw)) return null;
+  const t=typeof raw.t==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(raw.t)?raw.t:'';
+  if(!t||!MOMENT_KINDS[raw.k]) return null;
+  const out={t,k:raw.k};
+  const s=safeInteger(raw.s,1,3); if(s!=null) out.s=s;
+  const n=safeText(raw.n,280).trim(); if(n) out.n=n;
+  const v=safeNumber(raw.v,0,16); if(v!=null&&raw.k==='slept') out.v=v;
+  const d=safeInteger(raw.d,1,3600); if(d!=null) out.d=d;
+  const id=safeText(raw.id,40); if(/^[A-Za-z0-9_-]{1,40}$/.test(id)) out.id=id;
   return out;
 }
 function safeEntry(raw,legacyConfirmed){
@@ -405,8 +444,19 @@ function safeLab(raw){
   return {id:safeText(raw.id,40)||'lab-'+date+'-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20),name,value,date,unit:safeText(raw.unit,30)};
 }
 function safeAppointments(raw){
-  const out={questions:[],plans:[],brief:{concerns:[],goal:'',date:''}};
+  const out={questions:[],plans:[],brief:{concerns:[],goal:'',date:''},evidence:[]};
   if(!plainRecord(raw)) return out;
+  if(Array.isArray(raw.evidence)){
+    const seen=new Set();
+    raw.evidence.slice(0,100).forEach((item,index)=>{
+      if(!plainRecord(item)) return;
+      const text=safeText(item.text,500).trim(), date=safePastDate(item.date);
+      if(!text||!date) return;
+      const rawId=safeText(item.id,60), id=/^[A-Za-z0-9_-]{1,60}$/.test(rawId)?rawId:'evidence-'+index;
+      if(seen.has(id)) return; seen.add(id);
+      out.evidence.push({id,date,kind:safeEnum(item.kind,['chapter','finding','note'],'note'),text,source:safeText(item.source,120).trim(),ref:safeText(item.ref,60).trim()});
+    });
+  }
   if(plainRecord(raw.brief)){
     const seen=new Set();
     out.brief.concerns=(Array.isArray(raw.brief.concerns)?raw.brief.concerns:[]).filter(item=>{
@@ -479,25 +529,6 @@ function safeHealthKitSummary(raw){
     sleep:{totalHours:totalSleep,nightlyAverageHours:nightlySleep,trackedNights},
     bodyWeight:{latestKilograms,recordedAt},warnings
   };
-}
-function prefillTodayFromYesterday(){
-  const t=todayISO(), y=addDays(t,-1);
-  const prev=confirmedEntry(y);
-  if(!prev) return false;
-  const current=DB.entries[t];
-  if(current&&(isConfirmedEntry(t)||hasEntryContent(current)||current.prefilledFrom)) return false;
-  const next=current||{sym:{},act:{},nut:{},confirmed:false,draftDirty:false};
-  next.sym=next.sym||{}; next.act=next.act||{}; next.nut=next.nut||{};
-  let copied=false;
-  if(prev.hf!=null){ next.hf=prev.hf; copied=true; }
-  if(prev.ns!=null){ next.ns=prev.ns; copied=true; }
-  ['fog','energy','joint','anx'].forEach(k=>{ if(prev.sym&&prev.sym[k]!=null){ next.sym[k]=prev.sym[k]; copied=true; } });
-  if(!copied) return false;
-  next.prefilledFrom=y;
-  next.confirmed=false;
-  next.draftDirty=false;
-  DB.entries[t]=next;
-  return true;
 }
 function safeScore(raw){
   if(!plainRecord(raw)) return null;
@@ -665,6 +696,7 @@ function entry(d){
 function hasEntryContent(e){
   if(!plainRecord(e)) return false;
   if(e.hf!=null||e.ns!=null||e.wt!=null||e.waist!=null||e.bleed||e.notes) return true;
+  if(e.rating!=null||e.wakes!=null||(Array.isArray(e.moments)&&e.moments.length)) return true;
   if(Object.keys(e.sym||{}).length) return true;
   if(e.sleepH!=null||e.inBedH!=null) return true;
   if(Object.keys(e.act||{}).length||Object.keys(e.nut||{}).length) return true;
@@ -1062,3 +1094,245 @@ function insights(){
   }
   return out;
 }
+
+/* ---------- the ledger ----------
+   A moment is one dated, timed event: {t:'HH:MM', k:kind, s?:1-3, n?:note,
+   v?:hours, d?:seconds}. Moments are the input; the per-day fields the
+   insights engine reads (hf, ns, sym.*, bleed, sleepH, wakes) are rolled up
+   from them, so every finding and the clinician report keep working. A day
+   with any moment is a confirmed day: the ledger has no drafts. */
+function nowHM(date){ const d=date||new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function hmMinutes(t){ const [h,m]=String(t||'00:00').split(':').map(Number); return (h||0)*60+(m||0); }
+function fmtHM(t){
+  const [h,m]=String(t).split(':').map(Number), d=new Date(2000,0,1,h,m);
+  return d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}).replace(/\s?([ap])\.?m\.?/i,(x,ap)=>' '+ap.toLowerCase()+'m').replace(/^0/,'');
+}
+function momentName(m){ return m&&MOMENT_KINDS[m.k]?MOMENT_KINDS[m.k].n:(m&&m.k)||''; }
+function momentDetail(m){
+  if(!m) return '';
+  const parts=[];
+  if(m.k==='slept'&&m.v!=null) return r1(m.v)+' h';
+  if(m.s) parts.push(MOMENT_SEVERITY[m.s].toLowerCase());
+  if(m.d) parts.push('rode it out, '+(m.d>=60?Math.round(m.d/60)+' min':m.d+' s'));
+  if(m.n&&m.k!=='note') parts.push(m.n);
+  return parts.join(' · ');
+}
+function dayMoments(date){ const e=DB.entries[date]; return e&&Array.isArray(e.moments)?e.moments:[]; }
+function newMomentId(){ return 'm-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function rollupMoments(e){
+  const ms=Array.isArray(e.moments)?e.moments:[];
+  const ofKind=k=>ms.filter(m=>m.k===k);
+  if(ofKind('hf').length) e.hf=ofKind('hf').length;
+  if(ofKind('ns').length) e.ns=Math.min(4,ofKind('ns').length);
+  if(ofKind('woke').length) e.wakes=Math.min(30,ofKind('woke').length);
+  e.sym=e.sym||{};
+  Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).forEach(k=>{
+    const sev=ofKind(k).map(m=>m.s||2);
+    if(sev.length) e.sym[k]=Math.max(...sev);
+  });
+  const bleeds=ofKind('bleed');
+  if(bleeds.length){ const s=Math.max(...bleeds.map(m=>m.s||2)); e.bleed=s>=3?'heavy':s===2?'light':'spotting'; }
+  const slept=ofKind('slept').filter(m=>m.v!=null).pop();
+  if(slept){ e.sleepH=slept.v; if(e.inBedH!=null&&e.inBedH<e.sleepH) e.inBedH=e.sleepH; }
+  const notes=ofKind('note').map(m=>m.n).filter(Boolean);
+  if(notes.length){
+    const manual=(e.notes||'').split('\n').filter(line=>line.trim()&&!/^\d\d:\d\d /.test(line));
+    e.notes=[...manual,...ofKind('note').filter(m=>m.n).map(m=>m.t+' '+m.n)].join('\n').slice(0,4000);
+  }
+}
+function clearDerived(e,kind){
+  if(kind==='hf') delete e.hf;
+  else if(kind==='ns') delete e.ns;
+  else if(kind==='woke') delete e.wakes;
+  else if(kind==='bleed') delete e.bleed;
+  else if(kind==='slept') delete e.sleepH;
+  else if(kind==='note'&&e.notes){ const manual=e.notes.split('\n').filter(line=>line.trim()&&!/^\d\d:\d\d /.test(line)).join('\n'); if(manual) e.notes=manual; else delete e.notes; }
+  else if(MOMENT_KINDS[kind]&&MOMENT_KINDS[kind].sym!==false&&e.sym) delete e.sym[kind];
+}
+function unconfirmEntry(date){
+  const e=DB.entries[date]; if(!e) return;
+  delete e.confirmedData; e.confirmed=false; e.draftDirty=false;
+  if(!hasEntryContent(e)) delete DB.entries[date];
+}
+function addMoment(date,moment){
+  if(!pastOrTodayISO(date)) return null;
+  const e=entry(date);
+  e.moments=Array.isArray(e.moments)?e.moments:[];
+  if(e.moments.length>=MAX_MOMENTS_PER_DAY) return null;
+  const clean=safeMoment(Object.assign({},moment,{t:moment.t||nowHM(),id:moment.id||newMomentId()}));
+  if(!clean) return null;
+  e.moments.push(clean); e.moments.sort((a,b)=>a.t.localeCompare(b.t));
+  rollupMoments(e); confirmEntry(date);
+  return clean;
+}
+function updateMoment(date,id,patch){
+  const e=DB.entries[date]; const m=e&&Array.isArray(e.moments)?e.moments.find(x=>x.id===id):null;
+  if(!m) return null;
+  const clean=safeMoment(Object.assign({},m,patch,{id:m.id,k:m.k}));
+  if(!clean) return null;
+  Object.keys(m).forEach(key=>delete m[key]); Object.assign(m,clean);
+  e.moments.sort((a,b)=>a.t.localeCompare(b.t));
+  rollupMoments(e); confirmEntry(date);
+  return m;
+}
+function removeMoment(date,id){
+  const e=DB.entries[date]; if(!e||!Array.isArray(e.moments)) return false;
+  const i=e.moments.findIndex(m=>m.id===id); if(i<0) return false;
+  const [gone]=e.moments.splice(i,1);
+  if(!e.moments.some(m=>m.k===gone.k)) clearDerived(e,gone.k);
+  if(!e.moments.length) delete e.moments;
+  rollupMoments(e);
+  if(hasEntryContent(safeEntryPayload(e))) confirmEntry(date); else unconfirmEntry(date);
+  return true;
+}
+function latestMoment(date,kind){
+  const ms=dayMoments(date).filter(m=>!kind||m.k===kind);
+  return ms.length?ms[ms.length-1]:null;
+}
+function lastMomentLogged(date){
+  const ms=dayMoments(date).filter(m=>m.id).slice();
+  return ms.sort((a,b)=>(b.id||'').localeCompare(a.id||''))[0]||null;
+}
+/* Close the day: one rating plus four facts. Unticked boxes are explicit
+   zeros, because "no alcohol" is information the pairing insights need. */
+function closeDay(date,answers){
+  if(!pastOrTodayISO(date)) return false;
+  const e=entry(date), a=answers||{};
+  const rating=safeInteger(a.rating,0,4); if(rating!=null) e.rating=rating;
+  e.nut=e.nut||{}; e.act=e.act||{}; e.sym=e.sym||{};
+  if(typeof a.alcohol==='boolean') e.nut.alc=a.alcohol?Math.max(1,e.nut.alc||0):0;
+  if(typeof a.strength==='boolean') e.act.res=a.strength;
+  if(typeof a.period==='boolean'&&!dayMoments(date).some(m=>m.k==='bleed')) e.bleed=a.period?'light':'none';
+  if(typeof a.stress==='boolean'){ if(a.stress) e.sym.overwhelmed=Math.max(2,e.sym.overwhelmed||0); else if(!dayMoments(date).some(m=>m.k==='overwhelmed')) e.sym.overwhelmed=0; }
+  rollupMoments(e);
+  return confirmEntry(date);
+}
+function dayClosed(date){ const e=confirmedEntry(date); return !!(e&&e.rating!=null); }
+const DAY_RATINGS=['Rough','Hard','Fair','Good','Great'];
+function isNightHour(hour){ const h=hour==null?new Date().getHours():hour; return h>=22||h<6; }
+
+/* ---------- findings ----------
+   The finding of the day is one sentence with a number behind it, chosen
+   from the ledger's shape over the last week and from the insights engine.
+   Nothing here is a diagnosis: every item is a description of her own record. */
+const DAY_WINDOWS=[
+  {id:'morning',l:'in the morning',range:'06:00–12:00',s:6*60,e:12*60},
+  {id:'afternoon',l:'in the afternoon',range:'12:00–17:00',s:12*60,e:17*60},
+  {id:'evening',l:'in the evening',range:'17:00–22:00',s:17*60,e:22*60},
+  {id:'night',l:'overnight',range:'22:00–06:00',s:22*60,e:6*60}
+];
+function windowOf(t){
+  const x=hmMinutes(t);
+  return DAY_WINDOWS.find(w=>w.s<=w.e?(x>=w.s&&x<w.e):(x>=w.s||x<w.e))||DAY_WINDOWS[3];
+}
+const NUMBER_WORDS=['No','One','Two','Three','Four','Five','Six','Seven','Eight','Nine'];
+function numberWord(n){ return n<NUMBER_WORDS.length?NUMBER_WORDS[n]:String(n); }
+function plural(n,one,many){ return n===1?one:(many||one+'s'); }
+function slugify(text){ return String(text).toLowerCase().replace(/<[^>]+>/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50); }
+const GENERIC_INSIGHTS=/^(Nothing to flag yet|Keep logging)/;
+function hourLabel(min){ const h=Math.floor(((min%1440)+1440)%1440/60); return String(h).padStart(2,'0')+':00'; }
+function findings(){
+  const out=[], t=todayISO(), week=rangeDates(7), fortnight=rangeDates(14);
+  const push=f=>{ if(!out.some(x=>x.id===f.id)) out.push(f); };
+  const ins=insights().filter(i=>!GENERIC_INSIGHTS.test(i.h));
+  ins.filter(i=>i.t==='alert').forEach(i=>push({id:'alert-'+slugify(i.h),p:100,kind:'alert',head:i.h,body:i.b,cta:i.cta}));
+
+  /* today's flashes, by time of day */
+  const todayHF=dayMoments(t).filter(m=>m.k==='hf');
+  if(todayHF.length>=2){
+    const w=windowOf(todayHF[0].t);
+    if(todayHF.every(m=>windowOf(m.t)===w)){
+      const quiet=DAY_WINDOWS.filter(x=>x!==w&&x.id!=='night'&&hmMinutes(nowHM())>=x.e).map(x=>x.id);
+      push({id:'today-hf-'+w.id,p:90,kind:'pattern',
+        head:numberWord(todayHF.length)+' flashes, all '+w.l+'.'+(quiet.length?' Your '+quiet[0]+'s are clear.':''),
+        num:w.range,sub:'today, at '+todayHF.map(m=>m.t).join(', '),
+        body:'One day is a note; a week of the same shape is a finding. The dossier keeps count.'});
+    }
+  }
+  /* the week's flashes cluster */
+  const weekHF=week.flatMap(d=>dayMoments(d).filter(m=>m.k==='hf').map(m=>({d,t:m.t})));
+  if(weekHF.length>=4){
+    const byWin={}; weekHF.forEach(m=>{ const w=windowOf(m.t); byWin[w.id]=byWin[w.id]||{w,n:0,days:new Set()}; byWin[w.id].n++; byWin[w.id].days.add(m.d); });
+    const top=Object.values(byWin).sort((a,b)=>b.n-a.n)[0];
+    const share=top.n/weekHF.length;
+    if(share>=0.6&&top.days.size>=3){
+      const others=DAY_WINDOWS.filter(x=>x!==top.w&&!(byWin[x.id]&&byWin[x.id].n)&&x.id!=='night');
+      push({id:'hf-cluster-'+top.w.id,p:85,kind:'pattern',
+        head:'Flashes cluster '+top.w.l+'.',num:top.w.range,
+        sub:'on '+top.days.size+' of the last 7 days; '+Math.round(share*100)+'% of '+weekHF.length+' flashes'+(others.length?'; '+others[0].id+'s clear':''),
+        body:'Timing is the first thing a clinician will ask about. Afternoon and evening clusters often follow caffeine, heat or a skipped lunch; overnight clusters are the sleep problem in disguise.'});
+    }
+  }
+  /* night waking window */
+  const nights=week.map(d=>({d,wakes:dayMoments(d).filter(m=>m.k==='woke'&&windowOf(m.t).id==='night'),sweats:dayMoments(d).filter(m=>m.k==='ns').length}));
+  const wakeNights=nights.filter(n=>n.wakes.length);
+  if(wakeNights.length>=3){
+    const buckets={};
+    wakeNights.forEach(n=>n.wakes.forEach(m=>{ const x=hmMinutes(m.t), start=Math.floor(x/60)*60; [start-60,start].forEach(b=>{ const key=((b%1440)+1440)%1440; buckets[key]=buckets[key]||new Set(); buckets[key].add(n.d); }); }));
+    const best=Object.entries(buckets).map(([k,set])=>({start:+k,n:set.size})).sort((a,b)=>b.n-a.n||a.start-b.start)[0];
+    if(best&&best.n>=3){
+      push({id:'wake-window',p:80,kind:'pattern',head:'You wake between '+hourLabel(best.start).replace(':00','')+' and '+hourLabel(best.start+120).replace(':00','')+'.',
+        num:best.n+' of 7',sub:'nights with a wake in that window',
+        body:'The second half of the night is where falling oestrogen shows: a sweat wakes you, and the hour after is the hard one. If the sweats go, the sleep usually follows; if not, the sleep needs treating on its own.'});
+    }
+  }
+  /* sweat nights cost wakes */
+  const sweatNights=nights.filter(n=>n.sweats>0), dryNights=nights.filter(n=>!n.sweats&&confirmedEntry(n.d));
+  if(sweatNights.length>=3&&dryNights.length>=2){
+    const a=avg(sweatNights.map(n=>n.wakes.length)), b=avg(dryNights.map(n=>n.wakes.length));
+    if(a!=null&&b!=null&&a-b>=1){
+      push({id:'sweat-wakes',p:75,kind:'pattern',head:'Sweat nights cost you '+r1(a-b)+' more '+plural(Math.round(a-b),'wake')+'.',
+        num:r1(a)+' <i>vs</i> '+r1(b),sub:'wakes a night, sweat nights vs dry ('+sweatNights.length+' vs '+dryNights.length+')',
+        body:'Points at the sweats, not at insomnia. That changes the first thing worth treating.'});
+    }
+  }
+  /* fog after broken nights */
+  const fogDays=fortnight.filter(d=>{ const e=confirmedEntry(d); return e&&((e.sym&&e.sym.fog>=1)||dayMoments(d).some(m=>m.k==='fog')); });
+  const brokenNights=fortnight.filter(d=>{ const e=confirmedEntry(d); return e&&((e.wakes||0)>=2||(e.ns||0)>=2); });
+  const calmNights=fortnight.filter(d=>confirmedEntry(d)&&!brokenNights.includes(d));
+  if(brokenNights.length>=4&&calmNights.length>=3){
+    const after=brokenNights.filter(d=>fogDays.includes(d)).length, calm=calmNights.filter(d=>fogDays.includes(d)).length;
+    const ra=after/brokenNights.length, rc=calm/calmNights.length;
+    if(ra>=0.6&&ra-rc>=0.3){
+      push({id:'fog-after-nights',p:70,kind:'pattern',head:'Fog follows broken nights.',
+        num:after+' of '+brokenNights.length,sub:'broken nights were followed by fog, vs '+calm+' of '+calmNights.length+' calm ones',
+        body:'Concentration trouble that tracks sleep is a sleep problem first. Worth saying in exactly those words at the appointment.'});
+    }
+  }
+  /* treatment watch: the most recent change inside 14 days */
+  (Array.isArray(DB.medications)?DB.medications:[]).forEach(med=>{
+    (Array.isArray(med.changes)?med.changes:[]).forEach(change=>{
+      if(!pastOrTodayISO(change.date)) return;
+      const since=daysBetween(change.date,t);
+      if(since<2||since>21) return;
+      const target=(change.targets||[]).includes('hf')?'hf':(change.targets||[])[0];
+      if(!target) return;
+      const before=change.baseline&&change.baseline.values&&change.baseline.values[target];
+      const afterVals=[]; for(let i=1;i<=since;i++){ const e=confirmedEntry(addDays(change.date,i)); const v=e?(target==='hf'||target==='ns'?e[target]:(e.sym||{})[target]):null; if(v!=null) afterVals.push(v); }
+      if(!before||before.n<3||afterVals.length<2) return;
+      const after=avg(afterVals), unit=target==='hf'?' flashes a day':' / 4';
+      const name=target==='hf'?'flashes a day':(MOMENT_KINDS[target]?MOMENT_KINDS[target].n.toLowerCase():target)+' / 4';
+      push({id:'treatment-'+slugify(med.name)+'-'+change.date,p:65,kind:'treatment',
+        head:'Since '+med.name+' changed on '+fmtDay(change.date)+'.',
+        num:r1(before.average)+' → '+r1(after),sub:name+', '+since+' days in',
+        body:since<14?'Too early to call. The two-week check-in is on '+fmtDay(addDays(change.date,14))+'. Her pattern, not proof.':'Compared with the week before the change. An association in one person; worth discussing, not proof of cause.'});
+    });
+  });
+  /* engine insights that carry a pattern */
+  ins.filter(i=>i.t!=='alert').forEach(i=>{
+    const screening=/^Worth checking/.test(i.h);
+    const p=screening?30:i.t==='warn'?55:i.t==='ok'?50:48;
+    push({id:'insight-'+slugify(i.h),p,kind:'insight',head:i.h.replace(/ — /g,': '),body:i.b,cta:i.cta});
+  });
+  /* the record itself: the headline until there are pages to read */
+  const n=entryDates().length, thin=n<3||!out.some(f=>f.kind!=='alert'&&f.kind!=='insight'&&f.p>=60);
+  if(n&&thin) push({id:'record-days',p:n<3?95:40,kind:'record',head:n<7?'Day '+n+' of the record. Findings need about a week of pages.':n+' days on record. The dossier is building.',num:String(n),sub:plural(n,'day')+' recorded',body:'Most comparisons need 10 to 14 days before they mean anything. Log what happens; the page does the rest.'});
+  if(!n) push({id:'record-empty',p:95,kind:'record',head:'Nothing on record yet. Log the first thing that happens.',body:'One tap files it with the time. The finding of the day appears once there is a day to read.'});
+  out.sort((a,b)=>b.p-a.p);
+  const seen=DB.findings||(DB.findings={});
+  let changed=false;
+  out.forEach(f=>{ if(!seen[f.id]&&f.kind!=='record'){ seen[f.id]=t; changed=true; } f.filed=seen[f.id]||t; });
+  if(changed){ Object.keys(seen).sort((a,b)=>seen[a].localeCompare(seen[b])).slice(0,Math.max(0,Object.keys(seen).length-200)).forEach(k=>delete seen[k]); save(); }
+  return out;
+}
+function dossierFindings(){ return findings().filter(f=>f.kind==='pattern'||f.kind==='treatment'||f.kind==='insight'||f.kind==='alert'); }

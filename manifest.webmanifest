@@ -1,26 +1,57 @@
 {
-  "name": "peri — menopause tracker & guide",
+  "name": "peri — the menopause record",
   "short_name": "peri",
-  "description": "A private daily tracker and evidence-based reference for perimenopause, menopause and beyond. Symptoms, sleep, weight, movement, diet, skin, mood and sexual health.",
+  "description": "A private daily record for perimenopause and menopause: a ledger of what happened, the finding of the day, and a dossier for your appointment. No account, no server.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f7f5ef",
-  "theme_color": "#f7f5ef",
-  "categories": ["health", "lifestyle", "medical"],
+  "background_color": "#fbfbf9",
+  "theme_color": "#fbfbf9",
+  "categories": [
+    "health",
+    "lifestyle",
+    "medical"
+  ],
   "lang": "en",
   "prefer_related_applications": false,
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Today's check-in", "url": "./index.html#today" },
-    { "name": "Journey", "url": "./index.html#journey" },
-    { "name": "Care", "url": "./index.html#care" },
-    { "name": "Red flags", "url": "./index.html#redflags" }
+    {
+      "name": "Log",
+      "url": "./index.html#checkin"
+    },
+    {
+      "name": "Dossier",
+      "url": "./index.html#dossier"
+    },
+    {
+      "name": "Index",
+      "url": "./index.html#index"
+    },
+    {
+      "name": "Red flags",
+      "url": "./index.html#redflags"
+    }
   ]
 }

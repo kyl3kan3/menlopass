@@ -1,14 +1,16 @@
 # peri
 
-A private, offline-capable PWA and Expo app for women in perimenopause and beyond. The product is
-organized around one flow: a welcoming Today journal, focused symptom ratings with optional context,
-a weekly story and dated activity in Journey, appointment-first Care, and a searchable Guide.
+A private, offline-capable PWA and Expo app for women in perimenopause and beyond. It is built as
+an instrument, not a companion: a timestamped **ledger** of moments (a flash at 14:30, a wake at
+03:12), a **finding** written from the record each day, a **dossier** that files the findings,
+treatments, questions and evidence for the next appointment, and an **index** of fifteen reviewed
+chapters and nine tools. Three surfaces (Today, Dossier, Index), one accent, no mascot.
 
-The Pip paper design system shares one voice with the Pip social content: Bricolage Grotesque at
-every size, forest-ink actions and outlines, paper surfaces with pastel scenes (sand, night, sage,
-blush), a floating bottom navigation on phones and a left rail on desktop. Pip, the sprout
-companion, reacts to state on Today, the check-in, Journey, Care, Guide, support and onboarding
-(see `design-reference/pip-paper-spec.md`). It preserves the local record and native security model.
+The design system is typographic: Fraunces for display and numerals, Instrument Sans for the UI,
+paper (`#fbfbf9`) and ink (`#0c0c0d`) with vermilion (`#d13a16`) reserved for the one thing to do
+next, rules instead of cards, and a true-black night palette for the log sheet and the night desk
+that takes over Today between 22:00 and 06:00. The first run is a one-page letter with blanks to
+fill in rather than a wizard. Both fonts are SIL OFL 1.1 and ship inside the bundle.
 
 - **No account, backend health database, or health-data transmission.** Browser entries live in
   local storage. The iOS native wrapper keeps its record in an encrypted file with a device-bound
@@ -31,18 +33,20 @@ companion, reacts to state on Today, the check-in, Journey, Care, Guide, support
 The editable sources are intentionally flat at the repository root:
 
 ```text
-styles.css                 base components, tools, reports and legacy detailed-log styles
-redesign.css               Pip paper design system and responsive app layouts
-assets/fonts/              local Bricolage Grotesque webfont + OFL license
-assets/mascot/pip/app/     Pip poses inlined into the bundle at build time (WebP)
-tools/shots.cjs            seeded phone-size captures of the built app for design review
+styles.css                 the whole design system: tokens, masthead, ledger, findings,
+                           sheets, forms, tools, report and print styles
+assets/fonts/              Fraunces + Instrument Sans (woff2, SIL OFL) shipped with the app;
+                           the Bricolage file stays only for the marketing and store tooling
+assets/mascot/             Pip artwork used by marketing/ and get-app.html, not by the app
+tools/shots.cjs            seeded phone-size captures of every surface for design review
 content-a.js               symptom library, treatment landscape, supplements
 content-b.js               staging, diet, exercise, weight, skin, sleep, mind,
                            sexual health, screening, red flags, sources
-app-core.js                storage, data model, charts, insights engine
+app-core.js                storage, schema v9, ledger rollups, findings engine, charts
 appointment-questions.js   local, context-based appointment question suggestions
-app-companion.js           weekly stories, immediate support, appointment briefs
-app-views.js               views, tools, router
+app-companion.js           right-now support, the appointment brief, calendar export
+app-views.js               the letter, Today, the log sheet, the night desk, Close the day,
+                           Dossier, Index, You, the one-page brief, sheets and the router
 manifest.webmanifest       PWA metadata
 sw.js                      offline shell cache
 get-app.html               public App Store landing page using AppsFlyer OneLink
@@ -65,26 +69,38 @@ dist/                      generated; deploy this directory, do not edit it
 
 ## Running it
 
-### Companion features
+### The surfaces
 
-- **Today → I’m struggling right now:** short sleep, overwhelm, hot-flash, and brain-fog
-  support paths. Optional feedback builds a local list of helpful experiences; it can be cleared.
-  Self-care screens link to NHS sources. This does not constitute independent clinician review
-  of the new screens or a claim that the comfort tools treat menopause symptoms.
-- **Journey → Your weekly story:** compares the latest two calendar weeks using confirmed
-  snapshots, groups lower/higher/steady symptoms, shows treatment overlap and supporting logs,
-  and saves a dated recap into appointment questions. Each symptom requires four answers in
-  each week; missing values are never treated as zero.
-- **Care → Help me explain this:** select up to three concerns, describe everyday impact,
-  preview and save an opening statement with observations and suggested questions. The saved
-  brief is included in the printable report. Existing after-visit plans track agreed actions.
-  Appointment and follow-up dates can export a generic `.ics` event with a one-day reminder;
-  users must import it and confirm the time in their calendar. Native calendar sharing still
-  requires real-device verification.
+- **The letter (first run):** one page of blanks: what has been hardest lately, what periods are
+  doing, age, whether an appointment is coming. Finishing it writes the stage finding and opens
+  Today. No wizard, no account.
+- **Today:** the day's finding at the top, filed to the dossier with a number, then the ledger of
+  timestamped moments. **Log** opens a one-tap sheet (the three most-logged kinds always first,
+  severity after the fact, dictation that parses "bad hot flash at two thirty"). **Close the day**
+  asks one word for the day and anything the ledger could not know; the rest is already there.
+- **Night desk:** between 22:00 and 06:00 Today becomes a dimmed true-black page with the time,
+  three large targets (Woke, Night sweat, Can't sleep) and a two-minute wind-down. Logging from it
+  files a timestamped moment and goes back to bed.
+- **Right now:** short sleep, overwhelm, hot-flash and brain-fog support paths from Today. Optional
+  feedback builds a local list of what helped; it can be cleared. Self-care screens link to NHS
+  sources. This is not a claim that the comfort tools treat menopause symptoms.
+- **Dossier:** seven numbered sections: where you are, findings (patterns across days, treatment
+  watches, insights, alerts, each with the date first seen), treatments and their changes,
+  questions, evidence pinned from the index or written in, after the visit, and the opening
+  statement. **Export the one-page brief** renders the printable brief; **Rehearse** reads the
+  opening statement back. The brief flow picks up to three concerns, describes everyday impact and
+  suggests questions with their reasons. Appointment and follow-up dates export a generic `.ics`
+  with a one-day reminder; native calendar sharing still needs real-device verification.
+- **Index:** fifteen chapters in four groups and nine tools behind one search box that also
+  matches symptoms; the top line names the pattern in your own ledger. Chapters can be pinned to
+  the dossier as evidence.
+- **You:** profile, units, theme (light, dark, auto), data export and import, redo the first page,
+  delete everything.
 
-Schema v8 adds the brief and bounded support feedback to local persistence and JSON/encrypted
-backups; earlier backups migrate automatically. No health data is sent to a service by these
-features. `test-companion.js` is run by `npm test` alongside the existing regression suite.
+Schema v9 adds the moments ledger, the day rating, night wakes and the evidence list to local
+persistence and to JSON/encrypted backups; earlier backups (v1 to v8) migrate automatically and
+the day-level fields are still derived from the ledger for anything that reads them. No health data
+is sent to a service by any of these surfaces.
 
 Install the pinned development dependency, install its Chromium build once, then build and test:
 
@@ -181,7 +197,7 @@ npm run test:e2e      # test an already-built dist/
 npm test              # rebuild, then test
 ```
 
-`build.py` inlines `styles.css`, then `redesign.css`, and the JavaScript files in this order:
+`build.py` inlines `styles.css` and the JavaScript files in this order:
 `content-a.js`, `content-b.js`, `mobile/onboarding-model.js`, `app-core.js`, `appointment-questions.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
 matters. It writes identical HTML to the tracked root `index.html` convenience mirror and to
 `dist/index.html`; neither generated file should be edited manually.
@@ -198,24 +214,27 @@ local-storage copy:
 
 ```js
 {
-  v: 8,
+  v: 9,
   profile:  { name, birthYear, region, units,
               uterus:   'intact'|'hyst'|'ablation'|'unknown',
               ovaries:  'kept'|'one'|'both'|'unknown',
-              lastPeriod, surgeryDate, bone,
-               proteinGpk, weightGoal, waistGoal, theme, stage, onboarded,
-               intent, pinnedSymptoms, onboardingVersion, onboardingStep, onboardingDeferred,
-               firstCheckinPending },
-  entries:  { "2026-07-29": { hf, ns, inBedH, sleepH, sym:{…}, wt, waist,
+              lastPeriod, surgeryDate, bone, periodStatus,
+               proteinGpk, weightGoal, waistGoal, theme:'light'|'dark'|'auto', stage, stageAnswers,
+               onboarded, intent, pinnedSymptoms, onboardingVersion, onboardingStep,
+               onboardingDeferred, firstCheckinPending },
+  entries:  { "2026-07-29": { moments:[ {id, t:'HH:MM', k, s?:1-3, n?, v?, d?} ],
+                               rating:0-4, wakes, hf, ns, inBedH, sleepH, sym:{…}, wt, waist,
                                bleed, act:{res,bal,pf,aero}, nut:{prot,cal,fib,alc,caf},
-                               med:{ medicationId:{taken,at} }, notes, prefilledFrom?,
-                               confirmedData:{…trusted health snapshot…}, draftDirty } },
+                               med:{ medicationId:{taken,at} }, notes,
+                               confirmedData:{…trusted health snapshot…} } },
   medications:[ {id,name,form,days,due,notes,started,ended,status,stopReason,archivedAt,
                  changes:[{date,label,targets,baseline,followUps}]} ],
   labs:      [ {id,name,date,value,unit} ],
   appointments:{ questions:[{id,text,asked,askedAt}],
                  plans:[{id,date,summary,actions:[{id,text,done}],nextVisit}],
-                 brief:{concerns:[{key,impact}],goal,date} },
+                 brief:{concerns:[{key,impact}],goal,date},
+                 evidence:[{id,date,kind:'chapter'|'finding'|'note',text,source,ref}] },
+  findings: { findingId: 'YYYY-MM-DD' },   // first-seen dates, max 200
   support:[{date,kind:'sleep'|'overwhelmed'|'hot'|'fog',helped:'yes'|'no'|'unsure'}],
   healthKit:{ readOnly,generatedAt,lookbackDays,steps,sleep,bodyWeight,warnings } | null,
   screening:{ dxa:{last}, mammo:{last,intervalYears}, … },
@@ -223,6 +242,15 @@ local-storage copy:
   trigger:  { active, status:'running'|'stopped'|'completed', item, start, ended? } | null
 }
 ```
+
+Moments are the source of truth for a day. `k` is one of the kinds in `MOMENT_KINDS` (`hf`, `ns`,
+`woke`, `fog`, `mood`, `anx`, `joint`, `head`, `palp`, `dizzy`, `bloating`, `dry`, `uri`, `energy`,
+`itch`, `libido`, `irritable`, `overwhelmed`, `sleepq`, `bleed`, `slept`, `med`, `breath`, `note`),
+`s` is severity 1 to 3, `n` a note of up to 280 characters, `v` hours slept (only for `slept`) and
+`d` a duration in seconds. `rollupMoments()` in `app-core.js` derives `hf`, `ns`, `wakes`,
+`sym.*`, `bleed`, `sleepH` and `notes` from the ledger whenever a moment is added, edited or
+removed, so insights, charts, CSV and the brief keep reading day-level fields. Every filed moment
+confirms the day; there are no drafts.
 
 `uterus` and `ovaries` are **separate fields on purpose.** A hysterectomy can leave both ovaries
 in place, and ovaries are sometimes removed with the uterus left — the two have completely
@@ -237,13 +265,14 @@ switching units never mutates stored data. If localStorage is blocked (private m
 iframe), the app falls back to in-memory storage and tells the user their entries won't survive
 a reload.
 
-Draft health fields stay resumable on the root entry. `confirmedData` is an atomic snapshot used by
-Journey, insights, CSV, and reports; editing a confirmed day never changes those surfaces until the
-user confirms again. Medication adherence can be saved without turning that record into a confirmed
-health day. Earlier meaningful records migrate into snapshots, while medication-only records remain
-excluded from symptom analytics.
+`confirmedData` is an atomic snapshot used by the findings engine, insights, CSV and the brief; it
+is rebuilt and validated as a whole on every commit, so a failed validation cannot partly overwrite
+the last trusted record. Medication adherence can be saved without turning that record into a
+confirmed health day. Earlier meaningful records migrate into snapshots, while medication-only
+records remain excluded from symptom analytics.
 
-Export/import includes a plain JSON round-trip; CSV is one row per confirmed day plus a questionnaire block.
+Export/import includes a plain JSON round-trip; CSV is one row per confirmed day (with the day
+rating, night wakes and ledger count), then a ledger table of every moment, then a questionnaire block.
 In the iOS wrapper, JSON and CSV use the native share sheet, appointment reports render to a shareable
 PDF, and a separate `.menocompass` format provides password-encrypted portable backup/restore. Plain
 JSON, CSV, and PDF exports are unencrypted and may contain sensitive health information. Restore accepts

@@ -43,7 +43,7 @@ for (const prefix of ['/', '/nested/']) {
         for (const route of ['', 'index.html?source=offline-test']) {
           await page.goto(origin + prefix + route);
           assert.equal(await page.locator('#app').count(), 1, `${filename} must not replace ${route || '/'}`);
-          assert.equal(await page.title(), 'peri — menopause tracker & guide');
+          assert.equal(await page.title(), 'peri — the menopause record');
         }
       }
       const missing = await page.goto(origin + prefix + 'missing.html');

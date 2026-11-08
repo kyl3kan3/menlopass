@@ -29,6 +29,8 @@ after(async () => {
 async function fixture(t, options = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   t.after(() => context.close());
+  // Pin the clock to midday so the night desk never takes over the page.
+  await context.addInitScript(() => { const RealDate = Date; const fixed = new RealDate(); fixed.setHours(14, 14, 0, 0); const offset = fixed.getTime() - RealDate.now(); class PinnedDate extends RealDate { constructor(...a) { if (a.length) super(...a); else super(RealDate.now() + offset); } static now() { return RealDate.now() + offset; } } window.Date = PinnedDate; });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -51,59 +53,42 @@ async function fixture(t, options = {}) {
   return page;
 }
 
-test('returning from a historical detailed log keeps Today and Care writes on today', async t => {
+test('an earlier page takes entries without touching today, and today’s medication tick stays on today', async t => {
   const page = await fixture(t);
-  await page.getByRole('button', { name: 'Check in', exact: true }).click();
-  await page.getByRole('button', { name: 'Add context', exact: true }).click();
-  await page.locator('[data-act="more-details"]').click();
   const yesterday = await page.evaluate(() => addDays(todayISO(), -1));
-  await page.locator(`[data-act="day"][data-d="${yesterday}"]`).click();
-  await page.getByRole('button', { name: 'One more', exact: true }).click();
-  await page.getByRole('button', { name: 'Back to focused check-in', exact: true }).click();
-  await page.getByRole('button', { name: 'Step 1: Your symptoms', exact: true }).click();
-  await page.getByRole('button', { name: 'One more hot flash', exact: true }).click();
-  assert.equal(await page.locator('.jc-count strong').textContent(), '1');
-  assert.deepEqual(await page.evaluate(() => [DB.entries[todayISO()].hf, DB.entries[addDays(todayISO(), -1)].hf]), [1, 1]);
-  await page.getByRole('button', { name: 'Confirm today’s log', exact: true }).click();
-  assert.deepEqual(await page.evaluate(() => entryDates()), [await page.evaluate(() => todayISO())]);
-  await page.getByRole('button', { name: 'See my first check-in', exact: true }).click();
-  await page.locator('nav [data-v="care"]').click();
+  await page.getByRole('button', { name: 'Earlier pages', exact: true }).click();
+  await page.locator(`[data-act="sheet"][data-s="day:${yesterday}"]`).click();
+  await page.locator('#past-kind').selectOption('hf');
+  await page.locator('#past-time').fill('15:40');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  assert.deepEqual(await page.evaluate(() => [DB.entries[addDays(todayISO(), -1)].hf, DB.entries[todayISO()] || null]), [1, null]);
+  await page.locator('.sheet-bar .done').click();
+  await page.locator('.sheet-bar .done').click();
+  await page.getByRole('button', { name: 'Log', exact: true }).click();
+  await page.locator('.sheet [data-act="log"][data-k="hf"]').click();
+  await page.locator('.sheet-bar .done').click();
+  assert.deepEqual(await page.evaluate(() => [DB.entries[todayISO()].hf, DB.entries[addDays(todayISO(), -1)].hf, entryDates()]), [1, 1, [yesterday, await page.evaluate(() => todayISO())]]);
   await page.locator('[data-act="med-taken"]').click();
   assert.equal(await page.evaluate(() => DB.entries[todayISO()].med['audit-med'].taken), true);
+  assert.equal(await page.evaluate(() => dayMoments(todayISO()).some(m => m.k === 'med' && m.n === 'Example medicine 10 mg')), true, 'the dose lands on the ledger');
   assert.equal(await page.evaluate(() => DB.entries[addDays(todayISO(), -1)].med || null), null);
   await page.reload();
   assert.equal(await page.evaluate(() => DB.entries[todayISO()].med['audit-med'].taken), true);
-});
-
-test('More detail preserves the check-in return destination and historical confirmation', async t => {
-  const page = await fixture(t);
-  await page.locator('nav [data-v="journey"]').click();
-  await page.getByRole('button', { name: 'Log today', exact: true }).click();
-  await page.getByRole('button', { name: 'Add context', exact: true }).click();
-  await page.locator('[data-act="more-details"]').click();
-  await page.getByRole('button', { name: 'Back to focused check-in', exact: true }).click();
-  await page.locator('[data-act="go-back"]').click();
-  assert.equal(await page.getByRole('heading', { name: 'Your journey', exact: true }).isVisible(), true);
-  await page.getByRole('button', { name: 'Log today', exact: true }).click();
-  await page.getByRole('button', { name: 'Add context', exact: true }).click();
-  await page.locator('[data-act="more-details"]').click();
-  const yesterday = await page.evaluate(() => addDays(todayISO(), -1));
-  await page.locator(`[data-act="day"][data-d="${yesterday}"]`).click();
-  await page.getByRole('button', { name: 'One more', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm this log', exact: true }).click();
-  assert.deepEqual(await page.evaluate(() => entryDates()), [yesterday]);
-  assert.equal(await page.getByRole('heading', { name: 'Your journey', exact: true }).isVisible(), true);
+  await page.locator('[data-act="med-taken"]').click();
+  assert.equal(await page.evaluate(() => (DB.entries[todayISO()].med || {})['audit-med'] || null), null);
+  assert.equal(await page.evaluate(() => dayMoments(todayISO()).some(m => m.k === 'med')), false, 'untaking removes the ledger row too');
 });
 
 test('restarting treatments preserves pauses and reasons across reloads and backup restore', async t => {
-  const page = await fixture(t, { route: 'care', stopped: true });
+  const page = await fixture(t, { route: 'dossier', stopped: true });
+  await page.locator('.sec').filter({ hasText: 'Treatments' }).getByRole('button', { name: 'Manage' }).click();
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
   let state = await page.evaluate(() => ({
     duringPause: medicationActiveOn(DB.medications[0], addDays(todayISO(), -7)),
     beforePause: medicationActiveOn(DB.medications[0], addDays(todayISO(), -20)),
     today: medicationActiveOn(DB.medications[0], todayISO()),
     events: treatmentEvents(), pauses: DB.medications[0].pauses,
-    report: reportSheet(30).body
+    report: reportBody(30)
   }));
   assert.deepEqual([state.duringPause, state.beforePause, state.today], [false, true, true]);
   assert.ok(state.events.some(event => event.title.endsWith(' stopped') && event.body === 'Paused after clinician review'));
@@ -116,7 +101,7 @@ test('restarting treatments preserves pauses and reasons across reloads and back
   await page.reload();
   state = await page.evaluate(() => {
     const backup = JSON.stringify(DB), restored = validateBackup(JSON.parse(backup));
-    return { stored: DB.medications[0].pauses, restored: restored.medications[0].pauses, report: reportSheet(90).body };
+    return { stored: DB.medications[0].pauses, restored: restored.medications[0].pauses, report: reportBody(90) };
   });
   assert.equal(state.stored.length, 2);
   assert.deepEqual(state.restored, state.stored);
@@ -125,7 +110,8 @@ test('restarting treatments preserves pauses and reasons across reloads and back
 });
 
 test('unknown treatment starts and malformed imported pauses retain valid history', async t => {
-  const page = await fixture(t, { route: 'care', stopped: true, unknownStart: true });
+  const page = await fixture(t, { route: 'dossier', stopped: true, unknownStart: true });
+  await page.locator('.sec').filter({ hasText: 'Treatments' }).getByRole('button', { name: 'Manage' }).click();
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
   await page.reload();
   const state = await page.evaluate(() => {
@@ -150,8 +136,9 @@ test('unknown treatment starts and malformed imported pauses retain valid histor
 });
 
 test('editing medication details preserves prior schedules, names and instructions', async t => {
-  const page = await fixture(t, { route: 'care' });
-  await page.getByRole('button', { name: 'Edit details', exact: true }).click();
+  const page = await fixture(t, { route: 'dossier' });
+  await page.locator('.sec').filter({ hasText: 'Treatments' }).getByRole('button', { name: 'Manage' }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
   assert.equal(await page.getByLabel('Medication and dose', { exact: true }).inputValue(), 'Example medicine 10 mg');
   await page.getByLabel('Medication and dose', { exact: true }).fill('Example medicine 20 mg');
   await page.getByLabel('Form', { exact: true }).selectOption('patch');
@@ -160,13 +147,13 @@ test('editing medication details preserves prior schedules, names and instructio
   const yesterdayDow = await page.evaluate(() => parseISO(addDays(todayISO(), -1)).getDay());
   await page.getByRole('button', { name: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][yesterdayDow], exact: true }).click();
   assert.equal(await page.getByLabel('Medication and dose', { exact: true }).inputValue(), 'Example medicine 20 mg');
-  await page.getByRole('button', { name: 'Save medication', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.reload();
   const state = await page.evaluate(() => {
     const m = DB.medications[0], yesterday = addDays(todayISO(), -1), restored = validateBackup(JSON.parse(JSON.stringify(DB))).medications[0];
     return { current: { name: m.name, form: m.form, due: m.due, notes: m.notes, days: m.days },
       previous: medicationDetailsOn(m, yesterday), scheduledYesterday: scheduledMeds(yesterday).map(m => m.id),
-      history: m.revisions, restoredHistory: restored.revisions, events: treatmentEvents(), report: reportSheet(90).body };
+      history: m.revisions, restoredHistory: restored.revisions, events: treatmentEvents(), report: reportBody(90) };
   });
   assert.deepEqual({ ...state.current, days: undefined }, { name: 'Example medicine 20 mg', form: 'patch', due: '18:30', notes: 'Updated instructions', days: undefined });
   assert.equal(state.current.days.includes(yesterdayDow), false);
@@ -177,41 +164,75 @@ test('editing medication details preserves prior schedules, names and instructio
   assert.ok(state.events.some(event => event.title === 'Example medicine 10 mg started'));
   assert.match(state.report, /Original instructions/);
   assert.match(state.report, /Updated instructions/);
-  await page.getByRole('button', { name: 'Edit details', exact: true }).click();
+  await page.locator('.sec').filter({ hasText: 'Treatments' }).getByRole('button', { name: 'Manage' }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByLabel('Medication and dose', { exact: true }).fill('Example medicine 25 mg');
-  await page.getByRole('button', { name: 'Save medication', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   assert.equal(await page.evaluate(() => medicationDetailsOn(DB.medications[0], addDays(todayISO(), -1)).name), 'Example medicine 10 mg');
   assert.equal(await page.evaluate(() => medicationDetailsOn(DB.medications[0], todayISO()).name), 'Example medicine 25 mg');
 });
 
-test('sleep difficulty ratings reach the appointment report without inventing sleep hours', async t => {
+test('a bad night on the ledger reaches the brief without inventing sleep hours', async t => {
   const page = await fixture(t, { symptoms: ['sleepq'] });
-  await page.getByRole('button', { name: 'Check in', exact: true }).click();
-  await page.getByRole('button', { name: 'Trouble sleeping: Moderate', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm today’s log', exact: true }).click();
-  await page.getByRole('button', { name: 'See my first check-in', exact: true }).click();
-  await page.locator('nav [data-v="care"]').click();
-  await page.getByRole('button', { name: 'Prepare appointment report', exact: true }).click();
+  await page.getByRole('button', { name: 'Log', exact: true }).click();
+  await page.locator('.sheet [data-act="log"][data-k="sleepq"]').click();
+  await page.locator('.sheet [data-act="log-severity"][data-v="2"]').click();
+  await page.locator('.sheet-bar .done').click();
+  await page.locator('.masthead-nav [data-v="dossier"]').click();
+  await page.getByRole('button', { name: 'Export the one-page brief', exact: true }).click();
   const sleepRating = page.locator('.report-page .kv').filter({ hasText: 'Trouble sleeping' });
-  assert.equal(await sleepRating.locator('b').textContent(), '2');
-  assert.equal(await page.locator('.report-page .kv').filter({ hasText: 'Sleep (30 d average)' }).locator('b').textContent(), 'not tracked');
+  assert.equal(await sleepRating.locator('.r').textContent(), '2');
+  assert.equal(await page.locator('.report-page .kv').filter({ hasText: /^Sleep/ }).locator('.r').textContent(), 'not tracked');
 });
 
-test('Android without subscriptions can open Journey and reports while iOS still gates', async t => {
+test('the ledger rolls up into the day fields the engine reads, and removal clears them', async t => {
+  const page = await fixture(t, { symptoms: ['hf', 'fog'] });
+  const state = await page.evaluate(() => {
+    const t = todayISO();
+    addMoment(t, { k: 'hf', t: '13:10', s: 2 }); addMoment(t, { k: 'hf', t: '14:30', s: 3 }); addMoment(t, { k: 'ns', t: '02:40' }); addMoment(t, { k: 'woke', t: '02:41' }); addMoment(t, { k: 'fog', t: '10:00', s: 1 }); addMoment(t, { k: 'bleed', t: '08:00', s: 3 }); addMoment(t, { k: 'note', t: '09:00', n: 'Skipped lunch' });
+    const e = confirmedEntry(t), after = { hf: e.hf, ns: e.ns, wakes: e.wakes, fog: e.sym.fog, bleed: e.bleed, notes: e.notes, order: dayMoments(t).map(m => m.t) };
+    const fogId = dayMoments(t).find(m => m.k === 'fog').id; removeMoment(t, fogId);
+    const hfIds = dayMoments(t).filter(m => m.k === 'hf').map(m => m.id); removeMoment(t, hfIds[0]);
+    const e2 = confirmedEntry(t);
+    const closed = closeDay(t, { rating: 1, alcohol: false, strength: true, period: false, stress: true });
+    const e3 = confirmedEntry(t);
+    return { after, removed: { hf: e2.hf, fog: e2.sym.fog }, closed, final: { rating: e3.rating, alc: e3.nut.alc, res: e3.act.res, bleed: e3.bleed, overwhelmed: e3.sym.overwhelmed } };
+  });
+  assert.deepEqual(state.after, { hf: 2, ns: 1, wakes: 1, fog: 1, bleed: 'heavy', notes: '09:00 Skipped lunch', order: ['02:40', '02:41', '08:00', '09:00', '10:00', '13:10', '14:30'] });
+  assert.deepEqual(state.removed, { hf: 1, fog: undefined });
+  assert.equal(state.closed, true);
+  assert.deepEqual(state.final, { rating: 1, alc: 0, res: true, bleed: 'heavy', overwhelmed: 2 }, 'a logged bleed is not overwritten by the period checkbox');
+});
+
+test('free text files against the vocabulary and keeps the rest as a note', async t => {
+  const page = await fixture(t);
+  const parsed = await page.evaluate(() => [
+    parseUtterance('hot flash, strong, 20 minutes ago').map(m => [m.k, m.s, m.t !== nowHM()]),
+    parseUtterance('night sweat and woke up at 3am').map(m => [m.k, m.t]),
+    parseUtterance('felt foggy and anxious after lunch').map(m => m.k),
+    parseUtterance('cancelled the dentist').map(m => [m.k, m.n])
+  ]);
+  assert.deepEqual(parsed[0], [['hf', 3, true]]);
+  assert.deepEqual(parsed[1], [['ns', '03:00'], ['woke', '03:00']]);
+  assert.deepEqual(parsed[2], ['fog', 'anx']);
+  assert.deepEqual(parsed[3], [['note', 'cancelled the dentist']]);
+});
+
+test('Android without subscriptions can open the dossier while iOS still gates', async t => {
   const page = await fixture(t);
   const locks = await page.evaluate(() => {
     window.__MENO_NATIVE__ = true; window.__MENO_PRO_ACTIVE__ = false;
     window.__MENO_NATIVE_SUBSCRIPTIONS__ = false;
-    const android = [nativeProLocked('journey'), nativeProLocked('appointment-report')];
+    const android = [nativeProLocked('dossier'), nativeProLocked('appointment-report'), nativeProLocked('journey')];
     window.__MENO_NATIVE_SUBSCRIPTIONS__ = true;
-    const ios = [nativeProLocked('journey'), nativeProLocked('appointment-report')];
+    const ios = [nativeProLocked('dossier'), nativeProLocked('appointment-report'), nativeProLocked('journey'), nativeProLocked('today'), nativeProLocked('index')];
     delete window.__MENO_NATIVE_SUBSCRIPTIONS__;
     return { android, ios, legacyIos: nativeProLocked('journey') };
   });
-  assert.deepEqual(locks, { android: [false, false], ios: [true, true], legacyIos: true });
+  assert.deepEqual(locks, { android: [false, false, false], ios: [true, true, true, false, false], legacyIos: true });
 });
 
-test('native v3 onboarding metadata survives backup validation and reload', async t => {
+test('native v3 onboarding metadata survives backup validation and opens the letter with its answers', async t => {
   const page = await fixture(t);
   await page.evaluate(() => {
     const completed=PeriOnboarding.writeDraft(JSON.stringify(DB),{step:11,symptoms:['sleepq','fog'],intent:'appointment'},true,false,PeriOnboarding.versionV2Flow);
@@ -220,33 +241,25 @@ test('native v3 onboarding metadata survives backup validation and reload', asyn
   await page.reload();
   const state=await page.evaluate(() => {
     const restored=validateBackup(JSON.parse(JSON.stringify(DB)));
-    const metadata=profile=>({version:profile.onboardingVersion,step:profile.onboardingStep,pending:profile.firstCheckinPending,symptoms:profile.pinnedSymptoms,intent:profile.intent});
+    const metadata=profile=>({version:profile.onboardingVersion,step:profile.onboardingStep,symptoms:profile.pinnedSymptoms,intent:profile.intent});
     const invalid=JSON.parse(JSON.stringify(DB)); invalid.profile.onboardingVersion=2; invalid.profile.onboardingStep=11;
     const v2InvalidStep=validateBackup(invalid).profile.onboardingStep;
-    invalid.profile.onboardingVersion=3; invalid.profile.onboardingStep=12;
-    const v3InvalidStep=validateBackup(invalid).profile.onboardingStep;
-    return {loaded:metadata(DB.profile),restored:metadata(restored.profile),v2InvalidStep,v3InvalidStep,entries:entryDates()};
+    invalid.profile.onboardingVersion=4; invalid.profile.onboardingStep=7;
+    const v4Step=validateBackup(invalid).profile.onboardingStep;
+    return {loaded:metadata(DB.profile),restored:metadata(restored.profile),v2InvalidStep,v4Step,entries:entryDates(),page:!!document.querySelector('.page-today')};
   });
-  assert.deepEqual(state.loaded,{version:3,step:11,pending:true,symptoms:['sleepq','fog'],intent:'appointment'});
+  assert.deepEqual(state.loaded,{version:3,step:11,symptoms:['sleepq','fog'],intent:'appointment'});
   assert.deepEqual(state.restored,state.loaded);
-  assert.deepEqual([state.v2InvalidStep,state.v3InvalidStep],[0,0]);
+  assert.deepEqual([state.v2InvalidStep,state.v4Step],[0,0]);
   assert.deepEqual(state.entries,[]);
-  assert.equal(await page.getByRole('heading',{name:'Your first check-in',exact:true}).isVisible(),true);
-});
-
-test('incomplete native v3 progress opens a usable four-step web flow without rewriting progress', async t => {
-  const page=await fixture(t);
+  assert.equal(state.page,true,'a completed native onboarding opens the page, never a second setup');
   await page.evaluate(() => {
-    Object.assign(DB.profile,{onboarded:false,onboardingVersion:3,onboardingStep:8,pinnedSymptoms:['sleepq'],intent:'',firstCheckinPending:false});
+    Object.assign(DB.profile,{onboarded:false,onboardingVersion:3,onboardingStep:8,pinnedSymptoms:['sleepq'],intent:''});
     save(true); setRoute('today'); render();
   });
   await page.reload();
-  assert.equal(await page.getByRole('heading',{name:'What would help you most?',exact:true}).isVisible(),true);
-  assert.equal(await page.getByRole('progressbar',{name:'Setup progress'}).getAttribute('aria-valuemax'),'4');
-  assert.deepEqual(await page.evaluate(()=>[DB.profile.onboardingVersion,DB.profile.onboardingStep]),[3,8]);
-  await page.getByRole('radio',{name:'Prepare for an appointment',exact:true}).click();
-  await page.getByRole('button',{name:'See my check-in',exact:true}).click();
-  assert.equal(await page.getByRole('heading',{name:'Your check-in, made for you.',exact:true}).isVisible(),true);
-  await page.getByRole('button',{name:'Start my first check-in',exact:true}).click();
-  assert.deepEqual(await page.evaluate(()=>({version:DB.profile.onboardingVersion,step:DB.profile.onboardingStep,onboarded:DB.profile.onboarded,entries:entryDates()})),{version:2,step:3,onboarded:true,entries:[]});
+  assert.equal(await page.getByRole('heading',{name:'Fill in the blanks. That is the whole setup.'}).isVisible(),true);
+  assert.equal(await page.locator('[data-act="fr-symptom"][data-v="sleepq"]').getAttribute('aria-pressed'),'true','partial native progress is carried into the letter');
+  await page.getByRole('button',{name:'Open today’s page'}).click();
+  assert.deepEqual(await page.evaluate(()=>({version:DB.profile.onboardingVersion,step:DB.profile.onboardingStep,onboarded:DB.profile.onboarded,entries:entryDates()})),{version:4,step:0,onboarded:true,entries:[]});
 });
