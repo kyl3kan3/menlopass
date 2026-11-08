@@ -64,7 +64,7 @@ function seededState(dayCount=16,options={}){
     if(sweatNight){ moments.push({id:'w'+i+'a',t:'02:40',k:'woke'},{id:'s'+i,t:'02:41',k:'ns'},{id:'w'+i+'b',t:'03:30',k:'woke'}); }
     if(flashDay){ moments.push({id:'h'+i+'a',t:'13:10',k:'hf',s:2},{id:'h'+i+'b',t:'14:30',k:'hf',s:3},{id:'h'+i+'c',t:'15:20',k:'hf',s:1}); }
     else moments.push({id:'h'+i+'m',t:'09:15',k:'hf',s:1});
-    const payload={hf:flashDay?3:1,ns:sweatNight?1:0,wakes:sweatNight?2:0,rating:(i%5),sym:{fog:sweatNight?2:0,energy:1+(i%3),joint:1,anx:i%2,sleepq:sweatNight?3:1},act:{res:i%4===0,aero:i%2?20:0},nut:{alc:i%5===0?1:0},sleepH:sweatNight?6:7.5,inBedH:8,notes:i===2?'A useful note.':'',moments};
+    const payload={hf:flashDay?3:1,ns:sweatNight?2:0,wakes:sweatNight?2:0,rating:(i%5),sym:{fog:sweatNight?2:0,energy:1+(i%3),joint:1,anx:i%2,sleepq:sweatNight?3:1},act:{res:i%4===0,aero:i%2?20:0},nut:{alc:i%5===0?1:0},sleepH:sweatNight?6:7.5,inBedH:8,notes:i===2?'A useful note.':'',moments};
     if(options.plain){ delete payload.moments; delete payload.wakes; delete payload.rating; }
     entries[isoOffset(-i)]=confirmed(payload);
   }
@@ -156,8 +156,13 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
     check('the first page is the letter',await page.getByRole('heading',{name:'Fill in the blanks. That is the whole setup.'}).isVisible()&&await page.locator('.masthead-nav').count()===0);
     check('the page cannot open before a concern is chosen',await page.getByRole('button',{name:'Open today’s page'}).isDisabled());
     for(const key of ['sleepq','hf','fog','ns']) await page.locator('[data-act="fr-symptom"][data-v="'+key+'"]').click();
-    await page.locator('[data-act="fr-periods"][data-v="gaps"]').click();
     await page.getByLabel('Your age').fill('47');
+    await page.locator('[data-act="fr-periods"][data-v="stopped"]').click();
+    check('a stopped cycle asks how long ago before it stages anything',await page.locator('[data-act="fr-since"]').count()===3&&await page.getByRole('heading',{name:'Fill in the rest and the finding appears.'}).isVisible());
+    await page.locator('[data-act="fr-since"][data-v="2to6"]').click();
+    check('the elapsed time decides the postmenopause stage',await page.getByRole('heading',{name:'Postmenopause.'}).isVisible());
+    await page.locator('[data-act="fr-periods"][data-v="gaps"]').click();
+    check('the elapsed-time blank leaves with the stopped cycle',await page.locator('[data-act="fr-since"]').count()===0);
     await page.locator('[data-act="fr-appt"][data-v="yes"]').click();
     await page.getByLabel('Appointment date').fill(isoOffset(12));
     check('the finding appears from age, cycle and concerns',await page.getByRole('heading',{name:'Most likely: late perimenopause.'}).isVisible());
@@ -217,7 +222,7 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
     await page.getByRole('dialog').locator('#past-time').fill('02:15');
     await page.getByRole('dialog').getByRole('button',{name:'Add',exact:true}).click();
     const pastDay=await page.evaluate(d=>{ const e=confirmedEntry(d); return {ns:e&&e.ns,moment:e&&e.moments[0].t,today:confirmedEntry(todayISO()).ns}; },isoOffset(-1));
-    check('an earlier page takes an entry without touching today',pastDay.ns===1&&pastDay.moment==='02:15'&&pastDay.today===undefined,JSON.stringify(pastDay));
+    check('an earlier page takes an entry without touching today',pastDay.ns===2&&pastDay.moment==='02:15'&&pastDay.today===undefined,JSON.stringify(pastDay)+' (an unrated sweat rolls up as moderate on the 0–4 scale)');
     await page.locator('.sheet-bar .done').click();
     await page.locator('.sheet-bar .done').click();
     await page.screenshot({path:path.join(TEST_RESULTS,'today-first-day.png')});

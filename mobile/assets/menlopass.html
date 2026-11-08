@@ -2024,6 +2024,7 @@ const ONBOARDING_FEELINGS = {calm:'Calm',hopeful:'Hopeful',mixed:'Up and down',o
 const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido','bloating','dizzy','irritable','overwhelmed'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
 const PERIOD_STATUSES = ['regular','changing','gaps','stopped','na'];
+const PERIOD_SINCE = ['lt2','2to6','gt6'];
 /* The ledger vocabulary. Symptom kinds share keys with PINNABLE_SYMPTOMS so a
    moment rolls up into the same day fields the insights engine already reads.
    `woke`, `slept`, `bleed`, `med`, `breath` and `note` are ledger-only kinds. */
@@ -2046,7 +2047,7 @@ function blankDB(){
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
       theme:'light', stage:null, stageAnswers:null, onboarded:false,
       onboardingVersion:4, onboardingStep:0, onboardingDeferred:false, firstCheckinPending:false, intent:'', onboardingFeeling:'',
-      pinnedSymptoms:[], periodStatus:''
+      pinnedSymptoms:[], periodStatus:'', periodSince:''
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
     appointments:{questions:[],plans:[],brief:{concerns:[],goal:'',date:''},evidence:[]}, support:[], healthKit:null,
@@ -2098,6 +2099,7 @@ function migrate(d){
   // v4 is the first-run letter: one screen, so its step is always 0.
   p.onboardingStep=p.onboardingVersion===4?0:(safeInteger(rawProfile.onboardingStep,0,p.onboardingVersion===3?11:3)||0);
   p.periodStatus=safeEnum(rawProfile.periodStatus,PERIOD_STATUSES,'');
+  p.periodSince=safeEnum(rawProfile.periodSince,PERIOD_SINCE,'');
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
   p.firstCheckinPending=rawProfile.firstCheckinPending===true;
   p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
@@ -3060,35 +3062,46 @@ function momentDetail(m){
 }
 function dayMoments(date){ const e=DB.entries[date]; return e&&Array.isArray(e.moments)?e.moments:[]; }
 function newMomentId(){ return 'm-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function rollupMoments(e){
-  const ms=Array.isArray(e.moments)?e.moments:[];
-  const ofKind=k=>ms.filter(m=>m.k===k);
-  if(ofKind('hf').length) e.hf=ofKind('hf').length;
-  if(ofKind('ns').length) e.ns=Math.min(4,ofKind('ns').length);
-  if(ofKind('woke').length) e.wakes=Math.min(30,ofKind('woke').length);
-  e.sym=e.sym||{};
-  Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).forEach(k=>{
-    const sev=ofKind(k).map(m=>m.s||2);
-    if(sev.length) e.sym[k]=Math.max(...sev);
-  });
-  const bleeds=ofKind('bleed');
-  if(bleeds.length){ const s=Math.max(...bleeds.map(m=>m.s||2)); e.bleed=s>=3?'heavy':s===2?'light':'spotting'; }
+function ledgerDerived(ms){
+  const out={sym:{}}, ofKind=k=>ms.filter(m=>m.k===k);
+  const hf=ofKind('hf'), ns=ofKind('ns'), woke=ofKind('woke'), bleeds=ofKind('bleed');
+  if(hf.length) out.hf=hf.length;
+  /* ns is the 0–4 night-sweat severity the insights read (>=2 is moderate or
+     worse), so the ledger rolls up the worst sweat of the night, not how many
+     there were; the count stays in the ledger and the night findings use it. */
+  if(ns.length) out.ns=Math.min(4,Math.max(...ns.map(m=>m.s||2)));
+  if(woke.length) out.wakes=Math.min(30,woke.length);
+  Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).forEach(k=>{ const sev=ofKind(k).map(m=>m.s||2); if(sev.length) out.sym[k]=Math.max(...sev); });
+  if(bleeds.length){ const s=Math.max(...bleeds.map(m=>m.s||2)); out.bleed=s>=3?'heavy':s===2?'light':'spotting'; }
   const slept=ofKind('slept').filter(m=>m.v!=null).pop();
-  if(slept){ e.sleepH=slept.v; if(e.inBedH!=null&&e.inBedH<e.sleepH) e.inBedH=e.sleepH; }
-  const notes=ofKind('note').map(m=>m.n).filter(Boolean);
-  if(notes.length){
-    const manual=(e.notes||'').split('\n').filter(line=>line.trim()&&!/^\d\d:\d\d /.test(line));
-    e.notes=[...manual,...ofKind('note').filter(m=>m.n).map(m=>m.t+' '+m.n)].join('\n').slice(0,4000);
-  }
+  if(slept) out.sleepH=slept.v;
+  return out;
 }
-function clearDerived(e,kind){
-  if(kind==='hf') delete e.hf;
-  else if(kind==='ns') delete e.ns;
-  else if(kind==='woke') delete e.wakes;
-  else if(kind==='bleed') delete e.bleed;
-  else if(kind==='slept') delete e.sleepH;
-  else if(kind==='note'&&e.notes){ const manual=e.notes.split('\n').filter(line=>line.trim()&&!/^\d\d:\d\d /.test(line)).join('\n'); if(manual) e.notes=manual; else delete e.notes; }
-  else if(MOMENT_KINDS[kind]&&MOMENT_KINDS[kind].sym!==false&&e.sym) delete e.sym[kind];
+/* Write the ledger's view into the day fields without trampling a value she
+   typed herself (a flash count from Details, a migrated day): a field is
+   overwritten when it still holds what the ledger last wrote, or nothing, or
+   less than the ledger now shows; a larger manual value is kept until the
+   ledger reaches it. `before` is the ledger's view before this change. */
+function rollupMoments(e,before){
+  const ms=Array.isArray(e.moments)?e.moments:[], after=ledgerDerived(ms), prev=before||ledgerDerived(ms);
+  const settle=(obj,key,next,was)=>{
+    const cur=obj[key];
+    if(next==null){ if(cur!=null&&cur===was) delete obj[key]; return; }
+    if(cur==null||cur===was||(typeof cur==='number'&&typeof next==='number'&&cur<next)) obj[key]=next;
+  };
+  settle(e,'hf',after.hf,prev.hf); settle(e,'ns',after.ns,prev.ns); settle(e,'wakes',after.wakes,prev.wakes);
+  e.sym=e.sym||{};
+  Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).forEach(k=>settle(e.sym,k,after.sym[k],prev.sym[k]));
+  settle(e,'bleed',after.bleed,prev.bleed);
+  if(after.sleepH!=null){ e.sleepH=after.sleepH; if(e.inBedH!=null&&e.inBedH<e.sleepH) e.inBedH=e.sleepH; }
+  else if(prev.sleepH!=null&&e.sleepH===prev.sleepH) delete e.sleepH;
+  /* Notes: her own lines stay; the ledger's timestamped lines are rewritten. */
+  const lines=(e.notes||'').split('\n').filter(line=>line.trim()), manual=lines.filter(line=>!/^\d\d:\d\d /.test(line));
+  const noted=ms.filter(m=>m.k==='note'&&m.n).map(m=>m.t+' '+m.n);
+  if(noted.length||manual.length!==lines.length){
+    const notes=[...manual,...noted].join('\n').slice(0,4000);
+    if(notes) e.notes=notes; else delete e.notes;
+  }
 }
 function unconfirmEntry(date){
   const e=DB.entries[date]; if(!e) return;
@@ -3102,8 +3115,9 @@ function addMoment(date,moment){
   if(e.moments.length>=MAX_MOMENTS_PER_DAY) return null;
   const clean=safeMoment(Object.assign({},moment,{t:moment.t||nowHM(),id:moment.id||newMomentId()}));
   if(!clean) return null;
+  const before=ledgerDerived(e.moments);
   e.moments.push(clean); e.moments.sort((a,b)=>a.t.localeCompare(b.t));
-  rollupMoments(e); confirmEntry(date);
+  rollupMoments(e,before); confirmEntry(date);
   return clean;
 }
 function updateMoment(date,id,patch){
@@ -3111,18 +3125,19 @@ function updateMoment(date,id,patch){
   if(!m) return null;
   const clean=safeMoment(Object.assign({},m,patch,{id:m.id,k:m.k}));
   if(!clean) return null;
+  const before=ledgerDerived(e.moments);
   Object.keys(m).forEach(key=>delete m[key]); Object.assign(m,clean);
   e.moments.sort((a,b)=>a.t.localeCompare(b.t));
-  rollupMoments(e); confirmEntry(date);
+  rollupMoments(e,before); confirmEntry(date);
   return m;
 }
 function removeMoment(date,id){
   const e=DB.entries[date]; if(!e||!Array.isArray(e.moments)) return false;
   const i=e.moments.findIndex(m=>m.id===id); if(i<0) return false;
-  const [gone]=e.moments.splice(i,1);
-  if(!e.moments.some(m=>m.k===gone.k)) clearDerived(e,gone.k);
+  const before=ledgerDerived(e.moments);
+  e.moments.splice(i,1);
   if(!e.moments.length) delete e.moments;
-  rollupMoments(e);
+  rollupMoments(e,before);
   if(hasEntryContent(safeEntryPayload(e))) confirmEntry(date); else unconfirmEntry(date);
   return true;
 }
@@ -3172,6 +3187,24 @@ function plural(n,one,many){ return n===1?one:(many||one+'s'); }
 function slugify(text){ return String(text).toLowerCase().replace(/<[^>]+>/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50); }
 const GENERIC_INSIGHTS=/^(Nothing to flag yet|Keep logging)/;
 function hourLabel(min){ const h=Math.floor(((min%1440)+1440)%1440/60); return String(h).padStart(2,'0')+':00'; }
+/* A night belongs to the morning it ends on: what was logged after 22:00 the
+   evening before and before noon that day. A night counts as observed only
+   when something was said about it (a wake, a sweat, a typed count, or the
+   day was closed); nothing logged on an unclosed day is a gap, not a calm
+   night, so comparisons never invent a zero-wake baseline. */
+function nightMoments(d){
+  return [...dayMoments(addDays(d,-1)).filter(m=>hmMinutes(m.t)>=22*60),...dayMoments(d).filter(m=>hmMinutes(m.t)<12*60)];
+}
+function nightRecord(d){
+  const e=confirmedEntry(d), ms=nightMoments(d), woke=ms.filter(m=>m.k==='woke'&&windowOf(m.t).id==='night'), sweats=ms.filter(m=>m.k==='ns');
+  const typedWakes=e&&e.wakes!=null&&!dayMoments(d).some(m=>m.k==='woke')?e.wakes:null;
+  const typedSweat=e&&e.ns!=null&&!dayMoments(d).some(m=>m.k==='ns')?e.ns:null;
+  const closed=!!(e&&e.rating!=null);
+  const observed=!!(woke.length||sweats.length||typedWakes!=null||typedSweat!=null||closed);
+  const wakes=woke.length?woke.length:typedWakes!=null?typedWakes:closed?0:null;
+  const sweat=sweats.length?Math.max(...sweats.map(m=>m.s||2)):typedSweat!=null?typedSweat:closed?0:null;
+  return {d,woke,sweats:sweats.length,wakes,sweat,observed};
+}
 function findings(){
   const out=[], t=todayISO(), week=rangeDates(7), fortnight=rangeDates(14);
   const push=f=>{ if(!out.some(x=>x.id===f.id)) out.push(f); };
@@ -3205,11 +3238,11 @@ function findings(){
     }
   }
   /* night waking window */
-  const nights=week.map(d=>({d,wakes:dayMoments(d).filter(m=>m.k==='woke'&&windowOf(m.t).id==='night'),sweats:dayMoments(d).filter(m=>m.k==='ns').length}));
-  const wakeNights=nights.filter(n=>n.wakes.length);
+  const nights=week.map(nightRecord);
+  const wakeNights=nights.filter(n=>n.woke.length);
   if(wakeNights.length>=3){
     const buckets={};
-    wakeNights.forEach(n=>n.wakes.forEach(m=>{ const x=hmMinutes(m.t), start=Math.floor(x/60)*60; [start-60,start].forEach(b=>{ const key=((b%1440)+1440)%1440; buckets[key]=buckets[key]||new Set(); buckets[key].add(n.d); }); }));
+    wakeNights.forEach(n=>n.woke.forEach(m=>{ const x=hmMinutes(m.t), start=Math.floor(x/60)*60; [start-60,start].forEach(b=>{ const key=((b%1440)+1440)%1440; buckets[key]=buckets[key]||new Set(); buckets[key].add(n.d); }); }));
     const best=Object.entries(buckets).map(([k,set])=>({start:+k,n:set.size})).sort((a,b)=>b.n-a.n||a.start-b.start)[0];
     if(best&&best.n>=3){
       push({id:'wake-window',p:80,kind:'pattern',head:'You wake between '+hourLabel(best.start).replace(':00','')+' and '+hourLabel(best.start+120).replace(':00','')+'.',
@@ -3218,9 +3251,9 @@ function findings(){
     }
   }
   /* sweat nights cost wakes */
-  const sweatNights=nights.filter(n=>n.sweats>0), dryNights=nights.filter(n=>!n.sweats&&confirmedEntry(n.d));
+  const observed=nights.filter(n=>n.observed&&n.wakes!=null), sweatNights=observed.filter(n=>n.sweat>0), dryNights=observed.filter(n=>!n.sweat);
   if(sweatNights.length>=3&&dryNights.length>=2){
-    const a=avg(sweatNights.map(n=>n.wakes.length)), b=avg(dryNights.map(n=>n.wakes.length));
+    const a=avg(sweatNights.map(n=>n.wakes)), b=avg(dryNights.map(n=>n.wakes));
     if(a!=null&&b!=null&&a-b>=1){
       push({id:'sweat-wakes',p:75,kind:'pattern',head:'Sweat nights cost you '+r1(a-b)+' more '+plural(Math.round(a-b),'wake')+'.',
         num:r1(a)+' <i>vs</i> '+r1(b),sub:'wakes a night, sweat nights vs dry ('+sweatNights.length+' vs '+dryNights.length+')',
@@ -3229,8 +3262,9 @@ function findings(){
   }
   /* fog after broken nights */
   const fogDays=fortnight.filter(d=>{ const e=confirmedEntry(d); return e&&((e.sym&&e.sym.fog>=1)||dayMoments(d).some(m=>m.k==='fog')); });
-  const brokenNights=fortnight.filter(d=>{ const e=confirmedEntry(d); return e&&((e.wakes||0)>=2||(e.ns||0)>=2); });
-  const calmNights=fortnight.filter(d=>confirmedEntry(d)&&!brokenNights.includes(d));
+  const fortnightNights=fortnight.map(nightRecord).filter(n=>n.observed);
+  const brokenNights=fortnightNights.filter(n=>(n.wakes||0)>=2||(n.sweat||0)>=2).map(n=>n.d);
+  const calmNights=fortnightNights.filter(n=>!brokenNights.includes(n.d)).map(n=>n.d);
   if(brokenNights.length>=4&&calmNights.length>=3){
     const after=brokenNights.filter(d=>fogDays.includes(d)).length, calm=calmNights.filter(d=>fogDays.includes(d)).length;
     const ra=after/brokenNights.length, rc=calm/calmNights.length;
@@ -3254,7 +3288,7 @@ function findings(){
       const after=avg(afterVals), unit=target==='hf'?' flashes a day':' / 4';
       const name=target==='hf'?'flashes a day':(MOMENT_KINDS[target]?MOMENT_KINDS[target].n.toLowerCase():target)+' / 4';
       push({id:'treatment-'+slugify(med.name)+'-'+change.date,p:65,kind:'treatment',
-        head:'Since '+med.name+' changed on '+fmtDay(change.date)+'.',
+        head:'Since '+esc(med.name)+' changed on '+fmtDay(change.date)+'.',
         num:r1(before.average)+' → '+r1(after),sub:name+', '+since+' days in',
         body:since<14?'Too early to call. The two-week check-in is on '+fmtDay(addDays(change.date,14))+'. Her pattern, not proof.':'Compared with the week before the change. An association in one person; worth discussing, not proof of cause.'});
     });
@@ -4258,6 +4292,7 @@ function viewYou(){
     <div class="label" style="margin:22px 0 10px">Profile</div>
     <div class="grid2"><div class="field"><label class="fl" for="pn">Name</label><input id="pn" type="text" maxlength="80" autocomplete="given-name" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div><div class="field"><label class="fl" for="by">Birth year</label><input id="by" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div></div>
     ${sel('ps','periodStatus',{label:'Periods',items:[['','Not said'],['regular','Still regular'],['changing','Changing'],['gaps','60+ days apart'],['stopped','Gone a year or more'],['na','Not applicable']]})}
+    ${p.periodStatus==='stopped'?sel('psince','periodSince',{label:'Last period was',items:[['','Not said'],['lt2','One to two years ago'],['2to6','Two to six years ago'],['gt6','More than six years ago']]},'Staging after the last period runs on how long ago it was.'):''}
     ${sel('ut','uterus',{label:'Uterus',items:[['unknown','Prefer not to say'],['intact','Still there'],['hyst','Removed (hysterectomy)'],['ablation','Endometrial ablation']]})}
     ${sel('ov','ovaries',{label:'Ovaries',items:[['unknown','Prefer not to say or not sure'],['kept','Both still there'],['one','One removed'],['both','Both removed']]},'Asked separately: a hysterectomy often leaves both ovaries, and ovaries are sometimes removed with the uterus left. The consequences differ completely.')}
     ${periodsPossible()
@@ -4291,6 +4326,7 @@ function viewYou(){
 const LETTER_SYMPTOMS=[['sleepq','trouble sleeping'],['hf','hot flashes'],['fog','brain fog'],['energy','fatigue'],['mood','low mood'],['anx','anxiety'],['ns','night sweats'],['joint','joint pain']];
 const LETTER_MORE=[['head','headaches'],['palp','palpitations'],['dizzy','dizziness'],['bloating','bloating'],['dry','dryness'],['uri','bladder trouble'],['itch','itchy skin'],['libido','low libido'],['irritable','irritability'],['overwhelmed','feeling overwhelmed']];
 const LETTER_PERIODS=[['regular','still regular'],['changing','changing'],['gaps','60+ days apart'],['stopped','gone a year or more'],['na','not applicable']];
+const LETTER_SINCE=[['lt2','one to two years ago'],['2to6','two to six years ago'],['gt6','more than six years ago']];
 function firstRunAnswers(){
   const p=DB.profile, age=p.birthYear?new Date().getFullYear()-p.birthYear:null;
   if(!p.periodStatus||p.periodStatus==='na'||age==null) return null;
@@ -4298,7 +4334,7 @@ function firstRunAnswers(){
   const ans={age:age<40?'u40':age<45?'40s_e':age<55?'45p':'55p',uterus:'intact',ovaries:'kept',contra:'no',
     cycle:{regular:'reg',changing:'var7',gaps:'skip',stopped:'none12'}[p.periodStatus],
     vms:pins.includes('hf')||pins.includes('ns')?'lots':'no'};
-  if(ans.cycle==='none12') ans.since='lt2';
+  if(ans.cycle==='none12'){ if(!PERIOD_SINCE.includes(p.periodSince)) return null; ans.since=p.periodSince; }
   return ans;
 }
 function firstRunFinding(){
@@ -4337,7 +4373,7 @@ function viewFirstRun(){
     <div class="masthead"><div class="masthead-top"><span class="wordmark" style="font-size:30px">peri</span><span class="masthead-meta">Two minutes · no account</span></div><div class="rule thick"></div></div>
     <h1 style="font-size:clamp(28px,8.2vw,32px);line-height:1.05;margin:24px 0 8px">Fill in the blanks. That is the whole setup.</h1>
     <p class="letter">Lately the hardest things have been ${LETTER_SYMPTOMS.map(([k,l])=>blank('fr-symptom',k,l,pins.includes(k))).join(' ')}${firstRun.more?' '+LETTER_MORE.map(([k,l])=>blank('fr-symptom',k,l,pins.includes(k))).join(' '):' <button class="blank" data-act="fr-more" aria-expanded="false" style="border-style:dashed;color:var(--text-2)">more…</button>'}.</p>
-    <p class="letter">My periods are ${LETTER_PERIODS.map(([v,l])=>blank('fr-periods',v,l,p.periodStatus===v)).join(' ')}.</p>
+    <p class="letter">My periods are ${LETTER_PERIODS.map(([v,l])=>blank('fr-periods',v,l,p.periodStatus===v)).join(' ')}.${p.periodStatus==='stopped'?' My last one was '+LETTER_SINCE.map(([v,l])=>blank('fr-since',v,l,p.periodSince===v)).join(' ')+'.':''}</p>
     <p class="letter">I am <span class="blank input"><label class="sr-only" for="fr-age">Your age</label><input id="fr-age" type="number" min="18" max="90" inputmode="numeric" placeholder="47" data-act="fr-age" value="${age||''}"></span> and I ${blank('fr-appt','yes','have an appointment coming',firstRun.appointment==='yes')} ${blank('fr-appt','no','don’t, yet',firstRun.appointment==='no')}.${firstRun.appointment==='yes'?` <span class="blank input"><label class="sr-only" for="fr-date">Appointment date</label><input id="fr-date" type="date" data-act="fr-date" value="${esc(firstRun.date)}" min="${todayISO()}" style="width:auto;padding:2px 8px;font-size:.8em"></span>`:''}</p>
     <div class="rule" style="margin-top:14px"></div>
     ${finding?`<section class="finding" aria-live="polite"><div class="label accent">The finding</div><h2 class="head" style="font-size:clamp(30px,9vw,36px);line-height:1">${esc(finding.head)}</h2><p style="font-size:15.5px;color:var(--text-2)">${esc(finding.body)}</p></section>`:`<section class="finding"><div class="label">The finding</div><h2 class="head quiet">Appears once the blanks are filled.</h2></section>`}
@@ -4366,6 +4402,16 @@ function finishFirstRun(){
    ============================================================ */
 function reportSection(title,inner){ return `<section class="rsec"><div class="label" style="margin-bottom:6px">${esc(title)}</div>${inner}</section>`; }
 function kvRow(k,v){ return `<div class="kv"><span>${k}</span><span class="r">${v}</span></div>`; }
+/* Questions for the visit: the brief's generated questions, then her own
+   unasked ones, numbered on from each other. Neither list hides the other. */
+function questionsReport(brief){
+  const own=appointmentData().questions.filter(q=>!q.asked);
+  const generated=brief.concerns.length?briefSummaryMarkup(brief).replace(/<div class="label"[^>]*>Opening statement<\/div><p class="quote">[^<]*<\/p>/,''):'';
+  if(!generated&&!own.length) return '';
+  const start=brief.concerns.length?(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text).length:0;
+  const ownMarkup=own.length?(generated?'<div class="label" style="margin:18px 0 6px">Her own questions</div>':'')+own.map((q,i)=>`<div class="qn"><span class="n">${start+i+1}</span><div class="q">${esc(q.text)}</div></div>`).join(''):'';
+  return reportSection('Questions',generated+ownMarkup);
+}
 function reportBody(days){
   days=[30,90,180].includes(+days)?+days:90;
   const summaryDays=Math.min(30,days), activityDays=Math.min(28,days);
@@ -4409,7 +4455,7 @@ function reportBody(days){
   ${topSym.length?reportSection('Prominent symptoms · '+summaryDays+'-day average, 0–4',topSym.map(s=>kvRow(esc(s.n),r1(s.v))).join('')):''}
   ${medications.length?reportSection('Treatments',medications.map(m=>kvRow('<b>'+esc(m.name)+'</b>',esc(medicationDetail(m))+(m.started?' · from '+esc(fmtDay(m.started)):'')+(m.ended?' · stopped '+esc(fmtDay(m.ended)):'')+(medicationStatus(m)==='archived'?' · archived':'')+(m.stopReason?' · '+esc(m.stopReason):''))+((m.changes||[]).filter(c=>c.label&&c.label!=='Treatment started').length?'<ul class="plain tiny">'+(m.changes||[]).filter(c=>c.label&&c.label!=='Treatment started').map(c=>'<li>'+esc(fmtDay(c.date))+' · '+esc(c.label)+(c.targets&&c.targets.length?' · watching '+esc(c.targets.map(symptomName).join(', ')):'')+'</li>').join('')+'</ul>':'')+medicationHistoryMarkup(m)).join('')):''}
   ${treatmentFollowUpReport(days)}
-  ${brief.concerns.length?reportSection('Questions',briefSummaryMarkup(brief).replace(/<div class="label"[^>]*>Opening statement<\/div><p class="quote">[^<]*<\/p>/,'')):appointmentData().questions.filter(q=>!q.asked).length?reportSection('Questions',appointmentData().questions.filter(q=>!q.asked).map((q,i)=>`<div class="qn"><span class="n">${i+1}</span><div class="q">${esc(q.text)}</div></div>`).join('')):''}
+  ${questionsReport(brief)}
   ${appointmentData().evidence.length?reportSection('Pinned from the index',appointmentData().evidence.map(item=>kvRow(esc(item.text),esc(shortDate(item.date)))).join('')):''}
   ${healthKitReportSection()}
   ${labs.length?reportSection('Lab results',labs.map(x=>kvRow(esc(x.name)+' · '+esc(fmtDay(x.date)),esc(x.value+(x.unit?' '+x.unit:'')))).join('')):''}
@@ -4456,7 +4502,7 @@ function openSheet(id){
   if(id==='treatments'&&requestNativePro('dossier')) return;
   if(id==='learn:stage' && !DB.profile.stage && !stageEditing) resetStageDraft();
   if(id==='log'||id==='log:night'){ lastLogged=null; logMore=false; dictationOpen=false; logNight=id==='log:night'||isNightHour(); }
-  if(id.startsWith('close')){ const e=DB.entries[sheetDate(id)]||{}; closeDraft={rating:e.rating==null?null:e.rating,alcohol:e.nut&&e.nut.alc!=null?e.nut.alc>0:false,strength:!!(e.act&&e.act.res),period:!!(e.bleed&&e.bleed!=='none'),stress:!!(e.sym&&e.sym.overwhelmed>=2)}; }
+  if(id.startsWith('close')){ const e=DB.entries[sheetDate(id)]||{}; closeDraft={rating:e.rating==null?null:e.rating}; }
   if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
   else {
     const parentSheet=$('.sheet');
@@ -4589,9 +4635,23 @@ function parseUtterance(text){
 }
 
 /* ---------- close the day ---------- */
+/* What the day already says about the four close-the-day facts, read live so
+   edits made in the nested Details sheet show up when she comes back. */
+function closeFacts(e){
+  return {alcohol:e.nut&&e.nut.alc!=null?e.nut.alc>0:null,strength:e.act&&e.act.res!=null?!!e.act.res:null,period:e.bleed?e.bleed!=='none':null,stress:e.sym&&e.sym.overwhelmed!=null?e.sym.overwhelmed>=2:null};
+}
+function closeFact(key,draft,e){ return key in draft?!!draft[key]:!!closeFacts(e)[key]; }
+/* The answers for closeDay(): what she touched in the sheet, an explicit zero
+   for a fact the day says nothing about, and nothing at all for a fact the
+   day already carries (so a typed drink count or a logged bleed survives). */
+function closeAnswers(date,draft){
+  const e=DB.entries[date]||{}, facts=closeFacts(e), out={rating:draft.rating};
+  ['alcohol','strength','period','stress'].forEach(key=>{ if(key in draft) out[key]=!!draft[key]; else if(facts[key]==null) out[key]=false; });
+  return out;
+}
 function closeSheet_(date){
   const d=closeDraft||{}, e=DB.entries[date]||{};
-  const check=(key,label,hint)=>`<button class="check" data-act="close-toggle" data-k="${key}" aria-pressed="${d[key]?'true':'false'}"><span class="box">${IC.check}</span><span>${label}</span>${hint?`<span class="s">${esc(hint)}</span>`:''}</button>`;
+  const check=(key,label,hint)=>`<button class="check" data-act="close-toggle" data-k="${key}" aria-pressed="${closeFact(key,d,e)?'true':'false'}"><span class="box">${IC.check}</span><span>${label}</span>${hint?`<span class="s">${esc(hint)}</span>`:''}</button>`;
   const summary=ledgerSummary(date);
   return {title:(date===todayISO()?'Today':dayLabel(date))+' · '+nowHM(),body:`
     <p class="lead">${date===todayISO()?'Close the day.':'Close '+esc(dayLabel(date))+'.'}</p><p class="small muted">One question. The ledger did the rest.</p>
@@ -4823,7 +4883,7 @@ function refreshStageForProfile(key){
   else if(key==='ovaries') ans.ovaries=p.ovaries==='unknown'?'unsure':p.ovaries;
   else if(key==='birthYear'){ const age=ageStageAnswer(p.birthYear); if(!age){ invalidateStage(); return; } ans.age=age; }
   else if(key==='surgeryDate'){ ans.surgWhen=surgeryStageAnswer(p.surgeryDate); }
-  else if(key==='lastPeriod'||key==='periodStatus'){ invalidateStage(); return; }
+  else if(key==='lastPeriod'||key==='periodStatus'||key==='periodSince'){ invalidateStage(); return; }
   else return;
   if(!completeStageAnswers(ans)){ invalidateStage(); return; }
   const res=stageResult(ans); p.stage=res.label; p.stageAnswers=ans;
@@ -5258,6 +5318,17 @@ function commitDay(date){
   const e=DB.entries[date]; if(!e) return;
   if(hasEntryContent(safeEntryPayload(e))) confirmEntry(date); else unconfirmEntry(date);
 }
+/* A Medication row in the ledger and the tick in day.med are the same fact.
+   Deleting the row (moment=null after removal) clears the tick; moving the
+   row moves the time. Matched by the name the medication carried that day. */
+function reconcileMedRecord(date,moment,at){
+  const day=DB.entries[date]; if(!day||!day.med||!moment) return;
+  (Array.isArray(DB.medications)?DB.medications:[]).forEach(m=>{
+    if(medicationDetailsOn(m,date).name!==moment.n||!day.med[m.id]) return;
+    if(at==null) delete day.med[m.id]; else day.med[m.id]=Object.assign({},day.med[m.id],{at});
+  });
+  if(!Object.keys(day.med).length) delete day.med;
+}
 function fileMoment(date,moment,source){
   const wasEmpty=!isConfirmedEntry(date);
   const added=addMoment(date,moment);
@@ -5337,9 +5408,11 @@ function handleAction(el, ev){
       if(m){ save(true); renderSheet(false); }
       return;
     }
-    case 'moment-delete':
-      if(removeMoment(date,el.dataset.id)){ save(true); closeSheet(); toast('Deleted'); refresh(); }
+    case 'moment-delete': {
+      const gone=dayMoments(date).find(x=>x.id===el.dataset.id);
+      if(removeMoment(date,el.dataset.id)){ if(gone&&gone.k==='med') reconcileMedRecord(date,gone,null); commitDay(date); save(true); closeSheet(); toast('Deleted'); refresh(); }
       return;
+    }
     case 'day-add': {
       const kind=document.getElementById('past-kind'), time=document.getElementById('past-time');
       if(!kind||!MOMENT_KINDS[kind.value]) return;
@@ -5349,12 +5422,12 @@ function handleAction(el, ev){
     }
     /* close the day */
     case 'close-rate': closeDraft=closeDraft||{}; closeDraft.rating=+el.dataset.v; renderSheet(false); return;
-    case 'close-toggle': closeDraft=closeDraft||{}; closeDraft[el.dataset.k]=!closeDraft[el.dataset.k]; renderSheet(false); return;
+    case 'close-toggle': closeDraft=closeDraft||{}; closeDraft[el.dataset.k]=!closeFact(el.dataset.k,closeDraft,DB.entries[date]||{}); renderSheet(false); return;
     case 'close-save': {
       const draft=closeDraft||{};
       if(draft.rating==null){ toast('Pick a word for the day first'); return; }
       const wasClosed=dayClosed(date);
-      if(!closeDay(date,draft)){ toast('Nothing to close yet'); return; }
+      if(!closeDay(date,closeAnswers(date,draft))){ toast('Nothing to close yet'); return; }
       save(true);
       if(!wasClosed) postNativeEvent('checkin-confirmed',{date});
       sheetStack=[]; renderSheet(); render(); toast('Closed · '+DAY_RATINGS[draft.rating]);
@@ -5385,6 +5458,7 @@ function handleAction(el, ev){
     }
     case 'fr-more': firstRun.more=true; render(true); return;
     case 'fr-periods': DB.profile.periodStatus=safeEnum(el.dataset.v,PERIOD_STATUSES,''); save(); render(true); document.querySelector('[data-act="fr-periods"][data-v="'+el.dataset.v+'"]')?.focus({preventScroll:true}); return;
+    case 'fr-since': DB.profile.periodSince=safeEnum(el.dataset.v,PERIOD_SINCE,''); save(); render(true); document.querySelector('[data-act="fr-since"][data-v="'+el.dataset.v+'"]')?.focus({preventScroll:true}); return;
     case 'fr-appt': firstRun.appointment=el.dataset.v; render(true); document.querySelector(firstRun.appointment==='yes'?'#fr-date':'[data-act="fr-appt"][data-v="no"]')?.focus({preventScroll:true}); return;
     case 'fr-done': finishFirstRun(); return;
     case 'profile-symptom': {
@@ -5652,7 +5726,8 @@ function handleInput(el){
   if(a==='moment-time'||a==='moment-note'||a==='moment-hours'){
     const patch=a==='moment-time'?{t:el.value}:a==='moment-note'?{n:el.value}:{v:el.value===''?null:+el.value};
     if(a==='moment-time'&&!/^\d\d:\d\d$/.test(el.value)) return;
-    if(updateMoment(date,el.dataset.id,patch)) save();
+    const moved=updateMoment(date,el.dataset.id,patch);
+    if(moved){ if(a==='moment-time'&&moved.k==='med') reconcileMedRecord(date,moved,moved.t); save(); }
     return;
   }
   if(a==='num'){
@@ -5681,10 +5756,11 @@ function handleInput(el){
     if(v!=null&&v!==''&&conv==='l') v=U.lIn(v);
     DB.profile[k]=(v===''?null:v);
     if(k==='periodStatus') DB.profile.periodStatus=safeEnum(v||'',PERIOD_STATUSES,'');
+    if(k==='periodSince') DB.profile.periodSince=safeEnum(v||'',PERIOD_SINCE,'');
     refreshStageForProfile(k);
     save();
     if(k==='theme') applyTheme();
-    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries'||k==='periodStatus') render(true);
+    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries'||k==='periodStatus'||k==='periodSince') render(true);
     return;
   }
   if(a==='screen'){ const parsed=readDateInput(el); if(!parsed.ok) return; const rec=DB.screening[el.dataset.k]||{}; rec.last=parsed.value; DB.screening[el.dataset.k]=rec; save(); return; }

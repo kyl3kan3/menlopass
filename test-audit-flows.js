@@ -198,7 +198,7 @@ test('the ledger rolls up into the day fields the engine reads, and removal clea
     const e3 = confirmedEntry(t);
     return { after, removed: { hf: e2.hf, fog: e2.sym.fog }, closed, final: { rating: e3.rating, alc: e3.nut.alc, res: e3.act.res, bleed: e3.bleed, overwhelmed: e3.sym.overwhelmed } };
   });
-  assert.deepEqual(state.after, { hf: 2, ns: 1, wakes: 1, fog: 1, bleed: 'heavy', notes: '09:00 Skipped lunch', order: ['02:40', '02:41', '08:00', '09:00', '10:00', '13:10', '14:30'] });
+  assert.deepEqual(state.after, { hf: 2, ns: 2, wakes: 1, fog: 1, bleed: 'heavy', notes: '09:00 Skipped lunch', order: ['02:40', '02:41', '08:00', '09:00', '10:00', '13:10', '14:30'] }, 'an unrated sweat is moderate on the 0–4 scale the insights read');
   assert.deepEqual(state.removed, { hf: 1, fog: undefined });
   assert.equal(state.closed, true);
   assert.deepEqual(state.final, { rating: 1, alc: 0, res: true, bleed: 'heavy', overwhelmed: 2 }, 'a logged bleed is not overwritten by the period checkbox');
@@ -262,4 +262,128 @@ test('native v3 onboarding metadata survives backup validation and opens the let
   assert.equal(await page.locator('[data-act="fr-symptom"][data-v="sleepq"]').getAttribute('aria-pressed'),'true','partial native progress is carried into the letter');
   await page.getByRole('button',{name:'Open today’s page'}).click();
   assert.deepEqual(await page.evaluate(()=>({version:DB.profile.onboardingVersion,step:DB.profile.onboardingStep,onboarded:DB.profile.onboarded,entries:entryDates()})),{version:4,step:0,onboarded:true,entries:[]});
+});
+
+test('night-sweat severity, typed counts and severity edits survive the ledger rollup', async t => {
+  const page = await fixture(t, { symptoms: ['hf', 'ns'] });
+  const state = await page.evaluate(() => {
+    const t = todayISO(), out = {};
+    addMoment(t, { k: 'ns', t: '02:10', s: 3 }); out.oneStrong = confirmedEntry(t).ns;
+    removeMoment(t, dayMoments(t)[0].id);
+    addMoment(t, { k: 'ns', t: '02:10', s: 1 }); addMoment(t, { k: 'ns', t: '03:40', s: 1 }); out.twoMild = confirmedEntry(t).ns;
+    dayMoments(t).slice().forEach(m => removeMoment(t, m.id));
+    // a flash count typed in Details, then flashes logged one by one
+    const e = entry(t); e.hf = 5; confirmEntry(t);
+    addMoment(t, { k: 'hf', t: '13:00' }); out.afterFirstLog = confirmedEntry(t).hf;
+    removeMoment(t, dayMoments(t).find(m => m.k === 'hf').id); out.afterUndo = confirmedEntry(t).hf;
+    for (const time of ['13:00', '14:00', '15:00', '16:00', '17:00', '18:00']) addMoment(t, { k: 'hf', t: time });
+    out.ledgerPassesTyped = confirmedEntry(t).hf;
+    // a severity edited downwards follows the edit
+    addMoment(t, { k: 'fog', t: '10:00', s: 3 }); const fog = dayMoments(t).find(m => m.k === 'fog');
+    updateMoment(t, fog.id, { s: 1 }); out.fogAfterEdit = confirmedEntry(t).sym.fog;
+    return out;
+  });
+  assert.deepEqual(state, { oneStrong: 3, twoMild: 1, afterFirstLog: 5, afterUndo: 5, ledgerPassesTyped: 6, fogAfterEdit: 1 });
+});
+
+test('nights belong to the morning they end on, and unobserved nights never make a baseline', async t => {
+  const page = await fixture(t, { symptoms: ['sleepq', 'fog'] });
+  const state = await page.evaluate(() => {
+    const t = todayISO(), out = {};
+    // Wakes after 22:00 on alternate evenings, with fog at 10:00 on those same dates: the fog came first.
+    for (const i of [2, 4, 6, 8]) { const d = addDays(t, -i); addMoment(d, { k: 'fog', t: '10:00', s: 2 }); addMoment(d, { k: 'woke', t: '23:00' }); addMoment(d, { k: 'woke', t: '23:30' }); }
+    for (const i of [1, 3, 5, 7, 9, 10, 11]) { const d = addDays(t, -i); addMoment(d, { k: 'hf', t: '15:00' }); closeDay(d, { rating: 2 }); }
+    out.fogSameDate = findings().some(f => f.id === 'fog-after-nights');
+    out.brokenNightOf = { evening: nightRecord(addDays(t, -2)).wakes, morningAfter: nightRecord(addDays(t, -1)).wakes };
+    // Fog the morning after those evenings is the real pattern.
+    for (const i of [1, 3, 5, 7]) addMoment(addDays(t, -i), { k: 'fog', t: '10:00', s: 2 });
+    out.fogMorningAfter = findings().some(f => f.id === 'fog-after-nights');
+    // Sweat nights with two wakes each, and note-only days that say nothing about the night.
+    DB = blankDB(); DB.profile.onboarded = true; DB.profile.pinnedSymptoms = ['sleepq'];
+    for (let i = 1; i <= 3; i++) { const d = addDays(t, -i); addMoment(d, { k: 'ns', t: '02:30' }); addMoment(d, { k: 'woke', t: '02:31' }); addMoment(d, { k: 'woke', t: '04:10' }); }
+    for (let i = 4; i <= 6; i++) addMoment(addDays(t, -i), { k: 'note', t: '12:00', n: 'busy day' });
+    out.sweatWakesUnobserved = findings().some(f => f.id === 'sweat-wakes');
+    for (let i = 4; i <= 6; i++) closeDay(addDays(t, -i), { rating: 3 });
+    out.sweatWakesClosed = findings().some(f => f.id === 'sweat-wakes');
+    return out;
+  });
+  assert.equal(state.fogSameDate, false, 'late-evening wakes are the next night, not the one before that morning’s fog');
+  assert.equal(state.fogMorningAfter, true, 'fog the next morning is the pattern the finding is for');
+  assert.deepEqual(state.brokenNightOf, { evening: null, morningAfter: 2 });
+  assert.equal(state.sweatWakesUnobserved, false, 'days that say nothing about the night are not dry nights');
+  assert.equal(state.sweatWakesClosed, true, 'closing a day with no wakes logged is the statement that there were none');
+});
+
+test('a medication name cannot smuggle markup into a finding', async t => {
+  const page = await fixture(t);
+  const state = await page.evaluate(() => {
+    const t = todayISO(), med = DB.medications[0];
+    med.name = '<img src=x onerror="window.compromised=true">';
+    med.changes = [{ date: addDays(t, -5), label: 'Dose up', targets: ['hf'], baseline: { windowStart: addDays(t, -12), windowEnd: addDays(t, -6), values: { hf: { average: 3, n: 5 } } }, followUps: [] }];
+    for (let i = 1; i <= 4; i++) addMoment(addDays(t, -i), { k: 'hf', t: '14:00' });
+    save(true); setRoute('dossier'); render();
+    const f = findings().find(x => x.kind === 'treatment');
+    return { head: f && f.head, img: document.querySelectorAll('.page-dossier img[src="x"]').length, compromised: window.compromised === true, shown: document.querySelector('.page-dossier .fnd .head') ? document.querySelector('.page-dossier .fnd .head').textContent : '' };
+  });
+  assert.ok(state.head && state.head.includes('&lt;img'), 'the headline escapes the name');
+  assert.equal(state.img, 0);
+  assert.equal(state.compromised, false);
+});
+
+test('deleting a medication’s ledger row clears its tick, and moving it moves the time', async t => {
+  const page = await fixture(t);
+  await page.locator('.page-today [data-act="med-taken"]').first().click();
+  const taken = await page.evaluate(() => ({ tick: !!(DB.entries[todayISO()].med && DB.entries[todayISO()].med['audit-med'] && DB.entries[todayISO()].med['audit-med'].taken), rows: dayMoments(todayISO()).filter(m => m.k === 'med').length }));
+  assert.deepEqual(taken, { tick: true, rows: 1 });
+  await page.evaluate(() => addMoment(todayISO(), { k: 'hf', t: '13:00' }));
+  await page.locator('.page-today .ledger-row[data-act="moment"]').filter({ hasText: 'Medication' }).click();
+  await page.locator('#moment-time').fill('07:45');
+  await page.locator('#moment-time').dispatchEvent('change');
+  const moved = await page.evaluate(() => DB.entries[todayISO()].med['audit-med'].at);
+  assert.equal(moved, '07:45');
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete this entry' }).click();
+  const after = await page.evaluate(() => ({ tick: !!(DB.entries[todayISO()].med && DB.entries[todayISO()].med['audit-med']), rows: dayMoments(todayISO()).filter(m => m.k === 'med').length, stillConfirmed: !!confirmedEntry(todayISO()) }));
+  assert.deepEqual(after, { tick: false, rows: 0, stillConfirmed: true });
+  assert.equal(await page.locator('.page-today [data-act="med-taken"][aria-pressed="true"]').count(), 0, 'the tick on the page follows the ledger');
+});
+
+test('details edited from inside Close the day are kept when the day closes', async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => addMoment(todayISO(), { k: 'hf', t: '13:00' }));
+  await page.getByRole('button', { name: 'Close the day', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Good', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Sleep, body, food and notes' }).click();
+  await page.evaluate(() => { const e = entry(todayISO()); e.nut.alc = 3; e.act.res = true; e.bleed = 'heavy'; commitDay(todayISO()); save(true); });
+  await page.locator('.sheet-bar .done').click();
+  assert.equal(await page.getByRole('dialog').locator('[data-act="close-toggle"][data-k="alcohol"]').getAttribute('aria-pressed'), 'true', 'the sheet reads the edited details back');
+  assert.equal(await page.getByRole('dialog').locator('[data-act="close-toggle"][data-k="period"]').getAttribute('aria-pressed'), 'true');
+  await page.getByRole('dialog').locator('[data-act="close-toggle"][data-k="stress"]').click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close the day', exact: true }).click();
+  const closed = await page.evaluate(() => { const e = confirmedEntry(todayISO()); return { rating: e.rating, alc: e.nut.alc, res: e.act.res, bleed: e.bleed, overwhelmed: e.sym.overwhelmed }; });
+  assert.deepEqual(closed, { rating: 3, alc: 3, res: true, bleed: 'heavy', overwhelmed: 2 });
+});
+
+test('the one-page brief keeps her own questions next to the generated ones', async t => {
+  const page = await fixture(t, { symptoms: ['sleepq', 'hf'] });
+  await page.evaluate(() => {
+    appointmentData().questions.push({ id: 'own-1', text: 'Can I keep taking my migraine tablets with this?', created: todayISO(), asked: false, askedAt: '' });
+    appointmentData().brief = { concerns: [{ key: 'sleepq', impact: 'awake from three' }], goal: 'options', date: addDays(todayISO(), 10) };
+    save(true); setRoute('appointment-report'); render();
+  });
+  const questions = await page.locator('.report-page .qn .q').allTextContents();
+  assert.ok(questions.includes('Can I keep taking my migraine tablets with this?'), JSON.stringify(questions));
+  assert.ok(questions.length >= 2, 'generated questions are still there');
+});
+
+test('the letter needs the elapsed time before it stages a stopped cycle', async t => {
+  const page = await fixture(t);
+  const state = await page.evaluate(() => {
+    DB.profile.onboarded = false; DB.profile.birthYear = new Date().getFullYear() - 58; DB.profile.pinnedSymptoms = ['dry']; DB.profile.periodStatus = 'stopped'; DB.profile.periodSince = '';
+    const pending = firstRunFinding();
+    DB.profile.periodSince = 'gt6';
+    const staged = firstRunFinding();
+    finishFirstRun();
+    return { pending: pending && pending.head, staged: staged && staged.label, stage: DB.profile.stage, since: DB.profile.stageAnswers && DB.profile.stageAnswers.since, restored: validateBackup(JSON.parse(JSON.stringify(DB))).profile.periodSince };
+  });
+  assert.deepEqual(state, { pending: 'Fill in the rest and the finding appears.', staged: 'Late postmenopause', stage: 'Late postmenopause', since: 'gt6', restored: 'gt6' });
 });

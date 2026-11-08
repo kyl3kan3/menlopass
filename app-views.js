@@ -712,6 +712,7 @@ function viewYou(){
     <div class="label" style="margin:22px 0 10px">Profile</div>
     <div class="grid2"><div class="field"><label class="fl" for="pn">Name</label><input id="pn" type="text" maxlength="80" autocomplete="given-name" data-act="prof" data-k="name" value="${esc(p.name||'')}"></div><div class="field"><label class="fl" for="by">Birth year</label><input id="by" type="number" min="1920" max="${new Date().getFullYear()-18}" inputmode="numeric" data-act="prof" data-k="birthYear" value="${p.birthYear||''}"></div></div>
     ${sel('ps','periodStatus',{label:'Periods',items:[['','Not said'],['regular','Still regular'],['changing','Changing'],['gaps','60+ days apart'],['stopped','Gone a year or more'],['na','Not applicable']]})}
+    ${p.periodStatus==='stopped'?sel('psince','periodSince',{label:'Last period was',items:[['','Not said'],['lt2','One to two years ago'],['2to6','Two to six years ago'],['gt6','More than six years ago']]},'Staging after the last period runs on how long ago it was.'):''}
     ${sel('ut','uterus',{label:'Uterus',items:[['unknown','Prefer not to say'],['intact','Still there'],['hyst','Removed (hysterectomy)'],['ablation','Endometrial ablation']]})}
     ${sel('ov','ovaries',{label:'Ovaries',items:[['unknown','Prefer not to say or not sure'],['kept','Both still there'],['one','One removed'],['both','Both removed']]},'Asked separately: a hysterectomy often leaves both ovaries, and ovaries are sometimes removed with the uterus left. The consequences differ completely.')}
     ${periodsPossible()
@@ -745,6 +746,7 @@ function viewYou(){
 const LETTER_SYMPTOMS=[['sleepq','trouble sleeping'],['hf','hot flashes'],['fog','brain fog'],['energy','fatigue'],['mood','low mood'],['anx','anxiety'],['ns','night sweats'],['joint','joint pain']];
 const LETTER_MORE=[['head','headaches'],['palp','palpitations'],['dizzy','dizziness'],['bloating','bloating'],['dry','dryness'],['uri','bladder trouble'],['itch','itchy skin'],['libido','low libido'],['irritable','irritability'],['overwhelmed','feeling overwhelmed']];
 const LETTER_PERIODS=[['regular','still regular'],['changing','changing'],['gaps','60+ days apart'],['stopped','gone a year or more'],['na','not applicable']];
+const LETTER_SINCE=[['lt2','one to two years ago'],['2to6','two to six years ago'],['gt6','more than six years ago']];
 function firstRunAnswers(){
   const p=DB.profile, age=p.birthYear?new Date().getFullYear()-p.birthYear:null;
   if(!p.periodStatus||p.periodStatus==='na'||age==null) return null;
@@ -752,7 +754,7 @@ function firstRunAnswers(){
   const ans={age:age<40?'u40':age<45?'40s_e':age<55?'45p':'55p',uterus:'intact',ovaries:'kept',contra:'no',
     cycle:{regular:'reg',changing:'var7',gaps:'skip',stopped:'none12'}[p.periodStatus],
     vms:pins.includes('hf')||pins.includes('ns')?'lots':'no'};
-  if(ans.cycle==='none12') ans.since='lt2';
+  if(ans.cycle==='none12'){ if(!PERIOD_SINCE.includes(p.periodSince)) return null; ans.since=p.periodSince; }
   return ans;
 }
 function firstRunFinding(){
@@ -791,7 +793,7 @@ function viewFirstRun(){
     <div class="masthead"><div class="masthead-top"><span class="wordmark" style="font-size:30px">peri</span><span class="masthead-meta">Two minutes · no account</span></div><div class="rule thick"></div></div>
     <h1 style="font-size:clamp(28px,8.2vw,32px);line-height:1.05;margin:24px 0 8px">Fill in the blanks. That is the whole setup.</h1>
     <p class="letter">Lately the hardest things have been ${LETTER_SYMPTOMS.map(([k,l])=>blank('fr-symptom',k,l,pins.includes(k))).join(' ')}${firstRun.more?' '+LETTER_MORE.map(([k,l])=>blank('fr-symptom',k,l,pins.includes(k))).join(' '):' <button class="blank" data-act="fr-more" aria-expanded="false" style="border-style:dashed;color:var(--text-2)">more…</button>'}.</p>
-    <p class="letter">My periods are ${LETTER_PERIODS.map(([v,l])=>blank('fr-periods',v,l,p.periodStatus===v)).join(' ')}.</p>
+    <p class="letter">My periods are ${LETTER_PERIODS.map(([v,l])=>blank('fr-periods',v,l,p.periodStatus===v)).join(' ')}.${p.periodStatus==='stopped'?' My last one was '+LETTER_SINCE.map(([v,l])=>blank('fr-since',v,l,p.periodSince===v)).join(' ')+'.':''}</p>
     <p class="letter">I am <span class="blank input"><label class="sr-only" for="fr-age">Your age</label><input id="fr-age" type="number" min="18" max="90" inputmode="numeric" placeholder="47" data-act="fr-age" value="${age||''}"></span> and I ${blank('fr-appt','yes','have an appointment coming',firstRun.appointment==='yes')} ${blank('fr-appt','no','don’t, yet',firstRun.appointment==='no')}.${firstRun.appointment==='yes'?` <span class="blank input"><label class="sr-only" for="fr-date">Appointment date</label><input id="fr-date" type="date" data-act="fr-date" value="${esc(firstRun.date)}" min="${todayISO()}" style="width:auto;padding:2px 8px;font-size:.8em"></span>`:''}</p>
     <div class="rule" style="margin-top:14px"></div>
     ${finding?`<section class="finding" aria-live="polite"><div class="label accent">The finding</div><h2 class="head" style="font-size:clamp(30px,9vw,36px);line-height:1">${esc(finding.head)}</h2><p style="font-size:15.5px;color:var(--text-2)">${esc(finding.body)}</p></section>`:`<section class="finding"><div class="label">The finding</div><h2 class="head quiet">Appears once the blanks are filled.</h2></section>`}
@@ -820,6 +822,16 @@ function finishFirstRun(){
    ============================================================ */
 function reportSection(title,inner){ return `<section class="rsec"><div class="label" style="margin-bottom:6px">${esc(title)}</div>${inner}</section>`; }
 function kvRow(k,v){ return `<div class="kv"><span>${k}</span><span class="r">${v}</span></div>`; }
+/* Questions for the visit: the brief's generated questions, then her own
+   unasked ones, numbered on from each other. Neither list hides the other. */
+function questionsReport(brief){
+  const own=appointmentData().questions.filter(q=>!q.asked);
+  const generated=brief.concerns.length?briefSummaryMarkup(brief).replace(/<div class="label"[^>]*>Opening statement<\/div><p class="quote">[^<]*<\/p>/,''):'';
+  if(!generated&&!own.length) return '';
+  const start=brief.concerns.length?(Array.isArray(brief.questions)?brief.questions:generateBriefQuestions(brief)).filter(q=>q.selected!==false&&q.text).length:0;
+  const ownMarkup=own.length?(generated?'<div class="label" style="margin:18px 0 6px">Her own questions</div>':'')+own.map((q,i)=>`<div class="qn"><span class="n">${start+i+1}</span><div class="q">${esc(q.text)}</div></div>`).join(''):'';
+  return reportSection('Questions',generated+ownMarkup);
+}
 function reportBody(days){
   days=[30,90,180].includes(+days)?+days:90;
   const summaryDays=Math.min(30,days), activityDays=Math.min(28,days);
@@ -863,7 +875,7 @@ function reportBody(days){
   ${topSym.length?reportSection('Prominent symptoms · '+summaryDays+'-day average, 0–4',topSym.map(s=>kvRow(esc(s.n),r1(s.v))).join('')):''}
   ${medications.length?reportSection('Treatments',medications.map(m=>kvRow('<b>'+esc(m.name)+'</b>',esc(medicationDetail(m))+(m.started?' · from '+esc(fmtDay(m.started)):'')+(m.ended?' · stopped '+esc(fmtDay(m.ended)):'')+(medicationStatus(m)==='archived'?' · archived':'')+(m.stopReason?' · '+esc(m.stopReason):''))+((m.changes||[]).filter(c=>c.label&&c.label!=='Treatment started').length?'<ul class="plain tiny">'+(m.changes||[]).filter(c=>c.label&&c.label!=='Treatment started').map(c=>'<li>'+esc(fmtDay(c.date))+' · '+esc(c.label)+(c.targets&&c.targets.length?' · watching '+esc(c.targets.map(symptomName).join(', ')):'')+'</li>').join('')+'</ul>':'')+medicationHistoryMarkup(m)).join('')):''}
   ${treatmentFollowUpReport(days)}
-  ${brief.concerns.length?reportSection('Questions',briefSummaryMarkup(brief).replace(/<div class="label"[^>]*>Opening statement<\/div><p class="quote">[^<]*<\/p>/,'')):appointmentData().questions.filter(q=>!q.asked).length?reportSection('Questions',appointmentData().questions.filter(q=>!q.asked).map((q,i)=>`<div class="qn"><span class="n">${i+1}</span><div class="q">${esc(q.text)}</div></div>`).join('')):''}
+  ${questionsReport(brief)}
   ${appointmentData().evidence.length?reportSection('Pinned from the index',appointmentData().evidence.map(item=>kvRow(esc(item.text),esc(shortDate(item.date)))).join('')):''}
   ${healthKitReportSection()}
   ${labs.length?reportSection('Lab results',labs.map(x=>kvRow(esc(x.name)+' · '+esc(fmtDay(x.date)),esc(x.value+(x.unit?' '+x.unit:'')))).join('')):''}
@@ -910,7 +922,7 @@ function openSheet(id){
   if(id==='treatments'&&requestNativePro('dossier')) return;
   if(id==='learn:stage' && !DB.profile.stage && !stageEditing) resetStageDraft();
   if(id==='log'||id==='log:night'){ lastLogged=null; logMore=false; dictationOpen=false; logNight=id==='log:night'||isNightHour(); }
-  if(id.startsWith('close')){ const e=DB.entries[sheetDate(id)]||{}; closeDraft={rating:e.rating==null?null:e.rating,alcohol:e.nut&&e.nut.alc!=null?e.nut.alc>0:false,strength:!!(e.act&&e.act.res),period:!!(e.bleed&&e.bleed!=='none'),stress:!!(e.sym&&e.sym.overwhelmed>=2)}; }
+  if(id.startsWith('close')){ const e=DB.entries[sheetDate(id)]||{}; closeDraft={rating:e.rating==null?null:e.rating}; }
   if(!sheetStack.length) lastSheetTrigger=focusDescriptor(document.activeElement);
   else {
     const parentSheet=$('.sheet');
@@ -1043,9 +1055,23 @@ function parseUtterance(text){
 }
 
 /* ---------- close the day ---------- */
+/* What the day already says about the four close-the-day facts, read live so
+   edits made in the nested Details sheet show up when she comes back. */
+function closeFacts(e){
+  return {alcohol:e.nut&&e.nut.alc!=null?e.nut.alc>0:null,strength:e.act&&e.act.res!=null?!!e.act.res:null,period:e.bleed?e.bleed!=='none':null,stress:e.sym&&e.sym.overwhelmed!=null?e.sym.overwhelmed>=2:null};
+}
+function closeFact(key,draft,e){ return key in draft?!!draft[key]:!!closeFacts(e)[key]; }
+/* The answers for closeDay(): what she touched in the sheet, an explicit zero
+   for a fact the day says nothing about, and nothing at all for a fact the
+   day already carries (so a typed drink count or a logged bleed survives). */
+function closeAnswers(date,draft){
+  const e=DB.entries[date]||{}, facts=closeFacts(e), out={rating:draft.rating};
+  ['alcohol','strength','period','stress'].forEach(key=>{ if(key in draft) out[key]=!!draft[key]; else if(facts[key]==null) out[key]=false; });
+  return out;
+}
 function closeSheet_(date){
   const d=closeDraft||{}, e=DB.entries[date]||{};
-  const check=(key,label,hint)=>`<button class="check" data-act="close-toggle" data-k="${key}" aria-pressed="${d[key]?'true':'false'}"><span class="box">${IC.check}</span><span>${label}</span>${hint?`<span class="s">${esc(hint)}</span>`:''}</button>`;
+  const check=(key,label,hint)=>`<button class="check" data-act="close-toggle" data-k="${key}" aria-pressed="${closeFact(key,d,e)?'true':'false'}"><span class="box">${IC.check}</span><span>${label}</span>${hint?`<span class="s">${esc(hint)}</span>`:''}</button>`;
   const summary=ledgerSummary(date);
   return {title:(date===todayISO()?'Today':dayLabel(date))+' · '+nowHM(),body:`
     <p class="lead">${date===todayISO()?'Close the day.':'Close '+esc(dayLabel(date))+'.'}</p><p class="small muted">One question. The ledger did the rest.</p>
@@ -1277,7 +1303,7 @@ function refreshStageForProfile(key){
   else if(key==='ovaries') ans.ovaries=p.ovaries==='unknown'?'unsure':p.ovaries;
   else if(key==='birthYear'){ const age=ageStageAnswer(p.birthYear); if(!age){ invalidateStage(); return; } ans.age=age; }
   else if(key==='surgeryDate'){ ans.surgWhen=surgeryStageAnswer(p.surgeryDate); }
-  else if(key==='lastPeriod'||key==='periodStatus'){ invalidateStage(); return; }
+  else if(key==='lastPeriod'||key==='periodStatus'||key==='periodSince'){ invalidateStage(); return; }
   else return;
   if(!completeStageAnswers(ans)){ invalidateStage(); return; }
   const res=stageResult(ans); p.stage=res.label; p.stageAnswers=ans;
@@ -1712,6 +1738,17 @@ function commitDay(date){
   const e=DB.entries[date]; if(!e) return;
   if(hasEntryContent(safeEntryPayload(e))) confirmEntry(date); else unconfirmEntry(date);
 }
+/* A Medication row in the ledger and the tick in day.med are the same fact.
+   Deleting the row (moment=null after removal) clears the tick; moving the
+   row moves the time. Matched by the name the medication carried that day. */
+function reconcileMedRecord(date,moment,at){
+  const day=DB.entries[date]; if(!day||!day.med||!moment) return;
+  (Array.isArray(DB.medications)?DB.medications:[]).forEach(m=>{
+    if(medicationDetailsOn(m,date).name!==moment.n||!day.med[m.id]) return;
+    if(at==null) delete day.med[m.id]; else day.med[m.id]=Object.assign({},day.med[m.id],{at});
+  });
+  if(!Object.keys(day.med).length) delete day.med;
+}
 function fileMoment(date,moment,source){
   const wasEmpty=!isConfirmedEntry(date);
   const added=addMoment(date,moment);
@@ -1791,9 +1828,11 @@ function handleAction(el, ev){
       if(m){ save(true); renderSheet(false); }
       return;
     }
-    case 'moment-delete':
-      if(removeMoment(date,el.dataset.id)){ save(true); closeSheet(); toast('Deleted'); refresh(); }
+    case 'moment-delete': {
+      const gone=dayMoments(date).find(x=>x.id===el.dataset.id);
+      if(removeMoment(date,el.dataset.id)){ if(gone&&gone.k==='med') reconcileMedRecord(date,gone,null); commitDay(date); save(true); closeSheet(); toast('Deleted'); refresh(); }
       return;
+    }
     case 'day-add': {
       const kind=document.getElementById('past-kind'), time=document.getElementById('past-time');
       if(!kind||!MOMENT_KINDS[kind.value]) return;
@@ -1803,12 +1842,12 @@ function handleAction(el, ev){
     }
     /* close the day */
     case 'close-rate': closeDraft=closeDraft||{}; closeDraft.rating=+el.dataset.v; renderSheet(false); return;
-    case 'close-toggle': closeDraft=closeDraft||{}; closeDraft[el.dataset.k]=!closeDraft[el.dataset.k]; renderSheet(false); return;
+    case 'close-toggle': closeDraft=closeDraft||{}; closeDraft[el.dataset.k]=!closeFact(el.dataset.k,closeDraft,DB.entries[date]||{}); renderSheet(false); return;
     case 'close-save': {
       const draft=closeDraft||{};
       if(draft.rating==null){ toast('Pick a word for the day first'); return; }
       const wasClosed=dayClosed(date);
-      if(!closeDay(date,draft)){ toast('Nothing to close yet'); return; }
+      if(!closeDay(date,closeAnswers(date,draft))){ toast('Nothing to close yet'); return; }
       save(true);
       if(!wasClosed) postNativeEvent('checkin-confirmed',{date});
       sheetStack=[]; renderSheet(); render(); toast('Closed · '+DAY_RATINGS[draft.rating]);
@@ -1839,6 +1878,7 @@ function handleAction(el, ev){
     }
     case 'fr-more': firstRun.more=true; render(true); return;
     case 'fr-periods': DB.profile.periodStatus=safeEnum(el.dataset.v,PERIOD_STATUSES,''); save(); render(true); document.querySelector('[data-act="fr-periods"][data-v="'+el.dataset.v+'"]')?.focus({preventScroll:true}); return;
+    case 'fr-since': DB.profile.periodSince=safeEnum(el.dataset.v,PERIOD_SINCE,''); save(); render(true); document.querySelector('[data-act="fr-since"][data-v="'+el.dataset.v+'"]')?.focus({preventScroll:true}); return;
     case 'fr-appt': firstRun.appointment=el.dataset.v; render(true); document.querySelector(firstRun.appointment==='yes'?'#fr-date':'[data-act="fr-appt"][data-v="no"]')?.focus({preventScroll:true}); return;
     case 'fr-done': finishFirstRun(); return;
     case 'profile-symptom': {
@@ -2106,7 +2146,8 @@ function handleInput(el){
   if(a==='moment-time'||a==='moment-note'||a==='moment-hours'){
     const patch=a==='moment-time'?{t:el.value}:a==='moment-note'?{n:el.value}:{v:el.value===''?null:+el.value};
     if(a==='moment-time'&&!/^\d\d:\d\d$/.test(el.value)) return;
-    if(updateMoment(date,el.dataset.id,patch)) save();
+    const moved=updateMoment(date,el.dataset.id,patch);
+    if(moved){ if(a==='moment-time'&&moved.k==='med') reconcileMedRecord(date,moved,moved.t); save(); }
     return;
   }
   if(a==='num'){
@@ -2135,10 +2176,11 @@ function handleInput(el){
     if(v!=null&&v!==''&&conv==='l') v=U.lIn(v);
     DB.profile[k]=(v===''?null:v);
     if(k==='periodStatus') DB.profile.periodStatus=safeEnum(v||'',PERIOD_STATUSES,'');
+    if(k==='periodSince') DB.profile.periodSince=safeEnum(v||'',PERIOD_SINCE,'');
     refreshStageForProfile(k);
     save();
     if(k==='theme') applyTheme();
-    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries'||k==='periodStatus') render(true);
+    if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries'||k==='periodStatus'||k==='periodSince') render(true);
     return;
   }
   if(a==='screen'){ const parsed=readDateInput(el); if(!parsed.ok) return; const rec=DB.screening[el.dataset.k]||{}; rec.last=parsed.value; DB.screening[el.dataset.k]=rec; save(); return; }

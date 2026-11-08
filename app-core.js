@@ -83,6 +83,7 @@ const ONBOARDING_FEELINGS = {calm:'Calm',hopeful:'Hopeful',mixed:'Up and down',o
 const PINNABLE_SYMPTOMS = ['hf','ns','sleepq','mood','anx','fog','joint','dry','uri','energy','head','palp','itch','libido','bloating','dizzy','irritable','overwhelmed'];
 const DEFAULT_PINNED_SYMPTOMS = ['hf','ns','fog','energy','joint','anx'];
 const PERIOD_STATUSES = ['regular','changing','gaps','stopped','na'];
+const PERIOD_SINCE = ['lt2','2to6','gt6'];
 /* The ledger vocabulary. Symptom kinds share keys with PINNABLE_SYMPTOMS so a
    moment rolls up into the same day fields the insights engine already reads.
    `woke`, `slept`, `bleed`, `med`, `breath` and `note` are ledger-only kinds. */
@@ -105,7 +106,7 @@ function blankDB(){
       proteinGpk:1.2, weightGoal:null, waistGoal:null,
       theme:'light', stage:null, stageAnswers:null, onboarded:false,
       onboardingVersion:4, onboardingStep:0, onboardingDeferred:false, firstCheckinPending:false, intent:'', onboardingFeeling:'',
-      pinnedSymptoms:[], periodStatus:''
+      pinnedSymptoms:[], periodStatus:'', periodSince:''
     },
     entries:{}, medications:[], labs:[], screening:{}, scores:[], trigger:null,
     appointments:{questions:[],plans:[],brief:{concerns:[],goal:'',date:''},evidence:[]}, support:[], healthKit:null,
@@ -157,6 +158,7 @@ function migrate(d){
   // v4 is the first-run letter: one screen, so its step is always 0.
   p.onboardingStep=p.onboardingVersion===4?0:(safeInteger(rawProfile.onboardingStep,0,p.onboardingVersion===3?11:3)||0);
   p.periodStatus=safeEnum(rawProfile.periodStatus,PERIOD_STATUSES,'');
+  p.periodSince=safeEnum(rawProfile.periodSince,PERIOD_SINCE,'');
   p.onboardingDeferred=rawProfile.onboardingDeferred===true;
   p.firstCheckinPending=rawProfile.firstCheckinPending===true;
   p.intent=safeEnum(rawProfile.intent,PROFILE_INTENTS,'');
@@ -1119,35 +1121,46 @@ function momentDetail(m){
 }
 function dayMoments(date){ const e=DB.entries[date]; return e&&Array.isArray(e.moments)?e.moments:[]; }
 function newMomentId(){ return 'm-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function rollupMoments(e){
-  const ms=Array.isArray(e.moments)?e.moments:[];
-  const ofKind=k=>ms.filter(m=>m.k===k);
-  if(ofKind('hf').length) e.hf=ofKind('hf').length;
-  if(ofKind('ns').length) e.ns=Math.min(4,ofKind('ns').length);
-  if(ofKind('woke').length) e.wakes=Math.min(30,ofKind('woke').length);
-  e.sym=e.sym||{};
-  Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).forEach(k=>{
-    const sev=ofKind(k).map(m=>m.s||2);
-    if(sev.length) e.sym[k]=Math.max(...sev);
-  });
-  const bleeds=ofKind('bleed');
-  if(bleeds.length){ const s=Math.max(...bleeds.map(m=>m.s||2)); e.bleed=s>=3?'heavy':s===2?'light':'spotting'; }
+function ledgerDerived(ms){
+  const out={sym:{}}, ofKind=k=>ms.filter(m=>m.k===k);
+  const hf=ofKind('hf'), ns=ofKind('ns'), woke=ofKind('woke'), bleeds=ofKind('bleed');
+  if(hf.length) out.hf=hf.length;
+  /* ns is the 0–4 night-sweat severity the insights read (>=2 is moderate or
+     worse), so the ledger rolls up the worst sweat of the night, not how many
+     there were; the count stays in the ledger and the night findings use it. */
+  if(ns.length) out.ns=Math.min(4,Math.max(...ns.map(m=>m.s||2)));
+  if(woke.length) out.wakes=Math.min(30,woke.length);
+  Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).forEach(k=>{ const sev=ofKind(k).map(m=>m.s||2); if(sev.length) out.sym[k]=Math.max(...sev); });
+  if(bleeds.length){ const s=Math.max(...bleeds.map(m=>m.s||2)); out.bleed=s>=3?'heavy':s===2?'light':'spotting'; }
   const slept=ofKind('slept').filter(m=>m.v!=null).pop();
-  if(slept){ e.sleepH=slept.v; if(e.inBedH!=null&&e.inBedH<e.sleepH) e.inBedH=e.sleepH; }
-  const notes=ofKind('note').map(m=>m.n).filter(Boolean);
-  if(notes.length){
-    const manual=(e.notes||'').split('\n').filter(line=>line.trim()&&!/^\d\d:\d\d /.test(line));
-    e.notes=[...manual,...ofKind('note').filter(m=>m.n).map(m=>m.t+' '+m.n)].join('\n').slice(0,4000);
-  }
+  if(slept) out.sleepH=slept.v;
+  return out;
 }
-function clearDerived(e,kind){
-  if(kind==='hf') delete e.hf;
-  else if(kind==='ns') delete e.ns;
-  else if(kind==='woke') delete e.wakes;
-  else if(kind==='bleed') delete e.bleed;
-  else if(kind==='slept') delete e.sleepH;
-  else if(kind==='note'&&e.notes){ const manual=e.notes.split('\n').filter(line=>line.trim()&&!/^\d\d:\d\d /.test(line)).join('\n'); if(manual) e.notes=manual; else delete e.notes; }
-  else if(MOMENT_KINDS[kind]&&MOMENT_KINDS[kind].sym!==false&&e.sym) delete e.sym[kind];
+/* Write the ledger's view into the day fields without trampling a value she
+   typed herself (a flash count from Details, a migrated day): a field is
+   overwritten when it still holds what the ledger last wrote, or nothing, or
+   less than the ledger now shows; a larger manual value is kept until the
+   ledger reaches it. `before` is the ledger's view before this change. */
+function rollupMoments(e,before){
+  const ms=Array.isArray(e.moments)?e.moments:[], after=ledgerDerived(ms), prev=before||ledgerDerived(ms);
+  const settle=(obj,key,next,was)=>{
+    const cur=obj[key];
+    if(next==null){ if(cur!=null&&cur===was) delete obj[key]; return; }
+    if(cur==null||cur===was||(typeof cur==='number'&&typeof next==='number'&&cur<next)) obj[key]=next;
+  };
+  settle(e,'hf',after.hf,prev.hf); settle(e,'ns',after.ns,prev.ns); settle(e,'wakes',after.wakes,prev.wakes);
+  e.sym=e.sym||{};
+  Object.keys(MOMENT_KINDS).filter(k=>MOMENT_KINDS[k].sym!==false).forEach(k=>settle(e.sym,k,after.sym[k],prev.sym[k]));
+  settle(e,'bleed',after.bleed,prev.bleed);
+  if(after.sleepH!=null){ e.sleepH=after.sleepH; if(e.inBedH!=null&&e.inBedH<e.sleepH) e.inBedH=e.sleepH; }
+  else if(prev.sleepH!=null&&e.sleepH===prev.sleepH) delete e.sleepH;
+  /* Notes: her own lines stay; the ledger's timestamped lines are rewritten. */
+  const lines=(e.notes||'').split('\n').filter(line=>line.trim()), manual=lines.filter(line=>!/^\d\d:\d\d /.test(line));
+  const noted=ms.filter(m=>m.k==='note'&&m.n).map(m=>m.t+' '+m.n);
+  if(noted.length||manual.length!==lines.length){
+    const notes=[...manual,...noted].join('\n').slice(0,4000);
+    if(notes) e.notes=notes; else delete e.notes;
+  }
 }
 function unconfirmEntry(date){
   const e=DB.entries[date]; if(!e) return;
@@ -1161,8 +1174,9 @@ function addMoment(date,moment){
   if(e.moments.length>=MAX_MOMENTS_PER_DAY) return null;
   const clean=safeMoment(Object.assign({},moment,{t:moment.t||nowHM(),id:moment.id||newMomentId()}));
   if(!clean) return null;
+  const before=ledgerDerived(e.moments);
   e.moments.push(clean); e.moments.sort((a,b)=>a.t.localeCompare(b.t));
-  rollupMoments(e); confirmEntry(date);
+  rollupMoments(e,before); confirmEntry(date);
   return clean;
 }
 function updateMoment(date,id,patch){
@@ -1170,18 +1184,19 @@ function updateMoment(date,id,patch){
   if(!m) return null;
   const clean=safeMoment(Object.assign({},m,patch,{id:m.id,k:m.k}));
   if(!clean) return null;
+  const before=ledgerDerived(e.moments);
   Object.keys(m).forEach(key=>delete m[key]); Object.assign(m,clean);
   e.moments.sort((a,b)=>a.t.localeCompare(b.t));
-  rollupMoments(e); confirmEntry(date);
+  rollupMoments(e,before); confirmEntry(date);
   return m;
 }
 function removeMoment(date,id){
   const e=DB.entries[date]; if(!e||!Array.isArray(e.moments)) return false;
   const i=e.moments.findIndex(m=>m.id===id); if(i<0) return false;
-  const [gone]=e.moments.splice(i,1);
-  if(!e.moments.some(m=>m.k===gone.k)) clearDerived(e,gone.k);
+  const before=ledgerDerived(e.moments);
+  e.moments.splice(i,1);
   if(!e.moments.length) delete e.moments;
-  rollupMoments(e);
+  rollupMoments(e,before);
   if(hasEntryContent(safeEntryPayload(e))) confirmEntry(date); else unconfirmEntry(date);
   return true;
 }
@@ -1231,6 +1246,24 @@ function plural(n,one,many){ return n===1?one:(many||one+'s'); }
 function slugify(text){ return String(text).toLowerCase().replace(/<[^>]+>/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50); }
 const GENERIC_INSIGHTS=/^(Nothing to flag yet|Keep logging)/;
 function hourLabel(min){ const h=Math.floor(((min%1440)+1440)%1440/60); return String(h).padStart(2,'0')+':00'; }
+/* A night belongs to the morning it ends on: what was logged after 22:00 the
+   evening before and before noon that day. A night counts as observed only
+   when something was said about it (a wake, a sweat, a typed count, or the
+   day was closed); nothing logged on an unclosed day is a gap, not a calm
+   night, so comparisons never invent a zero-wake baseline. */
+function nightMoments(d){
+  return [...dayMoments(addDays(d,-1)).filter(m=>hmMinutes(m.t)>=22*60),...dayMoments(d).filter(m=>hmMinutes(m.t)<12*60)];
+}
+function nightRecord(d){
+  const e=confirmedEntry(d), ms=nightMoments(d), woke=ms.filter(m=>m.k==='woke'&&windowOf(m.t).id==='night'), sweats=ms.filter(m=>m.k==='ns');
+  const typedWakes=e&&e.wakes!=null&&!dayMoments(d).some(m=>m.k==='woke')?e.wakes:null;
+  const typedSweat=e&&e.ns!=null&&!dayMoments(d).some(m=>m.k==='ns')?e.ns:null;
+  const closed=!!(e&&e.rating!=null);
+  const observed=!!(woke.length||sweats.length||typedWakes!=null||typedSweat!=null||closed);
+  const wakes=woke.length?woke.length:typedWakes!=null?typedWakes:closed?0:null;
+  const sweat=sweats.length?Math.max(...sweats.map(m=>m.s||2)):typedSweat!=null?typedSweat:closed?0:null;
+  return {d,woke,sweats:sweats.length,wakes,sweat,observed};
+}
 function findings(){
   const out=[], t=todayISO(), week=rangeDates(7), fortnight=rangeDates(14);
   const push=f=>{ if(!out.some(x=>x.id===f.id)) out.push(f); };
@@ -1264,11 +1297,11 @@ function findings(){
     }
   }
   /* night waking window */
-  const nights=week.map(d=>({d,wakes:dayMoments(d).filter(m=>m.k==='woke'&&windowOf(m.t).id==='night'),sweats:dayMoments(d).filter(m=>m.k==='ns').length}));
-  const wakeNights=nights.filter(n=>n.wakes.length);
+  const nights=week.map(nightRecord);
+  const wakeNights=nights.filter(n=>n.woke.length);
   if(wakeNights.length>=3){
     const buckets={};
-    wakeNights.forEach(n=>n.wakes.forEach(m=>{ const x=hmMinutes(m.t), start=Math.floor(x/60)*60; [start-60,start].forEach(b=>{ const key=((b%1440)+1440)%1440; buckets[key]=buckets[key]||new Set(); buckets[key].add(n.d); }); }));
+    wakeNights.forEach(n=>n.woke.forEach(m=>{ const x=hmMinutes(m.t), start=Math.floor(x/60)*60; [start-60,start].forEach(b=>{ const key=((b%1440)+1440)%1440; buckets[key]=buckets[key]||new Set(); buckets[key].add(n.d); }); }));
     const best=Object.entries(buckets).map(([k,set])=>({start:+k,n:set.size})).sort((a,b)=>b.n-a.n||a.start-b.start)[0];
     if(best&&best.n>=3){
       push({id:'wake-window',p:80,kind:'pattern',head:'You wake between '+hourLabel(best.start).replace(':00','')+' and '+hourLabel(best.start+120).replace(':00','')+'.',
@@ -1277,9 +1310,9 @@ function findings(){
     }
   }
   /* sweat nights cost wakes */
-  const sweatNights=nights.filter(n=>n.sweats>0), dryNights=nights.filter(n=>!n.sweats&&confirmedEntry(n.d));
+  const observed=nights.filter(n=>n.observed&&n.wakes!=null), sweatNights=observed.filter(n=>n.sweat>0), dryNights=observed.filter(n=>!n.sweat);
   if(sweatNights.length>=3&&dryNights.length>=2){
-    const a=avg(sweatNights.map(n=>n.wakes.length)), b=avg(dryNights.map(n=>n.wakes.length));
+    const a=avg(sweatNights.map(n=>n.wakes)), b=avg(dryNights.map(n=>n.wakes));
     if(a!=null&&b!=null&&a-b>=1){
       push({id:'sweat-wakes',p:75,kind:'pattern',head:'Sweat nights cost you '+r1(a-b)+' more '+plural(Math.round(a-b),'wake')+'.',
         num:r1(a)+' <i>vs</i> '+r1(b),sub:'wakes a night, sweat nights vs dry ('+sweatNights.length+' vs '+dryNights.length+')',
@@ -1288,8 +1321,9 @@ function findings(){
   }
   /* fog after broken nights */
   const fogDays=fortnight.filter(d=>{ const e=confirmedEntry(d); return e&&((e.sym&&e.sym.fog>=1)||dayMoments(d).some(m=>m.k==='fog')); });
-  const brokenNights=fortnight.filter(d=>{ const e=confirmedEntry(d); return e&&((e.wakes||0)>=2||(e.ns||0)>=2); });
-  const calmNights=fortnight.filter(d=>confirmedEntry(d)&&!brokenNights.includes(d));
+  const fortnightNights=fortnight.map(nightRecord).filter(n=>n.observed);
+  const brokenNights=fortnightNights.filter(n=>(n.wakes||0)>=2||(n.sweat||0)>=2).map(n=>n.d);
+  const calmNights=fortnightNights.filter(n=>!brokenNights.includes(n.d)).map(n=>n.d);
   if(brokenNights.length>=4&&calmNights.length>=3){
     const after=brokenNights.filter(d=>fogDays.includes(d)).length, calm=calmNights.filter(d=>fogDays.includes(d)).length;
     const ra=after/brokenNights.length, rc=calm/calmNights.length;
@@ -1313,7 +1347,7 @@ function findings(){
       const after=avg(afterVals), unit=target==='hf'?' flashes a day':' / 4';
       const name=target==='hf'?'flashes a day':(MOMENT_KINDS[target]?MOMENT_KINDS[target].n.toLowerCase():target)+' / 4';
       push({id:'treatment-'+slugify(med.name)+'-'+change.date,p:65,kind:'treatment',
-        head:'Since '+med.name+' changed on '+fmtDay(change.date)+'.',
+        head:'Since '+esc(med.name)+' changed on '+fmtDay(change.date)+'.',
         num:r1(before.average)+' → '+r1(after),sub:name+', '+since+' days in',
         body:since<14?'Too early to call. The two-week check-in is on '+fmtDay(addDays(change.date,14))+'. Her pattern, not proof.':'Compared with the week before the change. An association in one person; worth discussing, not proof of cause.'});
     });

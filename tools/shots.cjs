@@ -30,7 +30,7 @@ function seeded(dayCount = 16) {
     if (flashDay) moments.push({ id: 'h' + i + 'a', t: '13:10', k: 'hf', s: 2 }, { id: 'h' + i + 'b', t: '14:30', k: 'hf', s: 3 }, { id: 'h' + i + 'c', t: '15:20', k: 'hf', s: 1 });
     else moments.push({ id: 'h' + i + 'm', t: '09:15', k: 'hf', s: 1 });
     if (i === 0) moments.push({ id: 'n0', t: '07:30', k: 'slept', v: 6.5 }, { id: 'm0', t: '08:05', k: 'med', n: 'Estradiol 0.05 mg' });
-    const payload = { hf: flashDay ? 3 : 1, ns: sweatNight ? 1 : 0, wakes: sweatNight ? 2 : 0, rating: i % 5, sym: { fog: sweatNight ? 2 : 0, energy: 1 + (i % 3), joint: 1, anx: i % 2, sleepq: sweatNight ? 3 : 1 }, act: { res: i % 4 === 0, aero: i % 2 ? 20 : 0 }, nut: { alc: i % 5 === 0 ? 1 : 0 }, sleepH: sweatNight ? 6 : 7.5, inBedH: 8, notes: '', moments };
+    const payload = { hf: flashDay ? 3 : 1, ns: sweatNight ? 2 : 0, wakes: sweatNight ? 2 : 0, rating: i % 5, sym: { fog: sweatNight ? 2 : 0, energy: 1 + (i % 3), joint: 1, anx: i % 2, sleepq: sweatNight ? 3 : 1 }, act: { res: i % 4 === 0, aero: i % 2 ? 20 : 0 }, nut: { alc: i % 5 === 0 ? 1 : 0 }, sleepH: sweatNight ? 6 : 7.5, inBedH: 8, notes: '', moments };
     if (i === 0) { delete payload.rating; payload.med = { estradiol: { taken: true, at: '08:05' } }; }
     entries[isoOffset(-i)] = confirmed(payload);
   }

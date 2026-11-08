@@ -47,6 +47,8 @@ test('one blank persists through reload, the finding follows the answers, and fi
   await page.locator('[data-act="fr-periods"][data-v="na"]').click();
   assert.equal(await page.getByRole('heading', { name: 'Your pattern will come from the pages.' }).isVisible(), true);
   await page.locator('[data-act="fr-periods"][data-v="stopped"]').click();
+  assert.equal(await page.getByRole('heading', { name: 'Fill in the rest and the finding appears.' }).isVisible(), true, 'a stopped cycle is not staged until she says how long ago');
+  await page.locator('[data-act="fr-since"][data-v="lt2"]').click();
   assert.equal(await page.getByRole('heading', { name: 'Postmenopause, the first two years.' }).isVisible(), true);
   await page.locator('[data-act="fr-appt"][data-v="no"]').click();
   await page.getByRole('button', { name: 'Open today’s page' }).click();

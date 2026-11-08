@@ -218,7 +218,7 @@ local-storage copy:
   profile:  { name, birthYear, region, units,
               uterus:   'intact'|'hyst'|'ablation'|'unknown',
               ovaries:  'kept'|'one'|'both'|'unknown',
-              lastPeriod, surgeryDate, bone, periodStatus,
+              lastPeriod, surgeryDate, bone, periodStatus, periodSince,
                proteinGpk, weightGoal, waistGoal, theme:'light'|'dark'|'auto', stage, stageAnswers,
                onboarded, intent, pinnedSymptoms, onboardingVersion, onboardingStep,
                onboardingDeferred, firstCheckinPending },
@@ -249,8 +249,9 @@ Moments are the source of truth for a day. `k` is one of the kinds in `MOMENT_KI
 `s` is severity 1 to 3, `n` a note of up to 280 characters, `v` hours slept (only for `slept`) and
 `d` a duration in seconds. `rollupMoments()` in `app-core.js` derives `hf`, `ns`, `wakes`,
 `sym.*`, `bleed`, `sleepH` and `notes` from the ledger whenever a moment is added, edited or
-removed, so insights, charts, CSV and the brief keep reading day-level fields. Every filed moment
-confirms the day; there are no drafts.
+removed, so insights, charts, CSV and the brief keep reading day-level fields: `hf` and `wakes` are
+counts, `ns` is the worst sweat of the night on the 0–4 scale (unrated is moderate), and a value typed
+in Details is kept until the ledger passes it. Every filed moment confirms the day; there are no drafts.
 
 `uterus` and `ovaries` are **separate fields on purpose.** A hysterectomy can leave both ovaries
 in place, and ovaries are sometimes removed with the uterus left — the two have completely
