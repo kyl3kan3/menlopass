@@ -606,7 +606,7 @@ function viewDossier(){
   if(nativeProLocked('dossier')){
     return `<div class="view page-dossier">${masthead('dossier',right)}
       <div style="padding:22px 0 18px"><h1 style="font-size:clamp(44px,14vw,56px);line-height:.95;letter-spacing:-.035em;margin:0">Dossier</h1><p class="small muted" style="margin-top:10px">Everything they need in the ten minutes you get. Self-reported, recorded daily, dated.</p></div>
-      <div class="lock"><div class="label accent" style="margin-bottom:10px">peri Pro</div><p class="lead">The dossier, the one-page brief, the treatment check-ins and the rehearsal.</p><p class="small muted">The page, the ledger, the night desk, the index and the finding of the day stay free. Your ${n} ${plural(n,'day')} on record are already here, waiting.</p><button class="btn accent" data-act="unlock-pro">Unlock peri Pro</button><button class="textbtn" data-act="manage-subscription">Already subscribed? Restore</button></div>
+      <div class="lock"><div class="label accent" style="margin-bottom:10px">peri Pro</div><p class="lead">The dossier, the one-page brief, the treatment check-ins and the rehearsal.</p><p class="small muted">The page, the ledger, the night desk, the index and the finding of the day stay free. Your ${n} ${plural(n,'day')} on record are already here, waiting.</p><button class="btn accent" data-act="unlock-pro">Unlock peri Pro</button><button class="textbtn" data-act="restore-pro">Already subscribed? Restore</button></div>
       <div class="spacer"></div><p class="footnote">Nothing here has left the phone.</p></div>`;
   }
   const opening=briefOpening(brief);
@@ -1652,7 +1652,9 @@ function rideStop(){ if(rideTimer) clearInterval(rideTimer); rideTimer=null; con
    RENDER + ROUTES
    ============================================================ */
 const ROUTE_ALIASES={journey:'dossier',care:'dossier',trends:'dossier',meds:'dossier',guide:'index',learn:'index',report:'appointment-report',settings:'profile',you:'profile',checkin:'today','today-details':'today'};
-const NATIVE_ROUTE={today:'today',dossier:'journey',index:'guide',profile:'profile','appointment-report':'appointment-report'};
+/* The native shell (2.0) understands the three surfaces by their own names;
+   its hash requests may still arrive as journey/care/guide, which ROUTE_ALIASES resolves. */
+const NATIVE_ROUTE={today:'today',dossier:'dossier',index:'index',profile:'profile','appointment-report':'appointment-report'};
 const VALID_ROUTES=['today','dossier','index','profile','appointment-report'];
 let lastNativeNavigationState='';
 function normalizeRoute(route){ return ROUTE_ALIASES[route]||route; }
@@ -1667,7 +1669,8 @@ function applyTheme(){
 }
 function syncNativeNavigationState(){
   if(window.__MENO_NATIVE__!==true) return;
-  const state={route:NATIVE_ROUTE[curTab]||'today',primary:Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab),sheetOpen:sheetStack.length>0,onboarded:DB.profile.onboarded===true};
+  const dark=document.documentElement.getAttribute('data-theme')==='dark'||document.documentElement.classList.contains('night-page');
+  const state={route:NATIVE_ROUTE[curTab]||'today',primary:Object.prototype.hasOwnProperty.call(TAB_TITLES,curTab),sheetOpen:sheetStack.length>0,onboarded:DB.profile.onboarded===true,night:dark};
   const serialized=JSON.stringify(state);
   if(serialized===lastNativeNavigationState) return;
   if(postNativeEvent('navigation-state',state)) lastNativeNavigationState=serialized;
@@ -1904,6 +1907,7 @@ function handleAction(el, ev){
     case 'evidence-remove': { const data=appointmentData(); data.evidence=data.evidence.filter(item=>item.id!==el.dataset.id); save(true); refresh(); return; }
     /* native shell */
     case 'manage-subscription': postNativeEvent('open-subscription-management'); return;
+    case 'restore-pro': postNativeEvent('restore-purchases'); toast('Checking the App Store'); return;
     case 'analytics-settings': postNativeEvent('analytics-settings'); return;
     case 'advertising-settings': postNativeEvent('advertising-settings'); return;
     case 'erase-analytics': if(confirm('Turn off analytics and request deletion of this installation’s analytics events? Your record is unaffected.')) postNativeEvent('erase-analytics'); return;
@@ -2179,7 +2183,7 @@ function handleInput(el){
     if(k==='periodSince') DB.profile.periodSince=safeEnum(v||'',PERIOD_SINCE,'');
     refreshStageForProfile(k);
     save();
-    if(k==='theme') applyTheme();
+    if(k==='theme'){ applyTheme(); syncNativeNavigationState(); }
     if(k==='units'||k==='proteinGpk'||k==='uterus'||k==='ovaries'||k==='periodStatus'||k==='periodSince') render(true);
     return;
   }

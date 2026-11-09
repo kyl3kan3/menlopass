@@ -9,7 +9,7 @@ export const productEvents = [
 ] as const;
 export type TelemetryEvent = keyof typeof commerceEvents | typeof productEvents[number];
 export const telemetryEvents = new Set<string>([...Object.keys(commerceEvents), ...productEvents]);
-export const telemetryRoutes = new Set(['today', 'journey', 'care', 'guide', 'checkin', 'profile', 'appointment-report', 'today-details']);
+export const telemetryRoutes = new Set(['today', 'dossier', 'index', 'journey', 'care', 'guide', 'checkin', 'profile', 'appointment-report', 'today-details']);
 
 // The API uses this same contract and rejects unknown fields instead of dropping them.
 export function telemetryAttributes(event: TelemetryEvent, input: Record<string, unknown> = {}) {

@@ -1,17 +1,15 @@
 import { uuid } from './analytics-session';
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { subscriptionSnapshot } from './commerce-events';
 import { reportTelemetryError, setTelemetrySubscriptionState, trackTelemetryEvent } from './telemetry.native';
+import { color, font, type } from './theme';
 
 type Props = {
   offering: PurchasesOffering;
   source: 'automatic' | 'subscribe_button' | 'feature';
-  allowDismiss?: boolean;
-  /** Shown above RevenueCat paywall when onboarding supplied symptom focus (A/B variant). */
-  personalizedSymptoms?: string[];
   onCustomer: (customerInfo: CustomerInfo) => void;
   onClose: () => void;
   onFailure: () => void;
@@ -28,7 +26,11 @@ class PaywallBoundary extends Component<{ children: ReactNode; onFailure: () => 
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-export function TrackedPaywall({ offering, source, allowDismiss = false, personalizedSymptoms, onCustomer, onClose, onFailure }: Props) {
+/* The paywall never blocks the page: the record, the ledger and the finding of
+   the day are free, so the sheet can always be put down. The RevenueCat
+   paywall itself is configured in the RevenueCat dashboard; this wrapper adds
+   the masthead line above it and keeps the store events honest. */
+export function TrackedPaywall({ offering, source, onCustomer, onClose, onFailure }: Props) {
   const mounted = useRef(false);
   const finished = useRef(false);
   const [storeBusy, setStoreBusy] = useState(false);
@@ -71,28 +73,21 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, persona
     onClose();
   };
 
-  const focusLabels = personalizedSymptoms?.filter(Boolean).slice(0, 3) ?? [];
-
   return (
     <PaywallBoundary onFailure={onFailure}>
-      <View style={{ flex: 1 }}>
-        {allowDismiss && <Pressable accessibilityRole="button" accessibilityLabel="Back to my preview" accessibilityState={{ disabled: storeBusy }} disabled={storeBusy} onPress={dismiss} style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 24, backgroundColor: '#f7f5ef' }}><Text style={{ fontSize: 15, color: '#244b43' }}>Back to my preview</Text></Pressable>}
-        {focusLabels.length > 0 && (
-          <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8, backgroundColor: '#f7f3f8', borderBottomWidth: 1, borderBottomColor: '#e2d8ea' }}>
-            <Text style={{ fontSize: 11, letterSpacing: 1.2, color: '#8b6fa8', fontWeight: '700', marginBottom: 6 }}>YOUR PLAN FOCUS</Text>
-            <Text accessibilityRole="header" style={{ fontSize: 22, lineHeight: 26, color: '#3d2f4a', fontWeight: '800', marginBottom: 8 }}>Built around what you shared</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {focusLabels.map(label => (
-                <View key={label} style={{ backgroundColor: '#ece4f3', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: '#ddd0eb' }}>
-                  <Text style={{ fontSize: 14, color: '#3d2f4a', fontWeight: '600' }}>{label}</Text>
-                </View>
-              ))}
-            </View>
+      <View style={styles.screen}>
+        <View style={styles.masthead}>
+          <View>
+            <Text style={styles.eyebrow}>peri Pro</Text>
+            <Text style={styles.lead}>The dossier, the brief, the treatment check-ins.</Text>
           </View>
-        )}
+          <Pressable accessibilityRole="button" accessibilityLabel="Not now" accessibilityHint="Closes this sheet. The page, the ledger and the finding of the day stay free." accessibilityState={{ disabled: storeBusy }} disabled={storeBusy} hitSlop={8} onPress={dismiss} style={({ pressed }) => [styles.dismiss, pressed && styles.pressed, storeBusy && styles.disabled]}>
+            <Text style={styles.dismissText}>Not now</Text>
+          </Pressable>
+        </View>
         <RevenueCatUI.Paywall
           style={{ flex: 1 }}
-          options={{ offering, displayCloseButton: allowDismiss }}
+          options={{ offering, displayCloseButton: false }}
           onPurchaseStarted={({ packageBeingPurchased }) => {
             setStoreOperationBusy(true);
             attempt.current = { attemptId: uuid(), started: Date.now() };
@@ -129,3 +124,14 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, persona
     </PaywallBoundary>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: color.paper },
+  masthead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 12, borderBottomWidth: 1.5, borderBottomColor: color.ink, backgroundColor: color.paper },
+  eyebrow: { ...type.eyebrow, color: color.vermilionText },
+  lead: { fontFamily: font.serif, fontSize: 17, lineHeight: 22, color: color.ink, marginTop: 4, maxWidth: 260 },
+  dismiss: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 4 },
+  dismissText: { fontFamily: font.sansMedium, fontSize: 15, color: color.ink, textDecorationLine: 'underline' },
+  pressed: { opacity: 0.6 },
+  disabled: { opacity: 0.4 },
+});

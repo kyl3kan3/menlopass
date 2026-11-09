@@ -182,8 +182,8 @@ export async function configureRemindersAsync(
     if (preferences.dailyCheckIn.enabled) {
       newNotificationIds.push(await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'peri check-in',
-          body: 'Take a moment for your daily check-in.',
+          title: 'peri',
+          body: 'Today has a page. Log what happened, or close the day.',
           data: { route: 'today', reminder: 'daily-check-in' },
           sound: false,
         },
@@ -198,8 +198,8 @@ export async function configureRemindersAsync(
     if (preferences.treatmentFollowUp.enabled) {
       newNotificationIds.push(await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'peri weekly check-in',
-          body: 'Take a moment to review your week.',
+          title: 'peri',
+          body: 'Time for the treatment check-in. The dossier has the comparison.',
           data: { route: 'care', reminder: 'treatment-follow-up' },
           sound: false,
         },

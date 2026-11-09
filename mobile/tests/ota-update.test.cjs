@@ -95,6 +95,7 @@ function bannerHarness(prepareRestart) {
       },
       'expo-updates': { isEnabled: true, reloadAsync: async () => { reloads++; } },
       'react-native': { View: 'View', Text: 'Text', Modal: 'Modal', Pressable: 'Pressable', ActivityIndicator: 'Spinner', StyleSheet: { create: value => value } },
+      './theme': { color: new Proxy({}, { get: () => '#000' }), font: new Proxy({}, { get: () => 'Font' }), type: new Proxy({}, { get: () => ({}) }) },
       './ota-controller': { createUpdateChecker },
     })[name],
   });

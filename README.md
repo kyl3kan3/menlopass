@@ -36,7 +36,9 @@ The editable sources are intentionally flat at the repository root:
 styles.css                 the whole design system: tokens, masthead, ledger, findings,
                            sheets, forms, tools, report and print styles
 assets/fonts/              Fraunces + Instrument Sans (woff2, SIL OFL) shipped with the app;
-                           the Bricolage file stays only for the marketing and store tooling
+                           the Bricolage file stays only for the marketing tooling
+assets/brand/              the wordmark masters; mobile/scripts/generate-brand-assets.cjs
+                           packages every icon from them
 assets/mascot/             Pip artwork used by marketing/ and get-app.html, not by the app
 tools/shots.cjs            seeded phone-size captures of every surface for design review
 content-a.js               symptom library, treatment landscape, supplements
@@ -120,30 +122,33 @@ The same command runs on every push and pull request through `.github/workflows/
 the pinned Playwright version and Chromium. Failed runs retain browser screenshots as a short-lived
 CI artifact.
 
-The Expo SDK 57 package bundles the generated app and local font into the native binary. It uses
-an offline WebView, so symptom, medication, lab, and report data remain on the device and do not
+The Expo SDK 57 package bundles the generated app and the two typefaces into the native binary. It
+uses an offline WebView, so entries, medications, labs and the brief remain on the device and do not
 depend on the hosted site. Native persistence is encrypted outside WebView browser storage. The
-native shell resolves ATT before initializing AppsFlyer, Meta, or TikTok, and sends only explicitly
-defined, health-data-free events to EAS Observe and PostHog. Configure the SDK
-identifiers and client credentials listed in `mobile/.env.example`, then use a development build
-because these packages contain native code. Run `npm --prefix mobile start` for local Expo
-development. EAS configuration lives in `mobile/eas.json`; the linked project is
-`@kyl3kan3/menlopass`. EAS Update uses the explicit native runtime `1.2.0-native-3` with separate development,
-preview, and production channels. Native module or permission changes require a new runtime and binary.
-The OTA helper rebuilds/syncs the embedded app, runs checks, and requires a compatible finished build.
+native shell resolves ATT before initializing AppsFlyer, and sends only explicitly defined,
+health-data-free events to EAS Observe and PostHog. Configure the SDK identifiers and client
+credentials listed in `mobile/.env.example`, then use a development build because these packages
+contain native code. Run `npm --prefix mobile start` for local Expo development. EAS configuration
+lives in `mobile/eas.json`; the linked project is `@kyl3kan3/menlopass`. EAS Update uses the
+explicit native runtime named in `mobile/app.json` (`2.0.0-instrument-1`) with separate development,
+preview and production channels. Native module, permission, font or icon changes require a new
+runtime and binary. The OTA helper rebuilds/syncs the embedded app, runs checks, and requires a
+compatible finished build.
 
 `expo-insights` is autolinked for native cold-start usage metrics in EAS Insights → App usage.
 It sends the EAS installation identifier, project identifier, app version, platform, and OS version;
-no health records or onboarding answers are passed to it. Observe continues to handle performance
-and explicitly selected events. Insights requires a new native build using `1.2.0-native-3`;
-the existing `1.2.0-native-2` binaries cannot gain this native module through OTA alone.
+no health records or onboarding answers are passed to it. Observe handles performance and
+explicitly selected events.
 
-The iOS shell shows a short native onboarding preview before its RevenueCat paywall. The preview
-lets users choose concerns and a goal, then see their starting focus without creating health entries.
-It does not mount the health-record WebView until the `MenoCompass Pro` entitlement is active.
-New customers can return to their saved preview; returning customers without access remain on the
-subscription gate. The first purchase opens an unrated check-in with the chosen concerns. Zero-price introductory or promotional offers fail closed. See
-`mobile/SUBSCRIPTION_SETUP.md` for the required RevenueCat and App Store Connect configuration.
+The iOS shell (`mobile/App.native.tsx`) wears the web app's system through `mobile/theme.ts`:
+Fraunces and Instrument Sans embedded by the `expo-font` plugin, paper and ink, one vermilion.
+There is no native onboarding: the letter in the WebView is the first page, and the page, the
+ledger, the night desk, Right now and the index work without a purchase. The RevenueCat paywall
+opens once after the letter and otherwise only when the dossier or the brief asks for it
+(`open-pro-paywall`); `restore-purchases` restores an Apple subscription. Zero-price introductory
+or promotional offers fail closed. The native tab bar (`mobile/NativeTabBar.native.tsx`) carries
+Today, Dossier and Index. See `mobile/SUBSCRIPTION_SETUP.md` for the RevenueCat and App Store
+Connect configuration and `mobile/APP_REVIEW_NOTES_2.0.0.md` for the review path.
 
 **Locally, no server:** after `npm run build`, open the generated root `index.html` (or the
 identical `dist/index.html`) in a browser. Everything except service-worker registration and
@@ -198,7 +203,7 @@ npm test              # rebuild, then test
 ```
 
 `build.py` inlines `styles.css` and the JavaScript files in this order:
-`content-a.js`, `content-b.js`, `mobile/onboarding-model.js`, `app-core.js`, `appointment-questions.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
+`content-a.js`, `content-b.js`, `app-core.js`, `appointment-questions.js`, `app-companion.js`, `app-views.js`. They share globals, so the order
 matters. It writes identical HTML to the tracked root `index.html` convenience mirror and to
 `dist/index.html`; neither generated file should be edited manually.
 

@@ -91,6 +91,7 @@ function validator(candidate, validateBackup) {
     'react-native': { View: 'View', StyleSheet: { create: value => value } },
     'react-native-safe-area-context': {},
     'react-native-webview': { WebView: 'WebView' },
+    './theme': { color: new Proxy({}, { get: () => '#000' }), font: new Proxy({}, { get: () => 'Font' }), type: new Proxy({}, { get: () => ({}) }) },
   };
   const { RecoveryBackupValidator } = load('RecordRecovery.native.tsx', mocks, { setTimeout: () => 1, clearTimeout() {} });
   const tree = RecoveryBackupValidator({ html: '<html/>', candidate, onResult: result => outputs.push(result) });
@@ -118,30 +119,22 @@ test('invalid and future backups fail recovery validation without returning any 
 
 const settle = async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); };
 
-function appHarness(initialUrl = null) {
-  const disk = files(), alerts = [], effects = [], replay = [], state = {
+function appHarness() {
+  const disk = files(), alerts = [], effects = [], replay = [], tracked = [], paywalls = [], state = {
     html: '<html>bundled app</html>', privacyReady: true, subscriptionChecked: true,
-    onboardingTesterGateReady: true,
     error: 'Unreadable encrypted record', recordUnavailable: true,
   }, refs = [];
   disk.entries.set('/documents/menocompass-state.secure', 'unreadable ciphertext');
   disk.entries.set('/asset.html', '<html>bundled app</html>');
   let stateIndex = 0, refIndex = 0, decryptFails = true, assetFails = false;
-  let clearRecord = '{"v":8,"profile":{},"entries":{}}', warmLink, overridePause;
-  const overrides = [];
-  const variant = load('onboarding-variant.ts', {});
-  const testerGate = load('onboarding-tester-gate.ts', { './onboarding-variant': variant, './onboarding-model': require('../onboarding-model') });
-  const testerRoutes = load('onboarding-tester-route.ts', {}, { URL });
-  const testerLinks = load('onboarding-tester-link.native.ts', {
-    'react-native': { Linking: { getInitialURL: async () => initialUrl, addEventListener: (_type, callback) => { warmLink = callback; return { remove() {} }; } } },
-    './onboarding-tester-route': testerRoutes,
-  });
+  let clearRecord = '{"v":8,"profile":{},"entries":{}}';
   const source = fs.readFileSync(path.join(__dirname, '../App.native.tsx'), 'utf8');
   const componentSource = source.slice(source.indexOf('function App() {'), source.indexOf('function AppWithSafeArea()'));
   const stateNames = [...componentSource.matchAll(/const \[([^,\]]+),[^\]]+\] = useState/g)].map(match => match[1]);
   const jsx = (type, props) => ({ type, props });
   const noOp = () => {};
   const telemetry = new Proxy({}, { get: () => noOp });
+  const offering = { identifier: 'default', availablePackages: [{ product: { introPrice: null, discounts: [] } }] };
   const mocks = {
     react: {
       useState: initial => { const name = stateNames[stateIndex++]; if (!(name in state)) state[name] = typeof initial === 'function' ? initial() : initial; return [state[name], next => { state[name] = typeof next === 'function' ? next(state[name]) : next; }]; },
@@ -149,7 +142,12 @@ function appHarness(initialUrl = null) {
       useEffect: effect => effects.push(effect),
     },
     'react/jsx-runtime': { jsx, jsxs: jsx },
-    'react-native': { Platform: { OS: 'ios' }, AppState: { currentState: 'active' }, StyleSheet: { create: value => value }, Alert: { alert: (...args) => alerts.push(args) }, View: 'View', Text: 'Text', Pressable: 'Pressable' },
+    'react-native': { Platform: { OS: 'ios' }, AppState: { currentState: 'active' }, StyleSheet: { create: value => value }, Alert: { alert: (...args) => alerts.push(args) }, View: 'View', Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView' },
+    'react-native-purchases': { __esModule: true, default: { getOfferings: async () => ({ current: offering }) } },
+    'react-native-webview': { WebView: 'WebView' },
+    './TrackedPaywall.native': { TrackedPaywall: 'TrackedPaywall' },
+    './NativeTabBar.native': { NativeTabBar: 'NativeTabBar' },
+    './theme': { color: new Proxy({}, { get: () => '#000' }), font: new Proxy({}, { get: () => 'Font' }), type: new Proxy({}, { get: () => ({}) }) },
     'react-native-safe-area-context': { SafeAreaProvider: 'SafeAreaProvider', SafeAreaView: 'SafeAreaView' },
     'posthog-react-native': { PostHogMaskView: 'PostHogMaskView' },
     'expo-observe': { ObserveRoot: { wrap: value => value }, useObserve: () => ({ markInteractive: noOp }) },
@@ -159,18 +157,14 @@ function appHarness(initialUrl = null) {
     './OtaUpdate.native': { useOtaUpdate: () => ({}) },
     './RecordRecovery.native': { RecordRecovery: 'RecordRecovery', RecoveryBackupValidator: 'RecoveryBackupValidator' },
     './native-private-files': disk,
-    './onboarding-model': require('../onboarding-model'),
-    './onboarding-variant': variant,
-    './onboarding-tester-override': { ...testerGate, writeOnboardingTesterOverride: async value => { overrides.push(value); await overridePause; } },
-    './onboarding-tester-link.native': testerLinks,
     './privacyFeatures.native': {
       isDeviceEncryptionAvailable: () => true,
       decryptForDeviceAsync: async () => { if (decryptFails) throw new Error('cannot decrypt'); return clearRecord; },
       encryptForDeviceAsync: async value => 'encrypted:' + value,
       clearNativePrivateDataAsync: async () => { disk.clearPrivateExportFiles(); disk.clearRecoveryRecords(); },
     },
-    './telemetry.native': { ...telemetry, reportTelemetryError: noOp, deleteTrackingData: async () => true, setTelemetryReplay: value => replay.push(value) },
-    './consent-gate': { consentGatePhase: () => 'choice' },
+    './telemetry.native': { ...telemetry, reportTelemetryError: error => { if (process.env.DEBUG_HARNESS) console.log('reported', error); }, deleteTrackingData: async () => true, setTelemetryReplay: value => replay.push(value), trackTelemetryEvent: (event, attributes) => tracked.push({ event, ...attributes }) },
+    './consent-gate': load('consent-gate.ts', {}),
     './widgets/widget-state.native': { syncMenoCompassWidgets: noOp },
   };
   // These imports are unused until their effects/UI actions run in each test.
@@ -180,11 +174,8 @@ function appHarness(initialUrl = null) {
   const App = module.default().props.children.props.children.type;
   const nodes = tree => { const all = []; const visit = node => { if (!node || typeof node !== 'object') return; if (Array.isArray(node)) return node.forEach(visit); all.push(node); visit(node.props?.children); }; visit(tree); return all; };
   const render = () => { stateIndex = 0; refIndex = 0; effects.length = 0; return nodes(App()); };
-  return { ...disk, state, alerts, replay, overrides, render,
-    mountTesterLinks: () => effects.find(effect => effect.toString().includes('subscribeToOnboardingTesterLinks'))(),
-    sendTesterLink: (url = 'menlopass://onboarding-v2') => warmLink({ url }),
-    runTesterRoute: () => effects.find(effect => effect.toString().includes('pendingOnboardingTesterRoute'))(),
-    pauseOverride: () => { let release; overridePause = new Promise(resolve => { release = resolve; }); return release; },
+  const webMessage = message => { const tree = render(); const webView = tree.find(node => node.type === 'WebView'); webView.props.onMessage({ nativeEvent: { data: JSON.stringify(message) } }); };
+  return { ...disk, state, alerts, replay, tracked, paywalls, render, webMessage,
     runReplay: () => effects.find(effect => effect.toString().includes('setTelemetryReplay'))(),
     runBoot: () => effects.find(effect => effect.toString().includes('readPersistedState'))(),
     allowDecrypt: value => { decryptFails = false; if (value) clearRecord = value; }, failAsset: () => { assetFails = true; } };
@@ -215,8 +206,9 @@ test('an asset failure offers retry without treating a healthy record as unreada
   const jsx = (type, props) => ({ type, props });
   const component = load('RecordRecovery.native.tsx', {
     react: { useState: value => [value, () => {}] }, 'react/jsx-runtime': { jsx, jsxs: jsx },
-    'react-native': { Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView', StyleSheet: { create: value => value } },
+    'react-native': { Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView', View: 'View', StyleSheet: { create: value => value } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, 'react-native-webview': {},
+    './theme': { color: new Proxy({}, { get: () => '#000' }), font: new Proxy({}, { get: () => 'Font' }), type: new Proxy({}, { get: () => ({}) }) },
   });
   const tree = component.RecordRecovery(recovery.props);
   const buttons = []; const visit = node => { if (!node || typeof node !== 'object') return; if (Array.isArray(node)) return node.forEach(visit); if (node.type === 'Pressable') buttons.push(node); visit(node.props?.children); }; visit(tree);
@@ -250,61 +242,67 @@ test('starting over does not delete until the destructive confirmation is presse
   assert.equal(h.state.bootAttempt, 1);
 });
 
-test('analytics consent never enables replay on recovery or backup-validation surfaces', () => {
+test('session replay stays off on every surface: the letter lives in the WebView, which is never recorded', () => {
   const h = appHarness();
   Object.assign(h.state, { analyticsEnabled: true, consentReady: true, privacyChoiceOpen: false, appLocked: false, appIsActive: true, recoveryCandidate: 'private backup' });
   h.render(); h.runReplay(); assert.equal(h.replay.at(-1), false);
   Object.assign(h.state, { error: undefined, recordReady: true, recoveryCandidate: null });
-  h.render(); h.runReplay(); assert.equal(h.replay.at(-1), true);
+  h.render(); h.runReplay(); assert.equal(h.replay.at(-1), false);
 });
 
-const testerRecord = JSON.stringify({ v: 8, profile: { name: 'Tester', onboarded: true }, entries: { '2026-11-07': { hf: 2 } } });
+function openApp(h) {
+  // A readable record, consent given, no App Lock: the WebView is on screen before any purchase.
+  Object.assign(h.state, { error: undefined, recordReady: true, recordUnavailable: false, consentHydrating: false, consentReady: true, privacyChoiceOpen: false, appLocked: false, appIsActive: true, revenueCatReady: true, telemetrySettled: true, webContentReady: true });
+}
 
-test('cold tester URL waits for record hydration and then preserves the loaded health entries', async () => {
-  const h = appHarness('menlopass://onboarding-v2');
-  Object.assign(h.state, { recordReady: false, error: undefined });
-  h.allowDecrypt(testerRecord); h.render(); h.mountTesterLinks(); await settle();
-  h.render(); h.runTesterRoute(); await settle();
-  assert.equal(h.state.pendingOnboardingTesterRoute, 'force-v2');
-  assert.equal(h.overrides.length, 0);
-  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
-  h.runBoot(); await settle(); h.render(); h.runTesterRoute(); await settle();
-  const restored = JSON.parse(h.entries.get('/documents/menocompass-state.secure').slice('encrypted:'.length));
-  assert.deepEqual(restored.entries, JSON.parse(testerRecord).entries);
-  assert.equal(restored.profile.onboardingVersion, 3);
-  assert.equal(restored.profile.onboarded, false);
+test('the page opens without a subscription: no gate, no automatic paywall before the letter', () => {
+  const h = appHarness(); openApp(h);
+  const tree = h.render();
+  assert.ok(tree.some(node => node.type === 'WebView'), 'the WebView renders for a non-subscriber');
+  assert.equal(tree.some(node => node.type === 'TrackedPaywall'), false);
+  assert.equal(h.state.paywall, null);
+  assert.equal(h.tracked.some(entry => entry.event === 'paywall_requested'), false);
 });
 
-test('mounted warm tester listener queues through recovery and App Lock without a stale readiness closure', async () => {
-  const h = appHarness(); h.render(); h.mountTesterLinks(); await settle();
-  h.sendTesterLink(); h.render(); h.runTesterRoute(); await settle();
-  assert.equal(h.overrides.length, 0);
-  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
-  Object.assign(h.state, { error: undefined, recordReady: true, appLocked: true });
-  h.allowDecrypt(testerRecord); h.render(); h.runTesterRoute(); await settle();
-  assert.equal(h.overrides.length, 0);
-  h.state.appLocked = false; h.render(); h.runTesterRoute(); await settle();
-  assert.equal(h.overrides.length, 1);
-  assert.equal(JSON.parse(h.entries.get('/documents/menocompass-state.secure').slice('encrypted:'.length)).entries['2026-11-07'].hf, 2);
-  h.sendTesterLink('menlopass://onboarding-control'); h.render(); h.runTesterRoute(); await settle();
-  assert.equal(h.overrides.at(-1), null, 'the existing mounted listener also handles later control links');
+test('the paywall opens once after the letter (the first finding) and can be put down', async () => {
+  const h = appHarness(); openApp(h);
+  h.webMessage({ type: 'onboarding-step', step: 0 });
+  assert.equal(h.tracked.find(entry => entry.event === 'onboarding_started').flowVersion, 4);
+  h.webMessage({ type: 'onboarding-finished', skipped: false });
+  await settle();
+  assert.equal(h.state.experienceReady, true);
+  assert.ok(h.state.paywall, 'the paywall is requested after the first finding');
+  assert.equal(h.state.paywall.source, 'automatic');
+  assert.equal(h.tracked.find(entry => entry.event === 'onboarding_completed').flowVersion, 4);
+  const paywall = h.render().find(node => node.type === 'TrackedPaywall');
+  assert.ok(paywall);
+  paywall.props.onClose();
+  assert.equal(h.state.paywall, null);
+  assert.ok(h.render().some(node => node.type === 'WebView'), 'the page is back after dismissing');
+  // A second letter completion in the same session does not reopen it.
+  h.webMessage({ type: 'onboarding-finished', skipped: false });
+  await settle();
+  assert.equal(h.state.paywall, null);
 });
 
-test('relocking during asynchronous tester setup defers the record write until unlock', async () => {
-  const h = appHarness(); Object.assign(h.state, { error: undefined, recordReady: true }); h.allowDecrypt(testerRecord);
-  h.render(); h.mountTesterLinks(); await settle();
-  const release = h.pauseOverride(); h.sendTesterLink(); h.render(); h.runTesterRoute(); await settle();
-  h.state.appLocked = true; h.render(); release(); await settle();
-  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
-  assert.equal(h.state.pendingOnboardingTesterRoute, 'force-v2');
-  h.state.appLocked = false; h.render(); h.runTesterRoute(); await settle();
-  assert.equal(h.entries.get('/documents/menocompass-state.secure').startsWith('encrypted:'), true);
+test('a Pro surface asks for the paywall through the bridge; restore goes through the store', async () => {
+  const h = appHarness(); openApp(h);
+  h.webMessage({ type: 'open-pro-paywall', feature: 'dossier' });
+  await settle();
+  assert.equal(h.state.paywall?.source, 'feature');
+  assert.equal(h.tracked.find(entry => entry.event === 'paywall_requested').source, 'feature');
 });
 
-test('a tester reset refuses to replace a record that becomes unreadable after hydration', async () => {
-  const h = appHarness(); Object.assign(h.state, { error: undefined, recordReady: true });
-  h.render(); h.mountTesterLinks(); await settle(); h.sendTesterLink(); h.render(); h.runTesterRoute(); await settle();
-  assert.equal(h.entries.get('/documents/menocompass-state.secure'), 'unreadable ciphertext');
-  assert.equal(h.state.recordReady, false); assert.equal(h.state.recordUnavailable, true);
-  assert.match(h.state.error, /cannot decrypt/);
+test('navigation state carries the three routes and the night flag to the tab bar', () => {
+  const h = appHarness(); openApp(h);
+  h.state.experienceReady = true;
+  h.webMessage({ type: 'navigation-state', route: 'dossier', onboarded: true, sheetOpen: false, night: true });
+  const bar = h.render().find(node => node.type === 'NativeTabBar');
+  assert.ok(bar, 'the bar shows on a primary route');
+  assert.equal(bar.props.activeRoute, 'dossier');
+  assert.equal(bar.props.night, true);
+  h.webMessage({ type: 'navigation-state', route: 'journey', onboarded: true, sheetOpen: false });
+  assert.equal(h.state.nativeNavigation.route, 'dossier', 'an unknown legacy route name is ignored');
+  h.webMessage({ type: 'navigation-state', route: 'appointment-report', onboarded: true, sheetOpen: false });
+  assert.equal(h.render().some(node => node.type === 'NativeTabBar'), false, 'the bar hides on a non-primary page');
 });

@@ -2,6 +2,7 @@ import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { createUpdateChecker } from './ota-controller';
+import { color, font } from './theme';
 
 export function useOtaUpdate() {
   const update = Updates.useUpdates();
@@ -71,24 +72,24 @@ export function OtaUpdateBanner({ update, isSafe, prepareRestart }: {
     ? ` ${Math.round(Math.max(0, Math.min(1, update.downloadProgress)) * 100)}%` : '';
   return <>
     {visible ? <View style={styles.banner} accessibilityLiveRegion="polite">
-      <Text style={styles.title}>{update.isUpdatePending ? 'Update ready' : `Downloading update…${percent}`}</Text>
-      {issue ? <Text style={styles.message}>Could not restart safely. Please try again.</Text> : null}
+      <Text style={styles.title}>{update.isUpdatePending ? 'A new edition is ready.' : `Downloading the update.${percent}`}</Text>
+      {issue ? <Text style={styles.message}>It could not restart safely. Try again.</Text> : null}
       {update.isUpdatePending ? <View style={styles.actions}>
         <Pressable accessibilityRole="button" disabled={restarting} onPress={() => void restart()} style={styles.button}><Text style={styles.primary}>Restart now</Text></Pressable>
         <Pressable accessibilityRole="button" disabled={restarting} onPress={() => update.defer(key)} style={styles.button}><Text style={styles.message}>Later</Text></Pressable>
-      </View> : <ActivityIndicator color="#244b43" />}
+      </View> : <ActivityIndicator color={color.ink} />}
     </View> : null}
     <Modal visible={restarting} transparent animationType="fade" onRequestClose={() => undefined}>
-      <View style={styles.scrim}><View style={styles.banner}><ActivityIndicator color="#244b43" /><Text style={styles.title}>Saving and restarting…</Text></View></View>
+      <View style={styles.scrim}><View style={styles.banner}><ActivityIndicator color={color.ink} /><Text style={styles.title}>Saving the record and restarting.</Text></View></View>
     </Modal>
   </>;
 }
 
 const styles = StyleSheet.create({
-  banner: { padding: 16, gap: 8, backgroundColor: '#e6eee7' },
-  title: { color: '#244b43', fontSize: 16, fontWeight: '600' },
-  message: { color: '#244b43', fontSize: 14 },
-  primary: { color: '#244b43', fontSize: 14, fontWeight: '700' },
+  banner: { padding: 16, gap: 8, backgroundColor: color.tint, borderBottomWidth: 1, borderBottomColor: color.rule },
+  title: { color: color.ink, fontFamily: font.serif, fontSize: 17, lineHeight: 22 },
+  message: { color: color.grey, fontFamily: font.sans, fontSize: 14, lineHeight: 18 },
+  primary: { color: color.vermilionText, fontFamily: font.sansSemi, fontSize: 14, lineHeight: 18 },
   actions: { flexDirection: 'row', gap: 24 },
   button: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
   scrim: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0008' },

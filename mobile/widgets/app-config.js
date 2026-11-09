@@ -7,14 +7,14 @@ const menocompassWidgetsPlugin = [
     widgets: [
       {
         name: 'MenoCompassCheckIn',
-        displayName: 'Daily Check-In',
-        description: 'Open a private daily check-in and see recent logging progress.',
+        displayName: 'Today’s page',
+        description: 'Log a moment on today’s page and see how many of the last seven days are on record.',
         supportedFamilies: ['systemSmall', 'systemMedium'],
       },
       {
         name: 'MenoCompassInsights',
-        displayName: 'Pattern Insights',
-        description: 'Open private insights and see recent logging progress.',
+        displayName: 'Dossier',
+        description: 'Open the dossier of findings and see how many of the last seven days are on record.',
         supportedFamilies: ['systemSmall', 'systemMedium'],
       },
     ],

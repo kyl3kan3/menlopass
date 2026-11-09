@@ -34,7 +34,7 @@ private enum MenoCompassShortcutRouteStore {
 struct LogWithMenoCompassIntent: AppIntent {
   static var title: LocalizedStringResource = "Log with peri"
   static var description = IntentDescription(
-    "Opens your private peri daily check-in. It never records anything until you confirm it in the app."
+    "Opens the log sheet on today’s page in peri. Nothing is filed until you tap it in the app."
   )
   static var openAppWhenRun: Bool = true
 
@@ -47,9 +47,9 @@ struct LogWithMenoCompassIntent: AppIntent {
 
 @available(iOS 16.0, *)
 struct ReviewMenoCompassPatternsIntent: AppIntent {
-  static var title: LocalizedStringResource = "Review peri patterns"
+  static var title: LocalizedStringResource = "Open the peri dossier"
   static var description = IntentDescription(
-    "Opens your private peri pattern insights. Health details stay inside the app."
+    "Opens the dossier of findings in peri. Health details stay inside the app."
   )
   static var openAppWhenRun: Bool = true
 
@@ -68,21 +68,23 @@ struct MenoCompassAppShortcuts: AppShortcutsProvider {
       intent: LogWithMenoCompassIntent(),
       phrases: [
         "Log with \(.applicationName)",
+        "Log a moment in \(.applicationName)",
         "Start my check-in in \(.applicationName)"
       ],
       shortTitle: "Log with peri",
-      systemImageName: "checkmark.circle"
+      systemImageName: "plus"
     )
     AppShortcut(
       intent: ReviewMenoCompassPatternsIntent(),
       phrases: [
+        "Open my \(.applicationName) dossier",
         "Review \(.applicationName) patterns",
-        "Show my patterns in \(.applicationName)"
+        "Show my findings in \(.applicationName)"
       ],
-      shortTitle: "Review patterns",
-      systemImageName: "chart.xyaxis.line"
+      shortTitle: "Open the dossier",
+      systemImageName: "book.closed"
     )
   }
 
-  static var shortcutTileColor: ShortcutTileColor = .teal
+  static var shortcutTileColor: ShortcutTileColor = .red
 }
