@@ -56,8 +56,9 @@ function paywallHarness() {
   const { TrackedPaywall } = load('TrackedPaywall.native.tsx', {
     react: { Component: class {}, useRef: value => ({ current: value }), useState: value => [value, () => {}], useEffect: effect => effects.push(effect) },
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
-    'react-native': { View: 'View', Pressable: 'Pressable', Text: 'Text' },
+    'react-native': { View: 'View', Pressable: 'Pressable', Text: 'Text', StyleSheet: { create: value => value } },
     'react-native-purchases-ui': { __esModule: true, default: { Paywall: 'Paywall' } },
+    './theme': { color: new Proxy({}, { get: () => '#000' }), font: new Proxy({}, { get: () => 'Font' }), type: new Proxy({}, { get: () => ({}) }) },
     './commerce-events': commerce,
     './telemetry.native': {
       trackTelemetryEvent: (event, attributes) => events.push({ event, attributes }),
@@ -69,7 +70,9 @@ function paywallHarness() {
   effects.forEach(effect => effect());
   effects.forEach(effect => effect()); // React StrictMode effect replay
   const children = [tree.props.children.props.children].flat().filter(Boolean);
-  return { callbacks: children.find(child => child.type === 'Paywall').props, events, closed: () => closed };
+  const paywall = children.find(child => child.type === 'Paywall');
+  assert.ok(paywall, 'the RevenueCat paywall is rendered inside the wrapper');
+  return { callbacks: paywall.props, events, closed: () => closed };
 }
 const packageBeingPurchased = { product: { identifier: 'mc_monthly' }, packageType: 'MONTHLY' };
 

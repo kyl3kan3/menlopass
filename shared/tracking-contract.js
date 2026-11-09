@@ -17,7 +17,7 @@ const enums = {
   source: ['automatic', 'subscribe_button', 'feature', 'gate', 'paywall'],
   reason: ['no_offering', 'free_offer', 'offerings_error', 'render_error', 'sdk_error'],
   packageType: ['MONTHLY', 'ANNUAL', 'UNKNOWN', 'CUSTOM'],
-  route: ['today', 'journey', 'care', 'guide', 'profile', 'checkin', 'appointment-report', 'today-details'],
+  route: ['today', 'dossier', 'index', 'journey', 'care', 'guide', 'profile', 'checkin', 'appointment-report', 'today-details'],
   variant: ['control', 'v2'],
   onboardingVariant: ['control', 'v2'],
 };
@@ -41,7 +41,7 @@ function project(event, input = {}, productIds = []) {
     if (key === 'errorCode' && /^\d{1,3}$/.test(String(value))) out[key] = String(value);
     if (key === 'durationMs' && Number.isInteger(value) && value >= 0 && value <= 3600000) out[key] = value;
     if (key === 'step' && Number.isInteger(value) && value >= 0 && value <= 11) out[key] = value;
-    if (key === 'flowVersion' && (value === 2 || value === 3)) out[key] = value;
+    if (key === 'flowVersion' && (value === 2 || value === 3 || value === 4)) out[key] = value;
     if (key === 'variant' && enums.variant.includes(value)) out[key] = value;
     if (key === 'onboardingVariant' && enums.onboardingVariant.includes(value)) out[key] = value;
     if (key === 'offeringId' && typeof value === 'string' && /^[\w.-]{1,100}$/.test(value)) out[key] = value;

@@ -8,7 +8,8 @@ export function appShortcutRouteFromUrl(
   url: string | null | undefined,
 ): MenoCompassAppShortcutRoute | null {
   if (url === 'menlopass://checkin') return 'checkin';
-  if (url === 'menlopass://insights') return 'journey';
+  // The URL is kept for existing Siri phrases and Shortcuts; it opens the dossier.
+  if (url === 'menlopass://insights') return 'dossier';
   return null;
 }
 

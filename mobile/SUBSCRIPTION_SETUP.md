@@ -1,50 +1,77 @@
-# Hard-paywall subscription setup
+# Subscription setup (peri 2.0)
 
-The iOS app offers a native setup preview before purchase. **Control (flow version 2)** is the existing four-step preview. **Variant (flow version 3)** is the redesigned lavender-toned flow with six animated “show, don’t tell” demos, a symptom quiz, a building-your-plan moment, sample reminder previews, and a personalized paywall header. RevenueCat Experiments should set offering metadata **`onboarding_variant` = `v2`** on the treatment offering; any other value (or missing key) keeps control. Telemetry records `onboarding_variant_assigned` once per install when offerings load.
+The iOS app has no hard paywall. The page, the ledger, the night desk, Right now, the index and
+the first-page letter work without a purchase. **peri Pro** (the RevenueCat entitlement
+`MenoCompass Pro`) unlocks the Dossier tab, the one-page brief, the treatment check-ins and the
+rehearsal. The web app locks those surfaces when `__MENO_PRO_ACTIVE__` is not `true` and posts
+`open-pro-paywall`; the shell opens the RevenueCat paywall in response.
 
-**TestFlight / QA override (experiment still in draft):** On TestFlight, sandbox StoreKit, dev builds, or preview/development EAS channels only, `menlopass://onboarding-v2` persists a tester override, resets onboarding, and forces flow version 3. `menlopass://onboarding-control` clears the override and returns assignment to RevenueCat metadata. App Store production installs ignore these links (sandbox App Store receipt check plus RevenueCat `storeEnvironment`).
+When the paywall appears:
 
-Variant v2 opens with a **real one-tap check-in** (symptom + intensity) before animated product showcases; welcome marketing is not the first action.
+1. Once, after the letter is finished (`onboarding-finished`), while the first finding is on the
+   page behind it. Source `automatic`. "Not now" puts it down; nothing else happens that session.
+2. Whenever the dossier or the brief asks for it (`open-pro-paywall`, source `feature`).
+3. Never on launch, never before the letter, never as a gate in front of the WebView.
 
-It stores only setup preferences in the existing encrypted device-local record; it does not create ratings or confirmed check-ins. The RevenueCat entitlement `MenoCompass Pro` is still required before the health-record WebView mounts.
-
-New users can return from the paywall to their saved preview. Existing users who have finished their first check-in return to the subscription gate when their entitlement expires or cannot be verified. Neither dismissing a paywall nor completing a preview unlocks health features. Restore, Privacy, and Terms are available during setup.
+"Already subscribed? Restore" on the lock panel posts `restore-purchases`; the shell calls
+`Purchases.restorePurchases()` and reports the result in an alert. Restore recovers an Apple
+subscription, not a local record.
 
 ## RevenueCat
 
 1. Keep `MenoCompass Pro` as the entitlement identifier; this value is case-sensitive.
 2. Attach both the monthly and annual App Store products to that entitlement.
 3. Put those packages in the current offering and attach the production paywall.
-4. Include localized price, billing period, automatic-renewal disclosure, restore purchases, Privacy, and Terms in the RevenueCat paywall.
-5. The app enables paywall dismissal for the onboarding preview and includes its own **Back to my preview** control, since RevenueCat V2 ignores `displayCloseButton`. Dismissal returns to setup preferences, never health content. Returning customers without an active subscription remain gated. The embedded view supplies separate purchase-start, cancellation, error, completion, and restore callbacks for measurement.
-6. Disable RevenueCat exit offers and other discount paths so dismissing the main paywall cannot present a free or discounted alternative.
+4. Include localized price, billing period, automatic-renewal disclosure, restore purchases,
+   Privacy and Terms in the RevenueCat paywall. Design it in the dashboard to the app's system:
+   paper `#fbfbf9`, ink `#0c0c0d`, vermilion `#d13a16` for the one button, a serif headline, no
+   illustration. The shell draws the masthead ("peri Pro · The dossier, the brief, the treatment
+   check-ins" and "Not now") above the RevenueCat view and hides the SDK's own close button.
+5. Disable exit offers and other discount paths so dismissing the paywall cannot present a free or
+   discounted alternative.
 
 ## App Store Connect: no trial or free offer
 
-Apple applies an eligible introductory offer automatically during purchase, so client code cannot convert a trial-bearing product into an immediate-charge purchase. For every monthly and annual product:
+Apple applies an eligible introductory offer automatically during purchase, so client code cannot
+convert a trial-bearing product into an immediate-charge purchase. For every monthly and annual
+product:
 
-1. Open the subscription's pricing page and delete every introductory offer, including scheduled offers.
-2. Remove any zero-price promotional, win-back, or offer-code configuration if the product must never provide free access.
+1. Delete every introductory offer, including scheduled offers.
+2. Remove any zero-price promotional, win-back or offer-code configuration.
 3. Confirm the base subscription price is active in every intended storefront.
 4. Wait for App Store propagation, then refresh the RevenueCat products and paywall.
 
-The app fails closed if RevenueCat reports a zero-price introductory or promotional offer, but the dashboard configuration must still be corrected before release.
+The app fails closed if RevenueCat reports a zero-price introductory or promotional offer (the
+paywall is not shown and an issue is recorded), but the dashboard must still be corrected.
 
 ## Release verification
 
 Test on physical devices with fresh sandbox accounts:
 
-1. A new install opens the native setup preview. Selecting one concern works, progress survives relaunch, and **View subscription plans** opens the offering only after the setup is saved securely. No health entry is created by the preview.
-2. The Apple confirmation sheet shows an immediate charge and no trial language for both monthly and annual plans.
-3. Canceling the purchase sheet leaves the offer available; **Back to my preview** returns to the saved summary. Relaunching also preserves that summary. Neither path unlocks health features. A failed secure save must prevent moving into purchase.
-4. A successful purchase opens the first real check-in with the chosen concerns and no prefilled ratings. Confirming it displays the saved starting summary; optional profile details remain in Profile. Existing subscribers keep their records and regular entry routes.
-5. Restore purchases unlocks an existing subscriber and leaves a non-subscriber locked.
-6. Expiration, refund, or entitlement revocation returns the user to the gate without deleting device-local health data.
-7. Offline launch unlocks only when RevenueCat can return a valid cached active entitlement; an unverifiable non-subscriber remains locked.
-8. Verify VoiceOver, Dynamic Type, reduced motion, small iPhone and iPad layouts, unavailable offerings, repeated purchase taps, restore without an entitlement, and revocation during a session on physical devices before publishing.
+1. A new install opens the consent choice, then the letter. Filling the blanks and tapping "Open
+   today's page" shows Today with the stage finding; the paywall appears over it and "Not now"
+   returns to the page. No health entry is created by the letter.
+2. Log, Close the day, the night desk (set the clock after 22:00), Right now and the Index all work
+   without a purchase.
+3. Opening the Dossier shows the lock panel. "Unlock peri Pro" opens the paywall; the Apple sheet
+   shows an immediate charge and no trial language for both plans. Cancelling returns to the lock
+   panel with the free surfaces intact.
+4. A successful purchase unlocks the Dossier and the brief in place (no reload). "Export the
+   one-page brief" shares a PDF.
+5. Restore purchases unlocks an existing subscriber and leaves a non-subscriber locked, with the
+   alert saying which.
+6. Expiration, refund or entitlement revocation locks the Dossier again without deleting any
+   device-local data; the page and the ledger keep working.
+7. Offline launch: the page works; the Dossier unlocks only when RevenueCat returns a valid cached
+   active entitlement.
+8. Verify VoiceOver, Dynamic Type, small iPhone and iPad layouts, unavailable offerings, repeated
+   purchase taps and revocation during a session before publishing.
 
 ## Funnel measurement
 
-Flow version 2 emits `onboarding_started`, actual `onboarding_step_viewed` entries (including Back and resume), `onboarding_step_left` with bounded `durationMs`, and `onboarding_completed`. Completion now precedes the first offer for new iOS users; use `flowVersion: 2` and `surface: native_preview` to distinguish it from historical post-purchase onboarding. Returning to a saved preview is a new session entry, not a new acquisition. Web onboarding emits `surface: web`. The explicit property allowlist excludes selected concerns, goals, names and health answers.
-
-Compare first-time users through preview → paywall → purchase → `checkin_confirmed`, and distinguish `skipped` completions on the web. The implementation supplies instrumentation, not a randomized experiment or evidence of conversion lift. There are no new SDKs, permissions, introductory offers, product-price changes or remote RevenueCat configuration changes in this implementation.
+The letter emits `onboarding_started`, `onboarding_step_viewed`, `onboarding_step_left` and
+`onboarding_completed` with `flowVersion: 4` and `surface: web`. The paywall emits
+`paywall_requested` / `paywall_rendered` / `paywall_dismissed` with `source: automatic` (after the
+letter) or `feature` (from the dossier or the brief), then the purchase and restore events. Compare
+new installs through letter → first finding → first `checkin_confirmed` → dossier opened → purchase.
+No new SDKs, permissions, introductory offers or product-price changes are part of 2.0.

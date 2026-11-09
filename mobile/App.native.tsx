@@ -12,30 +12,13 @@ import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Alert, AppState, Image, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Purchases, { CustomerInfo, LOG_LEVEL, type PurchasesOffering } from 'react-native-purchases';
 import { OtaUpdateBanner, useOtaUpdate } from './OtaUpdate.native';
 import { TrackedPaywall } from './TrackedPaywall.native';
-import { OnboardingPreview, type PreviewEvent } from './OnboardingPreview';
-import { OnboardingPreviewV2 } from './OnboardingPreviewV2';
-import { draftFromProfile, labelsFor, needsPreview, parseState, writeDraft, versionV2Flow, type OnboardingDraft } from './onboarding-model';
-import {
-  flowVersionForVariant,
-  type OnboardingVariant,
-} from './onboarding-variant';
-import {
-  allowsOnboardingTesterOverride,
-  readOnboardingTesterOverride,
-  resetPersistedOnboardingForTester,
-  resolveOnboardingVariant,
-  writeOnboardingTesterOverride,
-  type StoreEnvironment,
-} from './onboarding-tester-override';
-import { subscribeToOnboardingTesterLinks } from './onboarding-tester-link.native';
-import type { OnboardingTesterRoute } from './onboarding-tester-route';
-import MenoCompassSecurity from './modules/menocompass-security';
 import { RecordRecovery, RecoveryBackupValidator } from './RecordRecovery.native';
+import { color, font, type } from './theme';
 import { clearPrivateExportFiles, deleteUnreadableRecord, preserveUnreadableRecord, withPrivateExport } from './native-private-files';
 import { subscriptionSnapshot } from './commerce-events';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -49,9 +32,9 @@ import {
 } from './telemetry.native';
 import { webViewDiagnosticError, webViewDiagnosticsScript } from './webview-diagnostics';
 import {
-  NativeGlassTabs,
+  NativeTabBar,
   type MenoCompassPrimaryRoute,
-} from './NativeGlassTabs.native';
+} from './NativeTabBar.native';
 import {
   registerSuccessfulMoment,
   requestReviewForMilestone,
@@ -108,10 +91,11 @@ type MenoCompassWebRoute =
 
 const primaryRoutes = new Set<MenoCompassPrimaryRoute>([
   'today',
-  'journey',
-  'care',
-  'guide',
+  'dossier',
+  'index',
 ]);
+/* The web letter is onboarding version 4; the shell reports it as the flow version. */
+const letterFlowVersion = 4;
 const webRoutes = new Set<MenoCompassWebRoute>([
   ...primaryRoutes,
   'checkin',
@@ -370,138 +354,36 @@ function hasProAccess(customerInfo: CustomerInfo) {
   return Boolean(customerInfo.entitlements.active[proEntitlement]);
 }
 
-type SubscriptionGateProps = {
-  issue?: string;
-  purchaseBusy: boolean;
-  revenueCatReady: boolean;
-  onRestore: () => void;
-  onSubscribe: () => void;
-};
-
-function SubscriptionGate({
-  issue,
-  purchaseBusy,
-  revenueCatReady,
-  onRestore,
-  onSubscribe,
-}: SubscriptionGateProps) {
+/* The analytics choice, asked once before the first page. Exported so the
+   store-capture build renders the same screen. */
+export function ConsentChoice({ saving, onChoose }: { saving: boolean; onChoose: (allowed: boolean) => void }) {
   return (
     <SafeAreaView style={styles.gate}>
       <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={styles.gateContent}
-        contentInsetAdjustmentBehavior="automatic"
-        showsVerticalScrollIndicator={false}
-      >
-        <View accessible={false} importantForAccessibility="no" style={styles.gateMark}>
-          <Image source={require('./assets/icon.png')} style={{ width: 52, height: 52, borderRadius: 14 }} />
-        </View>
-        <Text style={styles.gateEyebrow}>PERI</Text>
-        <Text style={styles.gateTitle}>Your menopause record, all in one place.</Text>
-        <Text selectable style={styles.gateBody}>
-          An active monthly or annual subscription is required to use peri. There is no free tier or free trial.
-        </Text>
-        <View style={styles.gateFeatures}>
-          <Text selectable style={styles.gateFeature}>•  Daily symptoms, sleep, medications, and labs</Text>
-          <Text selectable style={styles.gateFeature}>•  Personal trends and pattern summaries</Text>
-          <Text selectable style={styles.gateFeature}>•  Clinician-ready reports and evidence guide</Text>
-        </View>
-        {issue ? <Text accessibilityRole="alert" selectable style={styles.gateIssue}>{issue}</Text> : null}
-        <Pressable
-          accessibilityHint="Shows the monthly and annual subscription options from the App Store."
-          accessibilityLabel="View subscription plans"
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !revenueCatReady || purchaseBusy, busy: purchaseBusy }}
-          disabled={!revenueCatReady || purchaseBusy}
-          onPress={onSubscribe}
-          style={({ pressed }) => [
-            styles.gatePrimary,
-            pressed && styles.gateButtonPressed,
-            (!revenueCatReady || purchaseBusy) && styles.gateButtonDisabled,
-          ]}
-        >
-          {purchaseBusy ? <ActivityIndicator color="#fffefa" /> : <Text style={styles.gatePrimaryText}>View subscription plans</Text>}
-        </Pressable>
-        <Pressable
-          accessibilityHint="Checks this Apple ID for a previous peri purchase."
-          accessibilityLabel="Restore purchases"
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !revenueCatReady || purchaseBusy, busy: purchaseBusy }}
-          disabled={!revenueCatReady || purchaseBusy}
-          onPress={onRestore}
-          style={({ pressed }) => [styles.gateSecondary, pressed && styles.gateButtonPressed]}
-        >
-          <Text style={styles.gateSecondaryText}>Restore purchases</Text>
-        </Pressable>
-        <Text selectable style={styles.gateTerms}>
-          The exact price and billing period are shown before purchase. Payment is charged immediately after confirmation and renews automatically unless canceled.
-        </Text>
-        <View style={styles.gateLinks}>
-          <Pressable
-            accessibilityHint="Opens the peri privacy policy in your browser."
-            accessibilityRole="link"
-            onPress={() => void Linking.openURL('https://menlopass.vercel.app/privacy.html')}
-          >
-            <Text style={styles.gateLink}>Privacy</Text>
-          </Pressable>
-          <Text accessible={false} style={styles.gateLinkDivider}>·</Text>
-          <Pressable
-            accessibilityHint="Opens the peri terms in your browser."
-            accessibilityRole="link"
-            onPress={() => void Linking.openURL('https://menlopass.vercel.app/terms.html')}
-          >
-            <Text style={styles.gateLink}>Terms</Text>
-          </Pressable>
+      <ScrollView contentContainerStyle={styles.gateContent}>
+        <Text style={type.wordmark}>peri</Text>
+        <View style={styles.gateRule} />
+        <Text style={styles.gateEyebrow}>Before the first page</Text>
+        <Text accessibilityRole="header" style={styles.gateTitle}>Help improve peri?</Text>
+        <Text style={styles.gateBody}>Optional analytics shares feature-use events and performance with peri and PostHog/Expo. Your entries, answers, notes and brief stay on this device. Sanitized crash diagnostics are separate.</Text>
+        <Text style={styles.gateBody}>This is separate from Apple’s advertising permission. Everything works with analytics off. Change your choice, or ask for your analytics to be deleted, under You.</Text>
+        <View style={styles.gateActions}>
+          <Pressable disabled={saving} accessibilityRole="button" accessibilityState={{ disabled: saving }} style={({ pressed }) => [styles.gatePrimary, pressed && styles.gateButtonPressed, saving && styles.gateButtonDisabled]} onPress={() => onChoose(false)}><Text style={styles.gatePrimaryText}>Continue without analytics</Text></Pressable>
+          <Pressable disabled={saving} accessibilityRole="button" accessibilityState={{ disabled: saving }} style={({ pressed }) => [styles.gateSecondary, pressed && styles.gateButtonPressed, saving && styles.gateButtonDisabled]} onPress={() => onChoose(true)}><Text style={styles.gateSecondaryText}>Allow optional analytics</Text></Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// Pip's opening loop (Masko, "Pip — opening hello"): idle breath, blink, small wave. Bundled as a GIF because
-// React Native's Image plays animated GIFs on iOS without extra native modules, so it ships with OTA updates too.
-const PIP_OPENING = require('./assets/pip-opening.gif');
-const PIP_STILL = require('./assets/pip-guide.webp');
-
-let reduceMotionCache: boolean | null = null;
-
-function useReduceMotion() {
-  const [reduceMotion, setReduceMotion] = useState(reduceMotionCache === true);
-  useEffect(() => {
-    let alive = true;
-    if (reduceMotionCache === null) {
-      AccessibilityInfo.isReduceMotionEnabled()
-        .then((enabled) => {
-          reduceMotionCache = Boolean(enabled);
-          if (alive) setReduceMotion(reduceMotionCache);
-        })
-        .catch(() => {});
-    }
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
-      reduceMotionCache = Boolean(enabled);
-      if (alive) setReduceMotion(reduceMotionCache);
-    });
-    return () => {
-      alive = false;
-      subscription.remove();
-    };
-  }, []);
-  return reduceMotion;
-}
-
-function PipWaiting({ label }: { label: string }) {
-  const reduceMotion = useReduceMotion();
+/* The opening screen: the wordmark, a rule, one line. No mascot. */
+function Waiting({ label }: { label: string }) {
   return (
-    <>
-      <Image
-        source={reduceMotion ? PIP_STILL : PIP_OPENING}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={reduceMotion ? styles.loadingPipStill : styles.loadingPip}
-        resizeMode="contain"
-      />
-      <Text style={styles.loadingText}>{label}</Text>
-    </>
+    <View style={styles.waiting}>
+      <Text accessibilityRole="header" style={type.wordmark}>peri</Text>
+      <View style={styles.waitingRule} />
+      <Text style={styles.waitingText}>{label}</Text>
+    </View>
   );
 }
 
@@ -512,9 +394,6 @@ function App() {
   const { markInteractive } = useObserve();
   const [html, setHtml] = useState<string>();
   const [persistedState, setPersistedState] = useState<string | null>(null);
-  const previewStateRef = useRef<string | null>(null);
-  const [previewIssue, setPreviewIssue] = useState<string>();
-  const [previewWriteCount, setPreviewWriteCount] = useState(0);
   const [error, setError] = useState<string>();
   const [recordReady, setRecordReady] = useState(false);
   const [recordUnavailable, setRecordUnavailable] = useState(false);
@@ -531,20 +410,10 @@ function App() {
   const [paywall, setPaywall] = useState<{
     offering: PurchasesOffering;
     source: 'automatic' | 'subscribe_button' | 'feature';
-    personalizedSymptoms?: string[];
   } | null>(null);
-  const [onboardingVariant, setOnboardingVariant] = useState<OnboardingVariant>('control');
-  const onboardingVariantResolvedRef = useRef(false);
-  const [onboardingTesterOverride, setOnboardingTesterOverride] = useState<OnboardingVariant | null>(null);
-  const onboardingTesterOverrideRef = useRef<OnboardingVariant | null>(null);
-  const [onboardingTesterGateReady, setOnboardingTesterGateReady] = useState(Platform.OS !== 'ios');
-  const currentOfferingRef = useRef<PurchasesOffering | null>(null);
-  const storeEnvironmentRef = useRef<StoreEnvironment>('unknown');
-  const usesSandboxReceiptRef = useRef(false);
   const persistedStateRef = useRef<string | null>(null);
   const [experienceReady, setExperienceReady] = useState(false);
   const [webContentReady, setWebContentReady] = useState(false);
-  const showOnboardingPreview = Platform.OS === 'ios' && !proActive && needsPreview(persistedState);
   const [pendingReviewMilestone, setPendingReviewMilestone] = useState<
     AppReviewProgress['dueMilestone']
   >(null);
@@ -599,15 +468,16 @@ function App() {
   const [unlockIssue, setUnlockIssue] = useState<string>();
   const [appIsActive, setAppIsActive] = useState(AppState.currentState === 'active');
   const [pendingNativeRoute, setPendingNativeRoute] = useState<MenoCompassNativeRoute | null>(null);
-  const [pendingOnboardingTesterRoute, setPendingOnboardingTesterRoute] = useState<OnboardingTesterRoute | null>(null);
-  const [testerRouteCompletion, setTesterRouteCompletion] = useState(0);
   const [nativeNavigation, setNativeNavigation] = useState<{
     route: MenoCompassWebRoute;
     onboarded: boolean;
     sheetOpen: boolean;
-  }>({ route: 'today', onboarded: false, sheetOpen: false });
+    night: boolean;
+  }>({ route: 'today', onboarded: false, sheetOpen: false, night: false });
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const autoPaywallAttemptedRef = useRef(false);
+  /* The paywall opens once, after the first finding (the letter), and after
+     that only when a Pro surface asks for it. It never blocks the page. */
+  const firstFindingPaywallRef = useRef(false);
   const appLaunchTrackedRef = useRef(false);
   const interactiveMarkedRef = useRef(false);
   const onboardingStartedRef = useRef(false);
@@ -620,16 +490,11 @@ function App() {
   const unlockInFlightRef = useRef(false);
   const automaticUnlockAttemptedRef = useRef(false);
   const healthKitInFlightRef = useRef(false);
-  const testerRouteInFlightRef = useRef(false);
-  const testerRouteReadyRef = useRef(false);
-  testerRouteReadyRef.current = recordReady && !error && privacyReady && !appLocked
-    && onboardingTesterGateReady && subscriptionChecked && !recoveryBusy
-    && previewWriteCount === 0 && !purchaseBusy && !paywall;
 
   const otaRestartIsSafe = () => AppState.currentState === 'active'
     && webContentReady && experienceReady && !appLocked && !keyboardVisible
     && nativeNavigation.onboarded && !nativeNavigation.sheetOpen
-    && ['today', 'journey', 'guide'].includes(nativeNavigation.route)
+    && ['today', 'dossier', 'index'].includes(nativeNavigation.route)
     && !privacyChoiceOpen && consentReady && !purchaseBusy && !paywall && !paywallLoadingRef.current
     && !reviewRequestInFlightRef.current && !nativeShareInFlightRef.current
     && !nativeBackupImportInFlightRef.current && !privacyChangeInFlightRef.current
@@ -659,86 +524,6 @@ function App() {
       window.dispatchEvent(new Event('menocompass-pro-changed'));
       true;
     `);
-  };
-
-  const onboardingTesterOverrideAllowed = () => allowsOnboardingTesterOverride({
-    isDev: __DEV__,
-    buildChannel: Updates.channel,
-    storeEnvironment: storeEnvironmentRef.current,
-    usesSandboxAppStoreReceipt: usesSandboxReceiptRef.current,
-  });
-
-  const syncOnboardingVariant = (trackAssignment = false) => {
-    const variant = resolveOnboardingVariant(
-      currentOfferingRef.current,
-      onboardingTesterOverrideRef.current,
-      onboardingTesterOverrideAllowed(),
-    );
-    setOnboardingVariant(variant);
-    if (trackAssignment && !onboardingVariantResolvedRef.current) {
-      onboardingVariantResolvedRef.current = true;
-      trackTelemetryEvent('onboarding_variant_assigned', {
-        variant,
-        offeringId: currentOfferingRef.current?.identifier ?? 'none',
-        flowVersion: flowVersionForVariant(variant),
-        testerOverride: onboardingTesterOverrideRef.current === 'v2'
-          && onboardingTesterOverrideAllowed(),
-      });
-    }
-  };
-
-  const handleOnboardingTesterRoute = async (route: OnboardingTesterRoute) => {
-    const deferUntilReady = () => {
-      if (testerRouteReadyRef.current) return false;
-      setPendingOnboardingTesterRoute(current => current ?? route);
-      return true;
-    };
-    if (deferUntilReady()) return;
-    if (Platform.OS !== 'ios' || !onboardingTesterOverrideAllowed()) return;
-    if (route === 'clear-override') {
-      await writeOnboardingTesterOverride(null);
-      if (deferUntilReady()) return;
-      onboardingTesterOverrideRef.current = null;
-      setOnboardingTesterOverride(null);
-      syncOnboardingVariant();
-      return;
-    }
-    await writeOnboardingTesterOverride('v2');
-    if (deferUntilReady()) return;
-    onboardingTesterOverrideRef.current = 'v2';
-    setOnboardingTesterOverride('v2');
-    setOnboardingVariant('v2');
-    onboardingStartedRef.current = false;
-    onboardingCompletedRef.current = false;
-    autoPaywallAttemptedRef.current = false;
-    try {
-      await persistedStateWriteQueue;
-      if (deferUntilReady()) return;
-      // Derive the reset only from a successfully loaded current record. Links
-      // arriving before hydration or during recovery must never synthesize a
-      // blank record from null refs and overwrite the unreadable original.
-      let currentRecord: string | null;
-      try {
-        currentRecord = await readPersistedState();
-      } catch (reason) {
-        setRecordReady(false);
-        setRecordUnavailable(true);
-        setError(reason instanceof Error ? reason.message : String(reason));
-        return;
-      }
-      if (deferUntilReady()) return;
-      const reset = resetPersistedOnboardingForTester(currentRecord, 'v2');
-      previewStateRef.current = reset;
-      const canonical = await writePersistedState(reset);
-      if (canonical) {
-        setPersistedState(canonical);
-        setExperienceReady(false);
-        setPreviewIssue(undefined);
-        syncMenoCompassWidgets(canonical);
-      }
-    } catch (error) {
-      reportTelemetryError(error);
-    }
   };
 
   const openNativePrimaryRoute = (route: MenoCompassPrimaryRoute) => {
@@ -898,7 +683,6 @@ function App() {
         && !unlockInFlightRef.current
         && nextState !== 'active'
       ) {
-        testerRouteReadyRef.current = false;
         automaticUnlockAttemptedRef.current = false;
         setAppLocked(true);
       }
@@ -934,49 +718,6 @@ function App() {
   useEffect(() => {
     persistedStateRef.current = persistedState;
   }, [persistedState]);
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    let active = true;
-    void (async () => {
-      const [override, sandboxReceipt] = await Promise.all([
-        readOnboardingTesterOverride(),
-        MenoCompassSecurity?.usesSandboxAppStoreReceiptAsync?.().catch(() => false)
-          ?? Promise.resolve(false),
-      ]);
-      if (!active) return;
-      onboardingTesterOverrideRef.current = override;
-      setOnboardingTesterOverride(override);
-      usesSandboxReceiptRef.current = sandboxReceipt;
-      setOnboardingTesterGateReady(true);
-      syncOnboardingVariant();
-    })();
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    if (!onboardingTesterGateReady) return;
-    syncOnboardingVariant();
-  }, [onboardingTesterGateReady, onboardingTesterOverride]);
-
-  useEffect(() => {
-    // The listener stays mounted, but only queues intent. The processing effect
-    // below observes current hydration and lock state instead of mount-time flags.
-    return subscribeToOnboardingTesterLinks(setPendingOnboardingTesterRoute);
-  }, []);
-
-  useEffect(() => {
-    if (!pendingOnboardingTesterRoute || !testerRouteReadyRef.current || testerRouteInFlightRef.current) return;
-    const route = pendingOnboardingTesterRoute;
-    setPendingOnboardingTesterRoute(null);
-    testerRouteInFlightRef.current = true;
-    void handleOnboardingTesterRoute(route).catch(reportTelemetryError).finally(() => {
-      testerRouteInFlightRef.current = false;
-      setTesterRouteCompletion(value => value + 1);
-    });
-  }, [pendingOnboardingTesterRoute, recordReady, error, privacyReady, appLocked,
-    onboardingTesterGateReady, subscriptionChecked, recoveryBusy, previewWriteCount,
-    purchaseBusy, paywall, testerRouteCompletion]);
 
   useEffect(() => {
     let active = true;
@@ -1029,7 +770,6 @@ function App() {
       .then(([source, savedState]) => {
         if (!active) return;
         setPersistedState(savedState);
-        previewStateRef.current = savedState;
         setExperienceReady(persistedStateIsOnboarded(savedState));
         setHtml(source);
         setRecordReady(true);
@@ -1047,11 +787,9 @@ function App() {
   useEffect(() => {
     if (interactiveMarkedRef.current || !html || !privacyReady || !subscriptionChecked || !appIsActive) return;
     const routeName = appLocked ? 'lock'
-      : showOnboardingPreview ? 'onboarding'
-      : Platform.OS === 'ios' && !proActive && telemetrySettled ? 'subscription'
-      : webContentReady ? 'main' : undefined;
+      : webContentReady ? (experienceReady ? 'main' : 'letter') : undefined;
     if (routeName) { markInteractive({ routeName }); interactiveMarkedRef.current = true; }
-  }, [html, privacyReady, subscriptionChecked, appIsActive, appLocked, proActive, telemetrySettled, webContentReady, showOnboardingPreview, markInteractive]);
+  }, [html, privacyReady, subscriptionChecked, appIsActive, appLocked, experienceReady, webContentReady, markInteractive]);
 
   useEffect(() => {
     const listener = AppState.addEventListener('change', state => { if (state !== 'active') { telemetryBackground(); flushTelemetry(); } else telemetryForeground(); });
@@ -1064,14 +802,12 @@ function App() {
     let active = true;
     const updateCustomer = (customerInfo: CustomerInfo) => {
       if (!active) return;
-      storeEnvironmentRef.current = subscriptionSnapshot(customerInfo).storeEnvironment as StoreEnvironment;
       const nextProActive = hasProAccess(customerInfo);
       setProActive(nextProActive);
       setSubscriptionChecked(true);
       setSubscriptionIssue(undefined);
       setTelemetrySubscriptionState(customerInfo);
       syncProStatusToWeb(nextProActive);
-      if (onboardingTesterGateReady) syncOnboardingVariant();
     };
 
     try {
@@ -1089,13 +825,6 @@ function App() {
         setSubscriptionChecked(true);
         setSubscriptionIssue('peri could not verify your subscription. Check your connection and try again.');
       });
-      Purchases.getOfferings()
-        .then(offerings => {
-          if (!active) return;
-          currentOfferingRef.current = offerings.current ?? null;
-          syncOnboardingVariant(true);
-        })
-        .catch(reportTelemetryError);
     } catch (error) {
       reportTelemetryError(error);
       trackTelemetryEvent('subscription_check_failed', { reason: 'sdk_error' });
@@ -1128,9 +857,11 @@ function App() {
   }, [consentReady, privacyChoiceOpen, privacyReady, appLocked, appIsActive, paywall, purchaseBusy, nativeNavigation.sheetOpen, keyboardVisible]);
 
   useEffect(() => {
-    setTelemetryReplay(recordReady && !error && analyticsEnabled && consentReady && !privacyChoiceOpen && !appLocked && appIsActive && showOnboardingPreview && !paywall);
+    // Session replay recorded the native onboarding preview; the letter lives
+    // in the WebView, which is never recorded. Replay stays off everywhere.
+    setTelemetryReplay(false);
     return () => setTelemetryReplay(false);
-  }, [recordReady, error, analyticsEnabled, consentReady, privacyChoiceOpen, appLocked, appIsActive, showOnboardingPreview, paywall]);
+  }, []);
 
   useEffect(() => {
     if (!html || !telemetrySettled || appLaunchTrackedRef.current) return;
@@ -1140,15 +871,13 @@ function App() {
 
   useEffect(() => {
     if (!webContentReady || !telemetrySettled || experienceReady || onboardingStartedRef.current) return;
-    if (Platform.OS === 'ios' && !proActive) return;
     onboardingStartedRef.current = true;
-    trackTelemetryEvent('onboarding_started', { flowVersion: 2, surface: 'web' });
-  }, [webContentReady, telemetrySettled, experienceReady, proActive]);
+    trackTelemetryEvent('onboarding_started', { flowVersion: letterFlowVersion, surface: 'web' });
+  }, [webContentReady, telemetrySettled, experienceReady]);
 
   useEffect(() => {
     if (
       Platform.OS !== 'ios'
-      || !proActive
       || !experienceReady
       || !webContentReady
       || !telemetrySettled
@@ -1175,16 +904,21 @@ function App() {
   }, [
     experienceReady,
     pendingReviewMilestone,
-    proActive,
     telemetrySettled,
     trackingPromptedThisSession,
     webContentReady,
   ]);
 
-  const openPaywall = async (
-    source: 'automatic' | 'subscribe_button' | 'feature',
-    personalizedSymptoms?: string[],
-  ) => {
+  /* Without the old gate there is no screen that shows a subscription problem,
+     so a request she made herself (a tap on Unlock, or a locked surface) says
+     why the store did not open. The automatic offer after the letter stays
+     quiet: she did not ask for it. */
+  const surfaceSubscriptionIssue = (message: string, source: 'automatic' | 'subscribe_button' | 'feature') => {
+    setSubscriptionIssue(message);
+    if (source !== 'automatic') Alert.alert('peri Pro could not open', message);
+  };
+
+  const openPaywall = async (source: 'automatic' | 'subscribe_button' | 'feature') => {
     if (!revenueCatReady || purchaseBusy || paywall || paywallLoadingRef.current) return;
     paywallLoadingRef.current = true;
     setPurchaseBusy(true);
@@ -1193,7 +927,7 @@ function App() {
       const offerings = await Purchases.getOfferings();
       if (!offerings.current || offerings.current.availablePackages.length === 0) {
         trackTelemetryEvent('paywall_failed', { source, reason: 'no_offering' });
-        setSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.');
+        surfaceSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.', source);
         return;
       }
 
@@ -1204,21 +938,17 @@ function App() {
       );
       if (hasFreeTrial) {
         trackTelemetryEvent('paywall_failed', { source, reason: 'free_offer' });
-        setSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.');
+        surfaceSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.', source);
         if (__DEV__) console.error('Remove the free introductory offer from every peri product in App Store Connect.');
         return;
       }
 
       setSubscriptionIssue(undefined);
-      setPaywall({
-        offering: offerings.current,
-        source,
-        personalizedSymptoms: personalizedSymptoms?.length ? personalizedSymptoms : undefined,
-      });
+      setPaywall({ offering: offerings.current, source });
     } catch (reason) {
       trackTelemetryEvent('paywall_failed', { source, reason: 'offerings_error' });
       reportTelemetryError(reason);
-      setSubscriptionIssue('peri could not reach the App Store. Check your connection and try again.');
+      surfaceSubscriptionIssue('peri could not reach the App Store. Check your connection and try again.', source);
     } finally {
       paywallLoadingRef.current = false;
       setPurchaseBusy(false);
@@ -1228,88 +958,20 @@ function App() {
   const requestPaywall = (source: 'subscribe_button' | 'feature' = 'subscribe_button') => {
     if (purchaseBusy || proActive) return;
     if (!revenueCatReady) {
-      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.');
+      surfaceSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.', source);
       return;
     }
     void openPaywall(source);
   };
 
-  const trackPreviewEvent = (event: PreviewEvent, attributes?: Record<string, string | number>) => {
-    if (event === 'onboarding_started') {
-      if (onboardingStartedRef.current || persistedStateIsOnboarded(persistedState)) return;
-      onboardingStartedRef.current = true;
-    }
-    trackTelemetryEvent(event, {
-      ...attributes,
-      flowVersion: flowVersionForVariant(onboardingVariant),
-      onboardingVariant,
-      surface: 'native_preview',
-    });
-  };
-
-  const savePreview = async (draft: OnboardingDraft, complete = false) => {
-    const flowVersion = onboardingVariant === 'v2' ? versionV2Flow : 2;
-    const serialized = writeDraft(previewStateRef.current, draft, complete, false, flowVersion);
-    previewStateRef.current = serialized;
-    setPreviewWriteCount(count => count + 1);
-    try {
-      const canonical = await writePersistedState(serialized);
-      if (!canonical) throw new Error('Invalid onboarding setup');
-      if (previewStateRef.current === serialized) {
-        setPersistedState(canonical);
-        setExperienceReady(persistedStateIsOnboarded(canonical));
-        setPreviewIssue(undefined);
-      }
-    } finally {
-      setPreviewWriteCount(count => count - 1);
-    }
-  };
-
-  const completePreview = async (draft: OnboardingDraft) => {
-    // Await secure persistence before opening StoreKit; cancellation and restart
-    // must return to the same preview without creating any health entries.
-    const alreadyCompleted = persistedStateIsOnboarded(persistedState);
-    await savePreview(draft, true);
-    if (!alreadyCompleted && !onboardingCompletedRef.current) {
-      onboardingCompletedRef.current = true;
-      trackTelemetryEvent('onboarding_completed', {
-        skipped: false,
-        flowVersion: flowVersionForVariant(onboardingVariant),
-        onboardingVariant,
-        surface: 'native_preview',
-      });
-    }
-    if (!revenueCatReady) {
-      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.');
-      return;
-    }
-    const personalizedSymptoms = onboardingVariant === 'v2'
-      ? labelsFor(draft.symptoms).slice(0, 3)
-      : undefined;
-    await openPaywall('subscribe_button', personalizedSymptoms);
-  };
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    if (proActive) {
-      autoPaywallAttemptedRef.current = false;
-      return;
-    }
-    if (
-      !subscriptionChecked
-      || !html
-      || !privacyReady
-      || appLocked
-      || showOnboardingPreview
-      || !revenueCatReady
-      || !telemetrySettled
-      || purchaseBusy
-      || autoPaywallAttemptedRef.current
-    ) return;
-
-    autoPaywallAttemptedRef.current = true;
+  /* After the letter: the first finding is on the page behind this sheet.
+     Shown once per install session, dismissible, and only on iOS. */
+  const offerProAfterFirstFinding = () => {
+    if (Platform.OS !== 'ios' || proActive || firstFindingPaywallRef.current) return;
+    firstFindingPaywallRef.current = true;
+    if (!revenueCatReady) return;
     void openPaywall('automatic');
-  }, [subscriptionChecked, proActive, revenueCatReady, telemetrySettled, purchaseBusy, html, privacyReady, appLocked, showOnboardingPreview]);
+  };
 
   const openExternalLink = (url: unknown) => {
     if (typeof url !== 'string') return;
@@ -1343,6 +1005,7 @@ function App() {
           route: message.route,
           onboarded: message.onboarded === true,
           sheetOpen: message.sheetOpen === true,
+          night: message.night === true,
         });
         setTelemetryRoute(message.route);
         return;
@@ -1368,7 +1031,6 @@ function App() {
           .then(canonical => {
             if (!canonical) return;
             setPersistedState(canonical);
-            previewStateRef.current = canonical;
             setExperienceReady(persistedStateIsOnboarded(canonical));
             try {
               syncMenoCompassWidgets(canonical);
@@ -1389,25 +1051,26 @@ function App() {
       if (message?.type === 'onboarding-finished') {
         if (onboardingStartedRef.current && !onboardingCompletedRef.current) {
           onboardingCompletedRef.current = true;
-          trackTelemetryEvent('onboarding_completed', { skipped: message.skipped === true, flowVersion: 2, surface: 'web' });
+          trackTelemetryEvent('onboarding_completed', { skipped: message.skipped === true, flowVersion: letterFlowVersion, surface: 'web' });
         }
         setExperienceReady(true);
+        offerProAfterFirstFinding();
         return;
       }
       if (message?.type === 'onboarding-step' && Number.isInteger(message.step)) {
         if (!onboardingStartedRef.current) {
           onboardingStartedRef.current = true;
-          trackTelemetryEvent('onboarding_started', { flowVersion: 2, surface: 'web' });
+          trackTelemetryEvent('onboarding_started', { flowVersion: letterFlowVersion, surface: 'web' });
         }
-        trackTelemetryEvent('onboarding_step_viewed', { step: message.step, flowVersion: 2, surface: 'web' });
+        trackTelemetryEvent('onboarding_step_viewed', { step: message.step, flowVersion: letterFlowVersion, surface: 'web' });
         return;
       }
       if (message?.type === 'onboarding-step-left') {
-        trackTelemetryEvent('onboarding_step_left', { step: message.step, durationMs: message.durationMs, flowVersion: 2, surface: 'web' });
+        trackTelemetryEvent('onboarding_step_left', { step: message.step, durationMs: message.durationMs, flowVersion: letterFlowVersion, surface: 'web' });
         return;
       }
       if (message?.type === 'onboarding-selection-limit') {
-        trackTelemetryEvent('onboarding_selection_limit', { step: 1, flowVersion: 2, surface: 'web' });
+        trackTelemetryEvent('onboarding_selection_limit', { step: 1, flowVersion: letterFlowVersion, surface: 'web' });
         return;
       }
       if (message?.type === 'checkin-confirmed') {
@@ -1549,7 +1212,8 @@ function App() {
         Linking.openURL('https://apps.apple.com/account/subscriptions').catch(reportTelemetryError);
         return;
       }
-      if (message?.type === 'open-pro-paywall') requestPaywall('feature');
+      if (message?.type === 'open-pro-paywall') { requestPaywall('feature'); return; }
+      if (message?.type === 'restore-purchases') { void restorePurchases(); return; }
     } catch {
       // Ignore non-peri messages from the embedded document.
     }
@@ -1606,7 +1270,6 @@ function App() {
       const canonical = await writePersistedState(validated);
       if (!canonical) throw new Error('The backup could not be saved. Your existing record was kept.');
       setPersistedState(canonical);
-      previewStateRef.current = canonical;
       setExperienceReady(persistedStateIsOnboarded(canonical));
       setRecordReady(true);
       setError(undefined);
@@ -1646,21 +1309,20 @@ function App() {
     ],
   );
 
-  if ((!recordReady && !error) || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked) || (proActive && previewWriteCount > 0)) {
-    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><PipWaiting label={error ? 'Could not open peri.' : 'Opening peri…'} />{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
+  if ((!recordReady && !error) || !privacyReady || (Platform.OS === 'ios' && !subscriptionChecked)) {
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><Waiting label={error ? 'The record could not be opened.' : 'Opening the record.'} />{error ? <Text accessibilityRole="alert" selectable style={styles.error}>{error}</Text> : null}</SafeAreaView>;
   }
 
   if (Platform.OS === 'ios' && appLocked) {
     return (
       <SafeAreaView style={styles.locked}>
         <StatusBar style="dark" />
-        <View accessible={false} importantForAccessibility="no" style={styles.lockedMark}>
-          <Image source={require('./assets/icon.png')} style={{ width: 58, height: 58, borderRadius: 15 }} />
-        </View>
-        <Text style={styles.lockedEyebrow}>PERI</Text>
-        <Text accessibilityRole="header" style={styles.lockedTitle}>Your record is locked.</Text>
+        <Text style={type.wordmark}>peri</Text>
+        <View style={styles.lockedRule} />
+        <Text style={styles.lockedEyebrow}>The record</Text>
+        <Text accessibilityRole="header" style={styles.lockedTitle}>Locked.</Text>
         <Text selectable style={styles.lockedBody}>
-          Use Face ID, Touch ID, or your device passcode to continue.
+          Face ID, Touch ID or your passcode opens it.
         </Text>
         {unlockIssue ? <Text accessibilityRole="alert" style={styles.lockedIssue}>{unlockIssue}</Text> : null}
         <Pressable
@@ -1677,7 +1339,7 @@ function App() {
           ]}
         >
           {unlockBusy
-            ? <ActivityIndicator color="#fffefa" />
+            ? <ActivityIndicator color={color.paper} />
             : <Text style={styles.lockedButtonText}>Unlock</Text>}
         </Pressable>
       </SafeAreaView>
@@ -1695,21 +1357,15 @@ function App() {
     </View>;
   }
   if (!html) {
-    return <SafeAreaView style={styles.loading}><PipWaiting label="Opening peri…" /></SafeAreaView>;
+    return <SafeAreaView style={styles.loading}><Waiting label="Opening the record." /></SafeAreaView>;
   }
 
   const consentGate = consentGatePhase(consentHydrating, privacyChoiceOpen, consentReady);
   if (consentGate === 'loading') {
-    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><PipWaiting label="Loading your privacy settings…" /></SafeAreaView>;
+    return <SafeAreaView accessibilityLiveRegion="polite" style={styles.loading}><StatusBar style="dark" /><Waiting label="Reading your privacy settings." /></SafeAreaView>;
   }
   if (consentGate === 'choice') {
-    return <SafeAreaView style={styles.gate}><ScrollView contentContainerStyle={styles.gateContent}>
-      <Text accessibilityRole="header" style={styles.gateTitle}>Help improve peri?</Text>
-      <Text style={styles.gateBody}>Optional analytics shares feature-use events and performance with peri and PostHog/Expo, plus fully masked recordings of the native onboarding preview. Your health entries, answers, notes, and reports stay private. Sanitized crash diagnostics are separate.</Text>
-      <Text style={styles.gateBody}>This choice is separate from Apple's advertising permission. Every feature remains available with analytics off. Change your choice or request analytics deletion in Profile.</Text>
-      <Pressable disabled={consentSaving} accessibilityRole="button" style={styles.gatePrimary} onPress={() => void chooseAnalytics(false)}><Text style={styles.gatePrimaryText}>Continue without analytics</Text></Pressable>
-      <Pressable disabled={consentSaving} accessibilityRole="button" style={[styles.gatePrimary, { marginTop: 12 }]} onPress={() => void chooseAnalytics(true)}><Text style={styles.gatePrimaryText}>Allow optional analytics</Text></Pressable>
-    </ScrollView></SafeAreaView>;
+    return <ConsentChoice saving={consentSaving} onChoose={allowed => void chooseAnalytics(allowed)} />;
   }
 
   if (Platform.OS === 'ios' && paywall) {
@@ -1719,8 +1375,6 @@ function App() {
         <TrackedPaywall
           offering={paywall.offering}
           source={paywall.source}
-          personalizedSymptoms={paywall.personalizedSymptoms}
-          allowDismiss={showOnboardingPreview}
           onCustomer={customerInfo => {
             const active = hasProAccess(customerInfo);
             setProActive(active);
@@ -1731,45 +1385,16 @@ function App() {
           onClose={() => setPaywall(null)}
           onFailure={() => {
             setPaywall(null);
-            setSubscriptionIssue('The subscription screen could not load. Please try again.');
+            surfaceSubscriptionIssue('The subscription screen could not load. Please try again.', paywall.source === 'automatic' ? 'automatic' : 'feature');
           }}
         />
       </SafeAreaView>
     );
   }
 
-  if (showOnboardingPreview) {
-    const previewProps = {
-      initialDraft: draftFromProfile(parseState(persistedState).profile),
-      busy: purchaseBusy,
-      issue: previewIssue || subscriptionIssue,
-      restoreReady: revenueCatReady,
-      onChange: (draft: OnboardingDraft) => { void savePreview(draft).catch(() => setPreviewIssue('Your setup could not be saved securely. Please try again.')); },
-      onFinish: completePreview,
-      onRestore: () => void restorePurchases(),
-      onEvent: trackPreviewEvent,
-    };
-    if (onboardingVariant === 'v2') {
-      return <OnboardingPreviewV2 {...previewProps} />;
-    }
-    return <OnboardingPreview {...previewProps} />;
-  }
-
-  if (Platform.OS === 'ios' && !proActive) {
-    return (
-      <SubscriptionGate
-        issue={subscriptionIssue}
-        purchaseBusy={purchaseBusy}
-        revenueCatReady={revenueCatReady}
-        onRestore={() => void restorePurchases()}
-        onSubscribe={() => requestPaywall()}
-      />
-    );
-  }
-
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, nativeNavigation.night && styles.containerNight]}>
+      <StatusBar style={nativeNavigation.night ? 'light' : 'dark'} />
       <OtaUpdateBanner update={otaUpdate} isSafe={otaRestartIsSafe} prepareRestart={prepareOtaRestart} />
       <WebView
         ref={webViewRef}
@@ -1830,7 +1455,7 @@ function App() {
           if (/^https?:/i.test(url)) { openExternalLink(url); return false; }
           return false;
         }}
-        style={styles.webview}
+        style={[styles.webview, nativeNavigation.night && styles.containerNight]}
       />
       {Platform.OS === 'ios'
         && webContentReady
@@ -1840,8 +1465,9 @@ function App() {
         && !keyboardVisible
         && isPrimaryRoute(nativeNavigation.route)
         ? (
-          <NativeGlassTabs
+          <NativeTabBar
             activeRoute={nativeNavigation.route}
+            night={nativeNavigation.night}
             onSelect={openNativePrimaryRoute}
           />
         )
@@ -1857,40 +1483,33 @@ function AppWithSafeArea() {
 export default ObserveRoot.wrap(AppWithSafeArea);
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f5ef' },
-  webview: { flex: 1, backgroundColor: '#f7f5ef' },
-  gate: { flex: 1, backgroundColor: '#f7f5ef' },
-  gateContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 24 },
-  gateMark: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#e6eee7' },
-  gateMarkText: { color: '#244b43', fontSize: 27, fontWeight: '900' },
-  gateEyebrow: { color: '#a76149', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 10 },
-  gateTitle: { maxWidth: 420, color: '#263e37', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 34, lineHeight: 40, fontWeight: '400', textAlign: 'center' },
-  gateBody: { maxWidth: 420, marginTop: 14, color: '#68756d', fontSize: 15, lineHeight: 23, textAlign: 'center' },
-  gateFeatures: { width: '100%', maxWidth: 420, gap: 10, marginTop: 24, marginBottom: 24 },
-  gateFeature: { color: '#263e37', fontSize: 14, lineHeight: 20, paddingLeft: 18 },
-  gateIssue: { maxWidth: 420, marginBottom: 14, color: '#a76149', fontSize: 12, lineHeight: 17, textAlign: 'center' },
-  gatePrimary: { width: '100%', maxWidth: 420, minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: '#244b43' },
-  gatePrimaryText: { color: '#fffefa', fontSize: 15, fontWeight: '700' },
-  gateSecondary: { minHeight: 44, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
-  gateSecondaryText: { color: '#244b43', fontSize: 13, fontWeight: '700' },
+  container: { flex: 1, backgroundColor: color.paper },
+  containerNight: { backgroundColor: color.night },
+  webview: { flex: 1, backgroundColor: color.paper },
+  waiting: { alignItems: 'flex-start', gap: 14, width: '100%', maxWidth: 420 },
+  waitingRule: { width: '100%', height: 2, backgroundColor: color.ink },
+  waitingText: { ...type.bodyMuted },
+  gate: { flex: 1, backgroundColor: color.paper },
+  gateContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 28, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  gateRule: { height: 2, backgroundColor: color.ink, marginTop: 10, marginBottom: 26 },
+  gateEyebrow: { ...type.eyebrow, marginBottom: 10 },
+  gateTitle: { ...type.display },
+  gateBody: { ...type.body, color: color.grey, marginTop: 14 },
+  gateActions: { marginTop: 28, gap: 10 },
+  gatePrimary: { minHeight: 54, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: color.ink },
+  gatePrimaryText: { ...type.button },
+  gateSecondary: { minHeight: 54, borderRadius: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: color.ink },
+  gateSecondaryText: { ...type.button, color: color.ink },
   gateButtonPressed: { opacity: 0.72 },
   gateButtonDisabled: { opacity: 0.45 },
-  gateTerms: { maxWidth: 420, marginTop: 8, color: '#68756d', fontSize: 11, lineHeight: 16, textAlign: 'center' },
-  gateLinks: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  gateLink: { color: '#244b43', fontSize: 12, textDecorationLine: 'underline' },
-  gateLinkDivider: { color: '#68756d', fontSize: 12 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: '#f8f4ed' },
-  loadingPip: { width: 168, height: 168, marginBottom: -10 },
-  loadingPipStill: { width: 92, height: 139, marginBottom: 6 },
-  loadingText: { color: '#244b43', fontSize: 16 },
-  error: { color: '#a76149', textAlign: 'center', fontSize: 12 },
-  locked: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, backgroundColor: '#f7f5ef' },
-  lockedMark: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#e6eee7' },
-  lockedMarkText: { color: '#244b43', fontSize: 30, fontWeight: '900' },
-  lockedEyebrow: { color: '#a76149', fontSize: 11, fontWeight: '800', letterSpacing: 2.2, marginBottom: 10 },
-  lockedTitle: { color: '#263e37', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', fontSize: 32, lineHeight: 38, fontWeight: '400', textAlign: 'center' },
-  lockedBody: { maxWidth: 380, marginTop: 12, color: '#68756d', fontSize: 15, lineHeight: 23, textAlign: 'center' },
-  lockedIssue: { maxWidth: 380, marginTop: 14, color: '#a76149', fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  lockedButton: { width: '100%', maxWidth: 320, minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', marginTop: 24, backgroundColor: '#244b43' },
-  lockedButtonText: { color: '#fffefa', fontSize: 15, fontWeight: '700' },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 24, backgroundColor: color.paper },
+  error: { ...type.small, color: color.vermilionText, textAlign: 'left', maxWidth: 420, width: '100%' },
+  locked: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, backgroundColor: color.paper },
+  lockedRule: { height: 2, backgroundColor: color.ink, marginTop: 10, marginBottom: 26 },
+  lockedEyebrow: { ...type.eyebrow, marginBottom: 10 },
+  lockedTitle: { ...type.display },
+  lockedBody: { ...type.body, color: color.grey, marginTop: 14, maxWidth: 420 },
+  lockedIssue: { ...type.small, color: color.vermilionText, marginTop: 14, maxWidth: 420 },
+  lockedButton: { width: '100%', maxWidth: 420, minHeight: 54, borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginTop: 28, backgroundColor: color.ink },
+  lockedButtonText: { ...type.button },
 });

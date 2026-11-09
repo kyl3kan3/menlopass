@@ -235,8 +235,10 @@ test('Android without subscriptions can open the dossier while iOS still gates',
 test('native v3 onboarding metadata survives backup validation and opens the letter with its answers', async t => {
   const page = await fixture(t);
   await page.evaluate(() => {
-    const completed=PeriOnboarding.writeDraft(JSON.stringify(DB),{step:11,symptoms:['sleepq','fog'],intent:'appointment'},true,false,PeriOnboarding.versionV2Flow);
-    DB=validateBackup(JSON.parse(completed)); save(true); setRoute('today'); render();
+    // A record written by the 1.2 native preview (onboarding version 3, eleven steps).
+    const completed=JSON.parse(JSON.stringify(DB));
+    completed.profile={...completed.profile,onboardingVersion:3,onboardingStep:11,pinnedSymptoms:['sleepq','fog'],intent:'appointment',onboarded:true,onboardingDeferred:false,firstCheckinPending:true};
+    DB=validateBackup(completed); save(true); setRoute('today'); render();
   });
   await page.reload();
   const state=await page.evaluate(() => {

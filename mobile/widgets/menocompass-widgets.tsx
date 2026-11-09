@@ -16,7 +16,7 @@ import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 export const MENO_CHECK_IN_WIDGET_NAME = 'MenoCompassCheckIn';
 export const MENO_INSIGHTS_WIDGET_NAME = 'MenoCompassInsights';
 export const MENO_CHECK_IN_DEEP_LINK = 'menlopass://checkin?source=widget';
-export const MENO_INSIGHTS_DEEP_LINK = 'menlopass://insights?source=widget';
+export const MENO_INSIGHTS_DEEP_LINK = 'menlopass://dossier?source=widget';
 
 export type MenoCompassWidgetProps = {
   completedToday: boolean;
@@ -39,54 +39,51 @@ const MenoCompassCheckInWidgetView = (
       spacing={isMedium ? 10 : 7}
       modifiers={[
         frame({ maxWidth: 1000, maxHeight: 1000, alignment: 'topLeading' }),
-        containerBackground('#0E1618', 'widget'),
+        containerBackground('#FBFBF9', 'widget'),
         widgetURL('menlopass://checkin?source=widget'),
         accessibilityLabel(
           completedToday
-            ? `peri daily check-in complete. ${confirmedDays} of the last 7 days logged.`
-            : `peri daily check-in ready. ${confirmedDays} of the last 7 days logged.`,
+            ? `peri. Today has a page. ${confirmedDays} of the last 7 days on record.`
+            : `peri. Today’s page is blank. ${confirmedDays} of the last 7 days on record.`,
         ),
-        accessibilityHint('Opens the private daily check-in in peri.'),
+        accessibilityHint('Opens the log sheet on today’s page in peri.'),
       ]}
     >
       <HStack spacing={7} alignment="center">
-        <Image
-          systemName={completedToday ? 'checkmark.circle.fill' : 'sparkles'}
-          color="#E8A552"
-          size={18}
-        />
-        <Text modifiers={[font({ textStyle: 'caption', weight: 'bold' }), foregroundStyle('#E8A552')]}>MENOCOMPASS</Text>
+        <Text modifiers={[font({ textStyle: 'caption', weight: 'semibold' }), foregroundStyle('#5F6066')]}>PERI · TODAY</Text>
+        <Spacer />
+        <Image systemName={completedToday ? 'checkmark' : 'plus'} color="#D13A16" size={14} />
       </HStack>
       <Spacer />
       <Text
         modifiers={[
-          font({ textStyle: isMedium ? 'title2' : 'headline', weight: 'bold' }),
-          foregroundStyle('#F4F7F6'),
+          font({ textStyle: isMedium ? 'title2' : 'headline', weight: 'regular', design: 'serif' }),
+          foregroundStyle('#0C0C0D'),
           lineLimit(2),
         ]}
       >
-        {completedToday ? 'Check-in complete' : 'How are you today?'}
+        {completedToday ? 'Today has a page.' : 'Today’s page is blank.'}
       </Text>
       {isMedium ? (
         <Text
           modifiers={[
-            font({ textStyle: 'subheadline', weight: 'medium' }),
-            foregroundStyle('#B8C8C5'),
+            font({ textStyle: 'subheadline', weight: 'regular' }),
+            foregroundStyle('#5F6066'),
             lineLimit(2),
           ]}
         >
-          {completedToday ? 'Your private record is up to date.' : 'Open a quick, private daily check-in.'}
+          {completedToday ? 'Add a moment, or close the day.' : 'One tap files a moment with the time.'}
         </Text>
       ) : null}
       <ProgressView
         value={confirmedDays / 7}
         modifiers={[
-          tint('#E8A552'),
-          accessibilityLabel('Confirmed-day progress'),
+          tint('#0C0C0D'),
+          accessibilityLabel('Days on record'),
           accessibilityValue(`${confirmedDays} of 7 days`),
         ]}
       />
-      <Text modifiers={[font({ textStyle: 'caption2', weight: 'medium' }), foregroundStyle('#93A8A8')]}>{confirmedDays}/7 recent days logged</Text>
+      <Text modifiers={[font({ textStyle: 'caption2', weight: 'medium' }), foregroundStyle('#8A8B91')]}>{confirmedDays} of 7 days on record</Text>
     </VStack>
   );
 };
@@ -107,50 +104,51 @@ const MenoCompassInsightsWidgetView = (
       spacing={isMedium ? 10 : 7}
       modifiers={[
         frame({ maxWidth: 1000, maxHeight: 1000, alignment: 'topLeading' }),
-        containerBackground('#132426', 'widget'),
-        widgetURL('menlopass://insights?source=widget'),
+        containerBackground('#0C0C0D', 'widget'),
+        widgetURL('menlopass://dossier?source=widget'),
         accessibilityLabel(
           ready
-            ? `peri patterns are ready to review. ${confirmedDays} of the last 7 days logged.`
-            : `peri pattern progress. ${confirmedDays} of the last 7 days logged.`,
+            ? `peri dossier. Findings are ready to read. ${confirmedDays} of the last 7 days on record.`
+            : `peri dossier. ${confirmedDays} of the last 7 days on record.`,
         ),
-        accessibilityHint('Opens private pattern insights in peri.'),
+        accessibilityHint('Opens the dossier in peri.'),
       ]}
     >
       <HStack spacing={7} alignment="center">
-        <Image systemName="chart.xyaxis.line" color="#7FC6B7" size={18} />
-        <Text modifiers={[font({ textStyle: 'caption', weight: 'bold' }), foregroundStyle('#7FC6B7')]}>YOUR PATTERNS</Text>
+        <Text modifiers={[font({ textStyle: 'caption', weight: 'semibold' }), foregroundStyle('#9A9BA1')]}>PERI · DOSSIER</Text>
+        <Spacer />
+        <Image systemName="arrow.right" color="#D13A16" size={14} />
       </HStack>
       <Spacer />
       <Text
         modifiers={[
-          font({ textStyle: isMedium ? 'title2' : 'headline', weight: 'bold' }),
-          foregroundStyle('#F4F7F6'),
+          font({ textStyle: isMedium ? 'title2' : 'headline', weight: 'regular', design: 'serif' }),
+          foregroundStyle('#F3F2EE'),
           lineLimit(2),
         ]}
       >
-        {ready ? 'See what is changing' : 'Keep building your picture'}
+        {ready ? 'The findings are ready.' : 'A week makes a finding.'}
       </Text>
       {isMedium ? (
         <Text
           modifiers={[
-            font({ textStyle: 'subheadline', weight: 'medium' }),
-            foregroundStyle('#B8C8C5'),
+            font({ textStyle: 'subheadline', weight: 'regular' }),
+            foregroundStyle('#9A9BA1'),
             lineLimit(2),
           ]}
         >
-          {ready ? 'Review your latest private seven-day patterns.' : 'A few consistent check-ins make patterns clearer.'}
+          {ready ? 'Patterns, treatments and the brief for the visit.' : 'Four days on record and the dossier starts counting.'}
         </Text>
       ) : null}
       <ProgressView
         value={confirmedDays / 7}
         modifiers={[
-          tint('#7FC6B7'),
-          accessibilityLabel('Pattern coverage'),
+          tint('#F3F2EE'),
+          accessibilityLabel('Days on record'),
           accessibilityValue(`${confirmedDays} of 7 days`),
         ]}
       />
-      <Text modifiers={[font({ textStyle: 'caption2', weight: 'medium' }), foregroundStyle('#93A8A8')]}>{confirmedDays}/7 recent days logged</Text>
+      <Text modifiers={[font({ textStyle: 'caption2', weight: 'medium' }), foregroundStyle('#9A9BA1')]}>{confirmedDays} of 7 days on record</Text>
     </VStack>
   );
 };

@@ -66,8 +66,10 @@ test('app and widget extension declare the App Group UserDefaults privacy reason
 test('quick entry links accept only allow-listed peri routes', () => {
   assert.equal(quickRouteFromUrl('menlopass://checkin?source=widget'), 'checkin');
   assert.equal(quickRouteFromUrl('menlopass:/check-in'), 'checkin');
-  assert.equal(quickRouteFromUrl('menlopass://insights'), 'journey');
-  assert.equal(quickRouteFromUrl('menlopass://journey'), 'journey');
+  assert.equal(quickRouteFromUrl('menlopass://log'), 'checkin');
+  assert.equal(quickRouteFromUrl('menlopass://insights'), 'dossier', 'the old widget link still opens the dossier');
+  assert.equal(quickRouteFromUrl('menlopass://journey'), 'dossier');
+  assert.equal(quickRouteFromUrl('menlopass://dossier?source=widget'), 'dossier');
   assert.equal(quickRouteFromUrl('menlopass://trends'), null);
   assert.equal(quickRouteFromUrl('https://menlopass.vercel.app/#journey'), null);
   assert.equal(quickRouteFromUrl('menlopass://profile'), null);

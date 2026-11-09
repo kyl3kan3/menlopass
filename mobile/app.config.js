@@ -156,8 +156,8 @@ module.exports = ({ config }) => {
     const options = plugin[1] || {};
     return [plugin[0], {
       ...options,
-      backgroundColor: '#244b43',
-      dark: { ...options.dark, backgroundColor: '#244b43' },
+      backgroundColor: '#fbfbf9',
+      dark: { ...options.dark, backgroundColor: '#000000' },
     }];
   });
 
@@ -167,13 +167,13 @@ module.exports = ({ config }) => {
       scheme: 'peri-capture',
       updates: { ...config.updates, enabled: false },
     } : {}),
-    backgroundColor: '#f7f5ef',
+    backgroundColor: '#fbfbf9',
     userInterfaceStyle: 'light',
     android: {
       ...config.android,
       adaptiveIcon: {
         ...config.android?.adaptiveIcon,
-        backgroundColor: '#244b43',
+        backgroundColor: '#fbfbf9',
       },
     },
     ios: {

@@ -5,17 +5,23 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Linking, Platform, StyleSheet, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
-import { OnboardingPreview } from '../../OnboardingPreview';
-import { NativeGlassTabs, type MenoCompassPrimaryRoute } from '../../NativeGlassTabs.native';
+import { NativeTabBar, type MenoCompassPrimaryRoute } from '../../NativeTabBar.native';
 import { webViewDiagnosticsScript } from '../../webview-diagnostics';
 import { CAPTURE_NOW, captureFixture } from './fixture';
 import { PrivacyCapture } from './PrivacyCapture';
 
 const appAsset = require('../../assets/menlopass.html');
 type CaptureRoute = MenoCompassPrimaryRoute | 'report' | 'setup' | 'privacy';
-const routes = new Set<string>(['today', 'journey', 'care', 'report', 'guide', 'setup', 'privacy']);
-const primary = new Set<string>(['today', 'journey', 'care', 'guide']);
+const routes = new Set<string>(['today', 'dossier', 'index', 'report', 'setup', 'privacy']);
+const primary = new Set<string>(['today', 'dossier', 'index']);
 const serializedFixture = JSON.stringify(captureFixture());
+/* The letter: the same fixture with the profile not yet onboarded, so the
+   web app opens on the first page with the blanks filled. */
+const letterFixture = (() => {
+  const fixture = captureFixture() as { profile: Record<string, unknown> };
+  fixture.profile = { ...fixture.profile, onboarded: false, onboardingVersion: 4, onboardingStep: 0, stage: null, stageAnswers: null, periodStatus: 'gaps', pinnedSymptoms: ['sleepq', 'hf', 'fog', 'energy'] };
+  return JSON.stringify(fixture);
+})();
 
 function parseLink(url: string | null): { route: CaptureRoute; step: number } | null {
   if (!url) return null;
@@ -70,24 +76,19 @@ function CaptureContent() {
     } catch { /* Ignore non-JSON bridge messages. */ }
   };
 
-  if (screen.route === 'setup') return <OnboardingPreview
-    key={screen.revision}
-    initialDraft={{ step: screen.step, symptoms: ['sleepq', 'energy', 'hf'], intent: 'treatment' }}
-    busy={false} restoreReady={true} onChange={() => {}} onFinish={async () => {}}
-    onRestore={() => {}} onEvent={() => {}}
-  />;
   if (screen.route === 'privacy') return <PrivacyCapture onChoose={() => open('setup')} />;
   if (!html || error) return <SafeAreaView style={styles.container}><StatusBar style="dark" />
-    {error ? <Text selectable>{error}</Text> : <ActivityIndicator color="#244b43" />}
+    {error ? <Text selectable>{error}</Text> : <ActivityIndicator color="#0c0c0d" />}
   </SafeAreaView>;
 
-  const route = screen.route === 'report' ? 'appointment-report' : screen.route;
+  const route = screen.route === 'report' ? 'appointment-report' : screen.route === 'setup' ? 'today' : screen.route;
+  const state = screen.route === 'setup' ? letterFixture : serializedFixture;
   const injection = `
     ${webViewDiagnosticsScript}
     window.__MENO_NATIVE__ = true;
     window.__MENO_NATIVE_TABS__ = ${Platform.OS === 'ios' ? 'true' : 'false'};
     window.__MENO_PRO_ACTIVE__ = true;
-    window.__MENO_PERSISTED_STATE__ = ${JSON.stringify(serializedFixture)};
+    window.__MENO_PERSISTED_STATE__ = ${JSON.stringify(state)};
     (function setCaptureClock() {
       var NativeDate = Date, now = ${JSON.stringify(new Date(CAPTURE_NOW).getTime())};
       function CaptureDate() {
@@ -129,7 +130,7 @@ function CaptureContent() {
       style={styles.webview}
     />
     {Platform.OS === 'ios' && ready && navigation.onboarded && !navigation.sheetOpen && !keyboardVisible && primary.has(navigation.route)
-      ? <NativeGlassTabs activeRoute={navigation.route as MenoCompassPrimaryRoute} onSelect={selected => {
+      ? <NativeTabBar activeRoute={navigation.route as MenoCompassPrimaryRoute} onSelect={(selected: MenoCompassPrimaryRoute) => {
         setNavigation(current => ({ ...current, route: selected, sheetOpen: false }));
         webView.current?.injectJavaScript(`if (location.hash === '#${selected}') window.scrollTo(0, 0); else location.hash = ${JSON.stringify(selected)}; true;`);
       }} /> : null}
@@ -142,6 +143,6 @@ export default function CaptureApp() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f5ef' },
-  webview: { flex: 1, backgroundColor: '#f7f5ef' },
+  container: { flex: 1, backgroundColor: '#fbfbf9' },
+  webview: { flex: 1, backgroundColor: '#fbfbf9' },
 });

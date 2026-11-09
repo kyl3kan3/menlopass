@@ -6,4 +6,4 @@ export type MenoCompassShortcutEvent = {
   url: string;
 };
 
-export type MenoCompassAppShortcutRoute = 'checkin' | 'journey';
+export type MenoCompassAppShortcutRoute = 'checkin' | 'dossier';

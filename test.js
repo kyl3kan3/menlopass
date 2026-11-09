@@ -102,7 +102,8 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
 
     console.log('\n== Native and release contracts ==');
     const nativeApp=fs.readFileSync(path.join(__dirname,'mobile','App.native.tsx'),'utf8');
-    const nativeGlassTabs=fs.readFileSync(path.join(__dirname,'mobile','NativeGlassTabs.native.tsx'),'utf8');
+    const nativeTabBar=fs.readFileSync(path.join(__dirname,'mobile','NativeTabBar.native.tsx'),'utf8');
+    const nativeTheme=fs.readFileSync(path.join(__dirname,'mobile','theme.ts'),'utf8');
     const review=fs.readFileSync(path.join(__dirname,'mobile','reviewPrompt.native.ts'),'utf8');
     const telemetry=fs.readFileSync(path.join(__dirname,'mobile','telemetry.native.ts'),'utf8');
     const metro=fs.readFileSync(path.join(__dirname,'mobile','metro.config.js'),'utf8');
@@ -112,7 +113,7 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
     const eas=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','eas.json'),'utf8'));
     const mobilePackage=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','package.json'),'utf8'));
     const tiktokModuleConfig=JSON.parse(fs.readFileSync(path.join(__dirname,'mobile','modules','menocompass-tiktok-business','expo-module.config.json'),'utf8'));
-    const reviewNotes=fs.readFileSync(path.join(__dirname,'mobile','APP_REVIEW_NOTES_1.2.0.md'),'utf8');
+    const reviewNotes=fs.readFileSync(path.join(__dirname,'mobile','APP_REVIEW_NOTES_2.0.0.md'),'utf8');
     const exportCompliance=fs.readFileSync(path.join(__dirname,'mobile','EXPORT_COMPLIANCE_1.2.0.md'),'utf8');
     const reviewNotesPayload=reviewNotes.split('## Paste into the Notes field')[1]?.split('## Submission attachments')[0]?.trim()||'';
     const releaseQa=fs.readFileSync(path.join(__dirname,'mobile','RELEASE_QA_1.2.0.md'),'utf8');
@@ -120,15 +121,16 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
     const storeDescription=store.apple.info['en-US'].description;
     const supportCopy=fs.readFileSync(path.join(__dirname,'support.html'),'utf8');
     const privacyCopy=fs.readFileSync(path.join(__dirname,'privacy.html'),'utf8');
-    check('inactive iOS entitlement is gated before WebView',nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")>=0&&nativeApp.indexOf("if (Platform.OS === 'ios' && !proActive)")<nativeApp.lastIndexOf('<WebView'));
+    check('the iOS shell opens the page without a subscription and offers Pro after the first finding',!nativeApp.includes('SubscriptionGate')&&!nativeApp.includes('OnboardingPreview')&&nativeApp.includes('offerProAfterFirstFinding();')&&nativeApp.includes("message?.type === 'open-pro-paywall'")&&nativeApp.includes("message?.type === 'restore-purchases'"));
     check('zero-price App Store offers fail closed',nativeApp.includes('introPrice?.price === 0'));
     check('native persistence refreshes the active snapshot',nativeApp.includes('setPersistedState(canonical)')&&nativeApp.includes('setExperienceReady(persistedStateIsOnboarded(canonical))'));
-    check('store copy discloses no free tier or trial',storeDescription.includes('There is no free tier or free trial.'));
+    check('store copy names what is free and what peri Pro unlocks',storeDescription.includes('The page, the ledger, the night desk, the finding of the day, the index and the first-page letter are free')&&storeDescription.includes('unlocks the dossier, the one-page brief, the treatment check-ins and the rehearsal')&&!storeDescription.includes('no free tier'));
     check('support and privacy describe the page, the dossier and You',supportCopy.includes('<strong>Dossier</strong>')&&supportCopy.includes('Close the day')&&supportCopy.includes('open <strong>You</strong>')&&privacyCopy.includes('From You under <strong>Export or restore</strong>')&&!/Open Profile|from Meds|open Settings/.test(supportCopy));
     check('review prompts follow successful check-ins at milestones 2, 5, and 20',review.includes('appReviewMilestones = [2, 5, 20] as const')&&review.includes('registerSuccessfulMoment')&&!review.includes('registerAppOpening'));
     check('direct marketing SDKs are excluded in favor of ATT-gated AppsFlyer',tiktokModuleConfig.platforms.length===0&&!mobilePackage.dependencies['react-native-fbsdk-next']&&!telemetry.includes('initializeTikTok'));
-    check('EAS Update is configured for versioned production releases',!!mobilePackage.dependencies['expo-updates']&&expoApp.version===mobilePackage.version&&expoApp.runtimeVersion===`${expoApp.version}-native-tracking-2`&&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`&&eas.build.production.channel==='production'&&eas.build.production.uploadSourceMaps===true&&mobilePackage.scripts['ota:production:ios']?.includes('env:exec production'));
-    check('native Liquid Glass tabs use runtime and accessibility fallbacks',!!mobilePackage.dependencies['expo-glass-effect']&&!!mobilePackage.dependencies['expo-symbols']&&nativeGlassTabs.includes('isLiquidGlassAvailable()')&&nativeGlassTabs.includes('isGlassEffectAPIAvailable()')&&nativeGlassTabs.includes('isReduceTransparencyEnabled()')&&nativeGlassTabs.includes('fallbackSurface')&&nativeApp.includes('<NativeGlassTabs')&&nativeApp.includes("message?.type === 'navigation-state'"));
+    check('EAS Update is configured for versioned production releases',!!mobilePackage.dependencies['expo-updates']&&expoApp.version===mobilePackage.version&&expoApp.runtimeVersion===`${expoApp.version}-instrument-1`&&expoApp.updates?.url===`https://u.expo.dev/${expoApp.extra.eas.projectId}`&&eas.build.production.channel==='production'&&eas.build.production.uploadSourceMaps===true&&mobilePackage.scripts['ota:production:ios']?.includes('env:exec production'));
+    check('the native tab bar carries the three surfaces in the app’s own type',nativeTabBar.includes("['today', 'dossier', 'index']")&&!nativeTabBar.includes('SymbolView')&&!nativeTabBar.includes('GlassView')&&nativeTabBar.includes('font.sansMedium')&&nativeApp.includes('<NativeTabBar')&&nativeApp.includes("message?.type === 'navigation-state'")&&nativeApp.includes("['today', 'dossier', 'index'].includes(nativeNavigation.route)"));
+    check('the native shell wears the web palette and embeds Fraunces and Instrument Sans',nativeTheme.includes("paper: '#fbfbf9'")&&nativeTheme.includes("vermilion: '#d13a16'")&&JSON.stringify(expoApp.plugins).includes('Fraunces72pt-Regular.ttf')&&JSON.stringify(expoApp.plugins).includes('InstrumentSans-Medium.ttf')&&!fs.existsSync(path.join(__dirname,'mobile','assets','fonts','Bricolage-Regular.ttf'))&&expoApp.ios.icon.dark.endsWith('icon-dark.png')&&JSON.stringify(expoApp.plugins).includes('"backgroundColor":"#fbfbf9"'));
     check('Expo Observe remains the performance and product-event layer',!!mobilePackage.dependencies['expo-observe']&&nativeApp.includes('ObserveRoot.wrap')&&nativeApp.includes('markInteractive')&&telemetry.includes('Observe.configure')&&telemetry.includes('Observe.logEvent'));
     check('sanitized Sentry diagnostics and consented Observe have separate gates',!!mobilePackage.dependencies['@sentry/react-native']&&dynamicAppConfig.includes('@sentry/react-native')&&metro.includes('getSentryExpoConfig')&&telemetry.includes('Observe.configure({ dispatchingEnabled: false')&&telemetry.includes('Observe.reportError(safeError(error))'));
     check('diagnostic privacy declarations and copy cover the new tracking runtime',dynamicAppConfig.includes('NSPrivacyCollectedDataTypeCrashData')&&privacyCopy.includes('Sentry')&&privacyCopy.includes('analytics starts off'));
@@ -141,7 +143,7 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
     const shortcutUrls=manifest.shortcuts.map(item=>item.url).join(' ');
     check('manifest shortcuts open the log, the dossier, the index and red flags',shortcutUrls.includes('#checkin')&&shortcutUrls.includes('#dossier')&&shortcutUrls.includes('#index')&&shortcutUrls.includes('#redflags')&&manifest.theme_color==='#fbfbf9');
     const serviceWorker=fs.readFileSync(path.join(__dirname,'sw.js'),'utf8');
-    check('offline cache version was bumped with the new fonts',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v22')&&serviceWorker.includes('fraunces-latin-opsz-normal.woff2')&&!serviceWorker.includes('bricolage'));
+    check('offline cache version was bumped with the new fonts and icons',serviceWorker.includes("const CACHE_PREFIX = 'meno-compass-'")&&serviceWorker.includes('${CACHE_PREFIX}v23')&&serviceWorker.includes('fraunces-latin-opsz-normal.woff2')&&!serviceWorker.includes('bricolage'));
     check('the native sync inlines every local font',fs.readFileSync(path.join(__dirname,'mobile','scripts','sync-web.cjs'),'utf8').includes('fontPattern'));
 
     fs.mkdirSync(TEST_RESULTS,{recursive:true});
@@ -254,7 +256,7 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
     const nativeFileShare=await seededPage.evaluate(()=>{ download('bridge-check.json','{"ok":true}','application/json'); return window.__nativeMessages.filter(message=>message.type==='share-file').slice(-1)[0]; });
     check('native data export bypasses WebView downloads with typed contents',nativeFileShare?.name==='bridge-check.json'&&nativeFileShare?.mime==='application/json'&&nativeFileShare?.contents==='{"ok":true}');
     const navState=await seededPage.evaluate(()=>window.__nativeMessages.filter(m=>m.type==='navigation-state').map(m=>m.route+':'+m.primary));
-    check('navigation state keeps the native tab names',navState.includes('journey:true')&&navState.includes('appointment-report:false'),JSON.stringify(navState));
+    check('navigation state names the surfaces as the shell knows them',navState.includes('dossier:true')&&navState.includes('appointment-report:false')&&!navState.some(entry=>entry.startsWith('journey')),JSON.stringify(navState));
     await seededPage.getByRole('button',{name:'Dossier',exact:true}).first().click();
     await seededPage.getByRole('button',{name:'Rehearse the opening'}).click();
     check('rehearsal asks for the brief when there is none',await seededPage.getByRole('dialog').getByText('Nothing to rehearse yet.').isVisible());
@@ -282,7 +284,7 @@ async function newPage(browser,baseUrl,label,{state=null,native=false,pro=true,h
     check('a locked dossier shows the offer, not the record',await locked.page.locator('.lock').isVisible()&&await locked.page.getByRole('button',{name:'Unlock peri Pro'}).isVisible()&&await locked.page.locator('.sec').count()===0);
     await locked.page.getByRole('button',{name:'Unlock peri Pro'}).click();
     const paywall=await locked.page.evaluate(()=>window.__nativeMessages.filter(m=>m.type==='open-pro-paywall').map(m=>m.feature));
-    check('unlocking asks the native shell for the paywall',paywall.includes('journey'),JSON.stringify(paywall));
+    check('unlocking asks the native shell for the paywall by the surface name',paywall.includes('dossier')&&!paywall.includes('journey'),JSON.stringify(paywall));
     const lockMap=await locked.page.evaluate(()=>{ const ios=[nativeProLocked('dossier'),nativeProLocked('appointment-report'),nativeProLocked('today'),nativeProLocked('index')]; window.__MENO_NATIVE_SUBSCRIPTIONS__=false; const android=[nativeProLocked('dossier'),nativeProLocked('appointment-report')]; delete window.__MENO_NATIVE_SUBSCRIPTIONS__; return {ios,android}; });
     check('only the dossier and the brief are gated, and only where subscriptions exist',JSON.stringify(lockMap)===JSON.stringify({ios:[true,true,false,false],android:[false,false]}),JSON.stringify(lockMap));
     check('today, the log sheet and the index stay free',await locked.page.evaluate(()=>{ setRoute('today'); render(); return !!document.querySelector('.page-today'); })&&await locked.page.getByRole('button',{name:'Log',exact:true}).isVisible());

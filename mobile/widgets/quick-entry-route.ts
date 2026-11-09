@@ -1,10 +1,12 @@
-export type MenoCompassQuickRoute = 'checkin' | 'journey';
+export type MenoCompassQuickRoute = 'checkin' | 'dossier';
 
 const quickRouteAliases: Record<string, MenoCompassQuickRoute> = {
   checkin: 'checkin',
   'check-in': 'checkin',
-  insights: 'journey',
-  journey: 'journey',
+  log: 'checkin',
+  insights: 'dossier',
+  journey: 'dossier',
+  dossier: 'dossier',
 };
 
 export function quickRouteFromUrl(url: string | null | undefined): MenoCompassQuickRoute | null {

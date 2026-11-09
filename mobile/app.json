@@ -2,8 +2,8 @@
   "expo": {
     "name": "peri",
     "slug": "menlopass",
-    "version": "1.2.3",
-    "runtimeVersion": "1.2.3-native-tracking-2",
+    "version": "2.0.0",
+    "runtimeVersion": "2.0.0-instrument-1",
     "updates": {
       "url": "https://u.expo.dev/e7a9bddc-4193-41a0-81f6-b7c74b59aece"
     },
@@ -17,12 +17,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kyl3kan3.menlopass",
-      "buildNumber": "46",
-      "appStoreUrl": "https://apps.apple.com/app/id6798018790"
+      "buildNumber": "47",
+      "appStoreUrl": "https://apps.apple.com/app/id6798018790",
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png",
+        "tinted": "./assets/icon-tinted.png"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#244b43",
+        "backgroundColor": "#fbfbf9",
         "foregroundImage": "./assets/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -34,17 +39,29 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Fraunces72pt-Regular.ttf",
+            "./assets/fonts/Fraunces72pt-SemiBold.ttf",
+            "./assets/fonts/Fraunces72pt-Italic.ttf",
+            "./assets/fonts/InstrumentSans-Regular.ttf",
+            "./assets/fonts/InstrumentSans-Medium.ttf",
+            "./assets/fonts/InstrumentSans-SemiBold.ttf"
+          ]
+        }
+      ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#244b43",
+          "backgroundColor": "#fbfbf9",
           "image": "./assets/splash-icon.png",
-          "imageWidth": 180,
+          "imageWidth": 160,
           "resizeMode": "contain",
           "dark": {
-            "backgroundColor": "#244b43",
-            "image": "./assets/splash-icon.png"
+            "backgroundColor": "#000000",
+            "image": "./assets/splash-icon-dark.png"
           }
         }
       ]
