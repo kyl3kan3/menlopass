@@ -12,11 +12,12 @@ function harness(allowDismiss = true) {
     react: { Component: class {}, useRef: current => ({ current }), useState: initial => [initial, () => {}], useEffect: callback => callback() },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { View: 'View', Pressable: 'Pressable', Text: 'Text' },
+    'expo-font': { useFonts: () => [true] },
     'react-native-purchases-ui': { __esModule: true, default: { Paywall: 'Paywall' } },
     './commerce-events': { subscriptionSnapshot: customer => ({ access: customer.entitlements.active['MenoCompass Pro'] ? 'active' : 'inactive' }) },
     './telemetry.native': { trackTelemetryEvent: (name, attributes) => events.push({ name, attributes }), setTelemetrySubscriptionState: () => {}, reportTelemetryError: () => {} },
   };
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../TrackedPaywall.native.tsx'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText, { exports, require: name => { if (name === './analytics-session') return { uuid: require('node:crypto').randomUUID }; if (!(name in mocks)) throw new Error(name); return mocks[name]; } });
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../TrackedPaywall.native.tsx'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText, { exports, require: name => { if (name === './analytics-session') return { uuid: require('node:crypto').randomUUID }; if (name.startsWith('./assets/fonts/') && name.endsWith('.ttf')) return name; if (!(name in mocks)) throw new Error(name); return mocks[name]; } });
   const tree = exports.TrackedPaywall({ offering: { identifier: 'test-offering' }, source: 'subscribe_button', allowDismiss, onCustomer: customer => customers.push(customer), onClose: () => closed.push(true), onFailure: () => {} });
   const nodes = [];
   const visit = node => { if (!node || typeof node !== 'object') return; if (Array.isArray(node)) { node.forEach(visit); return; } nodes.push(node); visit(node.props?.children); };

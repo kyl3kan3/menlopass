@@ -16,6 +16,7 @@ function load(file, mocks = {}, globals = {}) {
     require: name => {
       if (name === '../shared/tracking-contract') return require('../../shared/tracking-contract');
       if (name === './analytics-session') return { uuid: require('node:crypto').randomUUID };
+      if (name.startsWith('./assets/fonts/') && name.endsWith('.ttf')) return name;
       if (!(name in mocks)) throw new Error(`Unexpected import ${name}`);
       return mocks[name];
     }, ...globals,
@@ -57,6 +58,7 @@ function paywallHarness() {
     react: { Component: class {}, useRef: value => ({ current: value }), useState: value => [value, () => {}], useEffect: effect => effects.push(effect) },
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
     'react-native': { View: 'View', Pressable: 'Pressable', Text: 'Text' },
+    'expo-font': { useFonts: () => [true] },
     'react-native-purchases-ui': { __esModule: true, default: { Paywall: 'Paywall' } },
     './commerce-events': commerce,
     './telemetry.native': {

@@ -1714,7 +1714,7 @@ function App() {
 
   if (Platform.OS === 'ios' && paywall) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#f8f4ed' }]}>
         <StatusBar style="dark" />
         <TrackedPaywall
           offering={paywall.offering}

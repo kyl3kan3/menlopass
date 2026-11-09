@@ -1,10 +1,19 @@
 import { uuid } from './analytics-session';
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useFonts } from 'expo-font';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { subscriptionSnapshot } from './commerce-events';
 import { reportTelemetryError, setTelemetrySubscriptionState, trackTelemetryEvent } from './telemetry.native';
+
+const BRICOLAGE = {
+  'Bricolage-Regular': require('./assets/fonts/Bricolage-Regular.ttf'),
+  'Bricolage-SemiBold': require('./assets/fonts/Bricolage-SemiBold.ttf'),
+  'Bricolage-Bold': require('./assets/fonts/Bricolage-Bold.ttf'),
+  'Bricolage-ExtraBold': require('./assets/fonts/Bricolage-ExtraBold.ttf'),
+};
+const PAPER = '#f8f4ed', INK = '#244b43', MUTED = '#5f6f66', SAGE = '#e4ecda', LEAF = '#a3c28e';
 
 type Props = {
   offering: PurchasesOffering;
@@ -29,6 +38,9 @@ class PaywallBoundary extends Component<{ children: ReactNode; onFailure: () => 
 }
 
 export function TrackedPaywall({ offering, source, allowDismiss = false, personalizedSymptoms, onCustomer, onClose, onFailure }: Props) {
+  const [fontsReady] = useFonts(BRICOLAGE);
+  // Keep the purchase view available while fonts load; use the same static faces as setup.
+  const font = (family: keyof typeof BRICOLAGE) => fontsReady ? { fontFamily: family, fontWeight: 'normal' as const } : null;
   const mounted = useRef(false);
   const finished = useRef(false);
   const [storeBusy, setStoreBusy] = useState(false);
@@ -75,16 +87,16 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, persona
 
   return (
     <PaywallBoundary onFailure={onFailure}>
-      <View style={{ flex: 1 }}>
-        {allowDismiss && <Pressable accessibilityRole="button" accessibilityLabel="Back to my preview" accessibilityState={{ disabled: storeBusy }} disabled={storeBusy} onPress={dismiss} style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 24, backgroundColor: '#f7f5ef' }}><Text style={{ fontSize: 15, color: '#244b43' }}>Back to my preview</Text></Pressable>}
+      <View style={{ flex: 1, backgroundColor: PAPER }}>
+        {allowDismiss && <Pressable accessibilityRole="button" accessibilityLabel="Back to my preview" accessibilityState={{ disabled: storeBusy }} disabled={storeBusy} onPress={dismiss} style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 24, backgroundColor: PAPER }}><Text style={[{ fontSize: 15, color: INK }, font('Bricolage-Regular')]}>Back to my preview</Text></Pressable>}
         {focusLabels.length > 0 && (
-          <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8, backgroundColor: '#f7f3f8', borderBottomWidth: 1, borderBottomColor: '#e2d8ea' }}>
-            <Text style={{ fontSize: 11, letterSpacing: 1.2, color: '#8b6fa8', fontWeight: '700', marginBottom: 6 }}>YOUR PLAN FOCUS</Text>
-            <Text accessibilityRole="header" style={{ fontSize: 22, lineHeight: 26, color: '#3d2f4a', fontWeight: '800', marginBottom: 8 }}>Built around what you shared</Text>
+          <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 16, backgroundColor: PAPER, borderBottomWidth: 1, borderBottomColor: '#e6e0d5' }}>
+            <Text style={[{ fontSize: 11, letterSpacing: 1.2, color: MUTED, fontWeight: '700', marginBottom: 6 }, font('Bricolage-Bold')]}>YOUR PLAN FOCUS</Text>
+            <Text accessibilityRole="header" style={[{ fontSize: 22, lineHeight: 26, color: INK, fontWeight: '800', marginBottom: 8 }, font('Bricolage-ExtraBold')]}>Built around what you shared</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {focusLabels.map(label => (
-                <View key={label} style={{ backgroundColor: '#ece4f3', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: '#ddd0eb' }}>
-                  <Text style={{ fontSize: 14, color: '#3d2f4a', fontWeight: '600' }}>{label}</Text>
+                <View key={label} style={{ backgroundColor: SAGE, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: LEAF }}>
+                  <Text style={[{ fontSize: 14, color: INK, fontWeight: '600' }, font('Bricolage-SemiBold')]}>{label}</Text>
                 </View>
               ))}
             </View>
