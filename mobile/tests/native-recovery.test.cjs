@@ -126,7 +126,7 @@ function appHarness() {
   }, refs = [];
   disk.entries.set('/documents/menocompass-state.secure', 'unreadable ciphertext');
   disk.entries.set('/asset.html', '<html>bundled app</html>');
-  let stateIndex = 0, refIndex = 0, decryptFails = true, assetFails = false;
+  let stateIndex = 0, refIndex = 0, decryptFails = true, assetFails = false, offeringsFail = false;
   let clearRecord = '{"v":8,"profile":{},"entries":{}}';
   const source = fs.readFileSync(path.join(__dirname, '../App.native.tsx'), 'utf8');
   const componentSource = source.slice(source.indexOf('function App() {'), source.indexOf('function AppWithSafeArea()'));
@@ -143,7 +143,7 @@ function appHarness() {
     },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'react-native': { Platform: { OS: 'ios' }, AppState: { currentState: 'active' }, StyleSheet: { create: value => value }, Alert: { alert: (...args) => alerts.push(args) }, View: 'View', Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView' },
-    'react-native-purchases': { __esModule: true, default: { getOfferings: async () => ({ current: offering }) } },
+    'react-native-purchases': { __esModule: true, default: { getOfferings: async () => { if (offeringsFail) throw new Error('offline'); return { current: offering }; } } },
     'react-native-webview': { WebView: 'WebView' },
     './TrackedPaywall.native': { TrackedPaywall: 'TrackedPaywall' },
     './NativeTabBar.native': { NativeTabBar: 'NativeTabBar' },
@@ -178,7 +178,7 @@ function appHarness() {
   return { ...disk, state, alerts, replay, tracked, paywalls, render, webMessage,
     runReplay: () => effects.find(effect => effect.toString().includes('setTelemetryReplay'))(),
     runBoot: () => effects.find(effect => effect.toString().includes('readPersistedState'))(),
-    allowDecrypt: value => { decryptFails = false; if (value) clearRecord = value; }, failAsset: () => { assetFails = true; } };
+    allowDecrypt: value => { decryptFails = false; if (value) clearRecord = value; }, failAsset: () => { assetFails = true; }, failOfferings: () => { offeringsFail = true; } };
 }
 
 test('boot recovery remains behind App Lock; retry reads the preserved record again', async () => {
@@ -291,6 +291,21 @@ test('a Pro surface asks for the paywall through the bridge; restore goes throug
   await settle();
   assert.equal(h.state.paywall?.source, 'feature');
   assert.equal(h.tracked.find(entry => entry.event === 'paywall_requested').source, 'feature');
+});
+
+test('a store failure on a request she made is said out loud; the automatic offer fails quietly', async () => {
+  const h = appHarness(); openApp(h); h.failOfferings();
+  h.webMessage({ type: 'onboarding-finished', skipped: false });
+  await settle();
+  assert.equal(h.state.paywall, null);
+  assert.equal(h.alerts.length, 0, 'the offer after the letter does not complain when the store is unreachable');
+  assert.match(h.state.subscriptionIssue, /App Store/);
+  h.webMessage({ type: 'open-pro-paywall', feature: 'dossier' });
+  await settle();
+  assert.equal(h.alerts.length, 1);
+  assert.equal(h.alerts[0][0], 'peri Pro could not open');
+  assert.match(h.alerts[0][1], /App Store/);
+  assert.equal(h.tracked.filter(entry => entry.event === 'paywall_failed').length, 2);
 });
 
 test('navigation state carries the three routes and the night flag to the tab bar', () => {

@@ -909,6 +909,15 @@ function App() {
     webContentReady,
   ]);
 
+  /* Without the old gate there is no screen that shows a subscription problem,
+     so a request she made herself (a tap on Unlock, or a locked surface) says
+     why the store did not open. The automatic offer after the letter stays
+     quiet: she did not ask for it. */
+  const surfaceSubscriptionIssue = (message: string, source: 'automatic' | 'subscribe_button' | 'feature') => {
+    setSubscriptionIssue(message);
+    if (source !== 'automatic') Alert.alert('peri Pro could not open', message);
+  };
+
   const openPaywall = async (source: 'automatic' | 'subscribe_button' | 'feature') => {
     if (!revenueCatReady || purchaseBusy || paywall || paywallLoadingRef.current) return;
     paywallLoadingRef.current = true;
@@ -918,7 +927,7 @@ function App() {
       const offerings = await Purchases.getOfferings();
       if (!offerings.current || offerings.current.availablePackages.length === 0) {
         trackTelemetryEvent('paywall_failed', { source, reason: 'no_offering' });
-        setSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.');
+        surfaceSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.', source);
         return;
       }
 
@@ -929,7 +938,7 @@ function App() {
       );
       if (hasFreeTrial) {
         trackTelemetryEvent('paywall_failed', { source, reason: 'free_offer' });
-        setSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.');
+        surfaceSubscriptionIssue('Subscription plans are temporarily unavailable. Please try again later.', source);
         if (__DEV__) console.error('Remove the free introductory offer from every peri product in App Store Connect.');
         return;
       }
@@ -939,7 +948,7 @@ function App() {
     } catch (reason) {
       trackTelemetryEvent('paywall_failed', { source, reason: 'offerings_error' });
       reportTelemetryError(reason);
-      setSubscriptionIssue('peri could not reach the App Store. Check your connection and try again.');
+      surfaceSubscriptionIssue('peri could not reach the App Store. Check your connection and try again.', source);
     } finally {
       paywallLoadingRef.current = false;
       setPurchaseBusy(false);
@@ -949,7 +958,7 @@ function App() {
   const requestPaywall = (source: 'subscribe_button' | 'feature' = 'subscribe_button') => {
     if (purchaseBusy || proActive) return;
     if (!revenueCatReady) {
-      setSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.');
+      surfaceSubscriptionIssue('Subscriptions are temporarily unavailable. Please reopen peri and try again.', source);
       return;
     }
     void openPaywall(source);
@@ -1376,7 +1385,7 @@ function App() {
           onClose={() => setPaywall(null)}
           onFailure={() => {
             setPaywall(null);
-            setSubscriptionIssue('The subscription screen could not load. Please try again.');
+            surfaceSubscriptionIssue('The subscription screen could not load. Please try again.', paywall.source === 'automatic' ? 'automatic' : 'feature');
           }}
         />
       </SafeAreaView>
