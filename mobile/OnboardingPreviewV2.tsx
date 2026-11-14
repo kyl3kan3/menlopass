@@ -17,10 +17,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import {
   defaults,
+  concernBucket,
   goalFor,
   goals,
   labelsFor,
   normalizeDraft,
+  onboardingAnalyticsProperties,
   symptoms,
   versionV2Flow,
   type OnboardingDraft,
@@ -185,7 +187,18 @@ export function OnboardingPreviewV2(props: Props) {
     };
     const leave = () => {
       if (started === null) return;
-      event.current('onboarding_step_left', { step: draft.step, durationMs: Math.min(3_600_000, Date.now() - started), surface: 'native_preview', flowVersion });
+      const analytics = draft.step === GOAL_STEP
+        ? onboardingAnalyticsProperties(draft, versionV2Flow)
+        : draft.step === SYMPTOMS_STEP
+          ? { onboardingConcernBucket: concernBucket(draft.symptoms.length) }
+          : {};
+      event.current('onboarding_step_left', {
+        step: draft.step,
+        durationMs: Math.min(3_600_000, Date.now() - started),
+        surface: 'native_preview',
+        flowVersion,
+        ...analytics,
+      });
       started = null;
     };
     if (AppState.currentState === 'active') enter();
@@ -520,7 +533,20 @@ export function OnboardingPreviewV2(props: Props) {
           </Pressable>
         )}
         {draft.step < SUMMARY_STEP && draft.step !== 0 && (
-          <Pressable accessibilityRole="button" disabled={busy} onPress={() => change({ step: SUMMARY_STEP, symptoms: draft.symptoms.length ? draft.symptoms : defaults, intent: draft.intent || 'understand' })} style={styles.secondary}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={() => {
+              event.current('onboarding_step_skipped', {
+                step: draft.step,
+                skipTarget: SUMMARY_STEP,
+                surface: 'native_preview',
+                flowVersion,
+              });
+              change({ step: SUMMARY_STEP, symptoms: draft.symptoms.length ? draft.symptoms : defaults, intent: draft.intent || 'understand' });
+            }}
+            style={styles.secondary}
+          >
             <Text style={[styles.linkText, semibold]}>Use a starter check-in</Text>
           </Pressable>
         )}

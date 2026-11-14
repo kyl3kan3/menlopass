@@ -2,7 +2,7 @@
 // customer identities or arbitrary error messages are part of this contract.
 const events = [
   'Application Installed', 'analytics_enabled', 'session_started', 'app_launched',
-  'onboarding_started', 'onboarding_step_viewed', 'onboarding_step_left', 'onboarding_completed',
+  'onboarding_started', 'onboarding_step_viewed', 'onboarding_step_left', 'onboarding_step_skipped', 'onboarding_completed',
   'onboarding_selection_limit', 'onboarding_variant_assigned', 'checkin_confirmed', 'report_opened', 'subscription_management_opened',
   'screen_viewed', 'webview_ready', 'diagnostic_probe', 'subscription_status_checked',
   'subscription_check_failed', 'paywall_requested', 'paywall_rendered', 'paywall_failed', 'paywall_dismissed',
@@ -20,6 +20,8 @@ const enums = {
   route: ['today', 'journey', 'care', 'guide', 'profile', 'checkin', 'appointment-report', 'today-details'],
   variant: ['control', 'v2'],
   onboardingVariant: ['control', 'v2'],
+  onboardingIntent: ['understand', 'treatment', 'appointment', 'record'],
+  onboardingConcernBucket: ['0', '1', '2_3', '4_6'],
 };
 const common = ['access', 'storeEnvironment', 'periodType', 'ownershipType'];
 function project(event, input = {}, productIds = []) {
@@ -28,8 +30,9 @@ function project(event, input = {}, productIds = []) {
   let keys = [...common];
   if (/^(purchase_|paywall_|subscription_)/.test(event)) keys.push('source', 'reason', 'packageType', 'productId', 'errorCode');
   if (event.startsWith('purchase_')) keys.push('attemptId', 'durationMs', 'price', 'currency');
-  if (event.startsWith('onboarding_')) keys.push('step', 'flowVersion', 'surface', 'onboardingVariant');
+  if (event.startsWith('onboarding_')) keys.push('step', 'flowVersion', 'surface', 'onboardingVariant', 'onboardingIntent', 'onboardingConcernBucket');
   if (event === 'onboarding_step_left') keys.push('durationMs');
+  if (event === 'onboarding_step_skipped') keys.push('skipTarget');
   if (event === 'onboarding_completed') keys.push('skipped');
   if (event === 'onboarding_variant_assigned') keys.push('variant', 'offeringId', 'flowVersion');
   if (event === 'screen_viewed') keys.push('route');
@@ -41,6 +44,7 @@ function project(event, input = {}, productIds = []) {
     if (key === 'errorCode' && /^\d{1,3}$/.test(String(value))) out[key] = String(value);
     if (key === 'durationMs' && Number.isInteger(value) && value >= 0 && value <= 3600000) out[key] = value;
     if (key === 'step' && Number.isInteger(value) && value >= 0 && value <= 11) out[key] = value;
+    if (key === 'skipTarget' && Number.isInteger(value) && value >= 0 && value <= 11) out[key] = value;
     if (key === 'flowVersion' && (value === 2 || value === 3)) out[key] = value;
     if (key === 'variant' && enums.variant.includes(value)) out[key] = value;
     if (key === 'onboardingVariant' && enums.onboardingVariant.includes(value)) out[key] = value;
