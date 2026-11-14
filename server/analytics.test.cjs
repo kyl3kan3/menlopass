@@ -23,6 +23,22 @@ test('strict contract rejects injected properties, product IDs, invalid prices a
   assert.equal(contract.providerEligible({ name: 'screen_viewed', properties: { route: 'appointment-report' } }), false);
   assert.equal('$session_id' in contract.providerProperties(valid), false);
 });
+test('onboarding intent and skip events accept derived, non-symptom properties only', () => {
+  const completed = contract.project('onboarding_completed', {
+    step: 11, flowVersion: 3, surface: 'native_preview', skipped: false,
+    onboardingIntent: 'understand', onboardingConcernBucket: '2_3',
+  });
+  assert.deepEqual(completed, {
+    schemaVersion: 3, step: 11, flowVersion: 3, surface: 'native_preview', skipped: false,
+    onboardingIntent: 'understand', onboardingConcernBucket: '2_3',
+  });
+  const skipped = contract.project('onboarding_step_skipped', { step: 4, skipTarget: 9, flowVersion: 3, surface: 'native_preview' });
+  assert.deepEqual(skipped, { schemaVersion: 3, step: 4, skipTarget: 9, flowVersion: 3, surface: 'native_preview' });
+  const rejectedIntent = contract.project('onboarding_completed', { step: 11, flowVersion: 3, skipped: false, onboardingIntent: 'sleepq' });
+  assert.equal('onboardingIntent' in rejectedIntent, false);
+  const rejectedBucket = contract.project('onboarding_completed', { step: 11, flowVersion: 3, skipped: false, onboardingConcernBucket: 'seven' });
+  assert.equal('onboardingConcernBucket' in rejectedBucket, false);
+});
 test('pseudonym has the same deterministic namespace as mobile and never exposes credential or subscription ID', () => {
   const token = 'a'.repeat(64), id = analytics.hash(token);
   assert.equal(analytics.pseudonym(id), 'peri_' + analytics.hash(`peri:analytics:v1:${id}`));

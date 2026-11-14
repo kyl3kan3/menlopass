@@ -16,6 +16,7 @@ function load(file, mocks = {}, globals = {}) {
     require: name => {
       if (name === '../shared/tracking-contract') return require('../../shared/tracking-contract');
       if (name === './analytics-session') return { uuid: require('node:crypto').randomUUID };
+      if (name === './onboarding-model') return require('../onboarding-model');
       if (!(name in mocks)) throw new Error(`Unexpected import ${name}`);
       return mocks[name];
     }, ...globals,

@@ -12,10 +12,10 @@ const PeriOnboarding = (() => {
     ['dizzy', 'Dizziness'], ['irritable', 'Irritability'], ['overwhelmed', 'Feeling overwhelmed'],
   ].map(([key, label]) => ({ key, label }));
   const goals = [
-    { key: 'understand', label: 'Understand my symptoms', reply: 'Your chosen symptoms will be front and center in each check-in.', benefit: 'Keep a simple record of how things feel, then explore changes as your record grows.' },
-    { key: 'treatment', label: 'Keep track of treatment', reply: 'You can keep treatment changes alongside how you feel.', benefit: 'Add a treatment in Care when you’re ready, then follow your own experience over time.' },
-    { key: 'appointment', label: 'Prepare for an appointment', reply: 'Let’s make it easier to remember what you want to discuss.', benefit: 'Your check-ins can become a focused summary to bring to your next appointment.' },
-    { key: 'record', label: 'Make a little space for myself', reply: 'A small check-in, at your own pace. No perfect streak needed.', benefit: 'Keep a private record you can come back to whenever it helps.' },
+    { key: 'understand', label: 'Understand my symptoms', reply: 'Your chosen symptoms will be front and center in each check-in.', benefit: 'Keep a simple record of how things feel, then explore changes as your record grows.', fasterOutcome: 'clarity on your symptoms' },
+    { key: 'treatment', label: 'Keep track of treatment', reply: 'You can keep treatment changes alongside how you feel.', benefit: 'Add a treatment in Care when you’re ready, then follow your own experience over time.', fasterOutcome: 'treatment changes in one place' },
+    { key: 'appointment', label: 'Prepare for an appointment', reply: 'Let’s make it easier to remember what you want to discuss.', benefit: 'Your check-ins can become a focused summary to bring to your next appointment.', fasterOutcome: 'your next appointment prepared' },
+    { key: 'record', label: 'Make a little space for myself', reply: 'A small check-in, at your own pace. No perfect streak needed.', benefit: 'Keep a private record you can come back to whenever it helps.', fasterOutcome: 'space for yourself' },
   ];
   const defaults = ['sleepq', 'energy', 'hf'];
   const keys = new Set(symptoms.map(item => item.key));
@@ -38,6 +38,18 @@ const PeriOnboarding = (() => {
   }
   function goalFor(intent) { return goals.find(goal => goal.key === intent) || goals[0]; }
   function labelsFor(selected) { return selected.map(key => symptoms.find(item => item.key === key)?.label).filter(Boolean); }
+  function concernBucket(count) {
+    if (count <= 0) return '0';
+    if (count === 1) return '1';
+    if (count <= 3) return '2_3';
+    return '4_6';
+  }
+  function onboardingAnalyticsProperties(draft, flowVersion = versionV2Flow) {
+    const normalized = normalizeDraft(draft, flowVersion);
+    const properties = { onboardingConcernBucket: concernBucket(normalized.symptoms.length) };
+    if (goals.some(goal => goal.key === normalized.intent)) properties.onboardingIntent = normalized.intent;
+    return properties;
+  }
   function profilePatch(value, complete = false, skipped = false, flowVersion = version) {
     const draft = normalizeDraft(value, flowVersion);
     const finalStep = finalStepFor(flowVersion);
@@ -68,6 +80,6 @@ const PeriOnboarding = (() => {
       && (profile.onboardingVersion === version || profile.onboardingVersion === versionV2Flow);
     return profile.onboarded !== true || pendingFirstCheckin;
   }
-  return { version, versionV2Flow, symptoms, goals, defaults, normalizeDraft, draftFromProfile, goalFor, labelsFor, profilePatch, parseState, writeDraft, needsPreview };
+  return { version, versionV2Flow, symptoms, goals, defaults, normalizeDraft, draftFromProfile, goalFor, labelsFor, concernBucket, onboardingAnalyticsProperties, profilePatch, parseState, writeDraft, needsPreview };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PeriOnboarding;

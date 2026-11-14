@@ -64,3 +64,18 @@ test('after the first confirmed check-in, an expired entitlement should lead to 
   state.profile.firstCheckinPending = false;
   assert.equal(model.needsPreview(JSON.stringify(state)), false);
 });
+
+test('onboarding analytics uses intent categories and concern-count buckets only', () => {
+  assert.equal(model.concernBucket(0), '0');
+  assert.equal(model.concernBucket(1), '1');
+  assert.equal(model.concernBucket(3), '2_3');
+  assert.equal(model.concernBucket(6), '4_6');
+  assert.deepEqual(model.onboardingAnalyticsProperties({ step: 8, symptoms: ['hf', 'sleepq'], intent: 'appointment' }, model.versionV2Flow), {
+    onboardingIntent: 'appointment',
+    onboardingConcernBucket: '2_3',
+  });
+  assert.deepEqual(model.onboardingAnalyticsProperties({ step: 1, symptoms: [], intent: '' }, model.versionV2Flow), {
+    onboardingConcernBucket: '0',
+  });
+  assert.ok(model.goalFor('treatment').fasterOutcome.length > 0);
+});

@@ -19,7 +19,7 @@ import { OtaUpdateBanner, useOtaUpdate } from './OtaUpdate.native';
 import { TrackedPaywall } from './TrackedPaywall.native';
 import { OnboardingPreview, type PreviewEvent } from './OnboardingPreview';
 import { OnboardingPreviewV2 } from './OnboardingPreviewV2';
-import { draftFromProfile, labelsFor, needsPreview, parseState, writeDraft, versionV2Flow, type OnboardingDraft } from './onboarding-model';
+import { draftFromProfile, labelsFor, needsPreview, onboardingAnalyticsProperties, parseState, writeDraft, versionV2Flow, type OnboardingDraft } from './onboarding-model';
 import {
   flowVersionForVariant,
   type OnboardingVariant,
@@ -532,6 +532,7 @@ function App() {
     offering: PurchasesOffering;
     source: 'automatic' | 'subscribe_button' | 'feature';
     personalizedSymptoms?: string[];
+    onboardingIntent?: string;
   } | null>(null);
   const [onboardingVariant, setOnboardingVariant] = useState<OnboardingVariant>('control');
   const onboardingVariantResolvedRef = useRef(false);
@@ -1184,6 +1185,7 @@ function App() {
   const openPaywall = async (
     source: 'automatic' | 'subscribe_button' | 'feature',
     personalizedSymptoms?: string[],
+    onboardingIntent?: string,
   ) => {
     if (!revenueCatReady || purchaseBusy || paywall || paywallLoadingRef.current) return;
     paywallLoadingRef.current = true;
@@ -1214,6 +1216,9 @@ function App() {
         offering: offerings.current,
         source,
         personalizedSymptoms: personalizedSymptoms?.length ? personalizedSymptoms : undefined,
+        onboardingIntent: onboardingIntent && ['understand', 'treatment', 'appointment', 'record'].includes(onboardingIntent)
+          ? onboardingIntent
+          : undefined,
       });
     } catch (reason) {
       trackTelemetryEvent('paywall_failed', { source, reason: 'offerings_error' });
@@ -1277,6 +1282,7 @@ function App() {
         flowVersion: flowVersionForVariant(onboardingVariant),
         onboardingVariant,
         surface: 'native_preview',
+        ...(onboardingVariant === 'v2' ? onboardingAnalyticsProperties(draft, versionV2Flow) : {}),
       });
     }
     if (!revenueCatReady) {
@@ -1286,7 +1292,8 @@ function App() {
     const personalizedSymptoms = onboardingVariant === 'v2'
       ? labelsFor(draft.symptoms).slice(0, 3)
       : undefined;
-    await openPaywall('subscribe_button', personalizedSymptoms);
+    const intentForPaywall = onboardingVariant === 'v2' && draft.intent ? draft.intent : undefined;
+    await openPaywall('subscribe_button', personalizedSymptoms, intentForPaywall);
   };
 
   useEffect(() => {
@@ -1720,6 +1727,7 @@ function App() {
           offering={paywall.offering}
           source={paywall.source}
           personalizedSymptoms={paywall.personalizedSymptoms}
+          onboardingIntent={paywall.onboardingIntent}
           allowDismiss={showOnboardingPreview}
           onCustomer={customerInfo => {
             const active = hasProAccess(customerInfo);

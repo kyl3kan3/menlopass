@@ -17,7 +17,7 @@ const BRICOLAGE = {
 };
 const INK = '#244b43', INK_2 = '#5f6f66', PAPER = '#f8f4ed', NOTE = '#fffefa', LINE = '#e6e0d5', SAGE = '#dce7d1', SAGE_2 = '#e4ecda', LEAF = '#a3c28e', PEACH = '#f2b5a0', MINT = '#3c6857';
 
-export type PreviewEvent = 'onboarding_started' | 'onboarding_step_viewed' | 'onboarding_step_left' | 'onboarding_selection_limit';
+export type PreviewEvent = 'onboarding_started' | 'onboarding_step_viewed' | 'onboarding_step_left' | 'onboarding_step_skipped' | 'onboarding_selection_limit';
 type Props = {
   initialDraft: OnboardingDraft;
   busy: boolean;

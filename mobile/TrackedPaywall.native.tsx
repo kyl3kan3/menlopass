@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { subscriptionSnapshot } from './commerce-events';
+import { goalFor } from './onboarding-model';
 import { reportTelemetryError, setTelemetrySubscriptionState, trackTelemetryEvent } from './telemetry.native';
 
 type Props = {
@@ -12,6 +13,8 @@ type Props = {
   allowDismiss?: boolean;
   /** Shown above RevenueCat paywall when onboarding supplied symptom focus (A/B variant). */
   personalizedSymptoms?: string[];
+  /** Step-8 intent key for the outcome headline (no health payloads). */
+  onboardingIntent?: string;
   onCustomer: (customerInfo: CustomerInfo) => void;
   onClose: () => void;
   onFailure: () => void;
@@ -28,7 +31,7 @@ class PaywallBoundary extends Component<{ children: ReactNode; onFailure: () => 
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-export function TrackedPaywall({ offering, source, allowDismiss = false, personalizedSymptoms, onCustomer, onClose, onFailure }: Props) {
+export function TrackedPaywall({ offering, source, allowDismiss = false, personalizedSymptoms, onboardingIntent, onCustomer, onClose, onFailure }: Props) {
   const mounted = useRef(false);
   const finished = useRef(false);
   const [storeBusy, setStoreBusy] = useState(false);
@@ -72,6 +75,10 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, persona
   };
 
   const focusLabels = personalizedSymptoms?.filter(Boolean).slice(0, 3) ?? [];
+  const intentOutcome = onboardingIntent ? goalFor(onboardingIntent).fasterOutcome : '';
+  const focusHeadline = intentOutcome
+    ? `Get to ${intentOutcome} faster`
+    : 'Built around what you shared';
 
   return (
     <PaywallBoundary onFailure={onFailure}>
@@ -80,7 +87,7 @@ export function TrackedPaywall({ offering, source, allowDismiss = false, persona
         {focusLabels.length > 0 && (
           <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8, backgroundColor: '#f7f3f8', borderBottomWidth: 1, borderBottomColor: '#e2d8ea' }}>
             <Text style={{ fontSize: 11, letterSpacing: 1.2, color: '#8b6fa8', fontWeight: '700', marginBottom: 6 }}>YOUR PLAN FOCUS</Text>
-            <Text accessibilityRole="header" style={{ fontSize: 22, lineHeight: 26, color: '#3d2f4a', fontWeight: '800', marginBottom: 8 }}>Built around what you shared</Text>
+            <Text accessibilityRole="header" style={{ fontSize: 22, lineHeight: 26, color: '#3d2f4a', fontWeight: '800', marginBottom: 8 }}>{focusHeadline}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {focusLabels.map(label => (
                 <View key={label} style={{ backgroundColor: '#ece4f3', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: '#ddd0eb' }}>
